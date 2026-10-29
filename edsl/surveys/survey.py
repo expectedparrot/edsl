@@ -236,6 +236,7 @@ class Survey(Base):
         *,
         screenshot_paths=None,
         output_dir=None,
+        scenario=None,
         reviewer_question_text=(
             "What is your name? (Your name will be attached to your review comments.)"
         ),
@@ -263,6 +264,7 @@ class Survey(Base):
             self,
             screenshot_paths=screenshot_paths,
             output_dir=output_dir,
+            scenario=scenario,
             reviewer_question_text=reviewer_question_text,
             reviewer_question_name=reviewer_question_name,
             approval_options=approval_options,
