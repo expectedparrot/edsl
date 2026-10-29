@@ -28,6 +28,7 @@ def _unique_object(pairs):
 
 
 _FENCE_OPEN = re.compile(r"```(?:json)?\s*$", re.I)
+_LEADING_FENCE = re.compile(r"```(?:json)?\s*", re.I)
 _FENCE_CLOSE = re.compile(r"^```\s*", re.I)
 _COMMENT_PREFIX = re.compile(r"^COMMENT:\s*", re.I)
 _ERROR_MARKER = "[ERROR:"
@@ -44,17 +45,31 @@ def _strip_surroundings(preamble, trailing):
 def _decode_generated(text, keys=None):
     """Read the original JSON before generic response repair can change values.
 
-    Models often wrap the object in a code fence, reason in prose before
-    emitting it, or restate the example object from the instructions. The
+    The instructions ask for the object first and any comment after it, so
+    a response that opens with a matching object (optionally fenced) is
+    answered by that object, and the comment is not searched for others.
+
+    Models that ignore this often reason in prose before the object or
+    restate the example object from the instructions. For those, the
     last object whose keys match ``keys`` is taken as the answer, since a
     model's final answer follows its reasoning; anything around it becomes
-    the comment. Duplicate keys inside the chosen object are
-    still rejected so that nothing is silently repaired. An object left
-    open after the last complete one is a truncated final answer, so it
-    is rejected rather than falling back to an earlier object.
+    the comment. An object left open after the last complete one is a
+    truncated final answer, so it is rejected rather than falling back to
+    an earlier object. Duplicate keys inside the chosen object are still
+    rejected so that nothing is silently repaired.
     """
     decoder = json.JSONDecoder(object_pairs_hook=_unique_object)
     stripped = text.strip()
+    fence = _LEADING_FENCE.match(stripped)
+    start = fence.end() if fence else 0
+    if stripped.startswith("{", start):
+        try:
+            answer, end = decoder.raw_decode(stripped, start)
+        except json.JSONDecodeError:
+            pass
+        else:
+            if keys is None or (isinstance(answer, dict) and set(answer) == set(keys)):
+                return answer, _strip_surroundings(stripped[:start], stripped[end:])
     chosen = fallback = None
     parsed_end = 0
     for match in re.finditer(r"\{", stripped):
