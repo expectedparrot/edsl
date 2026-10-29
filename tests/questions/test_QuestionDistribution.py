@@ -267,6 +267,7 @@ def test_public_repr_and_randomization_rejection():
             "The example was {\"a\":0.5,\"b\":0.5,\"c\":0.0} but I answer",
         ),
         ('Wrong first {"a":1.0}\n{"a":0.2,"b":0.2,"c":0.6}', 'Wrong first {"a":1.0}'),
+        ('{"a":0.2,"b":0.2,"c":0.6} roughly {give or take}', "roughly {give or take}"),
     ],
 )
 def test_json_is_located_inside_surrounding_prose(raw, expected_comment):
@@ -281,6 +282,11 @@ def test_json_is_located_inside_surrounding_prose(raw, expected_comment):
     "raw, answer, message",
     [
         ('```json\n{"a": 0.2, "b": 0.2, "c":', "```json", "out of output tokens"),
+        (
+            'Example {"a":1,"b":0,"c":0}. Final: {"a":0.2,"b":0.2,"c":',
+            {},
+            "out of output tokens",
+        ),
         ("", "", "empty response"),
         ("   ", "   ", "empty response"),
         (

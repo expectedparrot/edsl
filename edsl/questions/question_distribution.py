@@ -49,30 +49,35 @@ def _decode_generated(text, keys=None):
     last object whose keys match ``keys`` is taken as the answer, since a
     model's final answer follows its reasoning; anything around it becomes
     the comment. Duplicate keys inside the chosen object are
-    still rejected so that nothing is silently repaired.
+    still rejected so that nothing is silently repaired. An object left
+    open after the last complete one is a truncated final answer, so it
+    is rejected rather than falling back to an earlier object.
     """
     decoder = json.JSONDecoder(object_pairs_hook=_unique_object)
     stripped = text.strip()
     chosen = fallback = None
+    parsed_end = 0
     for match in re.finditer(r"\{", stripped):
         start = match.start()
         try:
             answer, end = decoder.raw_decode(stripped, start)
         except json.JSONDecodeError:
             continue
+        parsed_end = max(parsed_end, end)
         found = (answer, _strip_surroundings(stripped[:start], stripped[end:]))
         if keys is None or (isinstance(answer, dict) and set(answer) == set(keys)):
             chosen = found
         elif fallback is None:
             fallback = found
-    if chosen is not None or fallback is not None:
-        return chosen or fallback
-    if stripped.count("{") > stripped.count("}"):
+    tail = stripped[parsed_end:]
+    if tail.count("{") > tail.count("}"):
         raise ValueError(
             "The response ended before the JSON object was closed; the model "
             "likely ran out of output tokens. Raise max_tokens or ask for the "
             "JSON before any reasoning."
         )
+    if chosen is not None or fallback is not None:
+        return chosen or fallback
     raise ValueError("No JSON object was found in the response.")
 
 
