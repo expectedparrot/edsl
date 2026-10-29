@@ -310,6 +310,11 @@ def test_json_is_located_inside_surrounding_prose(raw, expected_comment):
         ),
         ("I decline to answer.", "I decline to answer.", "No JSON object"),
         ('Prose then {"a":0.1,"a":0.1,"b":0.2,"c":0.6}', {}, "Duplicate JSON key"),
+        (
+            '{"a":0.1,"a":0.2,"b":0.2,"c":0.6}\nCOMMENT: Unlike {"a":1,"b":0,"c":0}.',
+            {},
+            "Duplicate JSON key",
+        ),
     ],
 )
 def test_unusable_responses_explain_themselves(raw, answer, message):

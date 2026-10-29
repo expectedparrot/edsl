@@ -61,17 +61,28 @@ def _decode_generated(text, keys=None):
     """
     decoder = json.JSONDecoder(object_pairs_hook=_unique_object)
     stripped = text.strip()
+    lenient = json.JSONDecoder()
+
+    def matches(answer):
+        return keys is None or (isinstance(answer, dict) and set(answer) == set(keys))
+
     fence = _LEADING_FENCE.match(stripped)
     start = fence.end() if fence else 0
     if stripped.startswith("{", start):
+        duplicate = answer = None
         try:
             answer, end = decoder.raw_decode(stripped, start)
-        except ValueError:
+        except json.JSONDecodeError:
             pass
-        else:
-            if keys is None or (isinstance(answer, dict) and set(answer) == set(keys)):
-                return answer, _strip_surroundings(stripped[:start], stripped[end:])
-    lenient = json.JSONDecoder()
+        except ValueError as error:
+            duplicate = error
+            answer, end = lenient.raw_decode(stripped, start)
+        if answer is not None and matches(answer):
+            # A leading answer with duplicate keys is rejected outright,
+            # so an object quoted in its comment cannot take its place.
+            if duplicate is not None:
+                raise duplicate
+            return answer, _strip_surroundings(stripped[:start], stripped[end:])
     chosen = fallback = None
     parsed_end = 0
     for match in re.finditer(r"\{", stripped):
@@ -91,7 +102,7 @@ def _decode_generated(text, keys=None):
             _strip_surroundings(stripped[:start], stripped[end:]),
             duplicate,
         )
-        if keys is None or (isinstance(answer, dict) and set(answer) == set(keys)):
+        if matches(answer):
             chosen = found
         elif fallback is None:
             fallback = found
