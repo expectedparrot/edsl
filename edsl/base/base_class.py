@@ -143,6 +143,7 @@ class PersistenceMixin:
         visibility: Optional[str] = "private",
         expected_parrot_url: Optional[str] = None,
         force: bool = False,
+        uuid: Optional[str] = None,
     ) -> "Scenario":
         """
         Upload this object to Coop (signed GCS URL + confirm).
@@ -153,6 +154,7 @@ class PersistenceMixin:
             visibility: Access level setting ("private", "unlisted", or "public")
             expected_parrot_url: Optional custom URL for the coop service
             force: If True, patch existing object instead of creating new one when alias conflicts occur.
+            uuid: Optional uuid for the new object, such as a package's ``object_uuid``
 
         Returns:
             Scenario: Coop metadata (uuid, url, alias, …) wrapped in a ``Scenario`` for
@@ -168,7 +170,7 @@ class PersistenceMixin:
         from edsl.coop import Coop
 
         c = Coop(url=expected_parrot_url)
-        return c.push(self, description, alias, visibility, force)
+        return c.push(self, description, alias, visibility, force, uuid=uuid)
 
     def to_yaml(self, add_edsl_version=False, filename: str = None) -> Union[str, None]:
         """Convert the object to YAML format.

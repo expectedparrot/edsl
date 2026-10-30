@@ -5,6 +5,7 @@ from __future__ import annotations
 import atexit
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -17,6 +18,7 @@ from typing import Optional, Type
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
+from uuid import uuid4
 
 from edsl.base.base_exception import BaseException as EDSLBaseException
 
@@ -1175,6 +1177,59 @@ def remote_display_name(path: Path, remote_name: str) -> Optional[str]:
         return None
     value = metadata.get("display_name")
     return value if isinstance(value, str) else None
+
+
+OBJECT_REPO_PATTERN = re.compile(r"/obj-([0-9a-f-]{36})(?:\.git)?/?$", re.IGNORECASE)
+
+
+def carry_package_metadata(existing_manifest: dict, manifest: dict) -> None:
+    """Keep what a rebuilt manifest must not lose: the package's remotes, and
+    its ``object_uuid`` and ``remote_url`` (see ``ensure_object_uuid``)."""
+    existing_remotes = manifest_remotes(existing_manifest)
+    if existing_remotes:
+        manifest["remotes"] = existing_remotes
+    if "primary_remote" in existing_manifest:
+        manifest["primary_remote"] = existing_manifest["primary_remote"]
+    elif "remote" in existing_manifest and existing_manifest["remote"].get("name"):
+        manifest["primary_remote"] = existing_manifest["remote"]["name"]
+    for key in ("object_uuid", "remote_url"):
+        if existing_manifest.get(key):
+            manifest[key] = existing_manifest[key]
+
+
+def ensure_object_uuid(path: Path) -> str:
+    """The package's ``object_uuid``, recorded in its manifest on first save.
+
+    One uuid names both the package's Coop object and its ``obj-<uuid>`` git
+    repo, so either can be pushed first and they still match. An older package
+    reuses the uuid it already carries: its Coop object's, else the one in its
+    ``obj-<uuid>`` origin. Otherwise it gets a new one.
+    """
+    manifest = read_manifest_file(path)
+    if manifest.get("object_uuid"):
+        return manifest["object_uuid"]
+    object_uuid = _carried_object_uuid(path) or str(uuid4())
+    manifest["object_uuid"] = object_uuid
+    write_manifest_dict(path, manifest)
+    return object_uuid
+
+
+def _carried_object_uuid(path: Path) -> Optional[str]:
+    info_path = path / "coop_info.json"
+    if info_path.exists():
+        try:
+            value = json.loads(info_path.read_text()).get("uuid")
+        except json.JSONDecodeError:
+            value = None
+        if value:
+            return str(value)
+    result = subprocess.run(
+        ["git", "-C", str(path), "config", "--get", "remote.origin.url"],
+        text=True,
+        capture_output=True,
+    )
+    match = OBJECT_REPO_PATTERN.search(urlparse(result.stdout.strip()).path)
+    return match.group(1).lower() if match else None
 
 
 def manifest_remotes(manifest: dict) -> dict:

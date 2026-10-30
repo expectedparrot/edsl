@@ -7213,12 +7213,16 @@ class Coop(CoopFunctionsMixin):
         alias: Optional[str] = None,
         visibility: Optional[VisibilityType] = "private",
         force: bool = False,
+        uuid: Optional[str] = None,
     ) -> "Scenario":
         """
         Upload an EDSL object to Coop via a signed GCS URL (PUT), then confirm the upload.
 
         Parameters:
             object: The EDSL object to upload (e.g. Survey, Scenario).
+            uuid: Optional uuid for the new object, such as a package's ``object_uuid``,
+                so the object and the package's git repo share one id. Coop answers
+                409 if the uuid is already taken.
 
         Returns:
             Scenario: Coop upload metadata as a ``Scenario`` so notebooks/terminals keep
@@ -7256,6 +7260,7 @@ class Coop(CoopFunctionsMixin):
                 "visibility": visibility,
                 "object_hash": object_hash,
                 "version": self._edsl_version,
+                **({"uuid": str(uuid)} if uuid else {}),
             },
         )
         response_json = response.json()

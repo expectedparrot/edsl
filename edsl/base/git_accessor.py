@@ -198,6 +198,7 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
         gitpkg.init_package(worktree_path, error_cls=self._spec.error_cls)
 
         extra_info = self._spec.write(worktree_path, self._instance, **kwargs)
+        gitpkg.ensure_object_uuid(worktree_path)
         for key, value in extra_info.items():
             if key.isidentifier():
                 setattr(self, key, value)
@@ -455,6 +456,7 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
                 visibility="private" if visibility is None else visibility,
                 expected_parrot_url=expected_parrot_url,
                 force=force,
+                uuid=gitpkg.ensure_object_uuid(self._bound_worktree_path()),
             )
             coop_info = _plain_dict(info)
             coop_info.update(
@@ -666,6 +668,7 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
         worktree_path = self._bound_worktree_path()
         gitpkg.init_package(worktree_path, error_cls=self._spec.error_cls)
         extra_info = self._spec.write(worktree_path, self._instance)
+        gitpkg.ensure_object_uuid(worktree_path)
         self.path = path
         for key, value in extra_info.items():
             if key.isidentifier():

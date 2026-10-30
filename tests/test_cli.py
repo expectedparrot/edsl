@@ -11,6 +11,7 @@ import json
 import subprocess
 import sys
 import tempfile
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -8177,6 +8178,8 @@ class TestPush:
 
         package_path = tmp_path / "survey.ep"
         Survey.example().git.save(package_path)
+        with zipfile.ZipFile(package_path) as archive:
+            object_uuid = json.loads(archive.read("manifest.json"))["object_uuid"]
         push_calls = []
 
         def fake_push(
@@ -8186,6 +8189,7 @@ class TestPush:
             visibility=None,
             expected_parrot_url=None,
             force=False,
+            uuid=None,
         ):
             push_calls.append(
                 {
@@ -8193,6 +8197,7 @@ class TestPush:
                     "alias": alias,
                     "visibility": visibility,
                     "force": force,
+                    "uuid": uuid,
                 }
             )
             return {
@@ -8250,6 +8255,7 @@ class TestPush:
                 "alias": "created-alias",
                 "visibility": "public",
                 "force": False,
+                "uuid": object_uuid,
             }
         ]
         html = Survey.git.open(package_path).html()

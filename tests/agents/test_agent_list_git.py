@@ -114,6 +114,7 @@ def test_agent_list_git_coop_push_creates_info_then_patches(tmp_path, monkeypatc
         visibility="private",
         expected_parrot_url=None,
         force=False,
+        uuid=None,
     ):
         push_calls.append(
             {
@@ -122,6 +123,7 @@ def test_agent_list_git_coop_push_creates_info_then_patches(tmp_path, monkeypatc
                 "visibility": visibility,
                 "expected_parrot_url": expected_parrot_url,
                 "force": force,
+                "uuid": uuid,
             }
         )
         return {
