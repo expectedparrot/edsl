@@ -12,6 +12,7 @@ from edsl.cli_commands import account as account_commands
 from edsl.cli_commands import agents as agents_commands
 from edsl.cli_commands import auth as auth_commands
 from edsl.cli_commands import costs as costs_commands
+from edsl.cli_commands import collections as collections_commands
 from edsl.cli_commands import humanize as humanize_commands
 from edsl.cli_commands import inspect as inspect_commands
 from edsl.cli_commands import jobs as jobs_commands
@@ -89,6 +90,7 @@ def app(ctx):
                 "results",
                 "jobs",
                 "surveys",
+                "collections",
                 "costs",
                 "workflow",
                 "present",
@@ -123,6 +125,17 @@ def objects(ctx):
                 "delete",
             ],
             "help": "Use 'ep objects <command> --help' for details.",
+        })
+
+
+@app.group(invoke_without_command=True)
+@click.pass_context
+def collections(ctx):
+    """Create and manage local metadata-only Collection packages."""
+    if ctx.invoked_subcommand is None:
+        _output({
+            "commands": ["create", "from-search", "add", "remove", "show", "metadata"],
+            "help": "Use 'ep collections <command> --help' for details.",
         })
 
 
@@ -397,6 +410,7 @@ run_commands.register(app)
 run_manifest_commands.register(app)
 schema_commands.register(schema)
 scenarios_commands.register(scenarios)
+collections_commands.register(collections)
 surveys_commands.register(surveys)
 study_commands.register(app)
 validate_commands.register(app)
