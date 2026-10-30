@@ -7,6 +7,7 @@ from ..notebooks import Notebook
 from ..prompts import Prompt
 from ..results import Results
 from ..scenarios import Scenario, ScenarioList
+from ..collections import Collection
 from ..surveys import Survey
 from ..macros.macro import Macro
 from ..macros.composite_macro import CompositeMacro
@@ -23,6 +24,7 @@ EDSLObject = Union[
     Cache,
     "LanguageModel",
     "ModelList",
+    Collection,
     Notebook,
     Prompt,
     Type[QuestionBase],
@@ -47,6 +49,7 @@ ObjectType = Literal[
     "scenario",
     "scenario_list",
     "survey",
+    "collection",
     "macro",
     "composite_macro",
 ]
@@ -108,6 +111,7 @@ class ObjectRegistry:
             {"object_type": "scenario", "edsl_class": Scenario},
             {"object_type": "scenario_list", "edsl_class": ScenarioList},
             {"object_type": "survey", "edsl_class": Survey},
+            {"object_type": "collection", "edsl_class": Collection},
             {"object_type": "macro", "edsl_class": Macro},
             {"object_type": "composite_macro", "edsl_class": CompositeMacro},
         ]
