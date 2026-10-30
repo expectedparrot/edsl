@@ -37,6 +37,7 @@ class TestBaseModels:
             "AgentList",
             "Jobs",
             "Cache",
+            "Collection",
             "Notebook",
             "ModelList",
             "FileStore",
