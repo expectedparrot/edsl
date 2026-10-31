@@ -36,6 +36,7 @@ tenacity = "^8.2.3"
 psutil = "^6.1.0"
 
 [tool.poetry.extras]
+hf = [ "datasets", "huggingface-hub", "pyarrow",]
 inference = [ "openai", "groq", "boto3", "anthropic", "azure-ai-inference", "google-genai", "mistralai", "sqlalchemy",]
 file-formats = [ "python-docx", "openpyxl", "pypdf2", "python-pptx", "pandas",]
 full = [ "openai", "groq", "boto3", "anthropic", "azure-ai-inference", "google-genai", "mistralai", "sqlalchemy", "black", "pydot", "python-docx", "openpyxl", "pypdf2", "python-pptx", "playwright", "fastapi", "uvicorn", "altair", "nbformat", "nbclient", "psutil", "seaborn", "termplotlib", "qrcode", "pandas",]
@@ -54,6 +55,18 @@ ep = "edsl.__main__:main"
 
 [tool.ty.rules]
 unresolved-import = "ignore"
+
+[tool.poetry.dependencies.datasets]
+version = ">=3.0,<5"
+optional = true
+
+[tool.poetry.dependencies.huggingface-hub]
+version = ">=0.25,<2"
+optional = true
+
+[tool.poetry.dependencies.pyarrow]
+version = ">=15"
+optional = true
 
 [tool.poetry.dependencies.openai]
 version = "^2.44.0"
@@ -183,6 +196,7 @@ toml-sort = "^0.23.1"
 ty = "^0.0.23"
 
 [tool.poetry.group.test.dependencies]
+hypothesis = ">=6.0,<7"
 coverage = "^7.3.3"
 nbformat = "^5.9.2"
 pytest = "^7.4.3"
