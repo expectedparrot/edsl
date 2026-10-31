@@ -174,6 +174,8 @@ def _validate_package(path: Path) -> list[str]:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError) as exc:
         return [f"invalid manifest.json: {exc}"]
+    if not isinstance(manifest, dict):
+        return ["invalid manifest.json: expected a JSON object"]
     if manifest.get("format") != FORMAT_NAME:
         errors.append("invalid manifest format")
     if manifest.get("format_version") != FORMAT_VERSION:

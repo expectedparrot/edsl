@@ -77,3 +77,84 @@ def test_render_review_question_html_uses_native_question_renderer():
     assert "Question 1 of 3" in html
     assert question.question_text in html
     assert 'class="survey_question"' in html
+
+
+# --- Fix: screenshots must not silently drop unresolved placeholders ---------
+
+
+def test_render_flags_unresolved_placeholder_when_no_scenario():
+    from edsl.questions import QuestionFreeText
+
+    q = QuestionFreeText(
+        question_name="pay",
+        question_text="How much would you pay for {{ product }}?",
+    )
+    html = render_review_question_html(q, 0, 1)
+    # The placeholder is named in a visible warning, not silently dropped.
+    assert 'class="review-warning"' in html
+    assert "product" in html
+
+
+def test_render_resolves_placeholder_with_scenario_and_omits_warning():
+    from edsl.questions import QuestionFreeText
+
+    q = QuestionFreeText(
+        question_name="pay",
+        question_text="How much would you pay for {{ product }}?",
+    )
+    html = render_review_question_html(q, 0, 1, scenario={"product": "a bicycle"})
+    assert "a bicycle" in html
+    # Fully resolved -> no warning banner.
+    assert 'class="review-warning"' not in html
+
+
+def test_render_without_placeholders_has_no_warning():
+    question = Survey.example().questions[0]
+    html = render_review_question_html(question, 0, 3)
+    assert 'class="review-warning"' not in html
+
+
+# --- Fix: auto-capture must work when an asyncio event loop is running --------
+
+
+def test_capture_runs_in_worker_thread_under_running_loop(monkeypatch):
+    import asyncio
+    import threading
+
+    from edsl.surveys import survey_review
+
+    recorded = {}
+
+    def fake_sync(survey, output_dir, scenario=None):
+        recorded["thread"] = threading.current_thread().name
+        recorded["is_main"] = threading.current_thread() is threading.main_thread()
+        return ["sentinel"]
+
+    monkeypatch.setattr(survey_review, "_capture_review_screenshots_sync", fake_sync)
+
+    async def run_inside_loop():
+        # Mirrors a Jupyter cell: a loop is already running in this thread.
+        return survey_review.capture_review_screenshots(Survey.example(), "/tmp/unused")
+
+    result = asyncio.run(run_inside_loop())
+    assert result == ["sentinel"]
+    # The sync Playwright work was pushed off the loop thread.
+    assert recorded["is_main"] is False
+
+
+def test_capture_runs_directly_without_running_loop(monkeypatch):
+    import threading
+
+    from edsl.surveys import survey_review
+
+    recorded = {}
+
+    def fake_sync(survey, output_dir, scenario=None):
+        recorded["is_main"] = threading.current_thread() is threading.main_thread()
+        return ["sentinel"]
+
+    monkeypatch.setattr(survey_review, "_capture_review_screenshots_sync", fake_sync)
+    result = survey_review.capture_review_screenshots(Survey.example(), "/tmp/unused")
+    assert result == ["sentinel"]
+    # No running loop -> no thread hop needed.
+    assert recorded["is_main"] is True
