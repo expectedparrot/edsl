@@ -364,6 +364,8 @@ class SurveyHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the survey (e.g. custom styling)."""
 
     custom_css: Optional[str] = None
+    # Require an Expected Parrot account for browser respondents.
+    require_login: bool = False
     presentation: Literal["question", "group"] = "question"
     # How the respondent is shown their position in the survey. Defaults to the
     # bar that shipped before this field existed, so stored configs render
