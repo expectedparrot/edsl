@@ -73,6 +73,38 @@ from .exceptions import (
 )
 
 
+def _sanitize_source_template(text: str) -> str:
+    """Neutralize source-answer and logic templates for use in a meta-survey.
+
+    Source *answer* references cannot resolve in the meta-survey (the source
+    questions are not asked there), so they are rewritten to prose. Scenario
+    references, however, are the subject of the question and must survive so the
+    meta-survey can still be run across scenarios via ``.by(scenarios)``. A bare
+    ``{{ field }}`` (no dotted path) is treated as a scenario/field reference and
+    preserved; a dotted ``{{ q0.answer }}`` becomes prose; anything else piped is
+    replaced with a neutral placeholder. ``{% ... %}`` logic blocks are removed.
+    """
+
+    def _replace(match: "re.Match") -> str:
+        inner = match.group(1).strip()
+        head = inner.split("|")[0].strip()  # ignore any Jinja filters
+        # Scenario subject -> keep verbatim so scenarios still fill it at run time.
+        if head.startswith("scenario.") or head.startswith("scenario["):
+            return match.group(0)
+        # Bare field name (no dotted path) -> scenario/agent fill; keep verbatim.
+        if re.fullmatch(r"[A-Za-z_]\w*", head):
+            return match.group(0)
+        # Source answer reference -> readable prose.
+        answer_ref = re.fullmatch(r"([A-Za-z_]\w*)\.answer", head)
+        if answer_ref:
+            return f"the answer to {answer_ref.group(1)}"
+        return "[a piped source value]"
+
+    text = re.sub(r"\{\{(.*?)\}\}", _replace, text)
+    text = re.sub(r"\{%.*?%\}", "[conditional source text]", text)
+    return text
+
+
 class Survey(Base):
     """A collection of questions with logic for navigating between them.
 
@@ -302,16 +334,7 @@ class Survey(Base):
         converted = []
         meta_names_by_source: dict[str, list[str]] = {}
 
-        def source_text_as_prose(text: str) -> str:
-            """Keep source survey templates from executing in the meta-survey."""
-            text = re.sub(
-                r"\{\{\s*([A-Za-z_]\w*)\.answer\s*\}\}",
-                r"the answer to \1",
-                text,
-            )
-            text = re.sub(r"\{\{.*?\}\}", "[a piped source value]", text)
-            text = re.sub(r"\{%.*?%\}", "[conditional source text]", text)
-            return text
+        source_text_as_prose = _sanitize_source_template
 
         def _is_default_rule(rule) -> bool:
             return rule.expression == "True" and rule.priority == -1
@@ -686,8 +709,9 @@ class Survey(Base):
         for index, question in enumerate(self.questions):
             if getattr(question, "question_type", None) != "free_text":
                 continue
+            source_question_text = _sanitize_source_template(question.question_text)
             prompt = (
-                f"For responses to this survey question: {question.question_text}\n\n"
+                f"For responses to this survey question: {source_question_text}\n\n"
                 f"Propose exactly {num_themes} concise themes that are collectively "
                 "exhaustive and mutually exclusive for classifying one response. "
                 "Make them specific to the question, use plain-language labels, and "

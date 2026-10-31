@@ -110,3 +110,54 @@ def test_priority_conflicting_jump_is_rejected():
     survey = survey.add_rule("q0", "{{ q0.answer }} == 'Yes'", "q1")  # higher priority
     with pytest.raises(ValueError, match="faithfully derive the skip"):
         survey.to_meta_survey()
+
+
+# --- Fix: scenario subjects must survive, source-answer refs must not ---------
+
+
+def test_scenario_reference_is_preserved_in_meta_prompt():
+    q = QuestionLinearScale(
+        question_name="like",
+        question_text="How much do you like {{ scenario.product }}?",
+        question_options=[1, 2, 3, 4, 5],
+    )
+    text = Survey([q]).to_meta_survey().questions[0].question_text
+    # The scenario subject must carry through so .by(scenarios) can still vary it.
+    assert "{{ scenario.product }}" in text
+
+
+def test_bare_field_reference_is_preserved_in_meta_prompt():
+    q = QuestionLinearScale(
+        question_name="rate",
+        question_text="Rate {{ product }} overall",
+        question_options=[1, 2, 3],
+    )
+    text = Survey([q]).to_meta_survey().questions[0].question_text
+    assert "{{ product }}" in text
+
+
+def test_source_answer_reference_is_rewritten_not_executed():
+    from edsl.surveys.survey import _sanitize_source_template as sanitize
+
+    assert sanitize("Why {{ q0.answer }}?") == "Why the answer to q0?"
+    # Non-scenario dotted pipes are neutralized rather than left to execute.
+    assert sanitize("age {{ agent.age }}") == "age [a piped source value]"
+
+
+def test_theme_survey_rewrites_source_answer_references():
+    survey = Survey(
+        [
+            QuestionFreeText(question_name="q0", question_text="What did you buy?"),
+            QuestionFreeText(
+                question_name="q1",
+                question_text="Why did you choose {{ q0.answer }}?",
+            ),
+        ]
+    )
+    theme = survey.to_meta_theme_survey()
+    q1_prompt = [
+        q.question_text for q in theme.questions if q.question_name.endswith("q1")
+    ][0]
+    # The theme survey never asks q0, so its answer reference must be rewritten.
+    assert "{{ q0.answer }}" not in q1_prompt
+    assert "the answer to q0" in q1_prompt
