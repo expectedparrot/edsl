@@ -249,6 +249,37 @@ print(info["respondent_url"])
 
 O*NET 31.0 includes 18,838 task statements across 923 occupations. This example includes occupations present in the task file; taxonomy occupations without task statements are left out. `QuestionFunctional` is useful when EDSL should calculate an answer in Python; scenario-backed Jinja is the direct way to populate respondent-facing options from a prior answer.
 
+#### Embed the lookup in a `QuestionCompute`
+
+For a self-contained survey, you can put the lookup dictionary directly in a `QuestionCompute` template instead of attaching it as a scenario. The compute question reads the prior dropdown answer, and the checkbox receives its answer as its options:
+
+```python
+import json
+
+from edsl import QuestionCompute
+
+# Reuse `tasks_by_occupation` and `occupation` from the example above.
+lookup_json = json.dumps(
+    dict(tasks_by_occupation), ensure_ascii=False, separators=(",", ":")
+)
+
+available_tasks = QuestionCompute(
+    question_name="available_tasks",
+    question_text="{{ " + lookup_json + "[occupation.answer[0]] }}",
+)
+tasks = QuestionCheckBox(
+    question_name="tasks",
+    question_text="Which tasks are part of your work?",
+    question_options="{{ available_tasks.answer }}",
+)
+
+survey = Survey([occupation, available_tasks, tasks])
+info = survey.humanize(human_survey_name="Occupation and Tasks")
+print(info["respondent_url"])
+```
+
+The `QuestionCompute` is an intermediate question; respondents see the occupation dropdown and task checkbox. This avoids a scenario attachment, but serializes the full lookup into the question text. For O*NET 31.0 that is about 1.9 MB, which worked in a local live survey. The scenario-backed version above keeps the question definition much smaller and is easier to maintain; embedding can be reasonable when a self-contained survey is more useful.
+
 ### Scenario list methods
 
 | Method | Behavior |
