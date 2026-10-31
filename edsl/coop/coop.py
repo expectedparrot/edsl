@@ -7779,6 +7779,71 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return response.json()
 
+    def get_low_balance_alert(self) -> dict:
+        """
+        Get the low-balance email setting for the authenticated user.
+
+        Expected Parrot emails the account owner when their balance drops below
+        the threshold.
+
+        Returns:
+            dict: The setting, including:
+                - enabled: Whether the email is on
+                - threshold_usd: The threshold in US dollars
+                - threshold_credits: The threshold in credits
+                - credits_per_usd: The current number of credits per US dollar
+
+        Raises:
+            CoopServerResponseError: If there's an error communicating with the server
+
+        Example:
+            >>> alert = coop.get_low_balance_alert()
+            >>> print(f"Alert below ${alert['threshold_usd']}: {alert['enabled']}")
+        """
+        response = self._send_server_request(
+            uri="api/v0/users/low-balance-alert", method="GET"
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def update_low_balance_alert(
+        self,
+        enabled: Optional[bool] = None,
+        threshold_usd: Optional[float] = None,
+    ) -> dict:
+        """
+        Turn the low-balance email on or off, or change its threshold.
+
+        Args:
+            enabled (bool, optional): True to turn the email on, False to turn it off
+            threshold_usd (float, optional): The threshold in US dollars, from 1 to
+                10,000 with at most two decimal places
+
+        Returns:
+            dict: The updated setting, in the same form as get_low_balance_alert()
+
+        Raises:
+            ValueError: If neither enabled nor threshold_usd is given
+            CoopServerResponseError: If there's an error communicating with the server
+                or the threshold is out of range
+
+        Example:
+            >>> coop.update_low_balance_alert(threshold_usd=25)
+            >>> coop.update_low_balance_alert(enabled=False)
+        """
+        if enabled is None and threshold_usd is None:
+            raise ValueError("Provide enabled, threshold_usd, or both.")
+        payload = {}
+        if enabled is not None:
+            payload["enabled"] = enabled
+        if threshold_usd is not None:
+            payload["threshold_usd"] = threshold_usd
+        response = self._send_server_request(
+            uri="api/v0/users/low-balance-alert", method="PATCH", payload=payload
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
     def get_profile(self) -> dict:
         """
         Get the current user's profile information.
