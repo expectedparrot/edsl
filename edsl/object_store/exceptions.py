@@ -4,8 +4,7 @@ from edsl.base.base_exception import BaseException
 class AmbiguousUUIDError(BaseException):
     """Raised when a UUID prefix matches multiple objects."""
 
-    doc_page = "agents"
-    doc_anchor = "agent-list-versioning"
+    doc_page = "guides/saving_objects"
 
     def __init__(self, prefix: str, matches: list[str]):
         self.prefix = prefix
@@ -22,8 +21,7 @@ class AmbiguousUUIDError(BaseException):
 class StaleBranchError(BaseException):
     """Raised when saving to a branch whose tip has moved since the object was loaded."""
 
-    doc_page = "agents"
-    doc_anchor = "agent-list-versioning"
+    doc_page = "guides/saving_objects"
 
     def __init__(self, branch, expected, actual):
         self.branch = branch

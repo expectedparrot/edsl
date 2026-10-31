@@ -12,6 +12,7 @@ from edsl.cli_shared import (
     EXIT_USAGE,
     EXIT_VALIDATION,
     error,
+    is_serialized_prompt,
     load_any_object,
     output,
     read_serialized_object,
@@ -75,11 +76,13 @@ def register(app: click.Group) -> None:
             }
             if class_name in serialized_types:
                 obj_type = serialized_types[class_name]
+            elif is_serialized_prompt(raw):
+                obj_type = "prompt"
             elif "survey" in raw and isinstance(raw.get("survey"), dict):
                 obj_type = "job"
             elif "questions" in raw and isinstance(raw.get("questions"), list):
                 obj_type = "job_lightweight"
-            elif "type" in raw and "question_text" in raw:
+            elif ("type" in raw or "question_type" in raw) and "question_text" in raw:
                 obj_type = "question"
             else:
                 obj_type = "unknown"
@@ -107,9 +110,11 @@ def register(app: click.Group) -> None:
                 from edsl.scenarios import ScenarioList
                 ScenarioList.from_dict(raw)
                 output({"valid": True, "object_type": "scenario_list", "normalized": raw}, warnings=warnings_list)
+            elif obj_type == "prompt":
+                output(_validate_prompt(raw, warnings_list), warnings=warnings_list)
             else:
                 error("VALIDATION_ERROR", "Could not determine object type from input.",
-                       suggestion="Use --type to specify: question, survey, job, agent_list, scenario_list.",
+                       suggestion="Use --type to specify: question, survey, job, agent_list, scenario_list, prompt.",
                        exit_code=EXIT_VALIDATION)
         except SystemExit:
             raise
@@ -117,6 +122,30 @@ def register(app: click.Group) -> None:
             error("VALIDATION_ERROR", f"Input failed validation: {e}",
                    suggestion="Check the input against 'ep schema' output.",
                    exit_code=EXIT_VALIDATION)
+
+
+    def _validate_prompt(raw: dict, warnings_list: list) -> dict:
+        """Validate a prompt dict and report its template variables.
+
+        Text that is not a valid Jinja template is still a valid prompt, so a
+        template error is a warning rather than a failure.
+        """
+        from jinja2 import TemplateError
+
+        from edsl.prompts import Prompt
+
+        prompt = Prompt.from_dict(raw)
+        try:
+            template_variables = sorted(set(prompt.template_variables()))
+        except TemplateError as e:
+            template_variables = []
+            warnings_list.append(f"Prompt text is not a valid Jinja template: {e}")
+        return {
+            "valid": True,
+            "object_type": "prompt",
+            "template_variables": template_variables,
+            "normalized": prompt.to_dict(),
+        }
 
 
     def _validate_question(raw: dict, warnings_list: list) -> dict:
@@ -139,7 +168,9 @@ def register(app: click.Group) -> None:
                 "message": "question_name was omitted and set to 'q0'",
             })
 
-        kwargs = {k: v for k, v in raw.items() if k not in ("type", "question_type")}
+        kwargs = {k: v for k, v in raw.items() if k not in (
+            "type", "question_type", "edsl_class_name", "edsl_version"
+        )}
 
         cls = type_map[qtype]
         q = cls(**kwargs)

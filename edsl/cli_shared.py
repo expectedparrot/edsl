@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import gzip
 import json
+import os
+import secrets
 import sys
 import zipfile
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Optional
+from typing import Iterator, Optional
 
 
 EXIT_OK = 0
@@ -43,6 +46,60 @@ def error(
     json.dump(envelope, sys.stdout, indent=2, default=str)
     sys.stdout.write("\n")
     raise SystemExit(exit_code)
+
+
+def prepare_private_file(path) -> Path:
+    """Create ``path`` empty, readable and writable by its owner only.
+
+    For files holding sensitive data -- respondent links, logged event payloads.
+    Call it before writing: a writer that then opens the file in the usual way
+    truncates it without changing its permissions, so the data is never readable by
+    other users, not even for a moment.
+
+    Created with mode 0o600 from the start, and chmodded as well, because an
+    existing file keeps its old mode when it is opened. On Windows only the
+    read-only flag exists, so this changes nothing there.
+    """
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    os.close(fd)
+    try:
+        target.chmod(0o600)
+    except OSError:
+        pass
+    return target
+
+
+@contextmanager
+def private_output(path) -> Iterator[Path]:
+    """Write a sensitive file in full, or not at all.
+
+    Yields the path of a private temporary file beside ``path`` for the caller to
+    write to, however it writes. Once the block finishes, the temporary file replaces
+    ``path``, keeping its owner-only permissions. If the block raises, the temporary
+    file is deleted and ``path`` is left exactly as it was, so a failed write never
+    erases a previous export or leaves a partial one that looks complete.
+
+    A symlink is followed first, so the file it points to is replaced and the link
+    keeps pointing at it -- what writing through the link would have done. Renaming
+    onto the link itself would swap it for a plain file and leave its target stale.
+
+    The temporary file takes the extension of ``path`` as requested, not of the file a
+    link resolves to, since some writers choose the format from it and the requested
+    name is the format the caller asked for.
+    """
+    requested = Path(path)
+    target = requested.resolve()
+    temp = prepare_private_file(
+        target.with_name(f".{target.stem}.{secrets.token_hex(4)}.tmp{requested.suffix}")
+    )
+    try:
+        yield temp
+        os.replace(temp, target)
+    except BaseException:
+        temp.unlink(missing_ok=True)
+        raise
 
 
 def read_json_file(path: str) -> dict:
@@ -131,7 +188,7 @@ def load_git_object(path: Path):
     error(
         "UNSUPPORTED_OBJECT",
         f"Object package type does not support push: {class_name or 'unknown'}",
-        suggestion="Currently supported package types: Survey, AgentList, Jobs, Results, ScenarioList, ModelList.",
+        suggestion="Currently supported package types: Survey, AgentList, Jobs, Results, ScenarioList, ModelList. Prompts use JSON files instead.",
         exit_code=EXIT_USAGE,
     )
 
@@ -177,15 +234,36 @@ def load_openable_json(path: Path):
         from edsl.language_models import ModelList
 
         return ModelList.from_dict(data)
+    if is_serialized_prompt(data):
+        from edsl.prompts import Prompt
+
+        return Prompt.from_dict(data)
     error(
         "UNSUPPORTED_OBJECT",
         f"Unsupported or missing edsl_class_name in JSON: {class_name or 'unknown'}",
-        suggestion="Expected a serialized Survey, AgentList, Jobs, Results, ScenarioList, or ModelList.",
+        suggestion="Expected a serialized Survey, AgentList, Jobs, Results, ScenarioList, ModelList, or Prompt.",
         exit_code=EXIT_USAGE,
     )
 
 
+def is_serialized_prompt(data) -> bool:
+    """Whether a dict is a serialized Prompt.
+
+    Standalone prompts carry ``edsl_class_name``. ``Prompt.save()`` writes the
+    older shape, which names the class only in ``class_name``. A dict that just
+    happens to have a ``text`` key is not a Prompt.
+    """
+    if not isinstance(data, dict):
+        return False
+    if "edsl_class_name" in data:
+        return data["edsl_class_name"] == "Prompt"
+    return data.get("class_name") == "Prompt" and isinstance(data.get("text"), str)
+
+
 def jsonable(value):
+    if isinstance(value, str):
+        # str subclasses such as Prompt have a __dict__ that would replace the text.
+        return str.__str__(value)
     if isinstance(value, list):
         return [jsonable(item) for item in value]
     if isinstance(value, tuple):
@@ -242,6 +320,13 @@ def save_edsl_object(obj, output_path: str, object_type: str | None = None) -> d
         }
 
     path = Path(output_path)
+    if path.suffix == ".ep" and not hasattr(obj, "git"):
+        error(
+            "UNSUPPORTED_OBJECT",
+            f"{class_name} cannot be saved as a .ep package.",
+            suggestion=f"Save the {class_name} as .json or .json.gz instead.",
+            exit_code=EXIT_USAGE,
+        )
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.suffix == ".ep":
         info = obj.git.save(path)
@@ -260,7 +345,10 @@ def save_edsl_object(obj, output_path: str, object_type: str | None = None) -> d
             "object_type": class_name,
         }
 
-    path.write_text(json.dumps(obj.to_dict(), indent=2, default=str), encoding="utf-8")
+    path.write_text(
+        json.dumps(obj.to_dict(), indent=2, default=str),
+        encoding="utf-8",
+    )
     return {"path": str(path), "format": "json", "object_type": class_name}
 
 

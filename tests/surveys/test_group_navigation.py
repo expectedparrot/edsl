@@ -1025,5 +1025,207 @@ class TestGroupNavigationWithInstructions(unittest.TestCase):
         self.assertGreater(len(result), 0)
 
 
+class TestNextGroup(unittest.TestCase):
+    """Test human-facing group/page navigation."""
+
+    def test_next_group_returns_first_group(self):
+        q0 = QuestionFreeText(question_text="First", question_name="q0")
+        q1 = QuestionFreeText(question_text="Second", question_name="q1")
+        survey = Survey([q0, q1])
+        survey.question_groups = {"page_0": (0, 0), "page_1": (1, 1)}
+
+        result = survey.next_group()
+
+        self.assertEqual(result["group_name"], "page_0")
+        self.assertEqual(result["question_names"], ["q0"])
+        self.assertFalse(result["is_end"])
+
+    def test_next_group_uses_after_rule_to_choose_target_group(self):
+        q0 = QuestionYesNo(question_text="Skip to final?", question_name="q0")
+        q1 = QuestionFreeText(question_text="Middle", question_name="q1")
+        q2 = QuestionFreeText(question_text="Final", question_name="q2")
+        survey = Survey([q0, q1, q2])
+        survey.question_groups = {
+            "page_0": (0, 0),
+            "page_1": (1, 1),
+            "page_2": (2, 2),
+        }
+        survey.add_rule("q0", "{{ q0.answer }} == 'Yes'", "q2")
+
+        result = survey.next_group("page_0", {"q0.answer": "Yes"})
+
+        self.assertEqual(result["group_name"], "page_2")
+        self.assertEqual(result["question_names"], ["q2"])
+
+    def test_next_group_starts_at_jump_target_inside_group(self):
+        q0 = QuestionYesNo(
+            question_text="Skip first grouped question?", question_name="q0"
+        )
+        q1 = QuestionFreeText(question_text="Middle", question_name="q1")
+        q2 = QuestionFreeText(question_text="Final", question_name="q2")
+        survey = Survey([q0, q1, q2])
+        survey.question_groups = {"page_0": (0, 0), "page_1": (1, 2)}
+        survey.add_rule("q0", "{{ q0.answer }} == 'Yes'", "q2")
+
+        result = survey.next_group("page_0", {"q0.answer": "Yes"})
+
+        self.assertEqual(result["group_name"], "page_1")
+        self.assertEqual(result["question_names"], ["q2"])
+
+    def test_next_group_filters_skip_rules_inside_target_group(self):
+        q0 = QuestionYesNo(question_text="Expert?", question_name="q0")
+        q1 = QuestionFreeText(question_text="Beginner question", question_name="q1")
+        q2 = QuestionFreeText(question_text="Common question", question_name="q2")
+        survey = Survey([q0, q1, q2])
+        survey.question_groups = {"page_0": (0, 0), "page_1": (1, 2)}
+        survey.add_skip_rule("q1", "{{ q0.answer }} == 'Yes'")
+
+        result = survey.next_group("page_0", {"q0.answer": "Yes"})
+
+        self.assertEqual(result["group_name"], "page_1")
+        self.assertEqual(result["question_names"], ["q2"])
+
+    def test_next_group_includes_relevant_instructions(self):
+        intro = Instruction(text="Welcome", name="intro")
+        middle = Instruction(text="Next section", name="middle")
+        q0 = QuestionFreeText(question_text="First", question_name="q0")
+        q1 = QuestionFreeText(question_text="Second", question_name="q1")
+        survey = Survey([intro, q0, middle, q1])
+        survey.question_groups = {"page_0": (0, 0), "page_1": (1, 1)}
+
+        first_page = survey.next_group()
+        second_page = survey.next_group("page_0", {"q0.answer": "answer"})
+
+        self.assertEqual([item.name for item in first_page["items"]], ["intro", "q0"])
+        self.assertEqual([item.name for item in second_page["items"]], ["middle", "q1"])
+
+    def test_next_group_end_of_survey(self):
+        q0 = QuestionFreeText(question_text="Only", question_name="q0")
+        survey = Survey([q0])
+        survey.question_groups = {"page_0": (0, 0)}
+
+        result = survey.next_group("page_0", {"q0.answer": "answer"})
+
+        self.assertIsNone(result["group_name"])
+        self.assertEqual(result["items"], [EndOfSurvey])
+        self.assertEqual(result["question_names"], [])
+        self.assertTrue(result["is_end"])
+
+
+
+class TestGroupDependencyValidation(unittest.TestCase):
+    """What a group may hold, given that its questions are rendered together.
+
+    A group is one page, built before any of it is answered. So a question may not
+    need anything else on that page -- not its text, and not the decision to show it.
+    It may freely need answers from earlier pages, which is the distinction these
+    tests pin down: a skip rule is judged by what its expression reads, not by where
+    the question sits.
+    """
+
+    @staticmethod
+    def _choice(name):
+        return QuestionMultipleChoice(
+            question_name=name, question_text="?", question_options=["yes", "no"]
+        )
+
+    def test_skip_rule_reading_an_earlier_page_may_share_a_group(self):
+        gate = self._choice("gate")
+        filler = self._choice("filler")
+        branched = self._choice("branched")
+        survey = Survey([gate, filler, branched]).add_skip_rule(
+            "branched", "{{ gate.answer }} == 'yes'"
+        )
+
+        # gate is answered on an earlier page, so the page can be built knowing
+        # whether to include branched -- even though filler precedes it.
+        survey.add_question_group("filler", "branched", "page")
+
+        self.assertEqual(survey.question_groups["page"], (1, 2))
+
+    def test_skip_rule_reading_the_same_group_is_rejected(self):
+        gate = self._choice("gate")
+        branched = self._choice("branched")
+        survey = Survey([gate, branched]).add_skip_rule(
+            "branched", "{{ gate.answer }} == 'yes'"
+        )
+
+        # gate is on the page, so whether to show branched is not knowable when the
+        # page is rendered.
+        with self.assertRaises(SurveyCreationError):
+            survey.add_question_group("gate", "branched", "page")
+
+    def test_skip_rule_reading_the_same_group_via_keyword_argument(self):
+        """A name in a keyword argument is a dependency like any other.
+
+        The group check is only as complete as the list of questions a skip
+        expression is known to read, so a name the extractor misses is a page that
+        validates and then cannot be rendered.
+        """
+        gate = self._choice("gate")
+        branched = self._choice("branched")
+        survey = Survey([gate, branched]).add_skip_rule(
+            "branched", "min(a={{ gate.answer }}, b=10) == 5"
+        )
+
+        self.assertEqual(survey.rendering_dag()[1], {0})
+        with self.assertRaises(SurveyCreationError):
+            survey.add_question_group("gate", "branched", "page")
+
+    def test_two_branched_questions_may_share_a_group(self):
+        """The either/or pattern: one question per answer, both on one page."""
+        gate = self._choice("gate")
+        if_yes = self._choice("if_yes")
+        if_no = self._choice("if_no")
+        survey = Survey([gate, if_yes, if_no])
+        survey = survey.add_skip_rule("if_yes", "{{ gate.answer }} != 'yes'")
+        survey = survey.add_skip_rule("if_no", "{{ gate.answer }} == 'yes'")
+
+        survey.add_question_group("if_yes", "if_no", "page")
+
+        yes_page = survey.next_group(answers={"gate.answer": "yes"})
+        no_page = survey.next_group(answers={"gate.answer": "no"})
+        self.assertEqual(yes_page["question_names"], ["if_yes"])
+        self.assertEqual(no_page["question_names"], ["if_no"])
+
+    def test_piping_within_a_group_is_still_rejected(self):
+        source = self._choice("source")
+        piped = QuestionMultipleChoice(
+            question_name="piped",
+            question_text="You said {{ source.answer }}?",
+            question_options=["yes", "no"],
+        )
+        survey = Survey([source, piped])
+
+        with self.assertRaises(SurveyCreationError):
+            survey.add_question_group("source", "piped", "page")
+
+    def test_rendering_dag_narrows_only_skip_rules(self):
+        gate = self._choice("gate")
+        filler = self._choice("filler")
+        branched = self._choice("branched")
+        survey = Survey([gate, filler, branched]).add_skip_rule(
+            "branched", "{{ gate.answer }} == 'yes'"
+        )
+
+        # dag() reports the order questions are reached in: everything before.
+        self.assertEqual(survey.dag()[2], {0, 1})
+        # rendering_dag() reports what the decision to show it reads.
+        self.assertEqual(survey.rendering_dag()[2], {0})
+
+    def test_rendering_dag_keeps_jump_rule_dependencies(self):
+        """A jump is a real constraint: the questions it passes over depend on it."""
+        gate = self._choice("gate")
+        skipped = self._choice("skipped")
+        target = self._choice("target")
+        survey = Survey([gate, skipped, target]).add_rule(
+            "gate", "{{ gate.answer }} == 'yes'", "target"
+        )
+
+        self.assertEqual(survey.rendering_dag()[1], {0})
+        with self.assertRaises(SurveyCreationError):
+            survey.add_question_group("gate", "target", "page")
+
+
 if __name__ == "__main__":
     unittest.main()

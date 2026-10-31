@@ -233,6 +233,7 @@ def _write_job_metadata(path: Path, job: "Jobs") -> None:
         "_include_expression": getattr(job, "_include_expression", None),
         "dependencies": ["dependencies/000001"] if job._depends_on is not None else [],
     }
+    metadata.update(job._assignment_metadata())
     (path / "job.json").write_text(
         json.dumps(metadata, indent=2, sort_keys=True) + "\n"
     )
@@ -321,6 +322,7 @@ def _read_job_from_tree(path: Path) -> "Jobs":
     )
     job._where_clauses = list(job_metadata.get("_where_clauses", []))
     job._include_expression = job_metadata.get("_include_expression")
+    job._restore_assignment_metadata(job_metadata)
     dependencies = job_metadata.get("dependencies") or []
     if dependencies:
         job._depends_on = _read_job_from_tree(path / dependencies[0])

@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Any, Optional, TYPE_CHECKING
 
 import random
-from jinja2 import Template
+from ..utilities.jinja import safe_template as Template
 from pydantic import (
     BaseModel,
     Field,

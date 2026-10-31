@@ -156,7 +156,9 @@ class ResultsFilter:
             - You can use logical operators like 'and', 'or', 'not'
             - You can use comparison operators like '==', '!=', '>', '<', '>=', '<='
             - You can use membership tests with 'in'
-            - You can use string methods like '.startswith()', '.contains()', etc.
+            - Use Python membership for substrings, e.g. "'budget' in agent.persona.lower()".
+              String methods such as '.startswith()' and '.lower()' are supported;
+              Python strings do not have a '.contains()' method.
             - The expression can be a multi-line string for improved readability
             - You can use template-style syntax with double curly braces: {{ field }}
 
@@ -223,7 +225,7 @@ class ResultsFilter:
             raise ResultsFilterError(
                 f"Error in filter expression: {expression}\n"
                 f"Exception: {e}\n"
-                f"See https://docs.expectedparrot.com/en/latest/results#filtering-results for more details."
+                f"See https://docs.expectedparrot.com/en/latest/results#filter-export-and-reshape for more details."
             )
         except Exception as e:
             hint = self._get_filter_hint(normalized_expression, e)
@@ -233,5 +235,5 @@ class ResultsFilter:
                 f"{hint}\n"
                 f"Make sure the expression is a valid Python expression that evaluates to a boolean.\n"
                 f'For example, \'how_feeling == "Great"\' or \'how_feeling in ["Great", "Terrible"]\'.\n'
-                f"See https://docs.expectedparrot.com/en/latest/results#filtering-results for more details."
+                f"See https://docs.expectedparrot.com/en/latest/results#filter-export-and-reshape for more details."
             )

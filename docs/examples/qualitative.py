@@ -1,0 +1,20 @@
+from edsl import QuestionCheckBox, QuestionFreeText, Scenario, ScenarioList, Survey
+
+excerpts = ScenarioList([
+    Scenario({"document_id": "d1", "excerpt_id": "e1",
+              "text": "I found the export button, but I didn't know which format to choose."}),
+    Scenario({"document_id": "d2", "excerpt_id": "e2",
+              "text": "I couldn't find exports. A colleague showed me the menu."}),
+])
+themes = QuestionCheckBox(
+    question_name="themes",
+    question_text=("Apply this codebook to the excerpt: {{ scenario.text }}. "
+                   "Discovery: finding a control; Format: selecting a file format; "
+                   "Assistance: seeking or receiving help. Select only supported themes."),
+    question_options=["Discovery", "Format", "Assistance"],
+    min_selections=0, max_selections=3,
+)
+evidence = QuestionFreeText(question_name="evidence",
+    question_text="Quote evidence for each selected theme: {{ scenario.text }}")
+survey = Survey([themes, evidence]).add_targeted_memory(evidence, themes)
+job = survey.by(excerpts)

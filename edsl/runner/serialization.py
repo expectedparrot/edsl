@@ -51,6 +51,7 @@ def serialize_job(job: Any) -> dict:
     try:
         # Prepare the job - fills in defaults
         job.replace_missing_objects()
+        assignment_metadata = job._assignment_metadata()
 
         # Extract components
         survey = job.survey if hasattr(job, "survey") else job._survey
@@ -65,6 +66,7 @@ def serialize_job(job: Any) -> dict:
             "scenarios": [_to_dict(s) for s in scenarios],
             "agents": [_to_dict(a) for a in agents],
             "models": [_to_dict(m) for m in models],
+            **assignment_metadata,
         }
     except Exception as e:
         raise SerializationError(f"Failed to serialize job: {e}") from e
@@ -138,6 +140,7 @@ def deserialize_job(data: dict) -> Any:
         total_ms = (t9 - t0) * 1000
         logger.info(f"[DESER] TOTAL deserialize_job: {total_ms:.1f}ms")
 
+        job._restore_assignment_metadata(data)
         return job
     except SerializationError:
         raise

@@ -73,6 +73,38 @@ from .exceptions import (
 )
 
 
+def _sanitize_source_template(text: str) -> str:
+    """Neutralize source-answer and logic templates for use in a meta-survey.
+
+    Source *answer* references cannot resolve in the meta-survey (the source
+    questions are not asked there), so they are rewritten to prose. Scenario
+    references, however, are the subject of the question and must survive so the
+    meta-survey can still be run across scenarios via ``.by(scenarios)``. A bare
+    ``{{ field }}`` (no dotted path) is treated as a scenario/field reference and
+    preserved; a dotted ``{{ q0.answer }}`` becomes prose; anything else piped is
+    replaced with a neutral placeholder. ``{% ... %}`` logic blocks are removed.
+    """
+
+    def _replace(match: "re.Match") -> str:
+        inner = match.group(1).strip()
+        head = inner.split("|")[0].strip()  # ignore any Jinja filters
+        # Scenario subject -> keep verbatim so scenarios still fill it at run time.
+        if head.startswith("scenario.") or head.startswith("scenario["):
+            return match.group(0)
+        # Bare field name (no dotted path) -> scenario/agent fill; keep verbatim.
+        if re.fullmatch(r"[A-Za-z_]\w*", head):
+            return match.group(0)
+        # Source answer reference -> readable prose.
+        answer_ref = re.fullmatch(r"([A-Za-z_]\w*)\.answer", head)
+        if answer_ref:
+            return f"the answer to {answer_ref.group(1)}"
+        return "[a piped source value]"
+
+    text = re.sub(r"\{\{(.*?)\}\}", _replace, text)
+    text = re.sub(r"\{%.*?%\}", "[conditional source text]", text)
+    return text
+
+
 class Survey(Base):
     """A collection of questions with logic for navigating between them.
 
@@ -224,12 +256,536 @@ class Survey(Base):
             # This will raise SurveyPipingReferenceError if questions are in wrong order
             self.dag()
 
+    def to_meta_survey(
+        self,
+        sample_size: Optional[int] = None,
+        question_framing: str = "For the population described by you",
+        themes_by_question: Optional[dict[str, list[str]]] = None,
+    ) -> "Survey":
+        """Return a survey that elicits population response estimates for this survey.
+
+        The returned survey is intended to be run with an Agent whose traits or
+        instructions describe the target population. It translates known response
+        spaces into typed EDSL distribution questions: one distribution for each
+        single-choice question, one binary distribution per checkbox option, and
+        one distribution per rank position. Free-text questions use a typed
+        dictionary containing generated themes and their estimated proportions,
+        unless a fixed theme codebook is supplied for that source question.
+        Applicable skip conditions from the source survey are included explicitly.
+
+        Args:
+            sample_size: Optional number of respondents to estimate. When given,
+                request estimated respondent counts as well as proportions.
+            question_framing: Lead-in used to frame each generated question. The
+                default is suitable when the Agent describes the target population.
+            themes_by_question: Optional mapping from free-text source question
+                names to fixed theme labels. Questions with a supplied codebook
+                become ``QuestionDistribution`` questions over those labels (and
+                a skipped outcome when applicable), instead of generating labels.
+        """
+        if sample_size is not None and (
+            isinstance(sample_size, bool)
+            or not isinstance(sample_size, int)
+            or sample_size < 1
+        ):
+            raise ValueError("sample_size must be a positive integer or None")
+        if not isinstance(question_framing, str) or not question_framing.strip():
+            raise ValueError("question_framing must be a non-empty string")
+        question_framing = question_framing.strip().rstrip(".,;:")
+        if themes_by_question is None:
+            themes_by_question = {}
+        if not isinstance(themes_by_question, dict):
+            raise ValueError(
+                "themes_by_question must be a mapping of question names to theme lists"
+            )
+        source_questions_by_name = {
+            question.question_name: question
+            for question in self.questions
+            if hasattr(question, "question_name")
+        }
+        for source_name, themes in themes_by_question.items():
+            if source_name not in source_questions_by_name:
+                raise ValueError(
+                    f"themes_by_question refers to unknown source question {source_name!r}"
+                )
+            if (
+                getattr(source_questions_by_name[source_name], "question_type", None)
+                != "free_text"
+            ):
+                raise ValueError(
+                    f"A fixed theme codebook can only be supplied for a free-text "
+                    f"question; {source_name!r} is not free-text."
+                )
+            if (
+                not isinstance(themes, list)
+                or len(themes) < 2
+                or any(
+                    not isinstance(theme, str) or not theme.strip()
+                    for theme in themes
+                )
+                or len({theme.strip().casefold() for theme in themes}) != len(themes)
+            ):
+                raise ValueError(
+                    f"Themes for {source_name!r} must be a list of at least two "
+                    "non-empty, unique strings."
+                )
+        from ..questions import QuestionDistribution, QuestionDict, QuestionList
+
+        converted = []
+        meta_names_by_source: dict[str, list[str]] = {}
+
+        source_text_as_prose = _sanitize_source_template
+
+        def _is_default_rule(rule) -> bool:
+            return rule.expression == "True" and rule.priority == -1
+
+        def _jumps_past(rule, question_index: int) -> bool:
+            next_q = rule.next_q
+            return next_q is EndOfSurvey or (
+                isinstance(next_q, int) and question_index < next_q
+            )
+
+        def skip_conditions(
+            question_index: int,
+        ) -> list[tuple[str, list[str]]]:
+            """Get source skip conditions and their source question names.
+
+            Honors rule priority. A rule that jumps past this question only skips
+            respondents when no competing rule of equal-or-higher priority at the
+            same source question routes them into it (EDSL fires the highest
+            priority true rule at each node). Flows where priority makes the skip
+            population undecidable from static text are rejected rather than
+            silently mislabeled.
+            """
+            conditions = []
+            for rule in self.rule_collection:
+                if _is_default_rule(rule):
+                    continue
+                direct_skip = rule.current_q == question_index and rule.before_rule
+                jump_skips = rule.current_q < question_index and _jumps_past(
+                    rule, question_index
+                )
+                if jump_skips:
+                    # If another rule at the same source question has equal or
+                    # higher priority but does NOT jump past this question, it can
+                    # route some of the same respondents into it. Which population
+                    # a shared condition actually skips is then undecidable from the
+                    # expression text alone, so refuse rather than guess.
+                    for other in self.rule_collection:
+                        if (
+                            other is rule
+                            or other.before_rule
+                            or _is_default_rule(other)
+                            or other.current_q != rule.current_q
+                        ):
+                            continue
+                        if other.priority >= rule.priority and not _jumps_past(
+                            other, question_index
+                        ):
+                            raise ValueError(
+                                "Survey.to_meta_survey cannot faithfully derive "
+                                "the skip condition for source question index "
+                                f"{question_index}: a rule jumping past it shares "
+                                "the source question with a higher- or "
+                                "equal-priority rule that routes into it. Simplify "
+                                "the survey flow or convert it manually."
+                            )
+                if direct_skip or jump_skips:
+                    source_names = re.findall(
+                        r"\{\{\s*([A-Za-z_]\w*)\.answer\b",
+                        rule.expression,
+                    )
+                    expression = source_text_as_prose(rule.expression)
+                    item = (expression, source_names)
+                    if item not in conditions:
+                        conditions.append(item)
+            return conditions
+
+        def sample_text() -> str:
+            if sample_size is None:
+                return "Report proportions."
+            return (
+                f"Assume a sample size of {sample_size}; report proportions and "
+                "approximate respondent counts."
+            )
+
+        def skip_text(
+            conditions: list[tuple[str, list[str]]],
+            *,
+            include_skip_outcome: bool = True,
+        ) -> str:
+            if not conditions:
+                return "This question has no skip condition in the source survey."
+            source_names = list(
+                dict.fromkeys(
+                    source_name
+                    for _expression, references in conditions
+                    for source_name in references
+                )
+            )
+            piped_estimates = []
+            for source_name in source_names:
+                for meta_name in meta_names_by_source.get(source_name, []):
+                    piped_estimates.append(
+                        f"Estimated population distribution for source question "
+                        f"{source_name!r}: {{{{ {meta_name}.answer }}}}"
+                    )
+            pipe_context = (
+                " Previous source estimates are provided here: "
+                + "; ".join(piped_estimates)
+                + "."
+                if piped_estimates
+                else ""
+            )
+            expressions = "; ".join(expression for expression, _refs in conditions)
+            skip_representation = (
+                "Represent these respondents with the 'Skipped by survey logic' "
+                "outcome."
+                if include_skip_outcome
+                else "Report this share in the skipped_proportion field."
+            )
+            distribution_instruction = (
+                "Estimate the response distribution among respondents who are not "
+                "skipped, then scale it by the share reaching this question so all "
+                "outcomes, including skipped, sum to 1."
+                if include_skip_outcome
+                else "Estimate theme proportions conditional on answering; keep the "
+                "skipped share separate from those theme proportions."
+            )
+            return (
+                "Respondents meeting the source skip condition(s) are skipped: "
+                + expressions
+                + ". "
+                + skip_representation
+                + " Use the piped source estimate(s) to determine the population "
+                "share meeting each condition. "
+                + distribution_instruction
+                + pipe_context
+            )
+
+        def _is_templated(value) -> bool:
+            return isinstance(value, str) and any(
+                marker in value for marker in ("{{", "{%", "{#")
+            )
+
+        def _options_are_dynamic(options) -> bool:
+            """True when response options are piped/templated rather than literal.
+
+            QuestionOptionsDescriptor accepts a literal list, a template string
+            (e.g. ``"{{ choices }}"``), or a combine mapping
+            (e.g. ``{"from": "{{ choices }}", "add": ["Other"]}``). Only a literal
+            list can be converted mechanically; the string and mapping forms, and
+            a list containing a templated entry, are dynamic.
+            """
+            if _is_templated(options):
+                return True
+            if isinstance(options, dict):
+                return True
+            if isinstance(options, (list, tuple)):
+                return any(_is_templated(option) for option in options)
+            return False
+
+        for index, question in enumerate(self.questions):
+            if not hasattr(question, "question_name"):
+                continue
+            name = question.question_name
+            conditions = skip_conditions(index)
+            kind = getattr(question, "question_type", "unknown")
+            options = getattr(question, "question_options", None)
+            source_question_text = source_text_as_prose(question.question_text)
+            generated_for_source = []
+            if options is not None and _options_are_dynamic(options):
+                raise ValueError(
+                    f"Survey.to_meta_survey cannot mechanically convert question "
+                    f"{name!r} because its response options are dynamically piped."
+                )
+            if kind in {"multiple_choice", "yes_no", "linear_scale"} and options:
+                outcomes = [str(option) for option in options]
+                if conditions:
+                    outcomes.append("Skipped by survey logic")
+                labels = getattr(question, "option_labels", None)
+                label_text = ""
+                if isinstance(labels, dict) and labels:
+                    rendered = "; ".join(
+                        f"{key} = {value}" for key, value in labels.items()
+                    )
+                    label_text = (
+                        f" The outcome values carry these meanings: {rendered}. "
+                        "Treat the numeric values as the outcome keys."
+                    )
+                prompt = (
+                    f"{question_framing}, estimate the response "
+                    f"distribution for this question: {source_question_text}\n\n"
+                    f"Use exactly these outcomes: {outcomes!r}.{label_text} "
+                    "Report probabilities that sum to 1. "
+                    + skip_text(conditions)
+                    + " "
+                    + sample_text()
+                )
+                meta_name = f"meta_{index}_{name}"
+                converted.append(
+                    QuestionDistribution(
+                        question_name=meta_name,
+                        question_text=prompt,
+                        question_options=outcomes,
+                    )
+                )
+                generated_for_source.append(meta_name)
+            elif kind == "checkbox" and options:
+                all_choices = [str(choice) for choice in options]
+                min_sel = getattr(question, "min_selections", None)
+                max_sel = getattr(question, "max_selections", None)
+                limits = []
+                if min_sel is not None:
+                    limits.append(f"at least {min_sel}")
+                if max_sel is not None:
+                    limits.append(f"at most {max_sel}")
+                limit_text = (
+                    f" Respondents must select {' and '.join(limits)} of the options."
+                    if limits
+                    else ""
+                )
+                for option_index, option in enumerate(options):
+                    outcomes = ["Selected", "Not selected"]
+                    if conditions:
+                        outcomes.append("Skipped by survey logic")
+                    prompt = (
+                        f"{question_framing}, estimate whether "
+                        f"respondents would select {option!r} for: "
+                        f"{source_question_text}\n\nThe full set of options is "
+                        f"{all_choices!r}.{limit_text} Estimate this one option "
+                        "accounting for the competing choices and any selection "
+                        f"limit. Use exactly these outcomes: {outcomes!r}. Report "
+                        "probabilities that sum to 1. "
+                        + skip_text(conditions)
+                        + " "
+                        + sample_text()
+                    )
+                    meta_name = f"meta_{index}_{name}_option_{option_index}"
+                    converted.append(
+                        QuestionDistribution(
+                            question_name=meta_name,
+                            question_text=prompt,
+                            question_options=outcomes,
+                        )
+                    )
+                    generated_for_source.append(meta_name)
+            elif kind == "rank" and options:
+                num_positions = min(
+                    getattr(question, "num_selections", len(options)) or len(options),
+                    len(options),
+                )
+                for position in range(num_positions):
+                    outcomes = [str(option) for option in options]
+                    if getattr(question, "permissive", False):
+                        outcomes.append(f"No item at rank {position + 1}")
+                    if conditions:
+                        outcomes.append("Skipped by survey logic")
+                    prompt = (
+                        f"{question_framing}, estimate the "
+                        f"distribution of the item placed at rank {position + 1} "
+                        f"for: {source_question_text}\n\nUse exactly these "
+                        f"outcomes: {outcomes!r}. Report probabilities that sum "
+                        "to 1. "
+                        + skip_text(conditions)
+                        + " "
+                        + sample_text()
+                    )
+                    meta_name = f"meta_{index}_{name}_rank_{position + 1}"
+                    converted.append(
+                        QuestionDistribution(
+                            question_name=meta_name,
+                            question_text=prompt,
+                            question_options=outcomes,
+                        )
+                    )
+                    generated_for_source.append(meta_name)
+            elif kind == "free_text" and name in themes_by_question:
+                theme_outcomes = [
+                    theme.strip() for theme in themes_by_question[name]
+                ]
+                if conditions and any(
+                    theme.casefold() == "skipped by survey logic"
+                    for theme in theme_outcomes
+                ):
+                    raise ValueError(
+                        f"The theme label 'Skipped by survey logic' is reserved "
+                        f"for the skip outcome in question {name!r}."
+                    )
+                outcomes = list(theme_outcomes)
+                if conditions:
+                    outcomes.append("Skipped by survey logic")
+                prompt = (
+                    f"{question_framing}, estimate the distribution of response "
+                    f"themes for: {source_question_text}\n\n"
+                    f"Use exactly these theme outcomes: {theme_outcomes!r}. "
+                    "Classify each answer into its single best-fitting theme; treat "
+                    "the themes as the complete, mutually exclusive codebook. Report "
+                    "probabilities summing to 1 across the full population. "
+                    + skip_text(conditions)
+                    + " "
+                    + sample_text()
+                )
+                meta_name = f"meta_{index}_{name}"
+                converted.append(
+                    QuestionDistribution(
+                        question_name=meta_name,
+                        question_text=prompt,
+                        question_options=outcomes,
+                    )
+                )
+                generated_for_source.append(meta_name)
+            elif kind == "free_text":
+                # Themes are not in the source response space, so this is the one
+                # case where the model must generate outcome labels.
+                prompt = (
+                    f"{question_framing}, estimate the distribution "
+                    f"of themes in responses to: {source_question_text}\n\n"
+                    "Return themes and matching proportions for respondents who "
+                    "answer the question; do not include skipped respondents as a "
+                    "theme. Those theme proportions should sum to 1 among answerers. "
+                    "Report the skipped share separately as a proportion of the full "
+                    "sample. "
+                    + skip_text(conditions, include_skip_outcome=False)
+                    + " "
+                    + sample_text()
+                )
+                meta_name = f"meta_{index}_{name}"
+                converted.append(
+                    QuestionDict(
+                        question_name=meta_name,
+                        question_text=prompt,
+                        answer_keys=["themes", "proportions", "skipped_proportion"],
+                        value_types=["list[str]", "list[float]", "float"],
+                        value_descriptions=[
+                            "Generated response themes",
+                            "Estimated share for each theme, in matching order",
+                            "Share skipped under the listed source rule(s), or 0 if none",
+                        ],
+                        answering_instructions=(
+                            "Return JSON with exactly the requested fields. Keep themes "
+                            "and proportions the same length. Theme proportions sum to "
+                            "1 among respondents who answered; skipped_proportion is "
+                            "the separate share of the full sample that skipped. Do not "
+                            "include skipping as a theme."
+                        ),
+                    )
+                )
+                generated_for_source.append(meta_name)
+            else:
+                raise ValueError(
+                    f"Survey.to_meta_survey cannot mechanically convert question "
+                    f"{name!r} of type {kind!r}; supported types are multiple_choice, "
+                    "yes_no, linear_scale, checkbox, rank, and free_text."
+                )
+            meta_names_by_source[name] = generated_for_source
+
+        return Survey(converted)
+
+    def to_meta_theme_survey(
+        self,
+        num_themes: int = 6,
+    ) -> "Survey":
+        """Return a survey that proposes fixed theme codebooks for free-text items.
+
+        Run this auxiliary survey once, review the proposed labels, and pass the
+        approved mapping to :meth:`to_meta_survey` as ``themes_by_question``.
+        The Agent used to run it can describe a target population when the theme
+        set should be tailored to that population.
+
+        Args:
+            num_themes: Exact number of theme labels to propose per free-text
+                question. Defaults to six.
+        """
+        if (
+            isinstance(num_themes, bool)
+            or not isinstance(num_themes, int)
+            or num_themes < 2
+        ):
+            raise ValueError("num_themes must be an integer of at least 2")
+        from ..questions import QuestionList
+
+        suggestions = []
+        for index, question in enumerate(self.questions):
+            if getattr(question, "question_type", None) != "free_text":
+                continue
+            source_question_text = _sanitize_source_template(question.question_text)
+            prompt = (
+                f"For responses to this survey question: {source_question_text}\n\n"
+                f"Propose exactly {num_themes} concise themes that are collectively "
+                "exhaustive and mutually exclusive for classifying one response. "
+                "Make them specific to the question, use plain-language labels, and "
+                "avoid catch-all categories unless needed for coverage."
+            )
+            suggestions.append(
+                QuestionList(
+                    question_name=f"meta_themes_{index}_{question.question_name}",
+                    question_text=prompt,
+                    min_list_items=num_themes,
+                    max_list_items=num_themes,
+                    answering_instructions=(
+                        f'Return exactly a JSON list of {num_themes} quoted strings, '
+                        'for example ["theme one", "theme two"]. Do not number '
+                        "items or add prose. Each label should be concise, distinct, "
+                        "and suitable as one mutually exclusive response category."
+                    ),
+                )
+            )
+        if not suggestions:
+            raise ValueError(
+                "This survey has no free-text questions to propose themes for"
+            )
+        return Survey(suggestions)
+
     def clipboard_data(self) -> str:
         """Return the clipboard data for the survey."""
         text = []
         for question in self.questions:
             text.append(question.human_readable())
         return "\n\n".join(text)
+
+    def create_review_survey(
+        self,
+        *,
+        screenshot_paths=None,
+        output_dir=None,
+        scenario=None,
+        reviewer_question_text=(
+            "What is your name? (Your name will be attached to your review comments.)"
+        ),
+        reviewer_question_name="reviewer_name",
+        approval_options=("Looks good", "Has an issue"),
+        review_question_text=None,
+        feedback_question_text=None,
+        question_name_prefix="review",
+        screenshot_key_prefix="review_screenshot",
+    ):
+        """Create a visual survey for reviewing each question in this survey.
+
+        By default, question cards are captured with Playwright. Existing PNGs can
+        instead be supplied with ``screenshot_paths``. Returns a ``(Survey,
+        Scenario)`` tuple; pass the scenario when running or humanizing the review.
+
+        Examples:
+            >>> from edsl import Survey
+            >>> source = Survey.example()
+            >>> review, scenario = source.create_review_survey()  # doctest: +SKIP
+        """
+        from .survey_review import create_review_survey
+
+        return create_review_survey(
+            self,
+            screenshot_paths=screenshot_paths,
+            output_dir=output_dir,
+            scenario=scenario,
+            reviewer_question_text=reviewer_question_text,
+            reviewer_question_name=reviewer_question_name,
+            approval_options=approval_options,
+            review_question_text=review_question_text,
+            feedback_question_text=feedback_question_text,
+            question_name_prefix=question_name_prefix,
+            screenshot_key_prefix=screenshot_key_prefix,
+        )
 
     #: Default upper bound on loop iterations when ``loop_over`` is called
     #: without an explicit ``max_items``. See :meth:`loop_over`.
@@ -2157,6 +2713,17 @@ class Survey(Base):
     ) -> None:
         """Validate that questions in a group don't have dependencies on each other.
 
+        A group is served as one page, so every question on it is rendered before any
+        of it is answered. A question may therefore not need anything else in the same
+        group: not its text, through piping or memory, and not its presence, through a
+        rule reading an answer given on that page.
+
+        Uses :meth:`rendering_dag` rather than :meth:`dag`. The two differ only for
+        skip rules, where `dag` reports a dependency on every preceding question
+        because that is the order they are reached in. That would refuse a page holding
+        a question skipped on an answer given pages earlier, which renders perfectly
+        well -- the answer is in hand before the page is built.
+
         Args:
             start_index: Starting index of the group
             end_index: Ending index of the group
@@ -2166,8 +2733,7 @@ class Survey(Base):
             SurveyCreationError: If any question in the group depends on another
                 question in the same group.
         """
-        # Get the complete dependency DAG
-        dag = self.dag()
+        dag = self.rendering_dag()
 
         # Get all question indices in the proposed group
         group_indices = set(range(start_index, end_index + 1))
@@ -2927,6 +3493,47 @@ class Survey(Base):
         """
         return self._navigator.next_question_group(current_question, answers)
 
+    def next_group(
+        self,
+        current_group: Optional[str] = None,
+        answers: Optional[Dict[str, Any]] = None,
+        include_instructions: bool = True,
+    ) -> Dict[str, Any]:
+        """
+        Return the next renderable group for human-facing grouped survey presentation.
+
+        This method treats a question group as a page. When called with no current
+        group, it returns the first renderable group. When called after a group has
+        been submitted, it advances from that group's last renderable question using
+        the same rule logic as ``next_question`` and returns the target group.
+
+        Args:
+            current_group: The name of the group that was just submitted. If None,
+                returns the first renderable group.
+            answers: Answers collected so far, including answers from current_group.
+            include_instructions: Whether to include instructions that fall before or
+                inside the returned group.
+
+        Returns:
+            A dictionary with ``group_name``, ``items``, ``question_names``, and
+            ``is_end`` keys. ``items`` contains questions and optional instructions;
+            at the end of the survey it contains ``[EndOfSurvey]``.
+
+        Examples:
+            >>> from edsl.questions import QuestionFreeText
+            >>> q0 = QuestionFreeText(question_name="q0", question_text="First")
+            >>> q1 = QuestionFreeText(question_name="q1", question_text="Second")
+            >>> survey = Survey([q0, q1])
+            >>> survey.question_groups = {"page_0": (0, 0), "page_1": (1, 1)}
+            >>> survey.next_group()["group_name"]
+            'page_0'
+        """
+        return self._navigator.next_group(
+            current_group=current_group,
+            answers=answers,
+            include_instructions=include_instructions,
+        )
+
     def get_question_group(self, question: Union[str, "QuestionBase"]) -> Optional[str]:
         """
         Get the group name that contains the specified question.
@@ -3144,6 +3751,33 @@ class Survey(Base):
         from .dag import ConstructDAG
 
         return ConstructDAG(self).dag(textify)
+
+    def rendering_dag(self, textify: bool = False) -> "DAG":
+        """Return the DAG of what each question needs in order to be rendered.
+
+        Differs from :meth:`dag` only in what a skip rule contributes. `dag` treats a
+        skippable question as depending on every question before it, which describes
+        the order it is reached in; here it depends only on the questions its skip
+        expression reads. Ask this when questions are served together -- a page of a
+        grouped survey -- and :meth:`dag` when you mean traversal order.
+
+        Args:
+            textify: If True, use question names as nodes instead of indices.
+
+        Examples:
+            >>> from edsl.questions import QuestionMultipleChoice
+            >>> q0 = QuestionMultipleChoice(question_name="q0", question_text="?", question_options=["y", "n"])
+            >>> q1 = QuestionMultipleChoice(question_name="q1", question_text="?", question_options=["y", "n"])
+            >>> q2 = QuestionMultipleChoice(question_name="q2", question_text="?", question_options=["y", "n"])
+            >>> s = Survey([q0, q1, q2]).add_skip_rule("q2", "{{ q0.answer }} == 'y'")
+            >>> s.dag()[2] == {0, 1}
+            True
+            >>> s.rendering_dag()[2] == {0}
+            True
+        """
+        from .dag import ConstructDAG
+
+        return ConstructDAG(self).rendering_dag(textify)
 
     ###################
     # DUNDER METHODS

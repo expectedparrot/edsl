@@ -4,6 +4,7 @@ from typing import Literal, Optional, Type, Union, TYPE_CHECKING
 from ..agents import Agent, AgentList
 from ..caching import Cache
 from ..notebooks import Notebook
+from ..prompts import Prompt
 from ..results import Results
 from ..scenarios import Scenario, ScenarioList
 from ..surveys import Survey
@@ -23,6 +24,7 @@ EDSLObject = Union[
     "LanguageModel",
     "ModelList",
     Notebook,
+    Prompt,
     Type[QuestionBase],
     Results,
     Scenario,
@@ -39,6 +41,7 @@ ObjectType = Literal[
     "model",
     "model_list",
     "notebook",
+    "prompt",
     "question",
     "results",
     "scenario",
@@ -99,6 +102,7 @@ class ObjectRegistry:
             {"object_type": "model", "edsl_class": LanguageModel},
             {"object_type": "model_list", "edsl_class": ModelList},
             {"object_type": "notebook", "edsl_class": Notebook},
+            {"object_type": "prompt", "edsl_class": Prompt},
             {"object_type": "question", "edsl_class": QuestionBase},
             {"object_type": "results", "edsl_class": Results},
             {"object_type": "scenario", "edsl_class": Scenario},
@@ -162,6 +166,11 @@ class ObjectRegistry:
 
         if isinstance(edsl_object, Scenario):
             return "scenario"
+
+        if isinstance(edsl_object, Prompt) or (
+            isinstance(edsl_object, type) and issubclass(edsl_object, Prompt)
+        ):
+            return "prompt"
 
         if object_type is None:
             from .exceptions import CoopValueError

@@ -506,7 +506,7 @@ class QuestionRank(QuestionBase):
         Returns:
             A list of translated option texts
         """
-        from jinja2 import Template
+        from ..utilities.jinja import safe_template as Template
 
         scenario = scenario or Scenario()
         translated_options = [
@@ -567,7 +567,7 @@ class QuestionRank(QuestionBase):
         Returns:
             HTML content string for rendering the question
         """
-        from jinja2 import Template
+        from ..utilities.jinja import safe_template as Template
 
         question_html_content = Template(
             """

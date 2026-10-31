@@ -1,5 +1,6 @@
 import inspect
-from jinja2 import Template, StrictUndefined
+from jinja2 import StrictUndefined
+from ..utilities.jinja import safe_template as Template
 
 from typing import Any, Optional
 from collections import UserList
