@@ -170,7 +170,7 @@ class OpenAIServiceV2(InferenceServiceABC):
                 "logprobs": False,
                 "top_logprobs": 3,
                 "reasoning": None,
-                "reasoning_effort": "high" if _is_reasoning else None,
+                "reasoning_effort": None,
             }
 
             def sync_client(self):
@@ -339,6 +339,8 @@ class OpenAIServiceV2(InferenceServiceABC):
                     # explicit values unchanged for provider-side validation.
                     if effort is not None:
                         reasoning_params["effort"] = effort
+                    elif is_reasoning_model and "effort" not in reasoning_params:
+                        reasoning_params["effort"] = "high"
                     params["reasoning"] = reasoning_params
 
                 # For all models using the responses API, use max_output_tokens

@@ -192,14 +192,16 @@ class AwsBedrockService(InferenceServiceABC):
         )
 
     @classmethod
-    def _thinking_request_fields(cls, model_id: str) -> dict:
+    def _thinking_request_fields(cls, model_id: str, max_tokens: int) -> dict:
         if cls._supports_adaptive_thinking(model_id):
             return {
                 "thinking": {"type": "adaptive"},
                 "output_config": {"effort": "high"},
             }
         if cls._supports_manual_thinking(model_id):
-            return {"thinking": {"type": "enabled", "budget_tokens": 10000}}
+            safe_budget = min(10000, max_tokens - 1)
+            if safe_budget >= 1024:
+                return {"thinking": {"type": "enabled", "budget_tokens": safe_budget}}
         return {}
 
     @classmethod
@@ -232,7 +234,9 @@ class AwsBedrockService(InferenceServiceABC):
         if is_thinking:
             return cfg
         if is_claude:
-            cfg["temperature"] = temperature
+            cfg["temperature"] = (
+                1.0 if cls._supports_manual_thinking(model_id) else temperature
+            )
             return cfg
         cfg["temperature"] = temperature
         cfg["topP"] = top_p
@@ -441,7 +445,7 @@ class AwsBedrockService(InferenceServiceABC):
                         self.top_p,
                     ),
                     "additionalModelRequestFields": cls._thinking_request_fields(
-                        effective_model_id
+                        effective_model_id, self.max_tokens
                     ),
                 }
 

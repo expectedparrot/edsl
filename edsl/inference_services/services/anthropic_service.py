@@ -277,8 +277,25 @@ class AnthropicService(InferenceServiceABC):
                     create_kwargs["temperature"] = cls._api_temperature(
                         model_name, self.temperature
                     )
-                if self.thinking is not None:
-                    create_kwargs["thinking"] = self.thinking
+                request_thinking = self.thinking
+                if (
+                    isinstance(request_thinking, dict)
+                    and request_thinking.get("type") == "enabled"
+                    and request_thinking.get("budget_tokens", 0) >= self.max_tokens
+                ):
+                    safe_budget = self.max_tokens - 1
+                    if safe_budget >= 1024:
+                        request_thinking = {**request_thinking, "budget_tokens": safe_budget}
+                    else:
+                        request_thinking = None
+                if request_thinking is not None:
+                    create_kwargs["thinking"] = request_thinking
+                    if (
+                        isinstance(request_thinking, dict)
+                        and request_thinking.get("type") == "enabled"
+                        and not cls._temperature_unsupported(model_name)
+                    ):
+                        create_kwargs["temperature"] = 1.0
                 if self.output_config is not None:
                     create_kwargs["output_config"] = self.output_config
 

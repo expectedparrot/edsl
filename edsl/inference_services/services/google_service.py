@@ -253,9 +253,9 @@ class GoogleService(InferenceServiceABC):
             _inference_service_ = cls._inference_service_
 
             _parameters_ = {
-                "temperature": 1.0 if uses_thinking_level(model_name) else 0.5,
-                "topP": 1,
-                "topK": 1,
+                "temperature": None if uses_thinking_level(model_name) else 0.5,
+                "topP": None if uses_thinking_level(model_name) else 1,
+                "topK": None if uses_thinking_level(model_name) else 1,
                 "maxOutputTokens": 16384 if supports_thinking(model_name) else 2048,
                 "stopSequences": [],
                 "thinking_budget": (
@@ -467,6 +467,15 @@ class GoogleService(InferenceServiceABC):
                         temperature=self.temperature,
                         top_p=self.topP,
                         top_k=self.topK,
+                    )
+                else:
+                    sampling_overrides = {
+                        "temperature": self.temperature,
+                        "top_p": self.topP,
+                        "top_k": self.topK,
+                    }
+                    config_kwargs.update(
+                        {key: value for key, value in sampling_overrides.items() if value is not None}
                     )
 
                 if model_uses_thinking_level and self.thinking_level is not None:

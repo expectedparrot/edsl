@@ -95,3 +95,44 @@ def test_client_rebuilt_when_vertex_settings_change(monkeypatch):
     m.vertex_credentials = SECRET  # credentials change -> rebuild too
     call()
     assert [b["vertex_project"] for b in builds] == ["proj-a", "proj-b", "proj-b"]
+
+
+def test_gemini_3_keeps_explicit_sampling_overrides(monkeypatch):
+    captured = {}
+
+    class FakeTypes:
+        @staticmethod
+        def SafetySetting(**kwargs):
+            return kwargs
+
+        @staticmethod
+        def ThinkingConfig(**kwargs):
+            return kwargs
+
+        @staticmethod
+        def GenerateContentConfig(**kwargs):
+            return kwargs
+
+    class FakeModels:
+        async def generate_content(self, **kwargs):
+            captured.update(kwargs)
+            return type("Response", (), {"model_dump": lambda self, **kw: {"text": "ok"}})()
+
+    class FakeClient:
+        aio = type("Aio", (), {"models": FakeModels()})()
+
+    monkeypatch.setattr(gs, "_get_types", lambda: FakeTypes)
+    monkeypatch.setattr(gs, "_build_genai_client", lambda *args, **kwargs: FakeClient())
+    model = gs.GoogleService.create_model("gemini-3-flash-preview")(
+        temperature=0.3,
+        topP=0.8,
+        topK=12,
+        skip_api_key_check=True,
+    )
+    asyncio.run(model.async_execute_model_call(user_prompt="hello"))
+
+    config = captured["config"]
+    assert config["temperature"] == 0.3
+    assert config["top_p"] == 0.8
+    assert config["top_k"] == 12
+    assert config["thinking_config"] == {"thinking_level": "HIGH"}
