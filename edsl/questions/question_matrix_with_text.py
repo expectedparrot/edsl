@@ -7,7 +7,43 @@ from jinja2 import Template
 
 from .decorators import inject_exception
 from .exceptions import QuestionCreationValidationError
-from .question_matrix import QuestionMatrix
+from .question_matrix import MatrixResponseValidator, QuestionMatrix
+
+
+class MatrixWithTextResponseValidator(MatrixResponseValidator):
+    """Coerce matrix choices without flattening text-row response objects."""
+
+    required_params = MatrixResponseValidator.required_params + ["items_with_text"]
+
+    def fix(self, response, verbose=False):
+        answer = response.get("answer")
+        if not isinstance(answer, dict) or not any(
+            isinstance(answer.get(row), dict) for row in self.items_with_text
+        ):
+            return super().fix(response, verbose=verbose)
+
+        fixed = dict(response)
+        fixed_answer = dict(answer)
+        option_type = type(self.question_options[0]) if self.question_options else str
+        for row in self.items_with_text:
+            value = fixed_answer.get(row)
+            if isinstance(value, dict) and "choice" in value:
+                text = value.get("text")
+                choice = value["choice"]
+                if not isinstance(choice, option_type):
+                    try:
+                        choice = option_type(choice)
+                    except (TypeError, ValueError):
+                        pass
+                fixed_answer[row] = {"choice": choice, "text": text}
+        for row, value in fixed_answer.items():
+            if row not in self.items_with_text and not isinstance(value, option_type):
+                try:
+                    fixed_answer[row] = option_type(value)
+                except (TypeError, ValueError):
+                    pass
+        fixed["answer"] = fixed_answer
+        return fixed
 
 
 class QuestionMatrixWithText(QuestionMatrix):
@@ -19,6 +55,7 @@ class QuestionMatrixWithText(QuestionMatrix):
     """
 
     question_type = "matrix_with_text"
+    response_validator_class = MatrixWithTextResponseValidator
 
     def __init__(
         self,

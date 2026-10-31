@@ -72,3 +72,24 @@ def test_matrix_with_text_html_has_text_input_only_for_configured_rows(question)
 
     assert 'name="service_quality_Support_text"' in html
     assert 'name="service_quality_Speed_text"' not in html
+
+
+def test_matrix_with_text_has_default_prompts(question):
+    assert "Rows:" in question.prompt_preview().text
+    assert "choice" in question.prompt_preview().text
+
+
+def test_matrix_with_text_repair_preserves_text_row_object(question):
+    response = {
+        "answer": {
+            "Speed": "2",
+            "Support": {"choice": "3", "text": "Helpful"},
+        }
+    }
+
+    fixed = question.response_validator.fix(response)
+
+    assert fixed["answer"] == {
+        "Speed": 2,
+        "Support": {"choice": 3, "text": "Helpful"},
+    }
