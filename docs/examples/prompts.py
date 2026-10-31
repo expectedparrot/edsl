@@ -1,0 +1,13 @@
+from edsl import Agent, Model, QuestionMultipleChoice, Scenario
+
+question = QuestionMultipleChoice(
+    question_name="category",
+    question_text="Classify this request: {{ scenario.request }}",
+    question_options=["Billing", "Access", "Other"],
+    answering_instructions="Return one of the listed options. Use Other when neither applies.",
+)
+agent = Agent(instruction="Apply the coding scheme literally; do not infer missing facts.")
+scenario = Scenario({"record_id": "r1", "request": "Please reset my password."})
+job = question.by(agent).by(scenario).by(Model())
+# Rendering prompts does not generate model responses.
+prompts = job.prompts()

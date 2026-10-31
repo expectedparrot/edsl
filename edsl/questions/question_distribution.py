@@ -27,17 +27,109 @@ def _unique_object(pairs):
     return result
 
 
-def _decode_generated(text):
-    """Read the original JSON before generic response repair can change values."""
-    candidate = re.sub(r"^```(?:json)?\s*", "", text.strip(), count=1, flags=re.I)
-    answer, end = json.JSONDecoder(object_pairs_hook=_unique_object).raw_decode(
-        candidate
-    )
-    trailing = candidate[end:].strip()
-    if trailing.startswith("```"):
-        trailing = trailing[3:].strip()
-    comment = re.sub(r"^COMMENT:\s*", "", trailing, count=1, flags=re.I) or None
-    return answer, comment
+_FENCE_OPEN = re.compile(r"```(?:json)?\s*$", re.I)
+_LEADING_FENCE = re.compile(r"```(?:json)?\s*", re.I)
+_OBJECT_OPENING = re.compile(r"""\{\s*(?:["']|$)""")
+_FENCE_CLOSE = re.compile(r"^```\s*", re.I)
+_COMMENT_PREFIX = re.compile(r"^COMMENT:\s*", re.I)
+_ERROR_MARKER = "[ERROR:"
+
+
+def _strip_surroundings(preamble, trailing):
+    """Drop code fences and the COMMENT: label around the JSON object."""
+    preamble = _FENCE_OPEN.sub("", preamble.strip(), count=1).strip()
+    trailing = _FENCE_CLOSE.sub("", trailing.strip(), count=1).strip()
+    trailing = _COMMENT_PREFIX.sub("", trailing, count=1).strip()
+    return "\n".join(part for part in (preamble, trailing) if part) or None
+
+
+def _decode_generated(text, keys=None):
+    """Read the original JSON before generic response repair can change values.
+
+    The instructions ask for the object first and any comment after it, so
+    a response that opens with a matching object (optionally fenced) is
+    answered by that object, and the comment is not searched for others.
+
+    Models that ignore this often reason in prose before the object or
+    restate the example object from the instructions. For those, the
+    last object whose keys match ``keys`` is taken as the answer, since a
+    model's final answer follows its reasoning; anything around it becomes
+    the comment. An object left open after the last complete one is a
+    truncated final answer, so it is rejected rather than falling back to
+    an earlier object. Duplicate keys inside the chosen object are still
+    rejected so that nothing is silently repaired; duplicate keys in other
+    objects, such as one quoted in a comment, are ignored.
+    """
+    decoder = json.JSONDecoder(object_pairs_hook=_unique_object)
+    stripped = text.strip()
+    lenient = json.JSONDecoder()
+
+    def matches(answer):
+        return keys is None or (isinstance(answer, dict) and set(answer) == set(keys))
+
+    fence = _LEADING_FENCE.match(stripped)
+    start = fence.end() if fence else 0
+    if stripped.startswith("{", start):
+        duplicate = answer = None
+        try:
+            answer, end = decoder.raw_decode(stripped, start)
+        except json.JSONDecodeError:
+            pass
+        except ValueError as error:
+            duplicate = error
+            answer, end = lenient.raw_decode(stripped, start)
+        if answer is not None and matches(answer):
+            # A leading answer with duplicate keys is rejected outright,
+            # so an object quoted in its comment cannot take its place.
+            if duplicate is not None:
+                raise duplicate
+            return answer, _strip_surroundings(stripped[:start], stripped[end:])
+    chosen = fallback = None
+    parsed_end = 0
+    for match in re.finditer(r"\{", stripped):
+        start = match.start()
+        duplicate = None
+        try:
+            answer, end = decoder.raw_decode(stripped, start)
+        except json.JSONDecodeError:
+            continue
+        except ValueError as error:
+            # Duplicate keys only matter if this object ends up as the answer.
+            duplicate = error
+            answer, end = lenient.raw_decode(stripped, start)
+        parsed_end = max(parsed_end, end)
+        found = (
+            answer,
+            _strip_surroundings(stripped[:start], stripped[end:]),
+            duplicate,
+        )
+        if matches(answer):
+            chosen = found
+        elif fallback is None:
+            fallback = found
+    # A brace that opens like an object after the last complete one is a
+    # final answer that failed to parse, so it is rejected rather than
+    # letting an earlier object stand in for it. A stray brace in prose
+    # (e.g. "I {think so") is not an object opening and is ignored.
+    opening = _OBJECT_OPENING.search(stripped, parsed_end)
+    if opening:
+        tail = stripped[opening.start():]
+        if tail.count("{") > tail.count("}"):
+            raise ValueError(
+                "The response ended before the JSON object was closed; the model "
+                "likely ran out of output tokens. Raise max_tokens or ask for the "
+                "JSON before any reasoning."
+            )
+        raise ValueError(
+            "The final JSON object in the response could not be parsed; it "
+            "must be strict JSON with double-quoted keys."
+        )
+    if chosen is not None or fallback is not None:
+        answer, comment, duplicate = chosen or fallback
+        if duplicate is not None:
+            raise duplicate
+        return answer, comment
+    raise ValueError("No JSON object was found in the response.")
 
 
 class DistributionResponseValidator(ResponseValidatorABC):
@@ -242,10 +334,20 @@ class QuestionDistribution(QuestionBase):
                 data = data.copy()
                 raw = data.get("generated_tokens")
                 if isinstance(raw, str) and raw.strip():
-                    answer, comment = _decode_generated(raw)
+                    if raw.lstrip().startswith(_ERROR_MARKER):
+                        raise ValueError(
+                            "The model response contained no usable text: "
+                            + raw.strip()[:200]
+                        )
+                    # Generic parsers may split pretty-printed JSON at a
+                    # newline or stop at a preamble, so re-read the original.
+                    answer, comment = _decode_generated(raw, keys)
                     data["answer"] = answer
-                    # Generic parsers may split pretty-printed JSON at a newline.
                     data["comment"] = comment
+                elif isinstance(raw, str) and not isinstance(
+                    data.get("answer"), dict
+                ):
+                    raise ValueError("The model returned an empty response.")
                 answer = data.get("answer")
                 if not isinstance(answer, dict) or set(answer) != set(keys):
                     raise ValueError(

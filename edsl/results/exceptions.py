@@ -42,7 +42,7 @@ class ResultsDeserializationError(ResultsError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/results#saving-and-loading-results"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/guides/saving_objects"
 
 
 class ResultsBadMutationstringError(ResultsError):
@@ -66,7 +66,7 @@ class ResultsBadMutationstringError(ResultsError):
     """
 
     relevant_doc = (
-        "https://docs.expectedparrot.com/en/latest/results#creating-new-columns"
+        "https://docs.expectedparrot.com/en/latest/results#derive-answers-and-summarize-groups"
     )
 
 
@@ -93,7 +93,7 @@ class ResultsColumnNotFoundError(ResultsError):
     """
 
     relevant_doc = (
-        "https://docs.expectedparrot.com/en/latest/results#selecting-columns"
+        "https://docs.expectedparrot.com/en/latest/results#select-columns-and-retain-provenance"
     )
 
 
@@ -120,7 +120,7 @@ class ResultsInvalidNameError(ResultsError):
     """
 
     relevant_doc = (
-        "https://docs.expectedparrot.com/en/latest/results#creating-new-columns"
+        "https://docs.expectedparrot.com/en/latest/results#derive-answers-and-summarize-groups"
     )
 
 
@@ -148,7 +148,7 @@ class ResultsMutateError(ResultsError):
     """
 
     relevant_doc = (
-        "https://docs.expectedparrot.com/en/latest/results#creating-new-columns"
+        "https://docs.expectedparrot.com/en/latest/results#derive-answers-and-summarize-groups"
     )
 
 
@@ -176,5 +176,5 @@ class ResultsFilterError(ResultsError):
     """
 
     relevant_doc = (
-        "https://docs.expectedparrot.com/en/latest/results#filtering-results"
+        "https://docs.expectedparrot.com/en/latest/results#filter-export-and-reshape"
     )

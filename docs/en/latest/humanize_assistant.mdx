@@ -1,0 +1,509 @@
+---
+title: "Survey assistant"
+description: "Add an AI chat assistant to a human survey that explains questions and fills in answers from what respondents tell it."
+sidebarTitle: "Survey assistant"
+---
+
+The survey assistant is an AI chat shown beside your human survey. Respondents can ask it what a question means, or tell it their answer in their own words and have it fill in the form. Every change it makes is shown in the chat with an **Undo** button, and the respondent still presses **Next** themselves: the assistant can't submit a page.
+
+You configure it in the humanize schema, under `survey.assistant`.
+
+## Add an assistant
+
+```python
+from edsl import Survey, QuestionFreeText, QuestionMultipleChoice, QuestionRank
+
+survey = Survey([
+    QuestionMultipleChoice(
+        question_name="consent",
+        question_text="Do you agree to take part in this study?",
+        question_options=["Yes", "No"],
+    ),
+    QuestionRank(
+        question_name="priorities",
+        question_text="Rank these by how much they matter when you buy a car.",
+        question_options=["Price", "Reliability", "Fuel economy", "Safety"],
+    ),
+    QuestionFreeText(
+        question_name="reason",
+        question_text="Why is your top choice the most important to you?",
+    ),
+])
+
+humanize_schema = {
+    "survey": {
+        "assistant": {
+            "enabled": True,
+            "presentation": {"type": "sidebar"},
+            "system_prompt": "Respondents are adults shopping for a used car.",
+            "question_overrides": {
+                "consent": {"chat": False},
+                "priorities": {
+                    "instructions": "If asked, Fuel economy means the cost of fuel, not emissions.",
+                },
+            },
+        }
+    }
+}
+
+info = survey.humanize(
+    human_survey_name="Car buying priorities",
+    humanize_schema=humanize_schema,
+)
+print(info["preview_url"])
+```
+
+Open `preview_url` to try the assistant before sharing `respondent_url`: it is the live survey, chat included, and nothing you answer there is added to your results. Each reply in a preview is charged like a respondent's. `survey.preview()` shows the form's layout only, without the chat.
+
+In this example the chat is hidden on the consent page, the assistant can fill in the ranking and the free-text reason, and it is told what "Fuel economy" means if a respondent asks.
+
+## What respondents see
+
+- **Sidebar or chat window.** With `"sidebar"`, the chat sits beside the form. With `"modal"`, a button opens it in a window over the form. On phones, both open as a drawer.
+- **Filled answers.** When a respondent says what they want ("reliability first, then safety"), the assistant fills in the question and adds a line to the chat naming it, with an **Undo** button. Respondents can also change any filled answer by hand.
+- **Submitting.** The respondent always presses **Next**. Required questions, validation and skip logic work as they do without the assistant.
+- **One conversation.** The chat carries over from page to page, so the assistant remembers what was said earlier and can see the respondent's earlier answers, except for pages you leave out with `context: false`.
+
+The chat is not shown on interview pages.
+
+## Roles
+
+`role` decides how far the assistant goes when a respondent asks for its opinion.
+
+- **`express_intent`** (default): the assistant helps respondents say what *they* think. It explains questions neutrally and fills in answers from what the respondent says, but it doesn't recommend answers. Asked "what should I pick?", it asks what matters to them instead.
+- **`advise`**: the assistant may recommend answers, with its reasons, when asked. Answers it helped with may then reflect its advice. Use this when the effect of AI advice is what you are studying.
+
+Your `system_prompt` adds to the role's built-in rules but doesn't replace them. The roles are carried out by the model and are not guaranteed: a respondent who insists may still get an opinion under `express_intent`, which you can see in the conversation.
+
+## Which questions it can fill
+
+With `can_fill_answers` on (the default), the assistant can fill these question types:
+
+`multiple_choice`, `likert_five`, `yes_no`, `linear_scale`, `multiple_choice_with_other`, `checkbox`, `checkbox_with_other`, `top_k`, `rank`, `numerical`, `free_text`, `list`, `budget`, `matrix`, `distribution`.
+
+It explains, but never fills:
+
+- file uploads and interviews;
+- questions the server answers itself, such as compute and image generation questions;
+- questions with two options (or matrix rows, or distribution outcomes) that read the same, since a filled answer couldn't say which one it meant;
+- any question you set to `fillable: false`.
+
+Set `can_fill_answers` to `False` for an assistant that only explains.
+
+## Attention checks and sensitive pages
+
+The assistant sees the questions on the page it is shown on, so it can name the right answer to an attention check.
+
+For attention checks, knowledge tests and pages that differ between experimental conditions, set both:
+
+- `chat: False`, so the chat is hidden on that page;
+- `context: False`, so the assistant knows nothing about that page on later pages: its questions, answers and any conversation on it are left out.
+
+`context: False` doesn't keep the information secret, since a respondent can still type it into the chat. It stops the assistant knowing it and bringing it up.
+
+In `"group"` presentation, `chat` and `context` apply to the whole page holding the question: one question with `chat: False` hides the chat for every question on its page.
+
+## Cost
+
+Each assistant reply is charged to the survey owner's account in credits, based on the model's usage. If your balance runs out, the assistant becomes unavailable to respondents, and they can carry on answering the survey without it.
+
+## Reading conversations
+
+Conversations are on the survey's **Events** page, under the **Assistant** tab. For each respondent you can read the full conversation, see which answers the assistant filled, and download it as JSON. To get the page's address:
+
+```python
+from edsl import Coop
+
+Coop().get_human_survey_assistant_url("your-human-survey-uuid")
+```
+
+To download every conversation at once, see [Conversations](#conversations).
+
+## Downloading what respondents did
+
+On a survey with the assistant on, every step a respondent takes is recorded: each page shown and submitted, each change to an answer, each message to the assistant and how its reply ended, and whether the form took each answer the assistant filled. This is the interaction trace. It doesn't include message text, which is in the conversation.
+
+Use `Coop.get_all_human_survey_interactions` to get it. Rows come in the order they were received; sort each response's rows by `session_started_at`, then `seq`, for the order they happened (see [Putting rows in order](#putting-rows-in-order)):
+
+```python
+from edsl import Coop
+
+coop = Coop()
+
+rows = coop.get_all_human_survey_interactions("your-human-survey-uuid")
+```
+
+Rows from preview links are left out. To check your setup while you build it, pass `include_previews=True` to get them too, each marked `is_preview`. Pass `response_uuid` for one response's rows only. Rows that arrive while the download runs are included, and no row comes back twice.
+
+To fetch new rows later, pass the `id` of the last row you downloaded as `after`, with the same filters. To fetch one batch at a time, use `Coop.get_human_survey_interactions`, which takes `after`, `limit` (at most 100, the default), `response_uuid` and `include_previews`, and returns `{"interactions", "next_cursor", "has_more"}`. Pass `next_cursor` as `after` while `has_more` is `True`. `Coop.count_human_survey_interactions` returns how many rows there are, with the same filters.
+
+From the command line:
+
+```bash
+ep humanize interactions your-human-survey-uuid --all --output interactions.jsonl
+ep humanize interactions your-human-survey-uuid --count
+```
+
+### Every row
+
+| Field | Description |
+|---|---|
+| `id` | The row's unique id |
+| `response_uuid` | The response the row belongs to |
+| `is_preview` | Whether the row came from a preview link |
+| `session` | The page load the row was recorded in. Each time a respondent opens or reloads the survey starts a new session, so one response can have several. |
+| `session_started_at` | When the session's page was served, by Expected Parrot's clock (ISO 8601, UTC). Sort a response's sessions by it. |
+| `seq` | The row's position in its session. Sort by it to get the order things happened in. |
+| `session_state` | `complete` when every row of the session was recorded, `truncated` when some were lost (a closed tab, a dropped connection), `unknown` when it can't be told |
+| `at` | When it happened, by the respondent's clock (ISO 8601, UTC). Useful for gaps within a session, not for ordering across respondents. |
+| `received_at` | When Expected Parrot received it (ISO 8601, UTC) |
+| `type` | What happened: one of the types below |
+| `actor` | Who did it: `respondent`, `assistant` or `platform` |
+| `page_id` | The page it happened on. A page is identified by `response_uuid` and `page_id` together. |
+
+### Each type's fields
+
+| `type` | Fields |
+|---|---|
+| `page.shown` | `page_key`: the question group's name, or the first question's name when the survey shows one question per page |
+| `page.submitted` | `page_key` |
+| `form.edited` | The respondent changed an answer. `question`, `value`, `draft_type`, `draft_version`, `change_count` (typing is recorded in pauses, so one row can stand for several changes), `first_change_at`, `closed_by` (what ended the pause, such as `left_field` or `message_sent`), `draft_write`, `value_omitted`, `chars` |
+| `chat.message_sent` | `turn`, the id of the assistant's reply; or `refused`, why the message was refused; or neither, if the message never arrived |
+| `chat.reply_ended` | `message_seq` (the message's `seq`), `turn`, `status` (`complete`, `interrupted`, `failed`, `stopped`, `refused` or `dropped`), `connection` (for a dropped reply: `failed` or `lost`), `first_text_at`, `error_kind` |
+| `assistant.edit_applied` | The assistant filled an answer. `question`, `edit` (the edit's id), `value`, `draft_type`, `draft_version`, `draft_write`, `value_omitted`, `chars` |
+| `assistant.edit_undone` | The respondent pressed **Undo**. The same fields; `value` is what the answer went back to |
+| `assistant.edit_skipped` | An answer the assistant filled that couldn't be put in the form. `question`, `edit`, `reason`: `field_changed` (the respondent changed the answer first), `page_changed`, `time_up` or `invalid` |
+| `runtime.event_rejected` | Something that couldn't be recorded, so a gap has a reason. `question`, `rejected_type`, `reason`, `chars` |
+
+- `value` is the answer in the form at that moment, in the shape `draft_type` and `draft_version` name.
+- `draft_write` says whether this row's value became the saved in-progress answer when it arrived: `applied`, `superseded` (a later change from the same tab had already arrived) or `late` (the page had already been submitted). It's about when the row arrived, not about the form: a `late` row can still be a change the respondent submitted. For whether the form took an assistant's edit, use the row's `type`, or `outcome` in the edits download below.
+- `value_omitted` is `True` for a value too long to keep, about 16,000 characters. The change is still recorded, and `chars` gives its length.
+
+## Downloading what the assistant did
+
+### Summary
+
+Start with the summary: the survey's assistant data in numbers, enough for a first look and to decide what else to download.
+
+```python
+from edsl import Coop
+
+summary = Coop().get_human_survey_assistant_summary("your-human-survey-uuid")
+```
+
+```bash
+ep humanize assistant summary your-human-survey-uuid
+```
+
+| Field | Description |
+|---|---|
+| `respondents` | `responses`; those `offered` the assistant, chat or not; and those who `chatted`. The share who chatted is `chatted` out of `offered`. |
+| `turns` | `listed`, as the turns download lists them; `pending`, still replying or ended in the last few seconds; by `status`; replies the respondent saw `ended` as `stopped`, `dropped` or `refused`; and `respondents_with_failed` |
+| `edits` | The assistant's edits `sent` to the form, by `outcome`, and `rejected` |
+| `trace` | The interaction trace's `rows`, `sessions` and `truncated_sessions` |
+| `settings_versions` | How many versions of the assistant's settings pages were served with, question overrides aside. More than one means the settings changed during fielding: see [configs](#threads-pages-and-configs). |
+| `credits` | What the turns cost. Only for the survey's owner. |
+| `as_of`, `last_activity_at` | When the summary was read, and the latest activity of a response offered the assistant (ISO 8601, UTC) |
+
+Previews are left out unless `include_previews=True` (`--include-previews`).
+
+### Conversations
+
+The quickest way to read what happened is the conversations: each respondent's survey as the **Assistant** tab shows it, with the chat, the assistant's edits and everything the respondent did, in the order it happened, one row per thing.
+
+```python
+from edsl import Coop
+
+coop = Coop()
+
+rows = coop.get_all_human_survey_assistant_conversations("your-human-survey-uuid")
+one = coop.get_all_human_survey_assistant_conversations(
+    "your-human-survey-uuid", response_uuid="your-response-uuid"
+)
+```
+
+```bash
+ep humanize assistant conversations your-human-survey-uuid --output conversations.jsonl
+ep humanize assistant conversations your-human-survey-uuid --response your-response-uuid
+```
+
+Rows are grouped by response, responses in the order they were first opened, and each response's rows in `position` order. Each row's `kind` says what it is and decides its other [fields](#conversation-fields): a page shown or submitted, each save of an answer the respondent typed, a message and the reply to it, an answer the assistant filled, rejected or had undone, and an event that couldn't be recorded. `pd.DataFrame(rows)` gives one table, each kind's fields blank on the others.
+
+The order comes from the [interaction trace](#downloading-what-respondents-did). When the trace is missing part of a turn, say because the respondent closed the tab mid-reply, that part is placed by its turn, and `placed` says how. While a response is in progress, such rows can move once the rest of its trace arrives.
+
+Conversations take `response_uuid` and `include_previews`, and cover the whole survey each time: fetch them again for what has happened since. From the command line, `--output` is required unless `--response` is given.
+
+### Conversation fields
+
+Every row has:
+
+| Field | Description |
+|---|---|
+| `response_uuid`, `is_preview` | The response, and whether it came from a preview link |
+| `position` | The row's place in its response's rows, from 0 |
+| `kind` | What it is: one of the kinds below |
+| `at` | When it happened (ISO 8601, UTC): by the respondent's clock on rows from the trace, by Expected Parrot's on the others |
+| `page_id` | The page it happened on |
+| `turn` | The message and reply it belongs to; `None` for pages and the respondent's own answers |
+| `session`, `seq` | The interaction trace row it came from; `None` on rows placed by their turn |
+| `placed` | `trace`, where the trace recorded it; or, placed by its turn, `after_message` (after the message and the assistant's edits that followed it), `before_reply`, or `end` (the trace has nothing of its turn) |
+
+Each kind adds:
+
+| `kind` | Fields |
+|---|---|
+| `page_shown`, `page_submitted` | `page_key` |
+| `answer` | A save of an answer the respondent typed: `question`, `value`, `draft_type`, `draft_version`, `saved` (what closed it, the trace's `closed_by`: such as `left_field`, `message_sent` or `interval`, a pause in typing), `changes`, `draft_write`, `value_omitted`, `chars`, as on the trace's `form.edited` |
+| `message` | `text`, what the respondent sent; `None` until its turn is listed |
+| `message_refused` | `refused`: why a message was turned away |
+| `assistant_edit` | An answer the assistant filled: `edit`, `question`, `value`, `draft_type`, `draft_version`, `outcome` (`applied`, `skipped` with a `reason`, or `sent` when the respondent's browser never said), `draft_write`. One placed by its turn just before its own `edit_undone` is `applied`: the record of the fill was lost, but the Undo shows the form took it. |
+| `edit_undone` | The respondent pressed Undo: `edit`, `question`, and the `value` the answer went back to |
+| `edit_rejected` | An answer the assistant asked to fill that was refused: `edit`, `question`, `value`, `draft_type`, `draft_version`, `rejection`. It never showed in the chat. |
+| `reply` | `text`; `status`, how the turn ended: `complete`, `interrupted` (stopped, or cut off before it finished, the text what had arrived) or `failed`; `ended`, how the respondent saw it end (`complete`, `stopped`, `dropped`, `refused` and so on), or `None` if their browser never said; `error_kind`; `notice`, what a failed reply told them |
+| `not_recorded` | An event that couldn't be recorded: `question`, `rejected_type`, `reason`, `chars` |
+
+Rows are things that happened, not answers' final states: an edit can be an `assistant_edit` row and later an `edit_undone` one. For each edit's final outcome, use the [edits download](#messages-turns-and-edits).
+
+### Messages, turns and edits
+
+Three more downloads describe the assistant's side, one row at a time. Each row names its turn (one message and the reply to it) by `turn` and an edit by `edit`, the same ids as in the interaction trace, so they all join on them.
+
+- **Messages:** the conversations, one row per thing the chat showed: the respondent's message, the reply's text, a receipt for each answer it filled, and what the respondent was told if a reply failed.
+- **Turns:** one row per message the assistant answered, with how the reply ended, its timing, tokens and cost. No message text.
+- **Edits:** one row per answer the assistant asked to fill in, including those that were rejected, with whether the form took each.
+
+```python
+from edsl import Coop
+
+coop = Coop()
+
+messages = coop.get_all_human_survey_assistant_messages("your-human-survey-uuid")
+turns = coop.get_all_human_survey_assistant_turns("your-human-survey-uuid")
+edits = coop.get_all_human_survey_assistant_edits("your-human-survey-uuid")
+
+# One turn's conversation and edits
+turn = turns[0]["turn"]
+said = coop.get_all_human_survey_assistant_messages("your-human-survey-uuid", turn=turn)
+filled = coop.get_all_human_survey_assistant_edits("your-human-survey-uuid", turn=turn)
+```
+
+All three take `response_uuid` and `include_previews` as the interaction trace does; messages and edits also take `turn`. A turn appears a few seconds after it ends, never while the assistant is still replying. To fetch new rows later, pass the last row's `turn` (messages and turns) or `edit` (edits) as `after`. `Coop.get_human_survey_assistant_messages`, `Coop.get_human_survey_assistant_turns` and `Coop.get_human_survey_assistant_edits` return one batch at a time, as `{"messages", "turns" or "edits", "next_cursor", "has_more"}`. A batch of messages never splits a turn, and its `limit` counts turns.
+
+From the command line:
+
+```bash
+ep humanize assistant messages your-human-survey-uuid --all --output messages.jsonl
+ep humanize assistant turns your-human-survey-uuid --all --output turns.jsonl
+ep humanize assistant edits your-human-survey-uuid --turn your-turn-uuid
+```
+
+### Threads, pages and configs
+
+Three downloads describe where the assistant was offered and how it was set up.
+
+- **Threads:** one row per response the assistant was offered to, whether or not the respondent chatted. The way to find respondents who never used it.
+- **Pages:** one row per page served with the assistant on: whether the chat was shown, which questions it could fill, and the config its turns ran on.
+- **Configs:** the assistant's settings as each page was served with them, including the system prompt and question instructions. Pages share a config when their settings and question overrides match, so a survey with question overrides has several even when nothing changed during fielding.
+
+```python
+threads = coop.get_all_human_survey_assistant_threads("your-human-survey-uuid")
+pages = coop.get_all_human_survey_assistant_pages("your-human-survey-uuid")
+configs = coop.get_all_human_survey_assistant_configs("your-human-survey-uuid")
+```
+
+```bash
+ep humanize assistant threads your-human-survey-uuid --all --output threads.jsonl
+ep humanize assistant pages your-human-survey-uuid --all --output pages.jsonl
+ep humanize assistant configs your-human-survey-uuid --all --output configs.json
+```
+
+All three take `response_uuid` and `include_previews`, and are as of when they're read: a thread's turns and a page's status change while the survey is live. `Coop.get_human_survey_assistant_threads`, `…_pages` and `…_configs` return one batch at a time. To continue, pass `next_cursor` as `after`: the last row's `thread` or `config`, or for pages, its `response_uuid` and `page_id` joined by `:`. Configs come at most 20 to a batch, as each holds the whole system prompt.
+
+### Putting rows in order
+
+Each download lists rows in the order they became available, so new ones can be fetched later without missing any. That isn't always the order things happened:
+
+| Download | Comes in | To get the order things happened |
+|---|---|---|
+| Interaction trace | The order rows were received. A batch the respondent's browser sent late arrives late. | Sort each response's rows by `session_started_at`, then `seq`. |
+| Conversations | Grouped by response, in order | Already in order. |
+| Messages | The order turns ended, each turn's rows together | One response's rows are already in order: by turn, then `seq`. |
+| Turns, edits | The order turns ended | One response's rows are already in order. |
+| Threads, pages, configs | The order they began, were served, or were first served | Already in order. |
+
+Across respondents, rows from different responses are interleaved. To line the conversation up with the trace, join on `turn`: the trace's `chat.message_sent` row for a turn says where in the respondent's steps the message was sent.
+
+### Message fields
+
+Every row has `kind`, `turn`, `turn_status` (how the turn ended, as in the [turn fields](#turn-fields)), `thread` (the conversation), `response_uuid`, `is_preview`, `page_id`, `seq` (its place in the turn, from 0) and `at` (when it was recorded, ISO 8601, UTC). Then, by `kind`:
+
+| `kind` | Fields |
+|---|---|
+| `respondent_message` | `text`: the message as the respondent sent it |
+| `assistant_text` | `text`: the reply as the respondent read it. `status`: `complete`, or `interrupted` when the reply was stopped and this is what had arrived by then. This is about the text only: a turn can be `interrupted` after all its text arrived, for instance when the page was submitted while the assistant was waiting to hear whether the form took its answers. `turn_status` says how the turn ended. |
+| `edit_receipt` | An answer the assistant filled, where it showed in the chat: `edit` and `question`. Its value and whether the form took it are in the edits download. |
+| `notice` | What the respondent was told when the reply failed: `text` and `error_kind`. The turn's `error` has the details. |
+
+### Turn fields
+
+| Field | Description |
+|---|---|
+| `turn` | The turn's id |
+| `response_uuid`, `thread`, `is_preview`, `page_id` | The response, its conversation, whether it came from a preview link, and the page the message was sent from |
+| `status` | How the reply finished: `complete`, `interrupted` (stopped or cut off) or `failed` |
+| `ended` | How the respondent saw it end, as in `chat.reply_ended`; `None` if their browser never said |
+| `sent_at`, `finished_at` | When the message arrived and when the reply finished (ISO 8601, UTC) |
+| `first_text_at`, `ended_at` | When the reply's first words and its end reached the respondent, by their clock (ISO 8601, UTC); `None` if their browser never said |
+| `model` | The model that replied |
+| `calls`, `retries` | How many model calls the reply took, and how many of those were retries |
+| `input_tokens`, `cached_input_tokens`, `output_tokens`, `reasoning_tokens` | Tokens across the turn's calls. `cached_input_tokens` is part of `input_tokens`. |
+| `usage_estimated` | `True` when a call was stopped before its usage was reported, so its tokens are estimated |
+| `edits`, `rejected_edits` | How many answers the turn put in the form, and how many it asked for but were rejected |
+| `error` | Why a failed turn failed: `kind`, `stage`, `message`, `retryable`, `at`, and for some kinds `http_status`, `input_tokens` and `limit`, `reason` or `error_code`. `None` otherwise. |
+| `credits` | What the turn cost. Only for the survey's owner. |
+
+### Edit fields
+
+| Field | Description |
+|---|---|
+| `edit` | The edit's id |
+| `turn`, `response_uuid`, `is_preview`, `page_id` | The turn that asked for it, its response, whether it came from a preview link, and the page |
+| `question`, `value`, `draft_type`, `draft_version` | The question and the answer the assistant asked for, in the shape `draft_type` and `draft_version` name. A rejected answer is as the assistant gave it, and may have no shape. |
+| `server_outcome` | `sent` (put in the form) or `rejected` |
+| `rejection` | Why it was rejected: `reason`, `message`, and `violations` when the answer broke the question's rules |
+| `outcome` | For a sent edit, its latest outcome in the form: `applied`, `skipped`, `undone`, or `sent` when the respondent's browser hasn't reported one. `None` for a rejected edit. It can still change until the respondent submits the page. |
+| `reason` | Why a skipped edit was skipped, as in `assistant.edit_skipped` |
+| `at` | When it was checked (ISO 8601, UTC): when a sent edit went to the form, or a rejected one was rejected |
+
+### Thread fields
+
+| Field | Description |
+|---|---|
+| `thread` | The conversation's id |
+| `response_uuid`, `is_preview` | The response, and whether it came from a preview link |
+| `response_status` | The response's status |
+| `offered_at`, `last_activity_at` | When the assistant was first offered, and the response's latest activity (ISO 8601, UTC) |
+| `turns` | How many turns are listed for it; 0 when the respondent never chatted |
+| `trace_state` | The interaction trace's state for the response: `complete`, `truncated` or `unknown`, its worst session's |
+| `credits` | What its turns cost. Only for the survey's owner. |
+
+### Page fields
+
+| Field | Description |
+|---|---|
+| `response_uuid`, `page_id` | The page: the two together name it |
+| `is_preview` | Whether it came from a preview link |
+| `page_key`, `questions` | The page's group name (or its question's, on one-question pages), and its questions in order |
+| `status` | `open`, `submitted`, or `replaced` (the survey was edited while it was open) |
+| `served_at`, `closed_at` | When it was served, and submitted or replaced (ISO 8601, UTC); `None` while open |
+| `config` | The config its turns ran on |
+| `chat_shown`, `hidden_by` | Whether the chat was shown, and why not when it wasn't |
+| `fillable_questions`, `not_fillable` | Questions the assistant could fill, and the rest with why not |
+
+### Config fields
+
+| Field | Description |
+|---|---|
+| `config` | The config's id |
+| `first_served_at` | When a page was first served with it (ISO 8601, UTC) |
+| `pages` | How many pages, within the filters, ran on it |
+| `settings` | The survey's assistant settings with this config's question overrides, defaults filled in, as served: `role`, `model`, `name`, `presentation`, `system_prompt`, `can_fill_answers`, `question_overrides` and the rest. To compare versions of the settings, compare them without `question_overrides`. |
+
+## Fields
+
+<ParamField path="survey.assistant" type="dict" required={false}>
+  The survey assistant's configuration. Omit for no assistant.
+
+  `system_prompt` and every question's `instructions` are private: respondents never receive them. The other fields are sent to the respondent's browser.
+  <Expandable title="properties">
+    <ParamField path="enabled" type="boolean" default={false}>
+      Whether the assistant is shown. Set to `False` to switch it off while keeping the rest of its configuration.
+    </ParamField>
+    <ParamField path="name" type="string" required={false}>
+      The name shown on the chat, up to 60 characters. Defaults to `"Assistant"`.
+    </ParamField>
+    <ParamField path="role" type="string" default="express_intent">
+      `"express_intent"` or `"advise"`. See [Roles](#roles).
+    </ParamField>
+    <ParamField path="presentation" type="dict" required={true}>
+      How the chat is shown. Required, even with `enabled: False`.
+
+      <Expandable title="properties">
+        <ParamField path="type" type="string" required={true}>
+          `"sidebar"` for a chat beside the form, or `"modal"` for a button that opens a chat window. Both open as a drawer on phones.
+        </ParamField>
+        <ParamField path="empty_state" type="dict" required={false}>
+          What the chat shows before the respondent's first message.
+
+          <Expandable title="properties">
+            <ParamField path="heading" type="string" required={false}>
+              The heading, up to 120 characters. Defaults to `"Need help answering?"` for `express_intent` and `"Need help deciding?"` for `advise`.
+            </ParamField>
+            <ParamField path="placeholder" type="string" required={false}>
+              The message box's placeholder, up to 120 characters. Defaults to `"Ask about a question, or tell me your answer"` for `express_intent` and `"Ask about a question, or what you might choose"` for `advise`.
+            </ParamField>
+          </Expandable>
+        </ParamField>
+        <ParamField path="reply_placeholder" type="string" required={false}>
+          The message box's placeholder once the conversation has started, up to 120 characters. Defaults to `"Reply"`.
+        </ParamField>
+      </Expandable>
+    </ParamField>
+    <ParamField path="system_prompt" type="string" required={false}>
+      **Private.** Your instructions to the assistant, up to 20,000 characters: who the respondents are, the study's terms, what to avoid. Added to the role's built-in rules.
+    </ParamField>
+    <ParamField path="can_fill_answers" type="boolean" default={true}>
+      Whether the assistant may fill in answers. Set to `False` for an assistant that only explains. See [Which questions it can fill](#which-questions-it-can-fill).
+    </ParamField>
+    <ParamField path="model" type="dict" default={{"service": "openai", "name": "gpt-5.5"}}>
+      The model that writes the replies. Only `{"service": "openai", "name": "gpt-5.5"}` is available for now; any other value is refused.
+    </ParamField>
+    <ParamField path="question_overrides" type="dict" required={false}>
+      Map of question name to its exceptions to the survey-level settings. Every field defaults to on, so you only write the ones you turn off. A survey message (instruction) accepts only `chat`. An entry for a name that isn't in the survey has no effect.
+
+      <Expandable title="properties">
+        <ParamField path="fillable" type="boolean" default={true}>
+          Set to `False` so the assistant can't fill this question. The chat stays and can still explain it.
+        </ParamField>
+        <ParamField path="chat" type="boolean" default={true}>
+          Set to `False` to hide the chat on the page holding this question.
+        </ParamField>
+        <ParamField path="context" type="boolean" default={true}>
+          Set to `False` to leave the page holding this question out of what the assistant knows on later pages.
+        </ParamField>
+        <ParamField path="instructions" type="string" required={false}>
+          **Private.** Extra instructions for this question, up to 4,000 characters, given to the assistant while the question is on screen.
+        </ParamField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+Respondents' messages are limited to 16,000 characters.
+
+## Change the assistant on a live survey
+
+Read the stored schema, then patch only what you want to change:
+
+```python
+from edsl import Coop
+
+coop = Coop()
+schema = coop.get_human_survey_humanize_schema("your-human-survey-uuid")
+
+coop.patch_human_survey_humanize_schema(
+    "your-human-survey-uuid",
+    {"survey": {"assistant": {"role": "advise"}}},
+)
+```
+
+Or from the command line, with the partial schema in a JSON file:
+
+```bash
+ep humanize schema get your-human-survey-uuid --out schema.json
+ep humanize schema patch your-human-survey-uuid --schema assistant_patch.json
+```
+
+A patch merges into the stored schema key by key, so patching one question's override leaves the other overrides in place. A patch can't remove a key: to remove an override, patch `survey.assistant` to `None` and then write back the whole block without it.
+
+Changes take effect from the next page each respondent is shown. A page already on screen keeps the settings it was shown with, so a conversation never switches settings partway through a page. Setting `enabled` to `False` is the exception: it stops the assistant replying straight away.

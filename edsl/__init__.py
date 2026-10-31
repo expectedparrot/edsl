@@ -71,6 +71,7 @@ _module_cache = {}
 _EXPORT_TO_MODULE = {
     # questions
     "QuestionFreeText": "questions",
+    "QuestionGroupDiscussion": "questions",
     "QuestionURL": "questions",
     "QuestionMultipleChoice": "questions",
     "ProbabilisticResponse": "questions",

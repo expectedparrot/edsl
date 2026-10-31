@@ -250,3 +250,86 @@ def test_public_repr_and_randomization_rejection():
     assert q.question_options == ["[0,Inf)"]
     with pytest.raises(QuestionCreationValidationError, match="randomization"):
         q.draw()
+
+
+@pytest.mark.parametrize(
+    "raw, expected_comment",
+    [
+        (
+            "Let me reason first.\nThe opponent picks 20.\n"
+            '{"c":0.6,"a":0.2,"b":0.2}\nThat is a focal point.',
+            "Let me reason first.\nThe opponent picks 20.\nThat is a focal point.",
+        ),
+        ('Here it is: {"a":0.2,"b":0.2,"c":0.6} because reasons.', "Here it is:\nbecause reasons."),
+        ('Reasoning.\n```json\n{"a":0.2,"b":0.2,"c":0.6}\n```\nCOMMENT: Done.', "Reasoning.\nDone."),
+        (
+            'The example was {"a":0.5,"b":0.5,"c":0.0} but I answer\n{"a":0.2,"b":0.2,"c":0.6}',
+            "The example was {\"a\":0.5,\"b\":0.5,\"c\":0.0} but I answer",
+        ),
+        ('Wrong first {"a":1.0}\n{"a":0.2,"b":0.2,"c":0.6}', 'Wrong first {"a":1.0}'),
+        ('{"a":0.2,"b":0.2,"c":0.6} roughly {give or take}', "roughly {give or take}"),
+        (
+            '{"a":0.2,"b":0.2,"c":0.6}\nCOMMENT: Unlike the example {"a":1,"b":0,"c":0}, '
+            "I spread the probability.",
+            'Unlike the example {"a":1,"b":0,"c":0}, I spread the probability.',
+        ),
+        ('{"a":0.2,"b":0.2,"c":0.6}\nCOMMENT: I {think so', "I {think so"),
+        ('Here it is: {"a":0.2,"b":0.2,"c":0.6}\nCOMMENT: I {think so', "Here it is:\nI {think so"),
+        (
+            'Avoid {"x":1,"x":2}. My answer: {"a":0.2,"b":0.2,"c":0.6}',
+            'Avoid {"x":1,"x":2}. My answer:',
+        ),
+        (
+            'Here it is: {"a":0.2,"b":0.2,"c":0.6}\nCOMMENT: Avoid {"x":1,"x":2}.',
+            'Here it is:\nAvoid {"x":1,"x":2}.',
+        ),
+    ],
+)
+def test_json_is_located_inside_surrounding_prose(raw, expected_comment):
+    result = QuestionDistribution.example()._validate_answer(
+        {"answer": "Let me reason first.", "generated_tokens": raw}
+    )
+    assert result["answer"] == {"a": 0.2, "b": 0.2, "c": 0.6}
+    assert result["comment"] == expected_comment
+
+
+@pytest.mark.parametrize(
+    "raw, answer, message",
+    [
+        ('```json\n{"a": 0.2, "b": 0.2, "c":', "```json", "out of output tokens"),
+        (
+            'Example {"a":1,"b":0,"c":0}. Final: {"a":0.2,"b":0.2,"c":',
+            {},
+            "out of output tokens",
+        ),
+        (
+            """Example {"a":1,"b":0,"c":0}. Final: {'a':0.2,'b':0.2,'c':""",
+            {},
+            "out of output tokens",
+        ),
+        (
+            """Example {"a":1,"b":0,"c":0}. Final: {'a':0.2,'b':0.2,'c':0.6}""",
+            {},
+            "could not be parsed",
+        ),
+        ("", "", "empty response"),
+        ("   ", "   ", "empty response"),
+        (
+            "[ERROR: Could not extract text. Raw response: {...}]",
+            ["ERROR: Could not extract text."],
+            "no usable text",
+        ),
+        ("I decline to answer.", "I decline to answer.", "No JSON object"),
+        ('Prose then {"a":0.1,"a":0.1,"b":0.2,"c":0.6}', {}, "Duplicate JSON key"),
+        (
+            '{"a":0.1,"a":0.2,"b":0.2,"c":0.6}\nCOMMENT: Unlike {"a":1,"b":0,"c":0}.',
+            {},
+            "Duplicate JSON key",
+        ),
+    ],
+)
+def test_unusable_responses_explain_themselves(raw, answer, message):
+    with pytest.raises(QuestionAnswerValidationError, match=message):
+        QuestionDistribution.example()._validate_answer(
+            {"answer": answer, "generated_tokens": raw}
+        )

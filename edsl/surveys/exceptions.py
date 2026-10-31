@@ -41,7 +41,7 @@ class SurveyCreationError(SurveyError):
         ```
     """
 
-    doc_anchor = "creating-surveys"
+    doc_anchor = "assemble-questions"
 
 
 class SurveyHasNoRulesError(SurveyError):
@@ -63,7 +63,7 @@ class SurveyHasNoRulesError(SurveyError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/surveys#rules"
+    doc_anchor = "logic-piping-and-memory"
 
 
 class SurveyRuleSendsYouBackwardsError(SurveyError):
@@ -87,7 +87,7 @@ class SurveyRuleSendsYouBackwardsError(SurveyError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/surveys#rules"
+    doc_anchor = "logic-piping-and-memory"
 
 
 class SurveyRuleSkipLogicSyntaxError(SurveyError):
@@ -109,7 +109,7 @@ class SurveyRuleSkipLogicSyntaxError(SurveyError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/surveys#rules"
+    doc_anchor = "logic-piping-and-memory"
 
 
 class SurveyRuleReferenceInRuleToUnknownQuestionError(SurveyError):
@@ -151,7 +151,7 @@ class SurveyRuleRefersToFutureStateError(SurveyError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/surveys#rules"
+    doc_anchor = "logic-piping-and-memory"
 
 
 class SurveyRuleCollectionHasNoRulesAtNodeError(SurveyError):
@@ -174,9 +174,7 @@ class SurveyRuleCollectionHasNoRulesAtNodeError(SurveyError):
         ```
     """
 
-    relevant_doc = (
-        "https://docs.expectedparrot.com/en/latest/surveys#rule-collections"
-    )
+    doc_anchor = "logic-piping-and-memory"
 
 
 class SurveyRuleCannotEvaluateError(SurveyError):
@@ -201,7 +199,7 @@ class SurveyRuleCannotEvaluateError(SurveyError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/surveys#rules"
+    doc_anchor = "logic-piping-and-memory"
 
 
 class SurveyQuestionsToRandomizeError(SurveyCreationError):
@@ -228,7 +226,7 @@ class SurveyQuestionsToRandomizeError(SurveyCreationError):
         ```
     """
 
-    doc_anchor = "creating-surveys"
+    doc_anchor = "assemble-questions"
 
 
 class DuplicateQuestionNameError(SurveyCreationError):
@@ -253,7 +251,7 @@ class DuplicateQuestionNameError(SurveyCreationError):
         ```
     """
 
-    doc_anchor = "creating-surveys"
+    doc_anchor = "assemble-questions"
 
 
 class SurveyPipingReferenceError(SurveyCreationError):
@@ -285,4 +283,4 @@ class SurveyPipingReferenceError(SurveyCreationError):
         ```
     """
 
-    doc_anchor = "creating-surveys"
+    doc_anchor = "logic-piping-and-memory"

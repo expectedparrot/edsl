@@ -1,0 +1,151 @@
+---
+title: "Label data with survey questions"
+description: "Generate labels from an existing codebook, or develop the labels through exploratory questions first."
+---
+
+import Example from '/snippets/examples/labeling.mdx';
+
+In EDSL, **the answers to your survey questions become the labels for your data**. Write questions about the characteristics you want to identify, choose their answer formats, and ask a model to answer them about each item. For example, questions about topic, sentiment, and suggested improvements can produce three labels for each open-ended survey response.
+
+The questions form a **Survey**, and the items being labeled become **Scenarios**. For one model and iteration, each item produces one result row, with an answer column for each question. The same approach works with text passages, documents, images, and other [scenario inputs](/en/latest/scenarios#data-and-files).
+
+There are two starting points:
+
+- **You already have a codebook:** turn its categories and definitions into structured questions, then apply them to your data.
+- **You want to develop the labels from the data:** use exploratory questions first, organize their answers into a codebook, then use that codebook to construct structured labeling questions.
+
+## Start with an existing codebook
+
+A **codebook** names your labels and explains when each applies. For a multiple-choice question, its category names become `question_options`, and its definitions become part of `question_text`. A checkbox question can use the same approach when several labels may apply to one item.
+
+This example labels four service requests as Billing, Access, Feature request, or Other. It also asks for a supporting quotation. The codebook distinguishes a payment problem from an access problem, including when the inaccessible page concerns billing. The sample requests have no preassigned labels:
+
+<Example />
+
+`QuestionMultipleChoice` produces the category label in `answer.category`; `QuestionFreeText` produces supporting text in `answer.evidence`. `add_targeted_memory(evidence, category)` supplies the category question and its answer to the evidence question, so it knows which choice to support. Add more questions to label other characteristics of the same request.
+
+### Generate and inspect the labels
+
+With [model access configured](/en/latest/api_keys), run the job and view each classification beside its source and evidence:
+
+```python
+results = job.run()
+results.select("scenario.record_id", "scenario.text", "answer.category", "answer.evidence")
+```
+
+This produces four rows, one per request. For example, an illustrative row would be:
+
+| record_id | text | answer.category | answer.evidence |
+| --- | --- | --- | --- |
+| t1 | I was charged twice. | Billing | charged twice |
+
+Actual answers come from your chosen model. Read the labels and quotations alongside the source, especially where category boundaries matter. To save the labeled data:
+
+```python
+results.select(
+    "scenario.record_id", "scenario.text", "answer.category", "answer.evidence"
+).to_csv("labeled_requests.csv")
+```
+
+## Develop labels through exploratory questions
+
+When you do not yet know which categories will be useful, start by asking open-ended questions about your material. Their answers help you decide what the later structured questions should ask and which choices they should offer. The code below reuses `records` from the example above; it does not use the existing codebook.
+
+### 1. Explore the material
+
+This first survey proposes issue categories and describes what each person needs. For a larger dataset, begin with a selection of records covering the range of material you want to label:
+
+```python
+from edsl import QuestionList
+
+candidate_labels = QuestionList(
+    question_name="candidate_labels",
+    question_text=(
+        "What issue categories would help organize this service request: "
+        "{{ scenario.text }}? Propose short category names grounded in the text."
+    ),
+    max_list_items=3,
+)
+need = QuestionFreeText(
+    question_name="need",
+    question_text="What does this person need help with: {{ scenario.text }}?",
+)
+exploration = Survey([candidate_labels, need]).by(records).run()
+notes = exploration.select(
+    "scenario.record_id", "scenario.text", "answer.candidate_labels", "answer.need"
+)
+notes
+```
+
+Each record now has proposed categories and a description of the need. Different records may produce overlapping names such as “Payment problem” and “Billing.” These suggestions help develop a common set of labels for the next stage.
+
+### 2. Consolidate the suggestions into a codebook
+
+You can choose and define the labels yourself, making this a two-stage workflow: explore, then label. Or add a question that considers the exploratory answers together. Here `QuestionExtract` asks for a draft with two named fields: a list of labels and their definitions, including rules for ambiguous cases:
+
+```python
+from edsl import QuestionExtract
+
+propose_codebook = QuestionExtract(
+    question_name="codebook",
+    question_text=(
+        "Develop a codebook for classifying service requests by their main issue. "
+        "Use these source records and exploratory answers: {{ scenario.notes }}. "
+        "Merge overlapping suggestions into 2 to 4 categories, including Other. "
+        "Give each label a definition and explain how to choose between overlapping "
+        "categories. Other should cover requests outside the named categories."
+    ),
+    answer_template={
+        "labels": ["Category name", "Other"],
+        "definitions": "Definitions and boundary rules for all labels.",
+    },
+)
+proposal = propose_codebook.by(Scenario({"notes": notes.to_list()})).run()
+draft_codebook = proposal.select("answer.codebook").to_list()[0]
+draft_codebook
+```
+
+Here the answers from one survey become the input to another question. Review the draft against the source material and your research question. You can edit `draft_codebook["labels"]` and `draft_codebook["definitions"]`, ask further questions to refine them, or explore additional records. For large collections, consolidate suggestions in batches before combining them into one codebook.
+
+### 3. Use the chosen labels in structured questions
+
+The next question takes its answer options directly from the codebook you developed. The definitions explain how to choose among those options. Apply this shared question to all records, including any used during exploration:
+
+```python
+category_from_draft = QuestionMultipleChoice(
+    question_name="category",
+    question_text=(
+        "What kind of request is this: {{ scenario.text }}?\n"
+        + draft_codebook["definitions"]
+    ),
+    question_options=draft_codebook["labels"],
+)
+labeling_survey = Survey([category_from_draft, evidence]).add_targeted_memory(
+    evidence, category_from_draft
+)
+labeled_results = labeling_survey.by(records).run()
+labeled_results.select(
+    "scenario.record_id", "scenario.text", "answer.category", "answer.evidence"
+)
+```
+
+The exploratory questions helped determine the labeling scheme; this final survey generates labels using that scheme consistently across the dataset. You can use `QuestionCheckBox` instead when several discovered themes may apply, or construct several questions for different characteristics. For example, exploration might reveal that topic and urgency should be labeled separately.
+
+## Choose the right labeling question
+
+The response type determines what kind of labeling you can do:
+
+| Labeling task | EDSL approach |
+| --- | --- |
+| Exactly one category per record | `QuestionMultipleChoice`, as above. Include an Other option if your categories do not cover every case. |
+| Several categories can apply | `QuestionCheckBox`; see [Qualitative coding](/en/latest/research/qualitative) for themes and supporting quotations. |
+| Extract named fields such as dates or organizations | `QuestionExtract` with an answer template; see [Question types](/en/latest/questions). |
+| Rate an attribute such as intensity or relevance | `QuestionLinearScale` with defined scale values. |
+
+For a larger dataset, [import records from a file or DataFrame](/en/latest/guides/importing_data) and reuse the same survey. [Qualitative coding](/en/latest/research/qualitative) develops the example of assigning overlapping themes to interview excerpts.
+
+## Evaluate the labels
+
+Generating labels does not require already-labeled examples. When you have independent reference labels, you can compare them with the answers to assess how well the questions and model perform your task. [Human validation](/en/latest/research/human_validation) shows how to collect or import those labels, match them by record identifier, and calculate agreement.
+
+To test whether the labeling depends on the model, attach a ModelList and [compare answers on the same records](/en/latest/guides/model_comparisons). To refine the instructions themselves, use the [Prompt sensitivity](/en/latest/research/prompt_sensitivity) pattern. If you revise the codebook after reviewing disagreements, evaluate it on additional independently labeled records.

@@ -17,7 +17,7 @@ class AgentListError(BaseException):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/agents#agent-lists"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/agents#revise-profiles-and-choose-a-subset"
 
 
 class AgentErrors(BaseException):
@@ -52,7 +52,6 @@ class AgentDynamicTraitsFunctionError(AgentErrors):
     relevant_doc = (
         "https://docs.expectedparrot.com/en/latest/agents#dynamic-traits-function"
     )
-    relevant_notebook = "https://docs.expectedparrot.com/en/latest/notebooks/example_agent_dynamic_traits"
 
 
 class AgentDirectAnswerFunctionError(AgentErrors):
@@ -69,7 +68,7 @@ class AgentDirectAnswerFunctionError(AgentErrors):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/agents#agent-direct-answering-methods"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/agents#supply-deterministic-answers"
 
 
 class AgentCombinationError(AgentErrors):
@@ -91,7 +90,7 @@ class AgentCombinationError(AgentErrors):
     """
 
     relevant_doc = (
-        "https://docs.expectedparrot.com/en/latest/agents#combining-agents"
+        "https://docs.expectedparrot.com/en/latest/agents#traits-instructions-and-names"
     )
 
 
@@ -109,7 +108,7 @@ class AgentNameError(AgentErrors):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/agents#agent-names"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/agents#traits-instructions-and-names"
 
 
 class AgentTraitKeyError(AgentErrors):
@@ -128,7 +127,7 @@ class AgentTraitKeyError(AgentErrors):
     """
 
     relevant_doc = (
-        "https://docs.expectedparrot.com/en/latest/agents#constructing-an-agent"
+        "https://docs.expectedparrot.com/en/latest/agents#traits-instructions-and-names"
     )
 
 
@@ -146,7 +145,7 @@ class AgentAttributeError(AgentErrors):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/agents#agent-traits"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/agents#traits-instructions-and-names"
 
     def __init__(self, message):
         super().__init__(message)

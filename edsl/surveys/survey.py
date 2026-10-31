@@ -231,6 +231,49 @@ class Survey(Base):
             text.append(question.human_readable())
         return "\n\n".join(text)
 
+    def create_review_survey(
+        self,
+        *,
+        screenshot_paths=None,
+        output_dir=None,
+        scenario=None,
+        reviewer_question_text=(
+            "What is your name? (Your name will be attached to your review comments.)"
+        ),
+        reviewer_question_name="reviewer_name",
+        approval_options=("Looks good", "Has an issue"),
+        review_question_text=None,
+        feedback_question_text=None,
+        question_name_prefix="review",
+        screenshot_key_prefix="review_screenshot",
+    ):
+        """Create a visual survey for reviewing each question in this survey.
+
+        By default, question cards are captured with Playwright. Existing PNGs can
+        instead be supplied with ``screenshot_paths``. Returns a ``(Survey,
+        Scenario)`` tuple; pass the scenario when running or humanizing the review.
+
+        Examples:
+            >>> from edsl import Survey
+            >>> source = Survey.example()
+            >>> review, scenario = source.create_review_survey()  # doctest: +SKIP
+        """
+        from .survey_review import create_review_survey
+
+        return create_review_survey(
+            self,
+            screenshot_paths=screenshot_paths,
+            output_dir=output_dir,
+            scenario=scenario,
+            reviewer_question_text=reviewer_question_text,
+            reviewer_question_name=reviewer_question_name,
+            approval_options=approval_options,
+            review_question_text=review_question_text,
+            feedback_question_text=feedback_question_text,
+            question_name_prefix=question_name_prefix,
+            screenshot_key_prefix=screenshot_key_prefix,
+        )
+
     #: Default upper bound on loop iterations when ``loop_over`` is called
     #: without an explicit ``max_items``. See :meth:`loop_over`.
     DEFAULT_LOOP_MAX_ITEMS = 10

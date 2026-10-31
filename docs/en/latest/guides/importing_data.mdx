@@ -1,0 +1,90 @@
+---
+title: "Importing data"
+description: "Import tables, documents, and web content into scenarios and respondent profiles."
+---
+
+import Example from '/snippets/examples/importing_data.mdx';
+
+Importing data turns material you already have—such as spreadsheet rows, interview excerpts, or respondent profiles—into objects you can use in an EDSL survey. You do not need to copy each record into a separate question. Instead, write one question with a placeholder and let EDSL fill it with a different record for each interview.
+
+The first choice is what the imported data represents. Use **scenarios** for material a model will read or evaluate, such as a customer message. Use **agents** for the traits of the respondent the model should portray, such as their experience with a product. A file containing the questions themselves is a third case, covered under [Existing questionnaires](#existing-questionnaires).
+
+## Import messages and respondent profiles
+
+The example creates two small CSV files so you can try the imports without downloading a dataset. `messages.csv` has one message per row; `profiles.csv` has one respondent profile per row. The last lines read them into a ScenarioList and an AgentList. If you already have CSV files, start with those import calls and substitute your filenames.
+
+<Example />
+
+Each row of `messages.csv` becomes one Scenario in `records`. Its column names become fields: `record_id` identifies the original row, and `message` supplies text to a question. Each row of `profiles.csv` becomes one Agent; `name_field="profile_id"` uses the identifier as the agent's name, while the experience field describes the profile. Importing profiles prepares agents for model responses; it does not collect answers from the people described in the file.
+
+## Use an imported column in a question
+
+The following question evaluates the messages from the CSV. The placeholder `{{ scenario.message }}` reads the `message` field from each scenario. Attaching both lists asks each profile to evaluate each message:
+
+```python
+from edsl import QuestionMultipleChoice
+
+question = QuestionMultipleChoice(
+    question_name="clarity",
+    question_text="How clear is this message: {{ scenario.message }}?",
+    question_options=["Clear", "Unclear", "Unsure"],
+)
+job = question.by(records).by(agents)
+
+# With model access configured, collect and display the ratings.
+results = job.run()
+results.select("scenario.record_id", "agent.agent_name", "answer.clarity")
+```
+
+Two messages times two profiles gives four result rows for one model and iteration. The identifiers let you match each rating back to its message and profile. Calling `by()` crosses the lists; it does not pair their rows by position. If each profile should receive only its corresponding record, use `zip_assign()` as described in [Experimental conditions](/en/latest/guides/experimental_conditions). If the task needs no custom profiles, use `question.by(records)` alone.
+
+## Other Python input formats
+
+The same approach works when your data comes from a spreadsheet, database, or Python object. `ScenarioList.from_source()` reads the source into scenarios so the question and job code can stay the same. For tabular data, each row becomes a scenario:
+
+| Source | Python call |
+| --- | --- |
+| CSV or TSV | `ScenarioList.from_source("csv", "records.csv")` or `from_source("tsv", "records.tsv")` |
+| Excel sheet | `ScenarioList.from_source("excel", "records.xlsx", sheet_name="Responses")` |
+| pandas DataFrame | `ScenarioList.from_source("pandas", frame)` |
+| Dictionary of columns | `ScenarioList.from_source("dict", {"record_id": ["r1", "r2"], "text": ["A", "B"]})` |
+| List of row dictionaries | `ScenarioList.from_list_of_dicts([{"record_id": "r1", "text": "A"}])` |
+| SQLite table | `ScenarioList.from_source("sqlite", "records.db", table="responses")` |
+| Parquet or Stata file | `ScenarioList.from_source("parquet", "records.parquet")` or `from_source("dta", "records.dta")` |
+
+`from_source()` normalizes column names to snake case by default. Pass `snakify=False` to preserve the source names. Some readers require optional format-specific dependencies. `ScenarioList.from_jsonl("scenarios.jsonl")` restores EDSL's serialized JSONL representation; it is not a general JSON row reader. For arbitrary JSON records, read them with Python's `json` module and use `from_list_of_dicts()`.
+
+`AgentList.from_source()` supports the same source selection and accepts `instructions`, `codebook`, and `name_field` for profile imports. Instructions tell agents how to respond; a codebook explains what their trait fields mean. `AgentList.from_csv()` is a direct CSV alternative. To turn rows you have already prepared into profiles, use `AgentList.from_scenario_list(records)` or `records.to_agent_list()`.
+
+Choose the import method based on where your data already lives. For example, use the pandas source if you have cleaned a DataFrame in a notebook; there is no need to save it to CSV and read it back. See [Scenarios](/en/latest/scenarios) for selecting, renaming, filtering, and transforming fields after import.
+
+## Documents and web content
+
+For documents, decide what one interview should receive: the text of a whole document, one page at a time, or the original file with its visual content. This choice determines both the scenario you construct and what the model can evaluate. Extracted text is useful for analyzing wording; the original PDF or page images are useful when charts, layout, or scanned content matter.
+
+For documents, `Scenario.from_pdf("report.pdf")` and `Scenario.from_docx("report.docx")` extract text into one Scenario. `ScenarioList.from_source("pdf", "report.pdf")` extracts one scenario per PDF page. The [PDF text examples](/en/latest/scenarios#pdf-text) show the resulting fields, page filtering, and how to run a question over the pages.
+
+To send the actual file to a model, use `Scenario.from_file(path, field_name="document")` or put a FileStore in a Scenario. See the worked examples for [whole PDFs](/en/latest/scenarios#pdf-attachments), [images](/en/latest/scenarios#images), [video](/en/latest/scenarios#video), and [audio](/en/latest/scenarios#audio). For scanned pages and visual analysis, [render PDF pages as images](/en/latest/scenarios#pdf-page-images).
+
+`Scenario.from_url(url)` retrieves one URL, `Scenario.from_html(url)` retains HTML and extracted text, and `ScenarioList.from_urls(urls)` retrieves several. These make network requests. `ScenarioList.from_source("directory", "materials", recursive=True)` creates file-backed scenarios from a directory; see [A collection of files](/en/latest/scenarios#a-collection-of-files) for filtering file types and retaining filenames with answers.
+
+Keep filenames, page numbers, or source URLs as scenario fields when you want them alongside the answers. These fields make it possible to trace a finding back to the source passage or file. [FileStore](/en/latest/filestore) explains how EDSL represents file attachments; the [Scenarios examples](/en/latest/scenarios#data-and-files) show how to reference them in questions.
+
+## Existing questionnaires
+
+If your source contains questions to ask rather than records to analyze, you want to create a Survey. [Builder](/en/latest/survey_builder) supports questionnaire creation and import through a visual interface. Importing an existing questionnaire requires its question types, wording, options, and routing to be represented in the resulting survey.
+
+If your ScenarioList contains EDSL question definitions, `definitions.to_survey()` converts each row into a question. Supply fields such as `question_type`, `question_name`, `question_text`, and the parameters required by that type. For example:
+
+```python
+from edsl import ScenarioList
+
+definitions = ScenarioList.from_list_of_dicts([
+    {"question_type": "free_text", "question_name": "feedback", "question_text": "What should improve?"},
+    {"question_type": "multiple_choice", "question_name": "priority",
+     "question_text": "Which matters most?", "question_options": ["Speed", "Reliability"]},
+])
+survey = definitions.to_survey()
+```
+
+Here each row defines a question, so the result is a two-question Survey rather than two interviews about source records. The questions follow the row order; add any branching or memory with the [Survey methods](/en/latest/surveys). Use this route when question definitions already live in a table, or construct Question objects directly when writing a survey in Python.

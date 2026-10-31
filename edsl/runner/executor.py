@@ -276,7 +276,10 @@ class ExecutionWorker:
                 question_data = self._job_service._jobs.get_question(
                     task.job_id, task.question_id
                 )
-                if question_data and question_data.get("question_type") == "interview":
+                if question_data and question_data.get("question_type") in (
+                    "interview",
+                    "group_discussion",
+                ):
                     return await self._execute_via_invigilator(task, model, cache)
 
             # Use model.async_get_response() like InvigilatorAI does
@@ -333,9 +336,7 @@ class ExecutionWorker:
                 resolution_draw,
                 resolution_seed,
                 resolution_method,
-            ) = self._validate_answer(
-                task, answer, comment, generated_tokens
-            )
+            ) = self._validate_answer(task, answer, comment, generated_tokens)
 
             return ExecutionResult(
                 task_id=task.task_id,
@@ -398,9 +399,13 @@ class ExecutionWorker:
         self, task: Any, model: Any, cache: Cache
     ) -> ExecutionResult:
         """Execute question types that require their own invigilator flow."""
-        question_data = self._job_service._jobs.get_question(task.job_id, task.question_id)
+        question_data = self._job_service._jobs.get_question(
+            task.job_id, task.question_id
+        )
         if not question_data:
-            raise ValueError(f"Question {task.question_id} not found for task {task.task_id}")
+            raise ValueError(
+                f"Question {task.question_id} not found for task {task.task_id}"
+            )
 
         question_data = self._resolve_question_templates(
             question_data, task.job_id, task.interview_id
@@ -501,15 +506,7 @@ class ExecutionWorker:
 
     def _validate_answer(
         self, task: Any, answer: Any, comment: str | None, generated_tokens: str | None
-    ) -> tuple[
-        Any,
-        str | None,
-        bool,
-        list[float] | None,
-        Any,
-        int | None,
-        str | None,
-    ]:
+    ) -> tuple[Any, str | None, bool, list[float] | None, Any, int | None, str | None,]:
         """Validate answer through the question's response validator.
 
         Resolves template options before validation.

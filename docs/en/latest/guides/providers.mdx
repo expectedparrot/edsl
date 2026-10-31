@@ -1,0 +1,37 @@
+---
+title: "Provider and model configuration"
+description: "Discover current services and configure model-specific parameters."
+---
+
+A provider supplies access to a model; EDSL's `service_name` selects the connection to that provider. Use this page when configuring model-specific settings or an institutional deployment such as Azure. For ordinary model selection, start with [Language models](/en/latest/language_models); [Model access](/en/latest/api_keys) explains Expected Parrot access and using your own provider keys.
+
+After choosing access, inspect the available services and models, then the configuration you will use:
+
+```python
+from edsl import Model
+
+Model.services()
+Model.available()
+model = Model()
+{"model": model.model, "parameters": model.parameters}
+```
+
+Catalog discovery may use network access. Creating a configuration does not generate answers. For an explicit model, use `Model(model_name, service_name=provider)` with identifiers selected from the catalog.
+
+## Reasoning parameters
+
+These settings matter when your task needs a different generation budget or behavior—for example, a lengthy document analysis rather than a short category label. Set supported parameters on `Model(...)`; they apply to the model calls in the job, rather than changing your survey questions.
+
+A provider's supported parameters depend on the model. For OpenAI reasoning models, `reasoning_effort` is forwarded for provider validation. The Responses adapter also accepts a `reasoning` dictionary; an explicitly supplied effort overrides the effort inside that dictionary. Check the adapter and provider documentation for the selected model before choosing values. Do not assume temperature or token-limit semantics are shared across models.
+
+## Azure deployments
+
+The current Azure adapter reads `AZURE_ENDPOINT_URL_AND_KEY` as comma-separated `endpoint:key` pairs. Configure this credential securely without printing it. For Azure OpenAI, the endpoint includes the deployment path and its `api-version` query parameter. Select the `azure:<deployment>` identifier reported for that configuration and pass `service_name="azure"`.
+
+Deployment names and endpoint versions come from your Azure account. See the [Azure adapter source](https://github.com/expectedparrot/edsl/blob/main/edsl/inference_services/services/azure_ai.py) for the format supported by your installed EDSL version.
+
+## Local and cloud execution
+
+Local orchestration can still make network calls to a provider. See [Connect to your own model server](/en/latest/language_models#connect-to-your-own-model-server) to point EDSL at a local server. For Azure or other cloud-hosted models, use the service and credential configuration documented by the installed adapter and [Managing Keys](/en/latest/api_keys); endpoints and deployment identifiers are account-specific.
+
+[Model comparisons](/en/latest/guides/model_comparisons) keeps matched inputs across providers. Use [Costs](/en/latest/costs) before expanding a run, and inspect recorded prompts and errors when troubleshooting adapter behavior.

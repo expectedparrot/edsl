@@ -1,0 +1,51 @@
+---
+title: "Qualitative coding with a codebook"
+description: "Apply themes across documents and retain evidence quotations."
+---
+
+import Example from '/snippets/examples/qualitative.mdx';
+
+Qualitative coding assigns themes to passages of text so you can examine patterns across interviews, open-ended survey responses, or documents. A passage can receive more than one theme: someone describing difficulty finding a feature may also mention getting help from a colleague. A **codebook** names the themes and explains when each applies.
+
+This example uses EDSL to apply a small, predefined codebook to two interview excerpts about an export feature. You will collect a list of themes and supporting quotations for each excerpt, while keeping the identifiers needed to return to the original source. This is useful when you want to organize material by recurring topics without losing the text behind each assignment.
+
+If you want to develop themes from your material first, follow [Develop labels through exploratory questions](/en/latest/guides/data_labeling#develop-labels-through-exploratory-questions). That workflow uses initial answers to develop a codebook, then turns its labels into the options for structured questions like the one below.
+
+## Define themes and retain their evidence
+
+The codebook has three themes: Discovery for finding a control, Format for selecting a file format, and Assistance for seeking or receiving help. The two excerpts below are made-up examples. Each is stored in a scenario with both a `document_id` and an `excerpt_id`, allowing a longer interview to contribute several separately identifiable passages.
+
+<Example />
+
+`QuestionCheckBox` lets the model select several themes for one excerpt. With `min_selections=0`, it can also return an empty list if none is supported; it does not have to force every passage into a category. The second question asks for evidence, and targeted memory supplies the selected themes so the model can connect its quotations to those choices.
+
+This codebook captures topics mentioned in an excerpt. For example, mentioning that a control was easy to find and mentioning that it was hard to find can both concern Discovery. If your research question is specifically about barriers, change the definition to require difficulty, or add a separate question about whether the experience was positive or negative.
+
+## Read themes with the original passage
+
+With [model access configured](/en/latest/api_keys), run the coding survey and display the source, assigned themes, and evidence together:
+
+```python
+results = job.run()
+results.select(
+    "scenario.document_id", "scenario.excerpt_id", "scenario.text",
+    "answer.themes", "answer.evidence",
+)
+```
+
+Two excerpts and two questions produce two rows, with four answers in total for one model and iteration. `answer.themes` contains a list, while `answer.evidence` contains free text. The evidence question requests quotations for each theme, but it does not enforce a separate structured field for every quotation. Read the response with the excerpt to see whether the quoted words support the assigned themes.
+
+To work with the coding in pandas, convert the selected columns with `.to_pandas()`. When counting themes, decide whether you want the number of excerpts mentioning a theme or the number of documents containing it. An interview with five coded excerpts contributes five passages but only one document; the two identifiers let you make either calculation.
+
+## Choose how much structure your coding needs
+
+Use this checkbox-and-evidence design when themes may overlap and you want a compact set of answers. Other EDSL question types support different coding needs:
+
+| Research task | Alternative |
+| --- | --- |
+| Assign one primary theme per passage | Use `QuestionMultipleChoice`, as in [Data labeling](/en/latest/guides/data_labeling). |
+| Assess every theme explicitly | Ask a separate `QuestionYesNo` for each theme, optionally followed by an evidence question. This produces one answer column per theme. |
+| Collect specific information in named fields | Use `QuestionExtract` with an answer template, such as fields for a stated problem and a supporting quotation. |
+| Explore themes before choosing a codebook | Use the [exploration-to-labeling workflow](/en/latest/guides/data_labeling#develop-labels-through-exploratory-questions) to turn initial answers into structured question options. |
+
+For a larger collection, [import excerpts from a table](/en/latest/guides/importing_data) or extract text from [documents and PDF pages](/en/latest/scenarios#pdf-text). Choose the amount of text in each scenario to suit the question: a short excerpt supports passage-level coding, while a whole document provides broader context. To compare the coding with independent human judgments, follow [Human validation](/en/latest/research/human_validation); for this multi-theme design, compare the assigned themes rather than using a single-category match.
