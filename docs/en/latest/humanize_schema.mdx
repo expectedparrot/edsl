@@ -123,7 +123,7 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
 <ParamField path="optional" type="boolean" default={false}>
   Whether the question is optional. Default is `false` when omitted.
 
-  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `file_upload`, `interview`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
+  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `dropdown`, `file_upload`, `interview`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
 
   Note: `optional` currently has no effect for `interview` and `rank`.
 </ParamField>
@@ -135,7 +135,7 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
 
   A time limit applies only while the question is alone on its page. When `survey.presentation` is `"group"`, every question's `time_limit` is ignored, including a question that is the only one in its group. The countdown runs in the respondent's browser, so reloading the page starts it again.
 
-  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `file_upload`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
+  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `dropdown`, `file_upload`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
 
   <Expandable title="properties">
     <ParamField path="duration" type="dict" required={true}>
@@ -151,7 +151,7 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
   - **Numerical** (`numerical`): `"input"` (number input field) or `"slider"` (range slider). Default is `"input"`. Use `{"type": "input"}` or `{"type": "slider", "min": 0, "max": 100, "step": 1}`. For slider, `min` must be less than `max`, `step` must be positive and not exceed `(max - min)`.
   - **Matrix** (`matrix`): `"table"` (the whole grid at once) or `"carousel"` (one item at a time). Default is `"table"`. Use `{"type": "table"}` or `{"type": "carousel"}`.
 
-  Other question types do not support `format`.
+  `dropdown` questions always use their searchable option picker and do not support `format`. Other question types do not support `format`.
 
   <Expandable title="matrix carousel properties">
     <ParamField path="advance_on_select" type="boolean" default={true}>
@@ -380,7 +380,7 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
   Optional comment input shown with the question.
   Submitted comment text appears in survey results under `comment.{question_name}_comment`.
 
-  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
+  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `dropdown`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
 
   <Expandable title="properties">
     <ParamField path="label" type="string" required={true}>
@@ -392,7 +392,7 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
 <ParamField path="submitting_indicator" type="dict" required={false}>
   Optional indicator shown after the respondent clicks **Next**, while the following question runs. Omit or set to `null` for no indicator.
 
-  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `file_upload`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
+  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `dropdown`, `file_upload`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
 
   Note: not supported for `compute` or `image_generation` (both run in the background and auto-advance, so neither is ever the question a respondent submits), or for `interview`.
 
@@ -409,7 +409,7 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
 <ParamField path="javascript" type="dict" required={false}>
   Optional JavaScript that runs on the respondent's page for this question. Omit or set to `null` to run no script. See [Custom JavaScript](/en/latest/custom_javascript) for how to write a hook, what a script may do, and how to retrieve the events it logs.
 
-  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `distribution`, `file_upload`, `interview`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`, `survey_message`.
+  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `distribution`, `dropdown`, `file_upload`, `interview`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`, `survey_message`.
 
   Note: not supported for `compute` or `image_generation`. Both run in the background and are dropped from the page, so there is no rendered question for a script to attach to.
 
