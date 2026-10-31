@@ -68,6 +68,7 @@ def create_matrix_response(
     question_items: List[str],
     question_options: List[Union[int, str, float]],
     permissive: bool = False,
+    items_with_text: Optional[List[str]] = None,
 ) -> Type[BaseModel]:
     """
     Create a dynamic Pydantic model for matrix questions with appropriate validation.
@@ -126,8 +127,17 @@ def create_matrix_response(
 
     # Build field definitions for the answer submodel
     field_definitions = {}
+    items_with_text = items_with_text or []
     for item in question_items:
-        field_definitions[item] = (AllowedOptions, Field(...))  # required field
+        if item in items_with_text:
+            RowAnswer = create_model(
+                "MatrixRowTextAnswer",
+                choice=(AllowedOptions, Field(...)),
+                text=(Optional[str], Field(None)),
+            )
+            field_definitions[item] = (RowAnswer, Field(...))
+        else:
+            field_definitions[item] = (AllowedOptions, Field(...))  # required field
 
     # Dynamically create the submodel
     MatrixAnswerSubModel = create_model(
@@ -181,7 +191,8 @@ def create_matrix_response(
             if not permissive:
                 invalid_items = {}
                 for item, value in matrix_answer.items():
-                    if value not in option_tuple:
+                    candidate = value.get("choice") if isinstance(value, dict) else value
+                    if candidate not in option_tuple:
                         invalid_items[item] = value
 
                 if invalid_items:
@@ -856,7 +867,8 @@ class QuestionMatrix(QuestionBase):
         including allowed items, options, and permissiveness.
         """
         return create_matrix_response(
-            self.question_items, self.question_options, self.permissive
+            self.question_items, self.question_options, self.permissive,
+            getattr(self, "items_with_text", None),
         )
 
     def _simulate_answer(self) -> dict:
