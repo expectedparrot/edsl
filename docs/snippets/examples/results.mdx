@@ -1,0 +1,26 @@
+```python
+from edsl import Agent, Model, QuestionMultipleChoice, Result, Results, Scenario, Survey
+
+question = QuestionMultipleChoice(
+    question_name="clarity", question_text="Is the message clear?",
+    question_options=["Clear", "Unclear"],
+)
+survey = Survey([question])
+# Fabricated observations for demonstrating data operations, not research findings.
+results = Results(survey=survey, data=[
+    Result(agent=Agent(), scenario=Scenario({"record_id": key, "condition": condition}),
+           model=Model("test"), iteration=0, answer={"clarity": answer}, survey=survey)
+    for key, condition, answer in [
+        ("r1", "short", "Unclear"), ("r2", "explicit", "Clear"),
+        ("r3", "short", "Clear"), ("r4", "explicit", "Clear"),
+    ]
+])
+table = results.select("scenario.record_id", "scenario.condition", "answer.clarity")
+# Display in a notebook: put table on the last line of a cell.
+# Display in a script: table.print()
+# Convert to pandas when you need DataFrame operations.
+frame = table.to_pandas()
+counts = frame.groupby(["scenario.condition", "answer.clarity"]).size()
+clear = results.filter("clarity == 'Clear'")
+table.to_csv("clarity.csv")
+```

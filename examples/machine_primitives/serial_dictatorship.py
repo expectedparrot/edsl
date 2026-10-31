@@ -39,7 +39,7 @@ def build_machine(items=("North", "South"), capacity=1):
         predicate=allocation.get("remaining").get(local("option"), 0) > 0,
     )
     selected = local("selected")
-    assign = let(
+    allocation_step = let(
         "selected",
         available.first(),
         choose(
@@ -96,7 +96,7 @@ def build_machine(items=("North", "South"), capacity=1):
                     constant("initial"),
                     item="request",
                     accumulator="allocation",
-                    body=assign,
+                    body=allocation_step,
                 ),
             ),
         ),

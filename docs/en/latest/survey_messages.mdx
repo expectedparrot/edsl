@@ -3,9 +3,11 @@ title: "Survey messages"
 description: "Use SurveyMessage to add display-only, routable pages such as introductions, consent text, transitions, eligibility notices, and completion messages to an EDSL Survey."
 ---
 
-`SurveyMessage` adds a page of information to a survey without asking the respondent—or a language model—to provide an answer. It behaves like a question in the survey flow: it has a `question_name`, occupies a normal survey position, and can be the source or destination of a routing rule.
+`SurveyMessage` adds a page of information to a survey without asking for an answer. It has a `question_name` and a position in the survey, so you can show it at the start, between sections, or on a particular branch.
 
 Use it for introductions, consent or privacy information, section transitions, eligibility notices, and thank-you pages.
+
+When you need a recorded choice, such as agreement to participate, use a question with explicit answer options alongside the information. A message's continuation value records that the step was visited, rather than a substantive answer.
 
 ## Basic usage
 
@@ -30,7 +32,7 @@ thanks = SurveyMessage(
 survey = Survey([welcome, feedback, thanks])
 ```
 
-An interactive survey client should display the message and offer a **Continue** action (or **Finish** when it is the last node). `SurveyMessage` does not render an input control.
+This defines a welcome page, one feedback question, and a closing page. A supported human survey interface displays the messages with **Continue** or **Finish**, without an answer box.
 
 ## Routing to a message
 
@@ -67,10 +69,15 @@ The message participates in ordinary navigation, including back navigation and r
 
 ## Running with language models
 
-When an EDSL job reaches a `SurveyMessage`, EDSL records a deterministic response and continues without calling the language model:
+The following uses the routing example above and a fixed test response of `No`; it makes no paid model calls. When an EDSL job reaches a `SurveyMessage`, EDSL records a deterministic response and continues without calling the language model:
 
 ```python
-results = survey.run()
+from edsl import Cache, Model
+
+results = survey.by(Model("test", canned_response="No")).run(
+    cache=Cache(), disable_remote_inference=True,
+    disable_remote_cache=True,
+)
 results.select("answer.ineligible")
 ```
 
@@ -87,7 +94,19 @@ If the message was visited, its recorded answer is `"continued"`. If routing ski
 
 Use `Instruction` when text should become model context for later questions. Use `SurveyMessage` when the text is itself a visible step in the survey experience.
 
+For example, put an instruction before the questions it should affect:
+
+```python
+from edsl import Instruction, QuestionFreeText, Survey
+
+context = Instruction(name="context", text="Evaluate the proposed service as a new customer.")
+feedback = QuestionFreeText(question_name="feedback", question_text="What is unclear?")
+survey = Survey([context, feedback])
+```
+
+When assembling a survey incrementally, `survey.add_instruction(instruction)` appends an instruction at the current point; add the subsequent questions after it. Instructions do not produce answer columns.
+
 ## Human survey clients
 
-`SurveyMessage` serializes with `question_type="survey_message"` and has an empty Humanize schema because it accepts no respondent input. A survey builder or Humanize client must explicitly support this question type by rendering the message and submitting the deterministic continuation action. Check client compatibility before deploying a human survey that contains messages.
+Preview the survey with `survey.preview()` to check that the hosted interface displays the messages and follows the intended routes. Human survey interfaces must support the `survey_message` type. Messages need no answer-format settings in the Humanize schema because they collect no respondent input.
 

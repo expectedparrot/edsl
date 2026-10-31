@@ -46,6 +46,8 @@ class HumanResponseEntry(BaseModel):
     # value: question types allow strings, ints, floats and, for multiple choice and
     # dropdown, lists.
     question_options: Optional[list[JsonValue]] = None
+    # References to the stored call audio, one per track. Interview questions only.
+    voice_recordings: Optional[list[JsonValue]] = None
 
 
 ENTRIES = TypeAdapter(dict[str, HumanResponseEntry])
@@ -133,7 +135,7 @@ class HumanResponsesBuilder:
 
             answers: dict[str, "AnswerValue"] = {}
             comments: dict[str, Optional[str]] = {}
-            raw_model_response: dict[str, Union[str, bool, None]] = {}
+            raw_model_response: dict[str, JsonValue] = {}
             attributes: dict[str, dict[str, Any]] = {}
             for qn in question_names:
                 entry = entries.get(qn, no_entry)
@@ -143,6 +145,11 @@ class HumanResponsesBuilder:
                 comments[f"{qn}_comment"] = entry.comment
                 for field in RAW_MODEL_RESPONSE_FIELDS:
                     raw_model_response[f"{qn}_{field}"] = getattr(entry, field)
+                # Only interviews can carry recordings, so other questions get no column.
+                if question_attributes[qn].get("question_type") == "interview":
+                    raw_model_response[f"{qn}_voice_recordings"] = (
+                        entry.voice_recordings
+                    )
                 attributes[qn] = dict(question_attributes[qn])
                 if entry.question_options is not None:
                     attributes[qn]["question_options"] = entry.question_options

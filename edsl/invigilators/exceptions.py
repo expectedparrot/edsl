@@ -23,7 +23,7 @@ class InvigilatorError(BaseException):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/agents#invigilators"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/prompts"
 
 
 class InvigilatorTypeError(InvigilatorError):
@@ -42,7 +42,7 @@ class InvigilatorTypeError(InvigilatorError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/agents#invigilators"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/prompts"
 
 
 class InvigilatorValueError(InvigilatorError):
@@ -61,7 +61,7 @@ class InvigilatorValueError(InvigilatorError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/agents#invigilators"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/prompts"
 
 
 class InvigilatorNotImplementedError(InvigilatorError):
@@ -80,4 +80,4 @@ class InvigilatorNotImplementedError(InvigilatorError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/agents#invigilators"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/prompts"

@@ -8,17 +8,15 @@ EDSL makes it easy to conduct computational social science and market research w
 
 ## Getting started
 
-1. Run `pip install edsl` to install the package. See <a href="https://www.expectedparrot.com/getting-started" target="_blank" rel="noopener noreferrer">instructions</a>.
+1. Run `pip install edsl` to install the package. See the <a href="https://docs.expectedparrot.com/en/latest/installation" target="_blank" rel="noopener noreferrer">installation guide</a>.
 
 2. <a href="https://www.expectedparrot.com/login" target="_blank" rel="noopener noreferrer">Create an account</a> to run surveys at the Expected Parrot server and access a <a href="https://docs.expectedparrot.com/en/latest/remote_caching" target="_blank" rel="noopener noreferrer">universal remote cache</a> of stored responses for reproducing results.
 
 3. Choose whether to use your own keys for language models or get an Expected Parrot key to access all available models at once. Securely <a href="https://www.expectedparrot.com/getting-started/edsl-api-keys" target="_blank" rel="noopener noreferrer">manage keys</a>,  expenses and usage for your team from your account.
 
-4. Run the <a href="https://docs.expectedparrot.com/en/latest/starter_tutorial" target="_blank" rel="noopener noreferrer">starter tutorial</a> and explore other demo notebooks for a variety of use cases. 
+4. Follow <a href="https://docs.expectedparrot.com/en/latest/starter_tutorial" target="_blank" rel="noopener noreferrer">Run your first survey</a>, then explore the <a href="https://docs.expectedparrot.com/en/latest/index#explore-the-docs" target="_blank" rel="noopener noreferrer">how-to guides and research examples</a>, including <a href="https://docs.expectedparrot.com/en/latest/guides/data_labeling" target="_blank" rel="noopener noreferrer">labeling data with survey questions</a>.
 
 5. Share workflows and survey results at <a href="https://www.expectedparrot.com/login" target="_blank" rel="noopener noreferrer">Coop</a>: a free platform for creating and sharing AI research.
-
-6. Join our <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank" rel="noopener noreferrer">Discord</a> for updates and discussions! 
 
 ## Code & Docs
 - <a href="https://github.com/expectedparrot/edsl" target="_blank" rel="noopener noreferrer">GitHub</a>
@@ -37,7 +35,6 @@ Expected Parrot provides a free platform for creating, storing and sharing AI-ba
 
 ## Community
 - <a href="https://blog.expectedparrot.com" target="_blank" rel="noopener noreferrer">Blog</a>
-- <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank" rel="noopener noreferrer">Discord</a>
 - <a href="https://x.com/ExpectedParrot" target="_blank" rel="noopener noreferrer">Twitter</a>
 - <a href="https://www.linkedin.com/company/expectedparrot/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
 
