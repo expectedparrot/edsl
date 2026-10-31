@@ -128,6 +128,8 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
   Note: `optional` currently has no effect for `interview` and `rank`.
 </ParamField>
 
+In Humanize, `QuestionDropdown` is a searchable combo box: respondents enter terms, choose a ranked option, and the choice fills the input. Set `permissive=True` on `QuestionDropdown` to allow custom text when no listed option fits; the default requires a listed option.
+
 <ParamField path="time_limit" type="dict" required={false}>
   A limit on how long the respondent may spend answering the question. Omit or set to `null` for no limit.
 
