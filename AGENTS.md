@@ -503,6 +503,7 @@ Check authentication before remote operations:
 ep auth status
 ep check
 ep balance
+ep balance alert
 ep credits
 ep profile
 ep settings

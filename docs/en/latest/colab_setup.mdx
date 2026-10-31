@@ -1,50 +1,41 @@
 ---
-title: "Colab Setup"
-description: "All examples, tutorials, and demo notebooks are executable in any Python notebook environment."
+title: "Google Colab setup"
+description: "Install EDSL and load credentials in a Colab notebook."
 ---
 
-To run them in Colab, please follow the special instructions below for technical setup:
+[Google Colab](https://colab.research.google.com) runs Python notebooks in a hosted environment. In a new notebook, install EDSL in a code cell:
 
-## 1. Store your API key as a secret
-
-In Google Colab, your API keys can be stored as “secrets” in lieu of storing them in a *.env* file as you would in other notebook types.
-
-For example, you can store your Expected Parrot API key as follows:
-
-<Frame>
-![Storing API key in Google Colab](/images/en/latest/colab_keys_secrets.png)
-</Frame>
-
-## 2. Install EDSL
-
-Run the following command in a code cell to install the EDSL package:
-
-```bash
-pip install edsl
+```text
+%pip install edsl
 ```
 
-## 3. Access your API key
+Then follow the [Run your first survey](/en/latest/starter_tutorial) tutorial. Its local test model needs no credentials. Re-run installation when you start a new runtime.
 
-Run the following code to access your API key in your Colab notebook:
+## Log in to Expected Parrot
+
+To use Expected Parrot's model access, run this in a cell:
+
+```python
+from edsl import login
+
+login()
+```
+
+Follow the sign-in link in the output. EDSL retrieves your API key and configures the notebook session automatically. Run `login()` again when you start a new runtime. See [Notebook login](/en/latest/api_keys#log-in-from-a-notebook) for options.
+
+## Use Colab secrets as an alternative
+
+If you already have an Expected Parrot API key, you can instead add `EXPECTED_PARROT_API_KEY` to Colab's Secrets panel and enable access for this notebook. Load it without displaying the value:
 
 ```python
 import os
 from google.colab import userdata
 
-os.environ['EXPECTED_PARROT_API_KEY'] = userdata.get('EXPECTED_PARROT_API_KEY')
+os.environ["EXPECTED_PARROT_API_KEY"] = userdata.get("EXPECTED_PARROT_API_KEY")
 ```
 
-## Example Colab code
+For direct provider access, store and load the provider's environment variable instead. See [Model access](/en/latest/api_keys) to choose the execution path. Do not paste keys into notebook cells or saved output.
 
-EDSL methods for creating objects and posting them to Expected Parrot are now available to you in Colab.
+## Preserve your work
 
-Here’s a snapshot of how your Colab code might look:
-
-<Frame>
-![Storing and using API key in Google Colab](/images/en/latest/colab_sample_code.png)
-</Frame>
-
-## Posting Colab notebooks to Expected Parrot
-
-Special instructions for connecting your Google Drive to post Colab notebooks to Expected Parrot are available in the [Colab Notebooks](/en/latest/colab_notebooks) section.
-
+The runtime's local files can disappear when the session ends. Save study packages and results to durable storage or download them before closing the runtime. [Sharing a Colab notebook](/en/latest/colab_notebooks) explains how to save the notebook itself as supporting material.

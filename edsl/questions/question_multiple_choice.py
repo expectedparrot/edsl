@@ -504,7 +504,7 @@ class QuestionMultipleChoice(QuestionBase):
         ```
 
     See also:
-        https://docs.expectedparrot.com/en/latest/questions#questionmultiplechoice-class
+        https://docs.expectedparrot.com/en/latest/questions#question-type-details
     """
 
     question_type = "multiple_choice"

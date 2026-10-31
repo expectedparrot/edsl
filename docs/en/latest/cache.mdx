@@ -1,0 +1,71 @@
+---
+title: "Local caching"
+description: "Reuse model responses locally and preserve the cache alongside a study."
+---
+
+A `Cache` stores model responses so you can rerun a job using the same responses when the inputs match.
+
+This is useful when extending a study: matching calls can reuse earlier responses while new inputs receive new answers. A cache matches individual model calls using their prompts, model settings, and iteration. It differs from a saved Results object, which you reopen to analyze the already-collected dataset without running the job again.
+
+## Run with an explicit local cache
+
+This example uses the test model, makes no paid model calls, and disables hosted execution, API proxying, and remote caching. It writes a cache file in the current directory.
+
+import Example from '/snippets/examples/caching.mdx';
+
+<Example />
+
+The first run fills the empty cache; the second reuses its entry. Both return the fixed test answer in this example. Inspect `second.select("cache_used.*")` to see the reuse indicator; identical answer text alone would not tell you whether a new call occurred. `saved_cache` contains the entries written to `feedback-cache.jsonl`.
+
+Use a configured provider model in place of `Model("test", ...)` for real responses. Locally orchestrated execution can still call a remote provider and incur costs. An empty Cache starts without stored responses; it does not make a real model free or offline.
+
+## Preserve and reload
+
+`write_jsonl()` and `from_jsonl()` provide a portable cache file. SQLite persistence is available through `write_sqlite_db()` and `from_sqlite_db()`.
+
+Load a saved cache and pass it to `job.run(cache=cache)` to reuse its responses. Save and load completed Results with `results.save()` and `Results.load()`; see [Saving objects](/en/latest/guides/saving_objects).
+
+## Fresh responses and remote cache
+
+To request new model responses with local orchestration, pass a new `Cache()` together with `disable_remote_inference=True` and `disable_remote_cache=True`.
+
+For hosted execution, `run(offload_execution=True, fresh=True)` requests new responses. In this version, `fresh=True` alone does not bypass entries already in a supplied local cache.
+
+Expected Parrot's [remote cache](/en/latest/remote_caching) is a separate hosted service. `disable_remote_cache=True` controls remote cache access; it does not disable local reuse or hosted execution by itself.
+
+## Common methods
+
+| Call | Arguments and result |
+| --- | --- |
+| `Cache()` | Create an empty local cache. |
+| `len(cache)` | Count stored entries. |
+| `cache.write_jsonl("responses.jsonl")` | Write cache entries to a portable JSONL file. |
+| `Cache.from_jsonl("responses.jsonl")` | Restore a Cache from that file. |
+| `cache.write_sqlite_db("responses.db")` | Write entries to a SQLite database. |
+| `Cache.from_sqlite_db("responses.db")` | Load a Cache from the database. |
+
+To reuse the cache saved by the example above in another session:
+
+```python
+from edsl import Cache
+
+cache = Cache.from_jsonl("feedback-cache.jsonl")
+len(cache)
+# In a script: print(len(cache))
+# Pass cache=cache to your next job.run(...) call to reuse matching entries.
+```
+
+## Inspect, select, and combine entries
+
+`cache.select("model", "user_prompt", "output")` returns a Dataset for inspection. `to_scenario_list()`, `to_dataset()`, and `to_pandas()` provide other representations. Each stored entry contains model parameters, system and user prompts, the raw model output, and iteration information.
+
+| Task | Method |
+| --- | --- |
+| Inspect keys and entries | `cache.keys()`, `cache.values()`, and `cache.items()` provide keys, CacheEntry objects, and key-entry pairs. `entry.to_dict()` exposes an entry's fields. |
+| Keep particular entries | `cache.subset(keys)` returns a Cache with the requested keys. |
+| Merge entries | `cache.add_from_dict({entry.key: entry for entry in entries})` adds CacheEntry objects. A conflicting value for an existing key raises an error. |
+| Merge a saved cache | `cache.add_from_jsonl("other.jsonl")` or `cache.add_from_sqlite("other.db")` adds entries to this cache. |
+| Access the configured local cache | `Cache.from_local_cache()` opens the configured SQLite cache. Use an explicit Cache when a study needs isolated storage. |
+| Keep entries added during use | `cache.new_entries_cache()` returns a Cache containing tracked new and fetched entries. |
+
+See [Remote caching](/en/latest/remote_caching#download-cache-entries-for-a-job) for downloading hosted entries by job UUID or cache key.
