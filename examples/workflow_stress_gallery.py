@@ -1424,7 +1424,7 @@ def chicken_case() -> GalleryCase:
     builder = Workflow("Chicken", metadata={"source": "Handbook chapters 2-3"})
     choice_q = QuestionMultipleChoice(question_name="action", question_text="Choose independently: Swerve or Straight. Mutual Straight is disastrous; Straight against Swerve pays best.", question_options=["Swerve", "Straight"])
     choices = builder.step("choose", Survey([choice_q]), assigned_to=role("player"), visible_to=role("settler"))
-    payoffs = builder.derive("payoffs", by_participant=choices.submissions.payoff_matrix("action", {"WW": (2, 2), "WT": (1, 3), "TW": (3, 1), "TT": (0, 0)}, action_codes={"Swerve": "W", "Straight": "StateType"}))
+    payoffs = builder.derive("payoffs", by_participant=choices.submissions.payoff_matrix("action", {"WW": (2, 2), "WT": (1, 3), "TW": (3, 1), "TT": (0, 0)}, action_codes={"Swerve": "W", "Straight": "T"}))
     settle_q = QuestionFreeText(question_name="result", question_text=f"Record the authoritative participant payoffs {payoffs.field('by_participant').template}.")
     settled = builder.step("settle", Survey([settle_q]), assigned_to=role("settler"), after=choices)
     notice_q = QuestionFreeText(question_name="payoff", question_text=f"Your private payoff is {payoffs.field('by_participant').for_participant()} tokens. Acknowledge it.")
