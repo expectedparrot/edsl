@@ -1,5 +1,6 @@
 import hashlib
 import os
+import re
 from typing import Any, Dict, Optional, TYPE_CHECKING
 
 # from ...exceptions.general import MissingAPIKeyError
@@ -231,6 +232,17 @@ class GoogleService(InferenceServiceABC):
         # Import LanguageModel only when actually creating a model
         from ...language_models import LanguageModel
 
+        def supports_thinking(name: str) -> bool:
+            match = re.search(r"gemini-(\d+)(?:\.(\d+))?", name.lower())
+            if not match:
+                return False
+            version = (int(match.group(1)), int(match.group(2) or 0))
+            return version >= (2, 5)
+
+        def uses_thinking_level(name: str) -> bool:
+            match = re.search(r"gemini-(\d+)", name.lower())
+            return bool(match and int(match.group(1)) >= 3)
+
         class LLM(LanguageModel):
             _model_ = model_name
             key_sequence = cls.key_sequence
@@ -241,12 +253,18 @@ class GoogleService(InferenceServiceABC):
             _inference_service_ = cls._inference_service_
 
             _parameters_ = {
-                "temperature": 0.5,
+                "temperature": 1.0 if uses_thinking_level(model_name) else 0.5,
                 "topP": 1,
                 "topK": 1,
-                "maxOutputTokens": 2048,
+                "maxOutputTokens": 16384 if supports_thinking(model_name) else 2048,
                 "stopSequences": [],
-                "thinking_budget": None,
+                "thinking_budget": (
+                    8192
+                    if supports_thinking(model_name)
+                    and not uses_thinking_level(model_name)
+                    else None
+                ),
+                "thinking_level": "HIGH" if uses_thinking_level(model_name) else None,
                 # Backend selection (Vertex AI vs Gemini Developer API). These
                 # are model parameters so they travel with the serialized model:
                 # a job built with use_vertex=True runs on Vertex through coopr's
@@ -428,10 +446,8 @@ class GoogleService(InferenceServiceABC):
                 # config_start = time.time()
                 types = _get_types()
 
+                model_uses_thinking_level = uses_thinking_level(self._model_)
                 config_kwargs = dict(
-                    temperature=self.temperature,
-                    top_p=self.topP,
-                    top_k=self.topK,
                     max_output_tokens=self.maxOutputTokens,
                     stop_sequences=self.stopSequences,
                     safety_settings=[
@@ -444,7 +460,20 @@ class GoogleService(InferenceServiceABC):
                     system_instruction=system_instruction,
                 )
 
-                if self.thinking_budget is not None:
+                # Gemini 3+ is tuned for its sampling defaults; Google advises
+                # omitting temperature/top-p/top-k for these models.
+                if not model_uses_thinking_level:
+                    config_kwargs.update(
+                        temperature=self.temperature,
+                        top_p=self.topP,
+                        top_k=self.topK,
+                    )
+
+                if model_uses_thinking_level and self.thinking_level is not None:
+                    config_kwargs["thinking_config"] = types.ThinkingConfig(
+                        thinking_level=self.thinking_level,
+                    )
+                elif self.thinking_budget is not None:
                     config_kwargs["thinking_config"] = types.ThinkingConfig(
                         thinking_budget=self.thinking_budget,
                     )

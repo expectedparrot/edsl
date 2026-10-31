@@ -95,6 +95,32 @@ class AnthropicService(InferenceServiceABC):
         return False
 
     @classmethod
+    def _supports_adaptive_thinking(cls, model_name: str) -> bool:
+        """Return whether a Claude model supports adaptive thinking."""
+        name = model_name.lower()
+        if re.search(r"claude-(?:fable|mythos)", name):
+            return True
+
+        version_match = re.search(
+            r"claude-(?:opus|sonnet|haiku)-(\d+)-(\d+)", name
+        )
+        if version_match:
+            return (int(version_match.group(1)), int(version_match.group(2))) >= (4, 6)
+
+        single_version = re.search(r"claude-(?:opus|sonnet|haiku)-(\d+)(?!-?\d)", name)
+        return bool(single_version and int(single_version.group(1)) >= 5)
+
+    @classmethod
+    def _supports_manual_thinking(cls, model_name: str) -> bool:
+        """Return whether this Claude model supports budget-based thinking."""
+        name = model_name.lower()
+        return bool(
+            re.search(r"claude-3-7-sonnet", name)
+            or re.search(r"claude-(?:opus|sonnet|haiku)-4-(?:0|1|5)(?:[-:]|$)", name)
+            or re.search(r"claude-(?:opus|sonnet|haiku)-4-\d{8}(?:[-:]|$)", name)
+        )
+
+    @classmethod
     def _api_temperature(cls, model_name: str, temperature: float) -> float:
         if cls._requires_temperature_one(model_name):
             return 1.0
@@ -125,14 +151,29 @@ class AnthropicService(InferenceServiceABC):
             _model_ = model_name
             _parameters_ = {
                 "temperature": 0.5,
-                "max_tokens": 1000,
+                "max_tokens": 16000 if (
+                    cls._supports_adaptive_thinking(model_name)
+                    or cls._supports_manual_thinking(model_name)
+                ) else 1000,
                 "top_p": 1,
                 "frequency_penalty": 0,
                 "presence_penalty": 0,
                 "logprobs": False,
                 "top_logprobs": 3,
-                "thinking": None,
-                "output_config": None,
+                "thinking": (
+                    {"type": "adaptive"}
+                    if cls._supports_adaptive_thinking(model_name)
+                    else (
+                        {"type": "enabled", "budget_tokens": 10000}
+                        if cls._supports_manual_thinking(model_name)
+                        else None
+                    )
+                ),
+                "output_config": (
+                    {"effort": "high"}
+                    if cls._supports_adaptive_thinking(model_name)
+                    else None
+                ),
             }
 
             def __init__(self, *args, **kwargs):
