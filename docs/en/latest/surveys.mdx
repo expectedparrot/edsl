@@ -37,6 +37,85 @@ Combine a survey with scenarios, agents, and models using `by()` to construct a 
 
 For human participants, use [Human studies](/en/latest/guides/human_studies). A web survey requires an Expected Parrot account.
 
+## Create a visual review survey
+
+Use `create_review_survey()` when reviewers need to inspect how every question
+looks before an instrument is fielded. It renders each source question as an HTML
+card, captures the card as an image, and creates a second survey containing:
+
+- an optional reviewer-name question;
+- an approval question for every source question; and
+- a conditional text question when the reviewer reports an issue.
+
+The method returns a review `Survey` and one `Scenario` containing all screenshots.
+Keep them together when previewing, running, or publishing the review:
+
+```python
+from edsl import ScenarioList, Survey
+
+source = Survey.example()
+review, screenshot_scenario = source.create_review_survey(
+    output_dir="review-screenshots",
+)
+
+info = review.by(ScenarioList([screenshot_scenario])).humanize(
+    human_survey_name="Questionnaire review",
+    scenario_list_method="single_scenario",
+)
+print(info["respondent_url"])
+```
+
+`single_scenario` is important: the review instrument uses one scenario containing
+every image, rather than one respondent assignment per source question. The image
+is included in both the approval and feedback questions so the reviewer retains
+visual context after selecting the issue option.
+
+Automatic screenshots require Playwright and Chromium:
+
+```bash
+pip install playwright
+playwright install chromium
+```
+
+In a build system that captures screenshots separately, pass the paths in source
+question order. This path does not require Playwright:
+
+```python
+review, screenshot_scenario = source.create_review_survey(
+    screenshot_paths=["q0.png", "q1.png", "q2.png"],
+)
+```
+
+### Customize the review instrument
+
+The first value in `approval_options` means approval and causes the associated
+feedback question to be skipped. The second value means an issue was found.
+Custom text templates may use `{question_name}`, `{question_number}`, and
+`{screenshot}`. Always include `{screenshot}` when the image should be visible.
+
+```python
+review, screenshot_scenario = source.create_review_survey(
+    screenshot_paths=["q0.png", "q1.png", "q2.png"],
+    reviewer_question_text=None,
+    approval_options=("Approve", "Needs revision"),
+    review_question_text=(
+        "Review question {question_number} ({question_name}).\n\n{screenshot}"
+    ),
+    feedback_question_text=(
+        "What should change, and why?\n\n{screenshot}"
+    ),
+    question_name_prefix="wording_review",
+    screenshot_key_prefix="question_card",
+)
+```
+
+Use prefixes when combining generated review questions with another survey or
+when the default names would collide. The generated survey remains an ordinary
+`Survey`: you can edit questions, add instructions, change routing, apply a
+Humanize schema, or run it with agents before asking people to review it.
+Set `reviewer_question_name` when identity should be collected under a field name
+other than `reviewer_name`.
+
 ## Edit and inspect a survey
 
 Access a question by name with `survey.get("feedback")` or `survey["feedback"]`. Use `survey.question_names` to inspect the order. To revise wording while keeping the original survey:

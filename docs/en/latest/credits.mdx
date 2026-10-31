@@ -27,6 +27,26 @@ ep credits
 
 Review current pricing and the estimated workload before submitting a job. The [Costs guide](/en/latest/costs) explains estimates, recorded costs, and cost ledgers. A balance check is not a reservation of funds or a limit on future spending.
 
+## Low balance email
+
+Expected Parrot emails you when your balance drops below a threshold you choose. It is on by default, with a threshold of $10. The email is sent when a charge takes your balance below the threshold, at most once a day; adding credits that bring the balance back above it lets the next drop send another. Changing the threshold, or turning the email on, while your balance is already below it does not send one. To check or change it:
+
+```python
+coop.get_low_balance_alert()
+coop.update_low_balance_alert(threshold_usd=25)
+coop.update_low_balance_alert(enabled=False)
+```
+
+The threshold is in US dollars, from $1 to $10,000 with at most two decimal places. Both methods return the setting, including `enabled`, `threshold_usd` and `threshold_credits`. The CLI equivalents are:
+
+```bash
+ep balance alert
+ep balance alert --threshold 25
+ep balance alert --off
+```
+
+`ep balance alert` with no options returns the current setting; `--on`, `--off` and `--threshold` change it. You can also change it under Notifications in [account settings](https://www.expectedparrot.com/home/settings?tab=notifications).
+
 ## Academic research and teaching
 
 We support academic researchers, instructors, and students using EDSL for research and coursework. Contact [info@expectedparrot.com](mailto:info@expectedparrot.com) about available support and usage credits for your project or class. See the [Teaching guide](/en/latest/teaching) for assignment workflows.

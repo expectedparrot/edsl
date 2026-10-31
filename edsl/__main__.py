@@ -12,6 +12,7 @@ from edsl.cli_commands import account as account_commands
 from edsl.cli_commands import agents as agents_commands
 from edsl.cli_commands import auth as auth_commands
 from edsl.cli_commands import costs as costs_commands
+from edsl.cli_commands import docs as docs_commands
 from edsl.cli_commands import humanize as humanize_commands
 from edsl.cli_commands import inspect as inspect_commands
 from edsl.cli_commands import jobs as jobs_commands
@@ -57,6 +58,7 @@ def app(ctx):
             "commands": [
                 "run",
                 "models",
+                "docs",
                 "check",
                 "inspect",
                 "info",
@@ -368,6 +370,7 @@ account_commands.register(app)
 agents_commands.register(agents)
 auth_commands.register(app, auth)
 costs_commands.register(costs)
+docs_commands.register(app)
 humanize_commands.register(humanize)
 research_agent_commands.register(research_agent)
 inspect_commands.register(app)
