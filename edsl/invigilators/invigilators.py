@@ -634,6 +634,8 @@ class InvigilatorHuman(InvigilatorBase):
                 resolution_draw = validated_answer.get("resolution_draw")
                 resolution_seed = validated_answer.get("resolution_seed")
                 resolution_method = validated_answer.get("resolution_method")
+            elif self.question.question_type == "distribution":
+                answer = self.question._validate_answer({"answer": answer})["answer"]
             elif self.validate_response:
                 self.question._validate_answer({"answer": answer})
             if self.translate_response and contract is None:

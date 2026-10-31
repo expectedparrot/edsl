@@ -1,0 +1,41 @@
+---
+title: "Pretesting survey instruments"
+description: "Compare item wording and inspect the issues models identify."
+---
+
+import Example from '/snippets/examples/pretesting.mdx';
+
+Pretesting means examining survey questions before using them to collect the responses you intend to analyze. You may discover that a phrase is ambiguous, that one question asks about two things at once, or that the wording suggests a preferred answer. EDSL can apply the same review questions to every item in an instrument and organize the suggested revisions for you.
+
+In this example, the model acts as a reviewer of a survey item. It identifies a possible wording problem and proposes a revision. It does not answer the item as a participant. This is useful for a first pass over a questionnaire or for comparing candidate wordings before trying them with people.
+
+## Review two versions of an item
+
+The example compares “Do you use this service regularly?” with “On how many of the past 7 days did you use this service?” The first leaves “regularly” open to interpretation. The second specifies a **recall period**—the span of time a respondent should think about—and asks for a count of days. These are two ways to ask about usage, with different response formats as well as different wording.
+
+Each version becomes a scenario. The review survey asks for its main issue and a suggested revision:
+
+<Example />
+
+The `issue` question makes the reviews comparable by using a fixed list of problems. “Double-barreled” means asking about two things in one item; “Leading” means wording that steers the answer. “None identified” lets the model say that none of the listed problems applies. The `revision` question supplies a more open-ended suggestion, and targeted memory gives it the issue identified in the preceding answer.
+
+## Read the issue and revision together
+
+With [model access configured](/en/latest/api_keys), run the review and display the original wording beside both answers:
+
+```python
+results = job.run()
+results.select("scenario.variant", "scenario.item", "answer.issue", "answer.revision")
+```
+
+Two variants and two review questions produce two result rows, with four question answers in total for one model and iteration. Compare whether the model identifies different issues for the two versions and whether its suggested revisions still measure what you care about. For example, a question about days of use may help measure frequency, but it does not necessarily measure how important the service is to the respondent.
+
+Treat a proposed revision as an editorial suggestion to assess. This example does not establish that one version works better for human respondents; it helps you identify wording to investigate in a human pretest. In that pretest, you can ask people what they understood the question to mean and how they chose an answer.
+
+## Adapt the review to your instrument
+
+For a questionnaire with many items, import a ScenarioList containing an item identifier and the question text, then attach it to this review survey. Each original item receives its own issue and revision fields. Include answer options or relevant instructions in the scenarios and question templates when the review depends on them.
+
+Use `QuestionCheckBox` if you want the reviewer to flag several issues per item. Use separate review questions for distinct concerns, such as unclear terms, unavailable answer options, or assumptions about the respondent. Those choices give you more detail than the single “main issue” question used here.
+
+You can also attach a [ModelList](/en/latest/guides/model_comparisons) to obtain reviews from several models. To investigate how different simulated respondents answer the original instrument, run that instrument with [agent profiles](/en/latest/agents) instead of this reviewer survey. To collect actual participant feedback on it, use [Human studies](/en/latest/guides/human_studies).

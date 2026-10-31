@@ -6,6 +6,7 @@ import contextlib
 import io
 import json
 import re
+import shlex
 from pathlib import Path
 
 import click
@@ -75,14 +76,28 @@ def study(ctx):
 @click.option("--summary-limit", type=click.IntRange(0, 20), default=5, show_default=True)
 @click.option("--create/--no-create", default=True, help="Create the neutral study directory without placeholder files.")
 def start(root: Path, topic: str, summary_limit: int, create: bool):
-    """Choose the next study path and optionally create its neutral scaffold."""
+    """Choose the next study path and optionally create an empty directory.
+
+    Run the returned scaffold command before writing plan.md. Use --no-create
+    for read-only orientation without allocating a study directory.
+    """
     data = _orientation(root, topic, summary_limit)
     study_path = root.resolve() / data["recommended_study"]
     if create:
         study_path.mkdir(parents=True, exist_ok=False)
     data["created"] = create
     data["study_root"] = str(study_path)
-    data["next_action"] = "Create plan.md with the Write tool and obtain approval before method-specific scaffolding."
+    if create:
+        data["next_action"] = shlex.join(["ep", "study", "scaffold", str(study_path)])
+    else:
+        create_command = shlex.join([
+            "ep", "study", "start", "--root", str(root.resolve()),
+            "--topic", topic, "--summary-limit", str(summary_limit), "--create",
+        ])
+        data["next_action"] = (
+            "Review prior context and decide whether to continue an existing study. "
+            f"If a fresh study is needed, run `{create_command}` to allocate its directory."
+        )
     output(data)
 
 

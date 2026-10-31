@@ -46,6 +46,12 @@ class TestSurvey(unittest.TestCase):
         next_question = survey.next_question("like_school", {})
         assert next_question == q3
 
+    def test_empty_survey_next_question(self):
+        from edsl.surveys.base import EndOfSurvey
+
+        survey = Survey([])
+        assert survey.next_question() == EndOfSurvey
+
     def test_add_memory(self):
         survey = self.gen_survey()
         # breakpoint()

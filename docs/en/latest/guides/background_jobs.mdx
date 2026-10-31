@@ -1,0 +1,143 @@
+---
+title: "Background jobs"
+description: "Submit remote jobs, find runs, and retrieve results with Python or the CLI."
+---
+
+A background job starts a remote study and returns control to your notebook or script while Expected Parrot runs the interviews. Use it for a large set of documents, repeated simulations, or a comparison across several models when you want to continue other work and collect the results later.
+
+The workflow has three steps: submit the job, keep its identifier, and retrieve the completed Results. The examples use Python's `Coop` client; CLI equivalents follow at the end. Remote execution requires [Expected Parrot access](/en/latest/api_keys).
+
+## Submit from Python
+
+Start with a Jobs object containing your survey, agents, scenarios, and models. You can construct it with `survey.by(...)` or load a saved package:
+
+```python
+from edsl import Jobs
+
+job = Jobs.load("jobs.ep")
+pending = job.run(
+    background=True,
+    offload_execution=True,
+    remote_inference_description="Customer feedback pilot",
+)
+job_uuid = pending.job_info.job_uuid
+job_uuid
+# In a script: print(job_uuid)
+```
+
+This returns a Results object whose data is pending. Keep `job_uuid` so you can retrieve the run from another session. The description helps you find it later. Review the inputs and [estimated cost](/en/latest/costs) before submitting.
+
+## Check status and retrieve results
+
+```python
+from edsl import Coop
+
+coop = Coop()
+status = coop.remote_inference_get(job_uuid=job_uuid)
+status
+# In a new session, first set job_uuid to the saved job identifier.
+# In a script: print(status)
+```
+
+Inspect `status["status"]` and `status["latest_job_run_details"]`. The job UUID identifies the execution; `status["results_uuid"]` identifies the stored Results object and may be absent while the job is pending.
+
+After the status is `completed` and a results UUID is available, retrieve and save the Results object:
+
+```python
+results = coop.pull(status["results_uuid"], expected_object_type="results")
+results.save("results.ep")
+results.select("answer.*")
+# Alternative: Results.pull(status["results_uuid"]) after importing Results.
+# In a script, append .print() to display the selected answers.
+```
+
+If you still have `pending` in the original session, `pending.fetch()` can also load the completed results into that object. Calling it before completion waits for the run. Use the status query above to check failed, cancelled, or partially failed runs explicitly.
+
+For a failed or partially failed run, retrieve the error report with `coop.get_error_report_markdown(job_uuid)`. Compare completion counts with the planned study before analyzing any available results.
+
+## Find jobs with filters and pagination
+
+`remote_inference_list()` returns a `CoopJobsObjects` collection containing job metadata. For example, find completed runs whose description contains your study label:
+
+```python
+completed_jobs = coop.remote_inference_list(
+    status="completed",
+    search_query="Customer feedback",
+    page=1,
+    page_size=20,
+    sort_ascending=False,
+)
+completed_jobs.select("uuid", "description", "status", "results_uuid")
+# In a script, append .print() to display the selected metadata.
+```
+
+| Argument | Meaning |
+| --- | --- |
+| `status` | One status or a list, such as `["queued", "running"]`. Also accepts `completed`, `failed`, `cancelled`, `cancelling`, and `partial_failed`. |
+| `search_query` | Search the job description. |
+| `page` | Page number, starting at **1**. Increase it while keeping the same filters to retrieve subsequent pages. |
+| `page_size` | Jobs per page, from 1 to 100. |
+| `sort_ascending` | `False` returns the most recently created jobs first. |
+
+Listing metadata does not download the study or its answers. Fetch the objects represented by the current page when you need them:
+
+```python
+result_sets = completed_jobs.fetch_results()  # A Python list of Results objects.
+job_specs = completed_jobs.fetch()            # A Python list of Jobs objects.
+```
+
+`fetch_results()` skips entries without a results UUID. Both methods operate on the current collection, so request additional pages explicitly. `completed_jobs.filter(...)` can narrow metadata already downloaded, but does not search other pages; use the arguments to `remote_inference_list()` for server-side filtering.
+
+For saved surveys, agents, scenarios, and Results objects, use [`Coop.list()`](/en/latest/coop#find-objects-with-filters-and-pagination). That searches stored objects; `remote_inference_list()` searches execution records.
+
+## Read interview data by page
+
+To inspect a bounded part of a run without downloading its entire stored Results object, use the result manifest and page methods. With a completed `job_uuid`:
+
+```python
+manifest = coop.remote_inference_results_manifest(job_uuid, page_size=100)
+manifest
+```
+
+The manifest includes `status`, `total_interviews`, `page_size`, and `page_count`. If `page_count` is greater than zero, retrieve a page:
+
+```python
+page_data = coop.remote_inference_results_page(
+    job_uuid,
+    page=0,
+    page_size=manifest["page_size"],
+)
+interviews = page_data["interviews"]
+interviews
+# In a script: print(interviews)
+```
+
+Interview pages start at **0**, unlike job and object listings. Use page numbers from `0` through `manifest["page_count"] - 1`, keeping the same page size. These methods return dictionaries of raw interview data, including `agent`, `scenario`, `model`, and `answers`; they do not return a Results object. Use `coop.pull()` when you want Results methods such as `select()` and `filter()`.
+
+## Cancel a job
+
+To stop an execution you no longer want, call `coop.cancel_remote_inference_job(job_uuid)`. Check its status again with `remote_inference_get()`; a cancellation request may take time to finish. Cancelling a job does not undo costs already incurred or delete saved Results objects. The CLI alternative is `ep jobs cancel JOB_UUID --yes` when cancellation is intended.
+
+## Use the CLI
+
+Save and validate a Jobs package before submitting:
+
+```bash
+ep validate --file jobs.ep
+ep jobs cost jobs.ep
+ep run jobs.ep --background
+```
+
+Read `data.meta.remote_job.job_uuid` from the JSON response. Replace `JOB_UUID` below with that value:
+
+```bash
+ep jobs status JOB_UUID
+ep jobs results JOB_UUID --output results.ep
+ep results columns --file results.ep
+```
+
+Retrieve results after completion. For failures, use `ep jobs errors JOB_UUID --output error.md`. A submission acknowledgment is not a completed dataset. Inspect the finished observation count and any partial results before analysis.
+
+To wait and save in one command, use `ep run jobs.ep --background --wait --output results.ep`. `--background --output` without `--wait` is invalid because there are no completed results to save yet.
+
+See [CLI Guide](/en/latest/cli#submit-a-background-job), [Jobs](/en/latest/jobs), and [Remote Inference](/en/latest/remote_inference).
