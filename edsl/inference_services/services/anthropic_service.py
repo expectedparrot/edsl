@@ -125,7 +125,7 @@ class AnthropicService(InferenceServiceABC):
             _model_ = model_name
             _parameters_ = {
                 "temperature": 0.5,
-                "max_tokens": 1000,
+                "max_tokens": 4096,
                 "top_p": 1,
                 "frequency_penalty": 0,
                 "presence_penalty": 0,

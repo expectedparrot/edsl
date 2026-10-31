@@ -125,13 +125,27 @@ def thinking_question(q: "QuestionBase", model=None, system_prompt: str = "") ->
 
     # Resolve the model
     if model is None:
-        resolved_model = Model()
+        resolved_model = Model(max_tokens=8192)
     elif isinstance(model, str):
-        resolved_model = Model(model)
+        resolved_model = Model(model, max_tokens=8192)
     elif isinstance(model, dict):
-        resolved_model = LanguageModel.from_dict(model)
+        model_data = copy.deepcopy(model)
+        parameters = model_data.get("parameters")
+        if not isinstance(parameters, dict):
+            parameters = {}
+            model_data["parameters"] = parameters
+        parameters.setdefault("max_tokens", 8192)
+        resolved_model = LanguageModel.from_dict(model_data)
     else:
         resolved_model = model
+        # A Model instance is a complete specification. Raise only its class
+        # default, preserving any custom max_tokens supplied by the researcher.
+        default_tokens = getattr(type(model), "_parameters_", {}).get("max_tokens")
+        if getattr(model, "max_tokens", None) == default_tokens:
+            resolved_model = copy.copy(model)
+            resolved_model.parameters = model.parameters.copy()
+            resolved_model.parameters["max_tokens"] = 8192
+            resolved_model.max_tokens = 8192
 
     new_q._model = resolved_model
     new_q._system_prompt = system_prompt

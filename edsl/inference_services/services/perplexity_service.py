@@ -24,7 +24,7 @@ class PerplexityService(OpenAIService):
     # default perplexity parameters
     _parameters_ = {
         "temperature": 0.5,
-        "max_tokens": 1000,
+        "max_tokens": 4096,
         "top_p": 1,
         "logprobs": False,
         "top_logprobs": 3,
@@ -74,7 +74,7 @@ class PerplexityService(OpenAIService):
 
             _parameters_ = {
                 "temperature": 0.5,
-                "max_tokens": 1000,
+                "max_tokens": 4096,
                 "top_p": 1,
                 "frequency_penalty": 1,
                 "presence_penalty": 0,

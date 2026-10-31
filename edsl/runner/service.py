@@ -1972,10 +1972,17 @@ class JobService:
 
         # Build raw_model_response dict (matches EDSL's raw_model_results_dictionary)
         raw_model_response_dict = {}
+        any_truncated = False
         for a in answers:
             raw_model_response_dict[f"{a.question_name}_raw_model_response"] = (
                 a.raw_model_response
             )
+            truncated = (
+                isinstance(a.raw_model_response, dict)
+                and a.raw_model_response.get("truncated") is True
+            )
+            raw_model_response_dict[f"{a.question_name}_truncated"] = truncated
+            any_truncated = any_truncated or truncated
             raw_model_response_dict[f"{a.question_name}_input_tokens"] = a.input_tokens
             raw_model_response_dict[f"{a.question_name}_output_tokens"] = (
                 a.output_tokens
@@ -2004,6 +2011,8 @@ class JobService:
                 "NA" if total_cost is None or total_cost == 0 else 1.0 / total_cost
             )
             raw_model_response_dict[f"{a.question_name}_one_usd_buys"] = one_usd_buys
+
+        raw_model_response_dict["truncated"] = any_truncated
 
         # Build generated_tokens dict (matches EDSL's generated_tokens_dict)
         generated_tokens_dict = {}

@@ -292,7 +292,7 @@ class AwsBedrockService(InferenceServiceABC):
             _model_ = model_name
             _parameters_ = {
                 "temperature": 0.5,
-                "max_tokens": 512,
+                "max_tokens": 4096,
                 "top_p": 0.9,
             }
             input_token_name = cls.input_token_name

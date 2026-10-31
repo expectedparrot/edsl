@@ -115,13 +115,13 @@ def test_unspecified_effort_and_defaults(monkeypatch, service, name, options):
         assert request_effort(service, params) == (
             "medium" if known_reasoning else None
         )
-        assert params["max_completion_tokens"] == (5000 if known_reasoning else 1000)
+        assert params["max_completion_tokens"] == (5000 if known_reasoning else 4096)
     else:
         assert request_effort(service, params) is None
         assert params.get("reasoning") == (
             {"summary": "auto"} if known_reasoning else None
         )
-        assert params["max_output_tokens"] == (16000 if known_reasoning else 2000)
+        assert params["max_output_tokens"] == (16000 if known_reasoning else 4096)
     if not known_reasoning:
         assert "reasoning_effort" not in params
         assert "reasoning" not in params

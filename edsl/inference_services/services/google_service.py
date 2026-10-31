@@ -244,7 +244,7 @@ class GoogleService(InferenceServiceABC):
                 "temperature": 0.5,
                 "topP": 1,
                 "topK": 1,
-                "maxOutputTokens": 2048,
+                "maxOutputTokens": 4096,
                 "stopSequences": [],
                 "thinking_budget": None,
                 # Backend selection (Vertex AI vs Gemini Developer API). These

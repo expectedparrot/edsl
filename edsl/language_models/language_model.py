@@ -64,7 +64,7 @@ from ..base import PersistenceMixin, RepresentationMixin, HashingMixin
 from ..key_management import KeyLookupCollection
 
 from .registry import RegisterLanguageModelsMeta
-from .raw_response_handler import RawResponseHandler
+from .raw_response_handler import RawResponseHandler, add_truncation_flag
 
 _INTERNAL_KWARGS = frozenset(
     {
@@ -979,12 +979,16 @@ class LanguageModel(
 
             # Execute the model call with timeout
             response = await asyncio.wait_for(f(**params), timeout=TIMEOUT)
+            response = add_truncation_flag(response, max_tokens=self.max_tokens)
 
             # Store the response in the cache
             new_cache_key = cache.store(
                 **cache_call_params, response=response, service=self._inference_service_
             )
             assert new_cache_key == cache_key  # Verify cache key integrity
+        else:
+            # Older cache entries predate the normalized truncation flag.
+            response = add_truncation_flag(response, max_tokens=self.max_tokens)
 
         # Calculate cost for the response
         cost = self.cost(response)

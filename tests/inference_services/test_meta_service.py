@@ -42,6 +42,7 @@ def test_meta_payload_uses_responses_input_text_shape():
 
     assert payload["model"] == "muse-spark-1.1"
     assert payload["stream"] is False
+    assert payload["max_output_tokens"] == 4096
     assert payload["input"] == [
         {
             "role": "system",

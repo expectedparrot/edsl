@@ -152,6 +152,7 @@ class RawModelResponseDict(ResultComponentPrependedKeys):
         "output_price_per_million_tokens",
         "cost",
         "one_usd_buys",
+        "truncated",
         # Human survey responses (see human_responses.RAW_MODEL_RESPONSE_FIELDS).
         "started_at",
         "answered_at",

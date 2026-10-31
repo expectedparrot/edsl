@@ -163,7 +163,7 @@ class OpenAIServiceV2(InferenceServiceABC):
             _is_reasoning = any(tag in model_name for tag in OPENAI_REASONING_MODELS)
             _parameters_ = {
                 "temperature": 0.5,
-                "max_tokens": 16000 if _is_reasoning else 2000,
+                "max_tokens": 16000 if _is_reasoning else 4096,
                 "top_p": 1,
                 "frequency_penalty": 0,
                 "presence_penalty": 0,

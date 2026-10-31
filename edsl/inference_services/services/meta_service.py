@@ -74,7 +74,7 @@ class MetaService(OpenAIService):
             _model_ = model_name
             _parameters_ = {
                 "temperature": 0.5,
-                "max_tokens": 1000,
+                "max_tokens": 4096,
                 "top_p": 1,
             }
 
@@ -150,6 +150,7 @@ class MetaService(OpenAIService):
                     "model": self.model,
                     "input": input_messages,
                     "stream": False,
+                    "max_output_tokens": self.max_tokens,
                 }
 
             @report_errors_async

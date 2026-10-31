@@ -41,7 +41,7 @@ class OpenAIParameterBuilder:
         is_reasoning_model = any(tag in model for tag in OPENAI_REASONING_MODELS)
         # Defaults must not overwrite explicit limits, including small ones.
         max_tokens = model_params.get(
-            "max_tokens", 5000 if is_reasoning_model else 1000
+            "max_tokens", 5000 if is_reasoning_model else 4096
         )
         reasoning_effort = model_params.get("reasoning_effort")
         if reasoning_effort is None and is_reasoning_model:
@@ -213,7 +213,7 @@ class OpenAIService(InferenceServiceABC):
                 "max_tokens": (
                     5000
                     if any(tag in model_name for tag in OPENAI_REASONING_MODELS)
-                    else 1000
+                    else 4096
                 ),
                 "top_p": 1,
                 "frequency_penalty": 0,

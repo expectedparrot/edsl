@@ -750,6 +750,7 @@ class JobsRemoteInferenceHandler:
                 cache_used_dict = {}
                 cache_keys = {}
                 validated_dict = {}
+                any_truncated = False
 
                 for a in answers_raw:
                     qname = a["question_name"]
@@ -763,9 +764,16 @@ class JobsRemoteInferenceHandler:
                     prompt_dict[f"{qname}_system_prompt"] = Prompt(
                         text=a.get("system_prompt") or ""
                     )
-                    raw_model_response_dict[f"{qname}_raw_model_response"] = a.get(
-                        "raw_model_response"
+                    raw_response = a.get("raw_model_response")
+                    raw_model_response_dict[
+                        f"{qname}_raw_model_response"
+                    ] = raw_response
+                    truncated = (
+                        isinstance(raw_response, dict)
+                        and raw_response.get("truncated") is True
                     )
+                    raw_model_response_dict[f"{qname}_truncated"] = truncated
+                    any_truncated = any_truncated or truncated
                     raw_model_response_dict[f"{qname}_input_tokens"] = a.get(
                         "input_tokens"
                     )
@@ -812,6 +820,7 @@ class JobsRemoteInferenceHandler:
                     cache_keys[qname] = a.get("cache_key")
                     validated_dict[f"{qname}_validated"] = a.get("validated")
 
+                raw_model_response_dict["truncated"] = any_truncated
                 result = Result(
                     agent=agent,
                     scenario=scenario,

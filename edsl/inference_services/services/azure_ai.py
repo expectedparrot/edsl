@@ -31,7 +31,7 @@ class AzureParameterBuilder:
     def build_params(model: str, messages: list, **model_params) -> dict:
         """Build API parameters, adjusting for specific model types."""
 
-        default_max_tokens = model_params.get("max_tokens", 512)
+        default_max_tokens = model_params.get("max_tokens", 4096)
         default_temperature = model_params.get("temperature", 0.5)
 
         # Check if this is a reasoning model (o1, o1-mini, etc.)
@@ -205,7 +205,7 @@ class AzureAIService(InferenceServiceABC):
             _model_ = model_name
             _parameters_ = {
                 "temperature": 0.5,
-                "max_tokens": 512,
+                "max_tokens": 4096,
                 "top_p": 0.9,
             }
 

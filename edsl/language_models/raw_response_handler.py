@@ -10,6 +10,58 @@ from .exceptions import (
 from json_repair import repair_json
 
 
+def response_was_truncated(raw_response: Any, max_tokens: Optional[int] = None) -> bool:
+    """Return whether a provider response reports hitting its output limit."""
+    if not isinstance(raw_response, dict):
+        return False
+
+    if raw_response.get("stop_reason") in {"max_tokens", "max_output_tokens"}:
+        return True
+    if raw_response.get("stopReason") in {"max_tokens", "max_output_tokens"}:
+        return True
+
+    details = raw_response.get("incomplete_details") or {}
+    if isinstance(details, dict) and details.get("reason") in {
+        "max_output_tokens",
+        "max_tokens",
+    }:
+        return True
+
+    candidates = raw_response.get("candidates")
+    if (
+        isinstance(candidates, list)
+        and candidates
+        and isinstance(candidates[0], dict)
+    ):
+        if candidates[0].get("finishReason") == "MAX_TOKENS":
+            return True
+
+    choices = raw_response.get("choices")
+    if isinstance(choices, list) and choices and isinstance(choices[0], dict):
+        if choices[0].get("finish_reason") in {"length", "max_tokens"}:
+            return True
+
+    usage = raw_response.get("usage") or raw_response.get("usageMetadata") or {}
+    if max_tokens and isinstance(usage, dict):
+        for key in ("completion_tokens", "output_tokens", "candidatesTokenCount"):
+            value = usage.get(key)
+            if isinstance(value, (int, float)) and value >= max_tokens:
+                return True
+
+    return False
+
+
+def add_truncation_flag(raw_response: Any, max_tokens: Optional[int] = None) -> Any:
+    """Copy a response dictionary and add a normalized ``truncated`` flag."""
+    if not isinstance(raw_response, dict):
+        return raw_response
+    return {
+        **raw_response,
+        "truncated": raw_response.get("truncated") is True
+        or response_was_truncated(raw_response, max_tokens=max_tokens),
+    }
+
+
 def _extract_item_from_raw_response(data, sequence):
     if isinstance(data, str):
         try:
