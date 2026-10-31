@@ -50,7 +50,7 @@ class LanguageModelNoResponseError(LanguageModelExceptions):
     """
 
     relevant_doc = (
-        "https://docs.expectedparrot.com/en/latest/language_models#handling-errors"
+        "https://docs.expectedparrot.com/en/latest/guides/providers"
     )
     explanation = "This happens when the language model API cannot be reached or does not respond within the specified timeout."
 
@@ -89,7 +89,7 @@ class LanguageModelBadResponseError(LanguageModelExceptions):
     """
 
     relevant_doc = (
-        "https://docs.expectedparrot.com/en/latest/language_models#handling-errors"
+        "https://docs.expectedparrot.com/en/latest/results#inspect-individual-interviews"
     )
     explanation = "This happens when the language model API responds, but does not return a usable or properly formatted answer."
 
@@ -123,7 +123,7 @@ class LanguageModelNotFound(LanguageModelExceptions):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/language_models#available-models"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/language_models#discover-and-select-models"
 
     def __init__(self, model_name):
         msg = dedent(
@@ -140,7 +140,7 @@ class LanguageModelNotFound(LanguageModelExceptions):
             To see information about all available models, run the following code:
             Model.available()
 
-            See https://docs.expectedparrot.com/en/latest/language_models#available-models for more details.
+            See https://docs.expectedparrot.com/en/latest/language_models#discover-and-select-models for more details.
             """
         )
         super().__init__(msg)
@@ -209,7 +209,7 @@ class LanguageModelAttributeTypeError(LanguageModelExceptions):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/language_models#model-parameters"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/guides/providers"
 
     def __init__(self, message="Language model attribute has incorrect type"):
         super().__init__(message)
@@ -433,7 +433,7 @@ class LanguageModelInsufficientCreditsError(LanguageModelBalanceError):
         should_stop_job (bool): Always True - signals job should terminate immediately
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/language_models#billing-and-credits"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/credits#check-your-account"
     explanation = "This happens when your account has insufficient credits to complete the language model operation."
 
     def __init__(self, message: str, current_balance: Optional[str] = None):

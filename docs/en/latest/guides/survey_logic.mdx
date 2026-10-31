@@ -1,0 +1,80 @@
+---
+title: "Survey logic and piping"
+description: "Build surveys that choose relevant questions and use earlier answers in follow-ups."
+---
+
+import Example from '/snippets/examples/survey_logic.mdx';
+
+Survey logic lets an interview respond to the answers it receives. You can screen out respondents who have not used a product, ask a follow-up about a problem they described, or repeat a question for each item they name. These patterns are useful whenever asking everyone the same fixed sequence would produce irrelevant questions.
+
+Three EDSL features work together here. **Branching** decides which question comes next. **Piping** inserts an earlier answer into a later question's wording. **Memory** gives the model earlier questions and answers as context when it answers a later question. A survey can use any combination of these features.
+
+## Build a follow-up interview
+
+The example below asks whether a respondent has used an export feature. A “No” ends the interview. A “Yes” leads to a question about problems, followed by a question about how to resolve the reported problem. It demonstrates all three features in a three-question survey:
+
+<Example />
+
+## Check the paths
+
+`add_stop_rule()` evaluates the answer to `used` after that question is answered. If the answer is `No`, neither `problem` nor `followup` is asked. Otherwise, the survey continues in its original order.
+
+In the last question, `{{ problem.answer }}` is replaced by the respondent's actual answer. If they answered “The export button is hidden,” the question becomes “What would resolve this problem: The export button is hidden?” `add_targeted_memory(followup, problem)` also supplies the preceding question and its answer as context. This illustrates both mechanisms; piping alone would be enough if you only wanted to insert the problem text.
+
+With [model access configured](/en/latest/api_keys), run the survey and view the answers together:
+
+```python
+results = survey.run()
+results.select("answer.used", "answer.problem", "answer.followup")
+```
+
+This returns one interview with an answer column for each question; skipped questions have no substantive answer. To ask the same survey of several profiles or about several products, attach [agents](/en/latest/agents) or [scenarios](/en/latest/scenarios) with `survey.by(...)` before running it. For a closing message on an early-exit path, see [Survey messages](/en/latest/survey_messages).
+
+## Choose which prior answers a model sees
+
+Use memory when a later answer should take earlier exchanges into account without copying them into the question text. For example, a final recommendation can consider several earlier answers while keeping its wording simply “What should we improve first?” Choose how much context to include:
+
+| Method | Context supplied to later questions |
+| --- | --- |
+| `survey.add_targeted_memory("followup", "problem")` | Include one earlier question and answer. |
+| `survey.add_memory_collection("followup", ["used", "problem"])` | Include several named earlier questions and answers. |
+| `survey.set_lagged_memory(lags=2)` | Include the preceding two questions and answers for each question. |
+| `survey.set_full_memory_mode()` | Include all preceding questions and answers. |
+
+These methods modify the survey and return it for chaining. Targeted memory is useful for a specific dependency, lagged memory for a moving conversation, and full memory for an interview in which every earlier exchange is relevant. More memory also means more text in later model prompts.
+
+## Jump to another question
+
+Ending the interview is only one routing choice. In a longer survey, you might want non-users to skip the feature questions but still answer a final summary question. If that survey contains a later question named `summary`, use `survey.add_rule("used", "{{ used.answer }} == 'No'", next_question="summary")` to jump to it.
+
+Use `add_skip_rule()` to skip a particular question before it is asked, `add_rule()` to choose a destination after an answer, and `add_stop_rule()` to end the interview. Conditions can refer to available scenario values or earlier answers; an answer from a question that has not been asked cannot supply the intended routing information. `survey.clear_non_default_rules()` removes custom routing and restores the default forward sequence. See [Surveys](/en/latest/surveys) for the complete routing methods.
+
+## Ask follow-ups for items in a list answer
+
+Sometimes you do not know the follow-up topics in advance. `Survey.loop_over()` can take a list answer and ask the same follow-up about each item. The example below first requests up to three features, then asks what would improve each named feature. The follow-up template must not already be in the survey:
+
+```python
+from edsl import QuestionFreeText, QuestionList, Survey
+
+topics = QuestionList(
+    question_name="topics",
+    question_text="List up to three features you use.",
+    max_list_items=3,
+)
+detail = QuestionFreeText(
+    question_name="detail",
+    question_text="What would improve {{ item }}?",
+)
+survey = Survey([topics]).loop_over("topics", ask=detail, max_items=3)
+survey.question_names
+```
+
+`{{ item }}` receives one list item at a time. If the answer lists “exports” and “search,” the respondent gets a follow-up about each; the unused third position is skipped. EDSL builds the three possible follow-up questions in advance, so each answer has its own question name in the results. `survey.loop_question_groups()` reports which questions belong to each loop. For conditional follow-ups within the loop, attach `detail.skip_when(expression)` or `detail.jump_when(expression, to="another_template_name")` before calling `loop_over()`.
+
+For a fixed set of multiple-choice options, `survey.add_followup_questions(reference_question, followup_template, answer_template_var="answer")` creates a follow-up for each option and routes according to the selected answer. Use `{{ answer }}` in that template for the option text.
+
+If you already know the items before the interview, `question.loop(scenarios)` instead creates a question for each supplied scenario. To ask each item in a separate interview, use `question.by(scenarios)`. See [Experimental conditions](/en/latest/guides/experimental_conditions) for choosing between those designs.
+
+## Compute scores within a survey
+
+A follow-up can also use a calculated value. For a survey containing numeric questions named `score_a` and `score_b`, `survey.add_summation_question(question_name="total", include=["score_a", "score_b"])` adds a question that computes their sum. `add_weighted_linear_scale_sum()` creates a score from linear-scale questions with specified weights. These calculations use the earlier answers directly and do not ask a model to do the arithmetic. Use them when the score belongs in the interview itself; use [Results transformations](/en/latest/results) when you only need it during analysis.

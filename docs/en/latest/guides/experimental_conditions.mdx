@@ -1,0 +1,54 @@
+---
+title: "Experimental conditions"
+description: "Compare messages across respondent profiles and understand which combinations EDSL runs."
+---
+
+import Example from '/snippets/examples/agents.mdx';
+
+An experimental condition is a version of the material or situation you want to compare: a different message, price, policy, or product description. In EDSL, scenarios hold those versions, while a shared question defines how each version will be evaluated. Keeping the question and response options the same makes the answers easier to compare.
+
+This page builds a small message test: **does an instruction that names the file format receive different clarity ratings from a shorter instruction?** Four agent profiles evaluate both messages. You will learn how to combine scenarios and agents, run all their combinations, and keep the condition and profile information alongside each answer.
+
+## Define what varies
+
+The example represents two kinds of variation separately. The `messages` ScenarioList supplies what is being evaluated: a short message and a more explicit message. The AgentList supplies the perspective used to evaluate it: new or experienced users, each acting as an individual contributor or team lead.
+
+<Example />
+
+## Execute the design
+
+Chaining `.by(agents).by(messages)` gives every profile both messages, in separate interviews. Four profiles times two messages produces eight interviews per model and iteration, each answering the same `clarity` question. This is a **crossed design**: EDSL runs every combination of the supplied lists.
+
+With [model access configured](/en/latest/api_keys), the following code uses the default model. You can replace `Model()` with a [model you select](/en/latest/language_models). First view the answers together with the variables that produced them:
+
+```python
+from edsl import Model
+
+results = job.by(Model()).run()
+table = results.select("scenario.condition", "agent.experience", "agent.role", "answer.clarity")
+table
+```
+
+The resulting table has eight rows. `scenario.condition` identifies the message, `agent.experience` and `agent.role` identify the profile, and `answer.clarity` contains its rating. To count the ratings for each message in pandas:
+
+```python
+frame = table.to_pandas()
+counts = frame.groupby(["scenario.condition", "answer.clarity"]).size()
+counts
+```
+
+These counts summarize the four configured profiles for each message. Keep the profile columns when you want to see whether a difference is concentrated among new users or team leads, rather than looking only at the totals. The responses describe these model-generated evaluations; the profiles are not recruited human participants.
+
+## Choose a different assignment pattern
+
+Crossing is useful when every profile should evaluate every condition. Other designs call for a different relationship between the inputs:
+
+| What you want to compare | EDSL approach |
+| --- | --- |
+| Conditions without specified respondent profiles | Use `question.by(messages)` and let the selected model answer without the custom agents. |
+| One scenario for each corresponding agent | Use `job.zip_assign(over=("agents", "scenarios"))` with equally sized lists; see [Job assignments](/en/latest/jobs). |
+| Only particular agent–scenario combinations | Use `job.assign(...)` for explicit assignments or `job.include_when(...)` for a condition on their fields. |
+| Several message versions within one interview | Use `question.loop(messages)` to create a separate question for each message, then put those questions in a Survey. Add memory if later answers should see earlier ones. |
+| Human participants assigned to scenarios | Publish with `survey.by(messages).humanize(...)` and choose a scenario assignment method; see [Human studies](/en/latest/guides/human_studies). |
+
+For additional factors such as price and message wording, construct scenarios containing each combination you want to test. To compare the same design across models, attach a ModelList as shown in [Comparing models](/en/latest/guides/model_comparisons). Each added profile, condition, or model increases the number of interviews, which you can inspect and [estimate costs for](/en/latest/costs) before running.

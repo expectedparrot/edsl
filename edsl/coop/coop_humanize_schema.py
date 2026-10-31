@@ -235,6 +235,131 @@ class SurveyBranding(HumanizeSchemaBase):
     logo: Optional[SurveyLogo] = None
 
 
+# Caps on the assistant's private text, which the model reads on every turn.
+MAX_ASSISTANT_SYSTEM_PROMPT_CHARS = 20_000
+MAX_ASSISTANT_INSTRUCTIONS_CHARS = 4_000
+# Caps on what the chat displays, so a long line can't take over the panel.
+MAX_ASSISTANT_NAME_CHARS = 60
+MAX_ASSISTANT_EMPTY_STATE_CHARS = 120
+
+AssistantName = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True, min_length=1, max_length=MAX_ASSISTANT_NAME_CHARS
+    ),
+]
+AssistantEmptyStateText = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True, min_length=1, max_length=MAX_ASSISTANT_EMPTY_STATE_CHARS
+    ),
+]
+AssistantSystemPrompt = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True,
+        min_length=1,
+        max_length=MAX_ASSISTANT_SYSTEM_PROMPT_CHARS,
+    ),
+]
+AssistantInstructions = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True,
+        min_length=1,
+        max_length=MAX_ASSISTANT_INSTRUCTIONS_CHARS,
+    ),
+]
+
+
+class AssistantEmptyState(HumanizeSchemaBase):
+    """What the chat shows before the respondent writes. The assistant never speaks
+    first."""
+
+    # None: the built-in line for the assistant's role.
+    heading: Optional[AssistantEmptyStateText] = None
+    # None: the built-in placeholder.
+    placeholder: Optional[AssistantEmptyStateText] = None
+
+
+class SidebarPresentation(HumanizeSchemaBase):
+    """The chat in a resizable panel beside the form."""
+
+    type: Literal["sidebar"]
+    empty_state: AssistantEmptyState = Field(default_factory=AssistantEmptyState)
+    # The composer's placeholder once the chat has started. None: "Reply".
+    reply_placeholder: Optional[AssistantEmptyStateText] = None
+
+
+class ModalPresentation(HumanizeSchemaBase):
+    """A button in the corner that opens the chat over the page."""
+
+    type: Literal["modal"]
+    empty_state: AssistantEmptyState = Field(default_factory=AssistantEmptyState)
+    # The composer's placeholder once the chat has started. None: "Reply".
+    reply_placeholder: Optional[AssistantEmptyStateText] = None
+
+
+# How the chat appears, chosen by ``type``. A drawer on phones whatever the type.
+AssistantPresentation = Annotated[
+    Union[SidebarPresentation, ModalPresentation], Field(discriminator="type")
+]
+
+
+class AssistantQuestionOverride(HumanizeSchemaBase):
+    """One question's exceptions to the survey's assistant settings.
+
+    The switches default to on, so only ``false`` needs writing. ``chat`` and
+    ``context`` apply to the whole page holding the question: when pages are
+    groups, one question's ``false`` covers its group.
+    """
+
+    # False: the chat stays, but can't fill this question (a consent item, say).
+    fillable: bool = True
+    # False: no chat on the page holding this question.
+    chat: bool = True
+    # False: on later pages the assistant doesn't know about the page holding this
+    # question: not its answers, nor what was said there.
+    context: bool = True
+    # Extra guidance for the assistant while the question is on screen. Never shown
+    # to respondents.
+    instructions: Optional[AssistantInstructions] = None
+
+
+class AssistantModelConfig(HumanizeSchemaBase):
+    """The model the assistant's replies come from. Only OpenAI's gpt-5.5 for now."""
+
+    service: str = "openai"
+    name: str = "gpt-5.5"
+
+
+class SurveyAssistantSchema(HumanizeSchemaBase):
+    """The survey assistant: a chat beside the form that helps the respondent answer.
+
+    One block for the whole survey, since the conversation follows the respondent
+    from page to page; exceptions per question go in ``question_overrides``.
+    """
+
+    # Off unless set, so a block saved ahead of time doesn't switch it on.
+    enabled: bool = False
+    # None: the default name.
+    name: Optional[AssistantName] = None
+    # "express_intent" helps the respondent say what they think and doesn't
+    # recommend; "advise" may recommend answers.
+    role: Literal["express_intent", "advise"] = "express_intent"
+    # How the chat appears. Required: there is no default.
+    presentation: AssistantPresentation
+    # A persona and survey-wide instructions for the assistant. Never shown to
+    # respondents.
+    system_prompt: Optional[AssistantSystemPrompt] = None
+    # False: the assistant can talk but never fills an answer.
+    can_fill_answers: bool = True
+    # A change applies from the assistant's next reply.
+    model: AssistantModelConfig = Field(default_factory=AssistantModelConfig)
+    # Keyed by question name. A survey message may appear too, setting only ``chat``.
+    question_overrides: Dict[str, AssistantQuestionOverride] = {}
+
+
 class SurveyHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the survey (e.g. custom styling)."""
 
@@ -247,6 +372,8 @@ class SurveyHumanizeSchema(HumanizeSchemaBase):
     # None: no banner, which is how every survey stored before this field existed
     # renders. Assets it names are checked when the schema is written.
     branding: Optional[SurveyBranding] = None
+    # None: no assistant.
+    assistant: Optional[SurveyAssistantSchema] = None
 
 
 class CommentConfig(HumanizeSchemaBase):
@@ -305,6 +432,58 @@ OptionTarget = Annotated[
 ]
 
 
+# A hook body is a whole script, so the cap is generous. It is here to stop a runaway
+# paste from bloating every page load, not to express a style.
+MAX_HOOK_SOURCE_CHARS = 64_000
+MAX_TOTAL_HOOK_CHARS = 256_000
+
+# The lifecycle events the respond page knows how to fire. An event it cannot fire is
+# rejected here rather than stored and ignored: to an author, a hook that never runs
+# and a hook with a bug in it look exactly alike, and only one of those is theirs to
+# fix. A name joins this set in the same change that teaches the runtime to fire it.
+QUESTION_HOOK_EVENTS = frozenset({"question.ready"})
+
+
+class QuestionJavaScript(HumanizeSchemaBase):
+    """Author-supplied JavaScript for one question, keyed by the event that runs it.
+
+    Deliberately not validated or sanitized, unlike ``custom_css``. CSS is a small
+    closed grammar, so a validator can genuinely enumerate what is unsafe; JavaScript
+    cannot be filtered that way, and a check that looked like it worked would be worse
+    than none, because it would be trusted. What contains it is the access check the
+    server makes when the schema is pushed, and the origin the survey is served from
+    later.
+
+    Declared on each question schema that a respondent actually sees, rather than on a
+    shared base. A base would reach the compute and image-generation schemas too, and
+    those questions are run by the navigator and dropped from the page, so there is no
+    rendered question for a hook to attach to and no honest way to run one.
+    """
+
+    hooks: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("hooks")
+    @classmethod
+    def _check_hooks(cls, hooks: dict[str, str]) -> dict[str, str]:
+        for event, source in hooks.items():
+            if event not in QUESTION_HOOK_EVENTS:
+                raise ValueError(
+                    f"Unknown hook {event!r}; expected one of "
+                    f"{sorted(QUESTION_HOOK_EVENTS)}."
+                )
+            if len(source) > MAX_HOOK_SOURCE_CHARS:
+                raise ValueError(
+                    f"Hook {event!r} is {len(source)} characters; "
+                    f"the limit is {MAX_HOOK_SOURCE_CHARS}."
+                )
+        total = sum(len(source) for source in hooks.values())
+        if total > MAX_TOTAL_HOOK_CHARS:
+            raise ValueError(
+                f"Hooks total {total} characters; the limit is {MAX_TOTAL_HOOK_CHARS}."
+            )
+        return hooks
+
+
 class FreeTextHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the free text question type."""
 
@@ -312,6 +491,7 @@ class FreeTextHumanizeSchema(HumanizeSchemaBase):
     time_limit: Optional[TimeLimit] = None
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
 
 
 class BudgetHumanizeSchema(HumanizeSchemaBase):
@@ -321,6 +501,7 @@ class BudgetHumanizeSchema(HumanizeSchemaBase):
     time_limit: Optional[TimeLimit] = None
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
 
 
 class UniformInitialDistribution(HumanizeSchemaBase):
@@ -403,6 +584,7 @@ class DistributionHumanizeSchema(HumanizeSchemaBase):
     )
     # None: no summary.
     distribution_summary: Optional[DistributionSummary] = None
+    javascript: Optional[QuestionJavaScript] = None
 
 
 class SelectAllControl(HumanizeSchemaBase):
@@ -448,6 +630,7 @@ class CheckboxHumanizeSchema(HumanizeSchemaBase):
     exclusive_options: list[Annotated[str, StringConstraints(min_length=1)]] = []
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
 
     @model_validator(mode="after")
     def _unique_exclusive_options(self) -> "CheckboxHumanizeSchema":
@@ -472,6 +655,7 @@ class CheckboxWithOtherHumanizeSchema(HumanizeSchemaBase):
     exclusive_options: list[Annotated[str, StringConstraints(min_length=1)]] = []
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
 
     @model_validator(mode="after")
     def _unique_exclusive_options(self) -> "CheckboxWithOtherHumanizeSchema":
@@ -507,6 +691,7 @@ class FileUploadHumanizeSchema(HumanizeSchemaBase):
     optional: bool = False
     time_limit: Optional[TimeLimit] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
 
 
 class ChecklistItemSchema(HumanizeSchemaBase):
@@ -754,6 +939,7 @@ class InterviewHumanizeSchema(HumanizeSchemaBase):
     intro_screen: Optional[DefaultIntroScreen] = None
     voice_interview_config: Optional[VoiceInterviewConfig] = None
     text_interview_config: Optional[TextInterviewConfig] = None
+    javascript: Optional[QuestionJavaScript] = None
 
 
 class LikertHumanizeSchema(HumanizeSchemaBase):
@@ -764,6 +950,7 @@ class LikertHumanizeSchema(HumanizeSchemaBase):
     format: MCSubclassFormatSchema = Field(default_factory=MCSubclassFormatSchema)
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
 
 
 class LinearScaleHumanizeSchema(HumanizeSchemaBase):
@@ -774,6 +961,7 @@ class LinearScaleHumanizeSchema(HumanizeSchemaBase):
     format: MCSubclassFormatSchema = Field(default_factory=MCSubclassFormatSchema)
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
 
 
 class ListHumanizeSchema(HumanizeSchemaBase):
@@ -783,6 +971,7 @@ class ListHumanizeSchema(HumanizeSchemaBase):
     time_limit: Optional[TimeLimit] = None
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
 
 
 class MatrixFormatTableSchema(HumanizeSchemaBase):
@@ -887,6 +1076,7 @@ class MatrixHumanizeSchema(HumanizeSchemaBase):
     preselection: Optional[MatrixPreselection] = None
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
 
 
 class MultipleChoiceCustomValidation(HumanizeSchemaBase):
@@ -904,6 +1094,7 @@ class MultipleChoiceHumanizeSchema(HumanizeSchemaBase):
     custom_validation: Optional[MultipleChoiceCustomValidation] = None
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
 
 
 class MultipleChoiceWithOtherHumanizeSchema(HumanizeSchemaBase):
@@ -913,6 +1104,7 @@ class MultipleChoiceWithOtherHumanizeSchema(HumanizeSchemaBase):
     time_limit: Optional[TimeLimit] = None
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
 
 
 class NumericalFormatInputSchema(HumanizeSchemaBase):
@@ -954,6 +1146,7 @@ class NumericalHumanizeSchema(HumanizeSchemaBase):
     format: NumericalFormatSchema = Field(default_factory=NumericalFormatInputSchema)
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
 
 
 class RankHumanizeSchema(HumanizeSchemaBase):
@@ -963,6 +1156,7 @@ class RankHumanizeSchema(HumanizeSchemaBase):
     time_limit: Optional[TimeLimit] = None
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
 
 
 class TopKHumanizeSchema(HumanizeSchemaBase):
@@ -972,6 +1166,7 @@ class TopKHumanizeSchema(HumanizeSchemaBase):
     time_limit: Optional[TimeLimit] = None
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
 
 
 class YesNoHumanizeSchema(HumanizeSchemaBase):
@@ -982,14 +1177,21 @@ class YesNoHumanizeSchema(HumanizeSchemaBase):
     format: MCSubclassFormatSchema = Field(default_factory=MCSubclassFormatSchema)
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
 
 
 class SurveyMessageHumanizeSchema(HumanizeSchemaBase):
     """Humanize marker for a display-only SurveyMessage.
 
-    Messages intentionally expose no input-oriented configuration. The client
-    chooses Continue or Finish from the message's position in the survey.
+    A message asks nothing, so it exposes no input-oriented configuration: no
+    ``optional``, no comment field, no submitting indicator. The client chooses
+    Continue or Finish from the message's position in the survey.
+
+    ``javascript`` is the exception. A message is rendered to the respondent like any
+    other item, so a hook has a real question to run against.
     """
+
+    javascript: Optional[QuestionJavaScript] = None
 
 
 HumanizeQuestionSchema = Union[

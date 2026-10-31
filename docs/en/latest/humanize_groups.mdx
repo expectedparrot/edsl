@@ -3,10 +3,10 @@ title: "Grouped surveys"
 description: "Define question groups and request one group per page in a human survey."
 ---
 
-Grouped presentation lets you put related questions on the same page. Define the page boundaries on your `Survey`, then pass `{"survey": {"presentation": "group"}}` to `.humanize()`.
+Grouped presentation puts related questions on the same page—for example, background questions together and feedback questions on the next page. Participants can review the questions in a group before submitting that page. Define the page boundaries on your `Survey`, then pass `{"survey": {"presentation": "group"}}` to `.humanize()`.
 
 <Note>
-This guide describes the API introduced in [PR #2623](https://github.com/expectedparrot/edsl/pull/2623). It requires an EDSL version containing that change and a hosted Humanize implementation that supports grouped presentation. The PR adds the schema option and navigation API; it does not include the hosted UI implementation.
+Grouped presentation requires support in both your installed EDSL version and the hosted survey interface. Preview with the same schema to check that the intended questions appear together.
 </Note>
 
 ## Create a two-page survey
@@ -56,6 +56,8 @@ Preview with the same schema you intend to use when creating the survey:
 
 ```python
 preview_url = survey.preview(humanize_schema=humanize_schema)
+# print() also shows output in scripts. In a notebook, you can instead
+# put the value you want to inspect on the last line of a cell.
 print(preview_url)
 ```
 
@@ -84,38 +86,11 @@ The groups live on the survey; the schema selects how to present them. Adding gr
 
 For example, to make a page containing only `work_location`, define its group with `survey.add_question_group("work_location", "work_location", "location_page")` on a survey where that question is not already grouped.
 
-## Plan branching around pages
-
-The navigator uses the answers supplied when a page is requested to filter skipped questions. After a page is submitted, it applies the normal navigation rules from that group's **last renderable question** to choose the next page. Put page-level jump or stop rules on that question.
-
-If a later question depends on an earlier answer, put the dependent question on a later page so that answer is available when the page is selected. The navigation API does not establish live, within-page updates to conditional questions.
-
-For example, starting with the two-page survey above, omit the improvement question for satisfied respondents:
-
-```python
-# Keep the controlling answer on an earlier page.
-survey.question_groups.clear()
-survey.add_question_group("work_location", "satisfaction", "background")
-survey.add_question_group("improvement", "improvement", "improvements")
-survey.add_skip_rule(
-    "improvement",
-    "{{ satisfaction.answer }} == 'Satisfied'",
-)
-```
-
-Now the first page collects work location, role, and satisfaction. A satisfied respondent skips the improvements page and reaches the end; other respondents continue to it. Add the rule before previewing or creating the human survey.
-
-Additional navigation behavior:
-
-- A group with no remaining questions is skipped.
-- A jump into the middle of a group starts at the target question; earlier questions in that group are omitted.
-- Relevant instructions before or within the selected group are included by default.
-
 ## Inspect navigation locally
 
-Survey authors normally define groups and call `.humanize()`. For debugging or implementing a renderer, `survey.next_group()` returns the next page without creating a hosted survey.
+Use `survey.next_group()` to inspect which questions belong on the next page for a given set of answers, without publishing the survey. This is useful when checking a route that should skip a page. For a visual check of the participant experience, use `survey.preview()` instead.
 
-Using the original two-page example, before the branching modification:
+With the two-page survey constructed above:
 
 ```python
 first_page = survey.next_group()
@@ -142,3 +117,30 @@ Pass all answers collected so far, including those from the just-submitted group
 | `is_end` | `True` when the survey has finished |
 
 See [Humanize](/en/latest/humanize) for retrieving responses and [Humanize schema](/en/latest/humanize_schema) for styling and other presentation options.
+
+## Plan branching around pages
+
+The navigator uses the answers supplied when a page is requested to filter skipped questions. After a page is submitted, it applies the normal navigation rules from that group's **last renderable question** to choose the next page. Put page-level jump or stop rules on that question.
+
+If a later question depends on an earlier answer, put the dependent question on a later page so that answer is available when the page is selected. The navigation API does not establish live, within-page updates to conditional questions.
+
+For example, starting with the two-page survey above, omit the improvement question for satisfied respondents:
+
+```python
+# Keep the controlling answer on an earlier page.
+survey.question_groups.clear()
+survey.add_question_group("work_location", "satisfaction", "background")
+survey.add_question_group("improvement", "improvement", "improvements")
+survey.add_skip_rule(
+    "improvement",
+    "{{ satisfaction.answer }} == 'Satisfied'",
+)
+```
+
+Now the first page collects work location, role, and satisfaction. A satisfied respondent skips the improvements page and reaches the end; other respondents continue to it. Add the rule before previewing or creating the human survey.
+
+Additional navigation behavior:
+
+- A group with no remaining questions is skipped.
+- A jump into the middle of a group starts at the target question; earlier questions in that group are omitted.
+- Relevant instructions before or within the selected group are included by default.
