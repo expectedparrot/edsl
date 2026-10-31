@@ -313,21 +313,61 @@ class Survey(Base):
             text = re.sub(r"\{%.*?%\}", "[conditional source text]", text)
             return text
 
+        def _is_default_rule(rule) -> bool:
+            return rule.expression == "True" and rule.priority == -1
+
+        def _jumps_past(rule, question_index: int) -> bool:
+            next_q = rule.next_q
+            return next_q is EndOfSurvey or (
+                isinstance(next_q, int) and question_index < next_q
+            )
+
         def skip_conditions(
             question_index: int,
         ) -> list[tuple[str, list[str]]]:
-            """Get source skip conditions and their source question names."""
+            """Get source skip conditions and their source question names.
+
+            Honors rule priority. A rule that jumps past this question only skips
+            respondents when no competing rule of equal-or-higher priority at the
+            same source question routes them into it (EDSL fires the highest
+            priority true rule at each node). Flows where priority makes the skip
+            population undecidable from static text are rejected rather than
+            silently mislabeled.
+            """
             conditions = []
             for rule in self.rule_collection:
-                if rule.expression == "True" and rule.priority == -1:
+                if _is_default_rule(rule):
                     continue
-                next_q = rule.next_q
                 direct_skip = rule.current_q == question_index and rule.before_rule
-                jump_skips = rule.current_q < question_index and (
-                    next_q is EndOfSurvey
-                    or (isinstance(next_q, int) and question_index < next_q)
+                jump_skips = rule.current_q < question_index and _jumps_past(
+                    rule, question_index
                 )
-                if (direct_skip or jump_skips):
+                if jump_skips:
+                    # If another rule at the same source question has equal or
+                    # higher priority but does NOT jump past this question, it can
+                    # route some of the same respondents into it. Which population
+                    # a shared condition actually skips is then undecidable from the
+                    # expression text alone, so refuse rather than guess.
+                    for other in self.rule_collection:
+                        if (
+                            other is rule
+                            or other.before_rule
+                            or _is_default_rule(other)
+                            or other.current_q != rule.current_q
+                        ):
+                            continue
+                        if other.priority >= rule.priority and not _jumps_past(
+                            other, question_index
+                        ):
+                            raise ValueError(
+                                "Survey.to_meta_survey cannot faithfully derive "
+                                "the skip condition for source question index "
+                                f"{question_index}: a rule jumping past it shares "
+                                "the source question with a higher- or "
+                                "equal-priority rule that routes into it. Simplify "
+                                "the survey flow or convert it manually."
+                            )
+                if direct_skip or jump_skips:
                     source_names = re.findall(
                         r"\{\{\s*([A-Za-z_]\w*)\.answer\b",
                         rule.expression,
@@ -400,6 +440,28 @@ class Survey(Base):
                 + pipe_context
             )
 
+        def _is_templated(value) -> bool:
+            return isinstance(value, str) and any(
+                marker in value for marker in ("{{", "{%", "{#")
+            )
+
+        def _options_are_dynamic(options) -> bool:
+            """True when response options are piped/templated rather than literal.
+
+            QuestionOptionsDescriptor accepts a literal list, a template string
+            (e.g. ``"{{ choices }}"``), or a combine mapping
+            (e.g. ``{"from": "{{ choices }}", "add": ["Other"]}``). Only a literal
+            list can be converted mechanically; the string and mapping forms, and
+            a list containing a templated entry, are dynamic.
+            """
+            if _is_templated(options):
+                return True
+            if isinstance(options, dict):
+                return True
+            if isinstance(options, (list, tuple)):
+                return any(_is_templated(option) for option in options)
+            return False
+
         for index, question in enumerate(self.questions):
             if not hasattr(question, "question_name"):
                 continue
@@ -409,11 +471,7 @@ class Survey(Base):
             options = getattr(question, "question_options", None)
             source_question_text = source_text_as_prose(question.question_text)
             generated_for_source = []
-            if options and any(
-                isinstance(option, str)
-                and any(marker in option for marker in ("{{", "{%", "{#"))
-                for option in options
-            ):
+            if options is not None and _options_are_dynamic(options):
                 raise ValueError(
                     f"Survey.to_meta_survey cannot mechanically convert question "
                     f"{name!r} because its response options are dynamically piped."
@@ -422,10 +480,20 @@ class Survey(Base):
                 outcomes = [str(option) for option in options]
                 if conditions:
                     outcomes.append("Skipped by survey logic")
+                labels = getattr(question, "option_labels", None)
+                label_text = ""
+                if isinstance(labels, dict) and labels:
+                    rendered = "; ".join(
+                        f"{key} = {value}" for key, value in labels.items()
+                    )
+                    label_text = (
+                        f" The outcome values carry these meanings: {rendered}. "
+                        "Treat the numeric values as the outcome keys."
+                    )
                 prompt = (
                     f"{question_framing}, estimate the response "
                     f"distribution for this question: {source_question_text}\n\n"
-                    f"Use exactly these outcomes: {outcomes!r}. "
+                    f"Use exactly these outcomes: {outcomes!r}.{label_text} "
                     "Report probabilities that sum to 1. "
                     + skip_text(conditions)
                     + " "
@@ -441,6 +509,19 @@ class Survey(Base):
                 )
                 generated_for_source.append(meta_name)
             elif kind == "checkbox" and options:
+                all_choices = [str(choice) for choice in options]
+                min_sel = getattr(question, "min_selections", None)
+                max_sel = getattr(question, "max_selections", None)
+                limits = []
+                if min_sel is not None:
+                    limits.append(f"at least {min_sel}")
+                if max_sel is not None:
+                    limits.append(f"at most {max_sel}")
+                limit_text = (
+                    f" Respondents must select {' and '.join(limits)} of the options."
+                    if limits
+                    else ""
+                )
                 for option_index, option in enumerate(options):
                     outcomes = ["Selected", "Not selected"]
                     if conditions:
@@ -448,8 +529,11 @@ class Survey(Base):
                     prompt = (
                         f"{question_framing}, estimate whether "
                         f"respondents would select {option!r} for: "
-                        f"{source_question_text}\n\nUse exactly these outcomes: "
-                        f"{outcomes!r}. Report probabilities that sum to 1. "
+                        f"{source_question_text}\n\nThe full set of options is "
+                        f"{all_choices!r}.{limit_text} Estimate this one option "
+                        "accounting for the competing choices and any selection "
+                        f"limit. Use exactly these outcomes: {outcomes!r}. Report "
+                        "probabilities that sum to 1. "
                         + skip_text(conditions)
                         + " "
                         + sample_text()
