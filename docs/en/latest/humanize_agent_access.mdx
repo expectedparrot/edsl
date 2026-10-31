@@ -14,6 +14,8 @@ https://www.expectedparrot.com/respond/agent/<human-survey-uuid>
 
 It serves the agent its instructions. Each agent attempt is recorded as a response, alongside browser responses.
 
+Choose this workflow when participants want to use their own assistant to complete a hosted survey, or when you deliberately want autonomous assistant responses. This is separate from defining an EDSL `Agent` profile and running a simulation with `survey.by(agents).run()`. The participation mode below determines whether answers come from the participant, authorized context, or the assistant itself; keep that mode in comparisons of the collected responses.
+
 ---
 
 ## The config
@@ -72,9 +74,10 @@ coop.patch_human_survey_agent_access(
             }
         },
     },
-    survey=survey,  # optional: check question names against the survey
 )
 ```
+
+This example assumes the hosted survey has a question named `improvements`. Pass `survey=your_survey` when you also have the local Survey and want to validate the question names before sending the patch.
 
 The patch is merged into the stored config:
 

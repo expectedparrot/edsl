@@ -2365,6 +2365,107 @@ class TestAuthBalance:
         assert out["error"]["code"] == "AUTH_REQUIRED"
 
 
+class TestBalanceAlert:
+    ALERT = {
+        "enabled": True,
+        "threshold_usd": 10.0,
+        "threshold_credits": 1000.0,
+        "credits_per_usd": 100.0,
+    }
+
+    def _fake_coop(self, monkeypatch, calls):
+        import edsl.coop
+
+        alert = self.ALERT
+
+        class FakeCoop:
+            def __init__(self, api_key=None):
+                assert api_key == "ep_test_key"
+
+            def get_balance(self):
+                calls.append(("get_balance",))
+                return {"credits": 99}
+
+            def get_low_balance_alert(self):
+                calls.append(("get",))
+                return alert
+
+            def update_low_balance_alert(self, enabled=None, threshold_usd=None):
+                calls.append(("update", enabled, threshold_usd))
+                return {**alert, "enabled": enabled, "threshold_usd": threshold_usd}
+
+        monkeypatch.setenv("EXPECTED_PARROT_API_KEY", "ep_test_key")
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+    def test_without_options_shows_the_setting(self, monkeypatch):
+        calls = []
+        self._fake_coop(monkeypatch, calls)
+
+        result = CliRunner().invoke(cli_module.app, ["balance", "alert"])
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["status"] == "ok"
+        assert out["data"] == self.ALERT
+        # The balance group doesn't also print the balance.
+        assert calls == [("get",)]
+
+    def test_options_update_the_setting(self, monkeypatch):
+        calls = []
+        self._fake_coop(monkeypatch, calls)
+
+        result = CliRunner().invoke(
+            cli_module.app, ["balance", "alert", "--off", "--threshold", "25.5"]
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["data"]["enabled"] is False
+        assert out["data"]["threshold_usd"] == 25.5
+        assert calls == [("update", False, 25.5)]
+
+    def test_threshold_alone_leaves_enabled_unset(self, monkeypatch):
+        calls = []
+        self._fake_coop(monkeypatch, calls)
+
+        result = CliRunner().invoke(
+            cli_module.app, ["balance", "alert", "--threshold", "25"]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert calls == [("update", None, 25.0)]
+
+    def test_server_error_is_reported(self, monkeypatch):
+        import edsl.coop
+
+        class FailingCoop:
+            def __init__(self, api_key=None):
+                pass
+
+            def update_low_balance_alert(self, enabled=None, threshold_usd=None):
+                raise RuntimeError("Input should be greater than or equal to 1")
+
+        monkeypatch.setenv("EXPECTED_PARROT_API_KEY", "ep_test_key")
+        monkeypatch.setattr(edsl.coop, "Coop", FailingCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app, ["balance", "alert", "--threshold", "0.5"]
+        )
+
+        assert result.exit_code == cli_module.EXIT_REMOTE
+        out = json.loads(result.output)
+        assert out["error"]["code"] == "BALANCE_ALERT_ERROR"
+
+    def test_requires_api_key(self, monkeypatch):
+        monkeypatch.delenv("EXPECTED_PARROT_API_KEY", raising=False)
+
+        result = CliRunner().invoke(cli_module.app, ["balance", "alert"])
+
+        assert result.exit_code == cli_module.EXIT_AUTH
+        out = json.loads(result.output)
+        assert out["error"]["code"] == "AUTH_REQUIRED"
+
+
 class TestCredits:
     def test_credits_returns_url_without_browser(self):
         result = CliRunner().invoke(cli_module.app, ["credits", "--no-browser"])
@@ -4769,12 +4870,18 @@ class TestHumanizeCli:
         calls = []
 
         class FakeCoop(RealCoop):
+            # include_previews from every request, batch and count alike.
+            previews_asked = []
+
             def __init__(self):
                 pass
 
-            def get_human_survey_events(self, human_survey_uuid, *, after=None, limit=200):
+            def get_human_survey_events(
+                self, human_survey_uuid, *, after=None, limit=200, include_previews=False
+            ):
                 assert human_survey_uuid == "human-survey-uuid"
                 calls.append((after, limit))
+                FakeCoop.previews_asked.append(include_previews)
                 if fail_after_batches is not None and len(calls) > fail_after_batches:
                     raise RuntimeError("connection lost")
                 ids = [event["id"] for event in events]
@@ -4786,8 +4893,9 @@ class TestHumanizeCli:
                     "has_more": start + limit < len(events),
                 }
 
-            def count_human_survey_events(self, human_survey_uuid):
+            def count_human_survey_events(self, human_survey_uuid, *, include_previews=False):
                 assert human_survey_uuid == "human-survey-uuid"
+                FakeCoop.previews_asked.append(include_previews)
                 return len(events)
 
         monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
@@ -4906,6 +5014,26 @@ class TestHumanizeCli:
         assert json.loads(result.output)["data"]["total"] == 5
         assert calls == []
 
+    @pytest.mark.parametrize(
+        "args",
+        [["--limit", "2"], ["--all", "--limit", "2", "--output", "events.jsonl"], ["--count"]],
+    )
+    def test_humanize_events_leaves_previews_out_unless_asked(
+        self, tmp_path, monkeypatch, args
+    ):
+        import edsl.coop
+
+        self._events_coop(monkeypatch)
+        monkeypatch.chdir(tmp_path)
+        base = ["humanize", "events", "human-survey-uuid", *args]
+
+        assert CliRunner().invoke(cli_module.app, base).exit_code == 0
+        assert set(edsl.coop.Coop.previews_asked) == {False}
+        edsl.coop.Coop.previews_asked.clear()
+        result = CliRunner().invoke(cli_module.app, [*base, "--include-previews"])
+        assert result.exit_code == 0, result.output
+        assert set(edsl.coop.Coop.previews_asked) == {True}
+
     def test_humanize_events_count_rejects_fetch_options(self, tmp_path, monkeypatch):
         self._events_coop(monkeypatch)
 
@@ -4915,6 +5043,635 @@ class TestHumanizeCli:
                 "humanize", "events", "human-survey-uuid",
                 "--count", "--all", "--output", str(tmp_path / "events.jsonl"),
             ],
+        )
+
+        assert result.exit_code == cli_module.EXIT_USAGE, result.output
+
+    def _interactions_coop(self, monkeypatch):
+        """A Coop serving five interaction rows by cursor, with the real
+        cursor-following loop. Records every request's filters."""
+        import edsl.coop
+        from edsl.coop.coop import Coop as RealCoop
+
+        rows = [{"id": f"i{n}", "type": "page.shown"} for n in range(1, 6)]
+        calls = []
+
+        class FakeCoop(RealCoop):
+            def __init__(self):
+                pass
+
+            def get_human_survey_interactions(
+                self, human_survey_uuid, *, after=None, limit=100,
+                response_uuid=None, include_previews=False,
+            ):
+                assert human_survey_uuid == "human-survey-uuid"
+                calls.append((after, limit, response_uuid, include_previews))
+                ids = [row["id"] for row in rows]
+                start = ids.index(after) + 1 if after else 0
+                batch = rows[start : start + limit]
+                return {
+                    "interactions": batch,
+                    "next_cursor": batch[-1]["id"] if batch else after,
+                    "has_more": start + limit < len(rows),
+                }
+
+            def count_human_survey_interactions(
+                self, human_survey_uuid, *, response_uuid=None, include_previews=False
+            ):
+                calls.append(("count", response_uuid, include_previews))
+                return len(rows)
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        return rows, calls
+
+    def test_humanize_interactions_prints_one_batch(self, monkeypatch):
+        rows, calls = self._interactions_coop(monkeypatch)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "interactions", "human-survey-uuid", "--limit", "2"],
+        )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)["data"]
+        assert data["interactions"] == rows[:2]
+        assert (data["next_cursor"], data["has_more"]) == ("i2", True)
+        assert calls == [(None, 2, None, False)]
+
+    @pytest.mark.parametrize("suffix", [".json", ".jsonl"])
+    def test_humanize_interactions_all_follows_the_cursor_with_its_filters(
+        self, tmp_path, monkeypatch, suffix
+    ):
+        rows, calls = self._interactions_coop(monkeypatch)
+        output_path = tmp_path / f"interactions{suffix}"
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "interactions", "human-survey-uuid",
+                "--all", "--limit", "2", "--output", str(output_path),
+                "--response", "response-uuid", "--include-previews",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)["data"]
+        assert data["interaction_count"] == 5
+        assert (data["next_cursor"], data["has_more"]) == ("i5", False)
+        assert calls == [
+            (after, 2, "response-uuid", True) for after in (None, "i2", "i4")
+        ]
+        text = output_path.read_text(encoding="utf-8")
+        if suffix == ".jsonl":
+            assert [json.loads(line) for line in text.splitlines()] == rows
+        else:
+            assert json.loads(text) == rows
+
+    def test_humanize_interactions_count(self, monkeypatch):
+        _, calls = self._interactions_coop(monkeypatch)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "interactions", "human-survey-uuid", "--count", "--include-previews"],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["data"]["total"] == 5
+        assert calls == [("count", None, True)]
+
+    @pytest.mark.parametrize(
+        "args", [["--all"], ["--count", "--after", "i1"]]
+    )
+    def test_humanize_interactions_usage_errors(self, monkeypatch, args):
+        self._interactions_coop(monkeypatch)
+
+        result = CliRunner().invoke(
+            cli_module.app, ["humanize", "interactions", "human-survey-uuid", *args]
+        )
+
+        assert result.exit_code == cli_module.EXIT_USAGE, result.output
+
+    def _assistant_coop(self, monkeypatch):
+        """A Coop serving five turns, five edits and three turns' messages by
+        cursor, with the real cursor-following loops. Records every request's
+        filters."""
+        import edsl.coop
+        from edsl.coop.coop import Coop as RealCoop
+
+        turns = [{"turn": f"t{n}"} for n in range(1, 6)]
+        edits = [{"edit": f"e{n}", "turn": f"t{n}"} for n in range(1, 6)]
+        messages = [
+            {"turn": f"t{n}", "seq": seq} for n in range(1, 4) for seq in range(2)
+        ]
+        calls = []
+
+        def serve(rows, key, id_key, after, limit):
+            ids = [row[id_key] for row in rows]
+            start = ids.index(after) + 1 if after else 0
+            batch = rows[start : start + limit]
+            return {
+                key: batch,
+                "next_cursor": batch[-1][id_key] if batch else after,
+                "has_more": start + limit < len(rows),
+            }
+
+        class FakeCoop(RealCoop):
+            def __init__(self):
+                pass
+
+            def get_human_survey_assistant_turns(
+                self, human_survey_uuid, *, after=None, limit=100,
+                response_uuid=None, include_previews=False,
+            ):
+                assert human_survey_uuid == "human-survey-uuid"
+                calls.append(("turns", after, limit, response_uuid, include_previews))
+                return serve(turns, "turns", "turn", after, limit)
+
+            def get_human_survey_assistant_edits(
+                self, human_survey_uuid, *, after=None, limit=100,
+                response_uuid=None, turn=None, include_previews=False,
+            ):
+                assert human_survey_uuid == "human-survey-uuid"
+                calls.append(("edits", after, limit, response_uuid, turn, include_previews))
+                rows = [row for row in edits if turn is None or row["turn"] == turn]
+                return serve(rows, "edits", "edit", after, limit)
+
+            def get_human_survey_assistant_messages(
+                self, human_survey_uuid, *, after=None, limit=100,
+                response_uuid=None, turn=None, include_previews=False,
+            ):
+                """Pages by whole turns, as the server does."""
+                calls.append(("messages", after, limit, response_uuid, turn, include_previews))
+                order = [f"t{n}" for n in range(1, 4) if turn in (None, f"t{n}")]
+                start = order.index(after) + 1 if after else 0
+                page = order[start : start + limit]
+                return {
+                    "messages": [row for row in messages if row["turn"] in page],
+                    "next_cursor": page[-1] if page else after,
+                    "has_more": start + limit < len(order),
+                }
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        return turns, edits, messages, calls
+
+    @staticmethod
+    def _trace(type, response, session, started, seq, **fields):
+        """An interaction row, with every field its type has."""
+        own = {
+            "page.shown": {"page_key": "p"},
+            "page.submitted": {"page_key": "p"},
+            "form.edited": {
+                "question": "q", "value": "v", "draft_type": "free_text",
+                "draft_version": 1, "closed_by": "blur", "change_count": 1,
+                "draft_write": "applied", "value_omitted": False, "chars": None,
+            },
+            "chat.message_sent": {"turn": None, "refused": None},
+            "chat.reply_ended": {"turn": None, "status": "complete", "error_kind": None},
+            "assistant.edit_applied": {
+                "edit": None, "question": "q", "value": "v", "draft_type": "free_text",
+                "draft_version": 1, "draft_write": "applied",
+            },
+            "assistant.edit_undone": {"edit": None, "question": "q", "value": "v"},
+        }[type]
+        return {
+            "type": type, "response_uuid": response, "is_preview": False,
+            "page_id": "p1", "session": session, "session_started_at": started,
+            "seq": seq, "at": f"2026-10-26T14:00:{seq:02d}Z", **own, **fields,
+        }
+
+    @staticmethod
+    def _message(turn, response, kind, turn_status="complete", **fields):
+        return {
+            "kind": kind, "turn": turn, "thread": f"th-{response}",
+            "turn_status": turn_status, "response_uuid": response,
+            "is_preview": False, "page_id": "p1",
+            "seq": 0, "at": "2026-10-26T14:01:00Z", **fields,
+        }
+
+    @staticmethod
+    def _edit(edit, turn, response, server_outcome, **fields):
+        return {
+            "edit": edit, "turn": turn, "response_uuid": response, "is_preview": False,
+            "page_id": "p1", "question": "q", "value": "v", "draft_type": "free_text",
+            "draft_version": 1, "server_outcome": server_outcome, "rejection": None,
+            "outcome": "applied" if server_outcome == "sent" else None, "reason": None,
+            "at": "2026-10-26T14:01:00Z", **fields,
+        }
+
+    def _conversation_coop(self, monkeypatch):
+        """A Coop holding two responses. The first was opened twice, its second
+        visit's rows received first; its one turn filled one answer and was refused
+        another. The second has no trace: its turn's message, an edit its browser
+        never reported, and its reply."""
+        import edsl.coop
+        from edsl.coop.coop import Coop as RealCoop
+
+        trace, msg, edit = self._trace, self._message, self._edit
+        first, second = "2026-10-26T14:00:00Z", "2026-10-26T14:05:00Z"
+        interactions = [
+            trace("page.shown", "r1", "s2", second, 0),
+            trace("page.submitted", "r1", "s2", second, 1),
+            trace("page.shown", "r1", "s1", first, 0),
+            trace("form.edited", "r1", "s1", first, 1, question="job", value="Mana",
+                  closed_by="interval"),
+            trace("chat.message_sent", "r1", "s1", first, 2, turn="t1"),
+            trace("assistant.edit_applied", "r1", "s1", first, 3, edit="e1",
+                  question="job", value="Manager"),
+            trace("chat.reply_ended", "r1", "s1", first, 4, turn="t1"),
+            trace("form.edited", "r1", "s1", first, 5, question="job", value="Lead"),
+        ]
+        messages = [
+            msg("t2", "r2", "respondent_message", text="hi"),
+            msg("t2", "r2", "assistant_text", text="Hello.", status="complete"),
+            msg("t1", "r1", "respondent_message", text="I'm a manager"),
+            msg("t1", "r1", "edit_receipt", edit="e1", question="job"),
+            msg("t1", "r1", "assistant_text", text="Done.", status="complete"),
+        ]
+        edits = [
+            edit("e1", "t1", "r1", "sent", question="job", value="Manager"),
+            edit("e2", "t1", "r1", "rejected", question="age",
+                 rejection={"reason": "not_fillable", "message": "No."}),
+            edit("e3", "t2", "r2", "sent", outcome="sent"),
+        ]
+        calls = []
+
+        class FakeCoop(RealCoop):
+            def __init__(self):
+                self.url = "https://example.test"
+
+            def get_all_human_survey_interactions(
+                self, human_survey_uuid, *, response_uuid=None, include_previews=False,
+            ):
+                calls.append(("interactions", response_uuid, include_previews))
+                return [dict(row) for row in interactions]
+
+            def get_all_human_survey_assistant_messages(
+                self, human_survey_uuid, *, response_uuid=None, include_previews=False,
+            ):
+                calls.append(("messages", response_uuid, include_previews))
+                return [dict(row) for row in messages]
+
+            def get_all_human_survey_assistant_edits(
+                self, human_survey_uuid, *, response_uuid=None, include_previews=False,
+            ):
+                calls.append(("edits", response_uuid, include_previews))
+                return [dict(row) for row in edits]
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        return FakeCoop, calls
+
+    def test_humanize_assistant_conversations_put_the_trace_in_order_and_place_the_rest(
+        self, tmp_path, monkeypatch
+    ):
+        _, calls = self._conversation_coop(monkeypatch)
+        output_path = tmp_path / "conversations.jsonl"
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "assistant", "conversations", "human-survey-uuid", "--output", str(output_path)],
+        )
+
+        assert result.exit_code == 0, result.output
+        rows = [json.loads(line) for line in output_path.read_text(encoding="utf-8").splitlines()]
+        assert json.loads(result.output)["data"]["row_count"] == len(rows) == 12
+        assert [(r["response_uuid"], r["position"], r["kind"], r["placed"]) for r in rows] == [
+            # The first visit, then the second, though the second's rows came first.
+            ("r1", 0, "page_shown", "trace"),
+            ("r1", 1, "answer", "trace"),
+            ("r1", 2, "message", "trace"),
+            ("r1", 3, "assistant_edit", "trace"),
+            ("r1", 4, "edit_rejected", "before_reply"),
+            ("r1", 5, "reply", "trace"),
+            ("r1", 6, "answer", "trace"),
+            ("r1", 7, "page_shown", "trace"),
+            ("r1", 8, "page_submitted", "trace"),
+            # No trace: placed by its turn, after the response that has one.
+            ("r2", 0, "message", "end"),
+            ("r2", 1, "assistant_edit", "end"),
+            ("r2", 2, "reply", "end"),
+        ]
+        answer, message, filled, rejected, reply, typed = rows[1:7]
+        assert (answer["value"], answer["saved"], answer["turn"]) == ("Mana", "interval", None)
+        assert (message["text"], message["turn"], message["seq"]) == ("I'm a manager", "t1", 2)
+        assert (filled["value"], filled["outcome"], filled["turn"]) == ("Manager", "applied", "t1")
+        assert (rejected["question"], rejected["rejection"]["reason"]) == ("age", "not_fillable")
+        assert (reply["text"], reply["status"], reply["ended"]) == ("Done.", "complete", "complete")
+        assert typed["value"] == "Lead"
+        assert (rows[10]["outcome"], rows[10]["session"], rows[11]["text"]) == ("sent", None, "Hello.")
+        # Every row of a kind has the same fields, filled or not.
+        assert set(rows[1]) == set(rows[6])
+        assert calls == [
+            ("interactions", None, False),
+            ("messages", None, False),
+            ("edits", None, False),
+        ]
+
+    def test_conversations_place_what_a_closed_tab_or_lost_batch_left_out(self):
+        from edsl.coop.human_survey_conversations import AssistantConversations
+
+        trace, msg = self._trace, self._message
+        started = "2026-10-26T14:00:00Z"
+        rows = AssistantConversations.build(
+            [
+                # t1's tab closed before its reply ended.
+                trace("chat.message_sent", "r1", "s1", started, 0, turn="t1"),
+                trace("assistant.edit_applied", "r1", "s1", started, 1, edit="e1"),
+                trace("form.edited", "r1", "s1", started, 2),
+                # t2's message was in a batch that never arrived.
+                trace("chat.reply_ended", "r1", "s1", started, 3, turn="t2",
+                      status="stopped"),
+            ],
+            [
+                msg("t1", "r1", "respondent_message", text="one"),
+                msg("t1", "r1", "assistant_text", text="First.", status="complete"),
+                msg("t2", "r1", "respondent_message", text="two",
+                    turn_status="interrupted"),
+                msg("t2", "r1", "assistant_text", text="Sec", status="interrupted",
+                    turn_status="interrupted"),
+            ],
+            [self._edit("e1", "t1", "r1", "sent")],
+        )
+
+        assert [(r["kind"], r["turn"], r["placed"]) for r in rows] == [
+            ("message", "t1", "trace"),
+            ("assistant_edit", "t1", "trace"),
+            # After the message and the edits that followed it.
+            ("reply", "t1", "after_message"),
+            ("answer", None, "trace"),
+            ("message", "t2", "before_reply"),
+            ("reply", "t2", "trace"),
+        ]
+        assert (rows[2]["text"], rows[2]["ended"]) == ("First.", None)
+        assert (rows[4]["text"], rows[5]["status"], rows[5]["ended"]) == ("two", "interrupted", "stopped")
+        assert [r["position"] for r in rows] == list(range(6))
+
+    def test_conversations_put_an_edit_whose_fill_was_lost_before_its_undo(self):
+        from edsl.coop.human_survey_conversations import AssistantConversations
+
+        trace = self._trace
+        started = "2026-10-26T14:00:00Z"
+        rows = AssistantConversations.build(
+            [
+                trace("chat.message_sent", "r1", "s1", started, 0, turn="t1"),
+                # The batch with e1's assistant.edit_applied was lost; its Undo arrived.
+                trace("assistant.edit_undone", "r1", "s1", started, 2, edit="e1"),
+                trace("chat.reply_ended", "r1", "s1", started, 3, turn="t1"),
+            ],
+            [
+                # Closed while it waited on the browser: its text was all written.
+                self._message("t1", "r1", "respondent_message", text="fill it",
+                              turn_status="interrupted"),
+                self._message("t1", "r1", "assistant_text", text="Done.", status="complete",
+                              turn_status="interrupted"),
+            ],
+            [
+                self._edit("e1", "t1", "r1", "sent", outcome="undone"),
+                self._edit("e2", "t1", "r1", "sent", outcome="sent"),
+            ],
+        )
+
+        assert [(r["kind"], r.get("edit"), r.get("outcome"), r["placed"]) for r in rows] == [
+            ("message", None, None, "trace"),
+            ("assistant_edit", "e1", "applied", "after_message"),
+            ("edit_undone", "e1", None, "trace"),
+            # Never reported at all: after the edits that followed the message.
+            ("assistant_edit", "e2", "sent", "after_message"),
+            ("reply", None, None, "trace"),
+        ]
+        # The turn's status, though its text was complete.
+        assert (rows[-1]["text"], rows[-1]["status"]) == ("Done.", "interrupted")
+
+    def test_humanize_assistant_conversations_for_one_response(self, monkeypatch):
+        _, calls = self._conversation_coop(monkeypatch)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "assistant", "conversations", "human-survey-uuid", "--response", "r1"],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["data"]["conversations"][0]["kind"] == "page_shown"
+        assert calls[0] == ("interactions", "r1", False)
+
+    def test_humanize_assistant_conversations_requires_output_for_a_whole_survey(self, monkeypatch):
+        _, calls = self._conversation_coop(monkeypatch)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "assistant", "conversations", "human-survey-uuid"],
+        )
+
+        assert result.exit_code != 0
+        assert calls == []
+
+    def test_human_survey_assistant_url(self, monkeypatch):
+        FakeCoop, _ = self._conversation_coop(monkeypatch)
+
+        assert FakeCoop().get_human_survey_assistant_url("hs-1") == (
+            "https://example.test/home/human-surveys/hs-1/events/assistant"
+        )
+
+    def test_humanize_assistant_threads_all_follows_the_cursor(self, tmp_path, monkeypatch):
+        import edsl.coop
+        from edsl.coop.coop import Coop as RealCoop
+
+        threads = [{"thread": f"th{n}"} for n in range(1, 4)]
+        calls = []
+
+        class FakeCoop(RealCoop):
+            def __init__(self):
+                pass
+
+            def get_human_survey_assistant_threads(
+                self, human_survey_uuid, *, after=None, limit=100,
+                response_uuid=None, include_previews=False,
+            ):
+                calls.append((after, limit, response_uuid, include_previews))
+                ids = [row["thread"] for row in threads]
+                start = ids.index(after) + 1 if after else 0
+                batch = threads[start : start + limit]
+                return {
+                    "threads": batch,
+                    "next_cursor": batch[-1]["thread"] if batch else after,
+                    "has_more": start + limit < len(threads),
+                }
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        output_path = tmp_path / "threads.jsonl"
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "assistant", "threads", "human-survey-uuid",
+                "--all", "--limit", "2", "--output", str(output_path),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)["data"]
+        assert (data["thread_count"], data["next_cursor"], data["has_more"]) == (3, "th3", False)
+        assert calls == [(None, 2, None, False), ("th2", 2, None, False)]
+        lines = output_path.read_text(encoding="utf-8").splitlines()
+        assert [json.loads(line) for line in lines] == threads
+
+    @pytest.mark.parametrize("command,cursor", [("pages", "r1:p2"), ("configs", "c2")])
+    def test_humanize_assistant_pages_and_configs_follow_the_cursor(
+        self, tmp_path, monkeypatch, command, cursor
+    ):
+        import edsl.coop
+        from edsl.coop.coop import Coop as RealCoop
+
+        key = {"pages": "page", "configs": "config"}[command]
+        rows = (
+            [{"response_uuid": "r1", "page_id": f"p{n}"} for n in range(1, 4)]
+            if command == "pages"
+            else [{"config": f"c{n}"} for n in range(1, 4)]
+        )
+        ids = [f"r1:{r['page_id']}" if command == "pages" else r["config"] for r in rows]
+        calls = []
+
+        def fetch(self, human_survey_uuid, *, after=None, limit=100,
+                  response_uuid=None, include_previews=False):
+            calls.append((after, limit))
+            start = ids.index(after) + 1 if after else 0
+            return {
+                command: rows[start : start + limit],
+                "next_cursor": ids[min(start + limit, len(ids)) - 1],
+                "has_more": start + limit < len(rows),
+            }
+
+        class FakeCoop(RealCoop):
+            def __init__(self):
+                pass
+
+        setattr(FakeCoop, f"get_human_survey_assistant_{command}", fetch)
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        output_path = tmp_path / f"{command}.jsonl"
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "assistant", command, "human-survey-uuid",
+                "--all", "--limit", "2", "--output", str(output_path),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)["data"]
+        assert data[f"{key}_count"] == 3
+        assert calls == [(None, 2), (cursor, 2)]
+        lines = output_path.read_text(encoding="utf-8").splitlines()
+        assert [json.loads(line) for line in lines] == rows
+
+    def test_humanize_assistant_summary_prints_it(self, monkeypatch):
+        import edsl.coop
+        from edsl.coop.coop import Coop as RealCoop
+
+        calls = []
+
+        class FakeCoop(RealCoop):
+            def __init__(self):
+                pass
+
+            def get_human_survey_assistant_summary(self, human_survey_uuid, *, include_previews=False):
+                calls.append((human_survey_uuid, include_previews))
+                return {"respondents": {"responses": 3, "offered": 2, "chatted": 1}}
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "assistant", "summary", "human-survey-uuid", "--include-previews"],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["data"]["respondents"]["chatted"] == 1
+        assert calls == [("human-survey-uuid", True)]
+
+    def test_humanize_assistant_turns_prints_one_batch(self, monkeypatch):
+        turns, _, _, calls = self._assistant_coop(monkeypatch)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "assistant", "turns", "human-survey-uuid", "--limit", "2"],
+        )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)["data"]
+        assert data["turns"] == turns[:2]
+        assert (data["next_cursor"], data["has_more"]) == ("t2", True)
+        assert calls == [("turns", None, 2, None, False)]
+
+    def test_humanize_assistant_turns_all_follows_the_cursor(self, tmp_path, monkeypatch):
+        turns, _, _, calls = self._assistant_coop(monkeypatch)
+        output_path = tmp_path / "turns.jsonl"
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "assistant", "turns", "human-survey-uuid",
+                "--all", "--limit", "2", "--output", str(output_path),
+                "--response", "response-uuid", "--include-previews",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)["data"]
+        assert data["turn_count"] == 5
+        assert (data["next_cursor"], data["has_more"]) == ("t5", False)
+        assert calls == [
+            ("turns", after, 2, "response-uuid", True) for after in (None, "t2", "t4")
+        ]
+        lines = output_path.read_text(encoding="utf-8").splitlines()
+        assert [json.loads(line) for line in lines] == turns
+
+    def test_humanize_assistant_edits_narrows_to_one_turn(self, tmp_path, monkeypatch):
+        _, edits, _, calls = self._assistant_coop(monkeypatch)
+        output_path = tmp_path / "edits.json"
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "assistant", "edits", "human-survey-uuid",
+                "--turn", "t3", "--output", str(output_path),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["data"]["edit_count"] == 1
+        assert json.loads(output_path.read_text(encoding="utf-8")) == [edits[2]]
+        assert calls == [("edits", None, 100, None, "t3", False)]
+
+    def test_humanize_assistant_messages_all_follows_turns(self, tmp_path, monkeypatch):
+        _, _, messages, calls = self._assistant_coop(monkeypatch)
+        output_path = tmp_path / "messages.jsonl"
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "assistant", "messages", "human-survey-uuid",
+                "--all", "--limit", "2", "--output", str(output_path),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)["data"]
+        assert data["message_count"] == 6
+        assert (data["next_cursor"], data["has_more"]) == ("t3", False)
+        assert calls == [
+            ("messages", None, 2, None, None, False),
+            ("messages", "t2", 2, None, None, False),
+        ]
+        lines = output_path.read_text(encoding="utf-8").splitlines()
+        assert [json.loads(line) for line in lines] == messages
+
+    @pytest.mark.parametrize("command", ["messages", "turns", "edits"])
+    def test_humanize_assistant_all_requires_output(self, monkeypatch, command):
+        self._assistant_coop(monkeypatch)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "assistant", command, "human-survey-uuid", "--all"],
         )
 
         assert result.exit_code == cli_module.EXIT_USAGE, result.output
@@ -5316,6 +6073,14 @@ class TestHumanizeCli:
                 assert estimated_completion_time_minutes == 5
                 return {"cost_cents": 240, "cost_credits": 2.4}
 
+            def get_prolific_study_settings(self):
+                return {
+                    "key_source": "ep",
+                    "charged_in_credits": True,
+                    "participant_limit": 100,
+                    "participant_limit_applies": True,
+                }
+
             def create_prolific_study(self, human_survey_uuid, **config):
                 assert human_survey_uuid == "human-survey-uuid"
                 assert config["name"] == "Demo"
@@ -5357,6 +6122,7 @@ class TestHumanizeCli:
                 "--output",
                 str(output_path),
             ],
+            ["humanize", "prolific", "settings"],
         ]
 
         outputs = []
@@ -5365,6 +6131,8 @@ class TestHumanizeCli:
             assert result.exit_code == 0, result.output
             outputs.append(json.loads(result.output)["data"])
 
+        assert outputs[5]["participant_limit"] == 100
+        assert outputs[5]["key_source"] == "ep"
         assert outputs[0]["filter_count"] == 1
         assert outputs[1]["cost_cents"] == 240
         assert outputs[2]["study_id"] == "study-id"
