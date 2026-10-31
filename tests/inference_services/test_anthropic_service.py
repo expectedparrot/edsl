@@ -179,7 +179,7 @@ def test_anthropic_request_preserves_temperature_for_legacy_models(monkeypatch):
         DummyAnthropicClient,
     )
 
-    model_class = AnthropicService.create_model("claude-opus-4-5-20251124")
+    model_class = AnthropicService.create_model("claude-3-5-sonnet-20241022")
     model = model_class(temperature=0.2, skip_api_key_check=True)
 
     asyncio.run(model.async_execute_model_call("hello"))
