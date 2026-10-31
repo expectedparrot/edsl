@@ -6663,7 +6663,7 @@ class TestRunValidation:
 
         result = CliRunner().invoke(
             cli_module.app,
-            ["run", str(jobs_path), "-o", str(results_path)],
+            ["run", str(jobs_path), "--local", "-o", str(results_path)],
         )
 
         assert result.exit_code == 0, result.output
@@ -6784,7 +6784,7 @@ class TestRunValidation:
 
         run = CliRunner().invoke(
             cli_module.app,
-            ["run", str(jobs_path), "--output", str(results_path)],
+            ["run", str(jobs_path), "--local", "--output", str(results_path)],
         )
         select = CliRunner().invoke(
             cli_module.app,
@@ -6846,7 +6846,7 @@ class TestRunValidation:
 
         result = CliRunner().invoke(
             cli_module.app,
-            ["run", str(jobs_path), "--n", "3", "--output", str(results_path)],
+            ["run", str(jobs_path), "--local", "--n", "3", "--output", str(results_path)],
         )
 
         assert result.exit_code == 0, result.output

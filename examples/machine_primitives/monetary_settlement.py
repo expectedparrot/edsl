@@ -1,0 +1,61 @@
+"""Exact invoice settlement: round gross once, split fee, conserve minor units."""
+
+from edsl.sharedstate import (
+    Command,
+    Machine,
+    StateType,
+    require,
+    decimal_units,
+    field,
+    arg,
+    let,
+    local,
+    record,
+    round_ratio,
+    assign,
+    state_field,
+)
+
+
+def build_machine():
+    gross = decimal_units(arg("amount"), places=2, rounding="half_up")
+    accounts = field("accounts")
+    settlement = let(
+        "gross",
+        gross,
+        let(
+            "fee",
+            round_ratio(local("gross") * 25, 10000, rounding="half_even"),
+            record(
+                payer=accounts.get("payer") - local("gross"),
+                payee=accounts.get("payee") + local("gross") - local("fee"),
+                fees=accounts.get("fees") + local("fee"),
+            ),
+        ),
+    )
+    return Machine(
+        name="MonetarySettlement",
+        constants={},
+        fields={
+            "accounts": state_field(
+                StateType.record(
+                    {name: StateType.integer(minimum=0) for name in ("payer", "payee", "fees")}
+                ),
+                {"payer": 100000, "payee": 0, "fees": 0},
+            )
+        },
+        commands={
+            "pay": Command(
+                inputs={"amount": StateType.text()},
+                effects=(
+                    require(gross > 0, code="nonpositive_payment"),
+                    require(gross <= accounts.get("payer"), code="insufficient_funds"),
+                    assign("accounts", settlement),
+                ),
+            )
+        },
+        view={"accounts": accounts},
+    )
+
+
+DEMO = [("pay", {"amount": amount}) for amount in ["1.005", "2.00", "6.00", "9999.99"]]

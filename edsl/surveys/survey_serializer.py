@@ -44,13 +44,18 @@ class SurveySerializer:
             meta["questions_to_randomize"] = s.questions_to_randomize
         if s.options_to_pin:
             meta["options_to_pin"] = s.options_to_pin
+        state_steps = s.to_dict(add_edsl_version=False).get("state_steps")
+        if state_steps is not None:
+            meta["state_steps"] = state_steps
         if add_edsl_version:
             from edsl import __version__
 
             meta["edsl_version"] = __version__
         return meta
 
-    def to_jsonl_rows(self, add_edsl_version: bool = True) -> Generator[str, None, None]:
+    def to_jsonl_rows(
+        self, add_edsl_version: bool = True
+    ) -> Generator[str, None, None]:
         """Yield one JSON string per line — header then one question per line."""
         yield json.dumps(self._build_metadata(add_edsl_version))
         for q in self._survey._recombined_questions_and_instructions():
@@ -127,6 +132,7 @@ class SurveySerializer:
                 return ChangeInstruction
             elif cn == "QuestionDict":
                 from ..questions import QuestionDict
+
                 return QuestionDict
             return QuestionBase
 
@@ -149,14 +155,17 @@ class SurveySerializer:
             }
         rule_collection = RuleCollection.from_dict(rule_collection_data)
 
-        return Survey(
-            questions=questions,
-            memory_plan=memory_plan,
-            rule_collection=rule_collection,
-            question_groups=meta.get("question_groups", {}),
-            questions_to_randomize=meta.get("questions_to_randomize"),
-            options_to_pin=meta.get("options_to_pin"),
-            name=meta.get("name"),
+        return Survey.from_dict(
+            {
+                "questions": [q.to_dict() for q in questions],
+                "memory_plan": memory_plan.to_dict(),
+                "rule_collection": rule_collection.to_dict(),
+                "question_groups": meta.get("question_groups", {}),
+                "questions_to_randomize": meta.get("questions_to_randomize"),
+                "options_to_pin": meta.get("options_to_pin"),
+                "name": meta.get("name"),
+                "state_steps": meta.get("state_steps"),
+            }
         )
 
 

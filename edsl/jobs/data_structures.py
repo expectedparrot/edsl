@@ -156,9 +156,7 @@ class RunParameters(Base):
     memory_threshold: Optional[int] = (
         None  # Threshold in bytes for Results SQLList memory management
     )
-    new_format: bool = (
-        True  # if True, uses remote_inference_create, if False uses old_remote_inference_create
-    )
+    new_format: bool = True  # if True, uses remote_inference_create, if False uses old_remote_inference_create
     expected_parrot_api_key: Optional[str] = (
         None  # Custom EXPECTED_PARROT_API_KEY to use for this job run
     )
@@ -166,6 +164,7 @@ class RunParameters(Base):
     results_description: Optional[str] = None
     task_timeout: Optional[int] = None
     max_concurrency: Optional[int] = None
+    interview_schedule: Any = "concurrent"
 
     def to_dict(self, add_edsl_version=False) -> dict:
         d = asdict(self)

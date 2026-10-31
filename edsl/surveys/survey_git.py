@@ -177,6 +177,7 @@ def _read_survey_dict_at_ref(path: Path, ref: str) -> dict:
         ),
     }
     optional_fields = {
+        "state_steps": "metadata/state_steps.json",
         "name": "metadata/name.json",
         "questions_to_randomize": "metadata/questions_to_randomize.json",
         "options_to_pin": "metadata/options_to_pin.json",
@@ -361,6 +362,7 @@ def _write_metadata(path: Path, survey_dict: dict) -> None:
         "question_groups": survey_dict["question_groups"],
     }
     optional = {
+        "state_steps": survey_dict.get("state_steps"),
         "name": survey_dict.get("name"),
         "questions_to_randomize": survey_dict.get("questions_to_randomize"),
         "options_to_pin": survey_dict.get("options_to_pin"),

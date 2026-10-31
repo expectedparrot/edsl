@@ -1,0 +1,7 @@
+{
+  "reason": "EDSL Results package refused replacement after resuming a 12-round archive; market completed observation normally.",
+  "action": "Archived the 204 completed raw Results with allow_new_commit=True and refreshed CSV exports.",
+  "earlier_results_commit_preserved": true,
+  "additional_model_calls": 0,
+  "additional_market_commands": 0
+}

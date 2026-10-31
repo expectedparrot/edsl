@@ -1,0 +1,43 @@
+{
+  "name": "sibling effects evaluate against the same pre-command snapshot",
+  "envelope": {
+    "dsl_version": "0.1",
+    "requires": {
+      "operators": {"ref": 1, "add": 1, "set": 1},
+      "reducers": {},
+      "algorithms": {}
+    },
+    "limits": {"max_state_bytes": 10000},
+    "machine": {
+      "name": "PreSnapshotEffects",
+      "constants": {},
+      "fields": {
+        "x": {"type": {"op": "type", "args": ["number"], "kwargs": {"minimum": null, "maximum": null}}, "initial": 0},
+        "observed_x": {"type": {"op": "type", "args": ["number"], "kwargs": {"minimum": null, "maximum": null}}, "initial": 0}
+      },
+      "commands": {
+        "advance": {
+          "inputs": {},
+          "effects": [
+            {"op": "set", "target": "x", "args": [{"op": "add", "args": [{"op": "ref", "args": [], "kwargs": {"namespace": "state", "name": "x"}}, 1], "kwargs": {}}], "options": {}},
+            {"op": "set", "target": "observed_x", "args": [{"op": "ref", "args": [], "kwargs": {"namespace": "state", "name": "x"}}], "options": {}}
+          ],
+          "require": null,
+          "timing": "explicit"
+        }
+      },
+      "view": {
+        "x": {"op": "ref", "args": [], "kwargs": {"namespace": "state", "name": "x"}},
+        "observed_x": {"op": "ref", "args": [], "kwargs": {"namespace": "state", "name": "observed_x"}}
+      },
+      "complete_when": null,
+      "close_effects": [],
+      "algorithms": []
+    }
+  },
+  "steps": [
+    {"command": "advance", "inputs": {}, "expect_changed": true}
+  ],
+  "expected_state": {"x": 1, "observed_x": 0},
+  "expected_view": {"x": 1, "observed_x": 0}
+}

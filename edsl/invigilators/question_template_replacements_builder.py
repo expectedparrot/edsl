@@ -377,6 +377,8 @@ class QuestionTemplateReplacementsBuilder:
         rpl["question"] = self._question_data_replacements(self.question, question_data)
         rpl["prior_answers"] = self.prior_answers_dict
         rpl["agent"] = {"agent": self.agent}
+        if "run" in self.scenario:
+            rpl["run"] = {"run": self.scenario["run"]}
 
         # Combine all dictionaries using dict.update() for clarity
         replacement_dict = {}

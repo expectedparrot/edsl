@@ -1,0 +1,389 @@
+\documentclass[11pt,letterpaper]{article}
+\usepackage[margin=0.85in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern,microtype,amsmath,booktabs,tabularx,graphicx}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{listings,lstlinebgrd,enumitem,fancyhdr,caption,float,needspace}
+\usepackage[colorlinks=true,linkcolor=MidnightBlue,urlcolor=MidnightBlue,citecolor=MidnightBlue]{hyperref}
+\definecolor{ink}{HTML}{243448}
+\definecolor{codebg}{HTML}{F5F7F9}
+\definecolor{newbg}{HTML}{E5F4E8}
+\hypersetup{pdftitle={An LLM Asset-Market Bubble: V3 Results and Typed EDSL Code}}
+\pagestyle{fancy}\fancyhf{}
+\fancyhead[L]{\small EDSL asset market / V3}
+\fancyhead[R]{\small Results and highlighted source}
+\fancyfoot[C]{\thepage}
+\setlength{\headheight}{14pt}
+\setlength{\parindent}{0pt}\setlength{\parskip}{5pt}
+\setlength{\emergencystretch}{2em}
+\setlist{nosep,leftmargin=*}
+\captionsetup{font=small,labelfont=bf}
+\def\activefile{none}
+\newcommand{\sourceLineColor}{\ifcsname changed:\activefile:\thelstnumber\endcsname\color{newbg}\else\color{codebg}\fi}
+\lstdefinestyle{python}{language=Python,basicstyle=\ttfamily\fontsize{8}{8.8}\selectfont,
+ keywordstyle=\color{MidnightBlue}\bfseries,commentstyle=\color{OliveGreen},
+ stringstyle=\color{BrickRed},backgroundcolor=\color{codebg},
+ linebackgroundcolor={\sourceLineColor},
+ breaklines=true,breakatwhitespace=false,columns=fullflexible,keepspaces=true,
+ showstringspaces=false,numbers=left,numberstyle=\tiny\color{gray},
+ numbersep=7pt,xleftmargin=17pt,frame=single,framerule=0pt,
+ aboveskip=9pt,belowskip=9pt,tabsize=4,
+ literate={–}{{\textendash}}1 {’}{{'}}1}
+\lstset{style=python}
+\input{highlights.tex}
+\begin{document}
+\begin{center}
+{\LARGE\bfseries\color{ink} An LLM Asset-Market Bubble}\par
+{\large V3 results and a typed, serializable EDSL experiment}\par
+{\small September 16, 2026 $\quad\cdot\quad$ GPT-5 mini $\quad\cdot\quad$ 12 traders, 30 rounds}
+\end{center}
+\begin{abstract}
+The new market completed all 30 rounds and 360 valid trader decisions.
+Its first transaction was at \$22; the price rose to \$29.50, more than twice
+the \$14 fundamental value, before the last trade at \$23.75. Turnover was
+107 shares across 17 trading rounds. This is a rising, persistently overpriced
+market with a late decline, although that decline rests on a single-share
+trade. Three traders ultimately held all 48 shares and finished far below a
+passive holding benchmark. The report visualizes every decision and fill,
+compares the three full sessions, and documents one failed response and its
+recovery. The appendix prints the complete experiment and core implementation,
+with new or modified code highlighted relative to the previous report.
+\end{abstract}
+\section{Design and benchmark}
+Each trader starts with \$100 and four shares. Every round collects sealed
+orders, clears a uniform-price call market, credits 5\% interest to cash,
+and pays a common per-share dividend of \$0.40 or \$1 with equal probability.
+After round 30's income, shares redeem for \$14. Borrowing and short selling
+are prohibited. With $n=31-t$ income payments remaining before round $t$,
+\[
+ V_t=\sum_{k=1}^{n}\frac{0.70}{1.05^k}+\frac{14}{1.05^n}=14.
+\]
+The return available on cash matters: adding dividends to redemption without
+discounting overvalues the asset. Settlement rounds monetary amounts to cents.
+
+Two traders receive each archetype: Rational Arbitrageur (RA), Momentum Chaser
+(MC), Bubble Timer (BT), Precommitter (PC), Noise Trader (NT), and Overconfident
+Contrarian (OC). Our exploratory \texttt{speculative-v1} prompts encourage
+resale beliefs, speculative participation, or exit plans by type. The supplied
+\emph{Building Traders} slides motivate the design \cite{ngo}; these are our
+prompts, not the authors' original prompts or a numerical replication.
+
+All three full sessions use the same economic parameters, seats, persona
+texts, model settings, seed 140926, and realized dividends, with fresh model
+answers. V3 uses GPT-5 mini, medium reasoning, temperature 1, and an 8,000-token
+limit. All 30 rounds were specified in advance. The question describes the
+contract but does not supply the valuation calculation or an opening quote.
+
+\begin{center}\small
+\begin{tabular}{@{}lrrrl@{}}\toprule
+Session & Turnover & Trading rounds & Peak & Last transaction\\\midrule
+Original full run & 114 & 21 & \$31.00 & \$31.00 (round 28)\\
+V2 & 69 & 19 & \$26.00 & \$15.00 (round 29)\\
+V3 & 107 & 17 & \$29.50 & \$23.75 (round 29)\\\bottomrule
+\end{tabular}
+\end{center}
+The variation across sessions is substantial. It does not estimate a causal
+effect of typed configuration: the economic treatment was held constant.
+
+\clearpage
+\section{Prices: sustained overpricing and a thin late decline}
+\begin{figure}[H]\centering
+\includegraphics[width=\linewidth]{figures/prices.pdf}
+\caption{Actual transaction prices in the three full sessions and V3 turnover.
+Gaps mean no trade; prices are not carried forward. The diamond denotes
+contractual redemption, separate from market transactions.}
+\end{figure}
+\begin{center}\small
+\begin{tabular}{@{}lrrl@{}}\toprule
+V3 round & Price & Shares & Interpretation\\\midrule
+1--4 & --- & 0 & No opening trades\\
+5 & \$22.00 & 4 & First clearing\\
+12 & \$26.50 & 11 & Eighth consecutive trading round\\
+21 & \$23.25 & 1 & Temporary low-volume decline\\
+24 & \$29.00 & 16 & Largest round by volume\\
+25 & \$29.50 & 3 & Peak, 110.7\% above fundamental value\\
+29 & \$23.75 & 1 & Last trade, 19.5\% below peak\\
+30 & --- & 0 & No trade; 48 shares subsequently redeemed\\\bottomrule
+\end{tabular}
+\end{center}
+The first clearing matched trader 10's four-share ask at \$22 with three
+shares bid at \$30 by trader 05 and one at \$22 by trader 00. The marginal
+bid and ask were both \$22, setting the uniform transaction price. Prices
+then rose 34.1\% from first trade to peak. All 17 transaction prices exceeded
+\$14; the volume-weighted price was \$26.22.
+
+The final decline deserves care. In round 29, trader 00 bid \$31.50 for one
+share and trader 11 offered one at \$16. The midpoint rule set
+$(31.50+16)/2=\$23.75$. A lower print therefore need not imply a broad downward
+revision in buyers' beliefs. V3 exhibits an inflated price path and a late
+transaction-price decline; evidence for a broad market crash is limited.
+
+\clearpage
+\section{Every trader decision and executed fill}
+\begin{figure}[H]\centering
+\includegraphics[width=\linewidth]{figures/decisions.pdf}
+\caption{All 360 decisions, indexed by trader and round. Background colors
+show intended side. Numbers show actual signed fills: positive for purchases,
+negative for sales. A colored cell without a number is an unfilled order;
+a hold cell is a deliberate hold. Each column's signed fills sum to zero.}
+\end{figure}
+The 360 admitted decisions comprise 147 buy orders, 41 sell orders, and 172
+holds. No orders were rejected or reduced by the admission cap in this run.
+Admission does not imply execution: buy and sell limits must cross, and
+available opposite-side quantity may be smaller than requested quantity.
+Total turnover counts shares once per matched transaction, not twice for
+buyer and seller.
+
+The market sorts bids from high to low and asks from low to high, applies
+seeded priority within equal prices, and identifies crossing quantity.
+All accepted matches execute at one price: the midpoint of the marginal
+matched bid and ask, rounded to cents. Unfilled orders expire after the round.
+The market then credits interest, pays dividends, and advances the public tape
+and private account histories. Traders see the tape and their own accounts;
+they do not see other traders' sealed orders before choosing.
+
+\subsection*{Economic reasoning remains imperfect}
+Trader 05's round-5 rationale valued the asset by adding 26 expected dividends
+of \$0.70 to the \$14 redemption, obtaining \$32.20. That omits discounting at
+the available 5\% cash return; the corresponding benchmark is \$14. By round
+25, trader 00 cited the previous \$29 transaction and fear of missing a
+continuing rally, submitted a \$30 bid for two shares, and bought at \$29.50.
+These are elicited explanations, not independent measurements of latent beliefs.
+
+The question explicitly requests \$14 forecasts for dates beyond round 30.
+Nevertheless, 17 of 204 such forecast entries (8.3\%) differ from \$14.
+Structurally valid answers can therefore contain economic mistakes. The
+bubble-like outcome may combine resale expectations, persona framing, and
+misunderstanding; this single session cannot separate those explanations.
+The exact four discussed decisions are included in
+\path{data/discussed-decisions.json}.
+
+\clearpage
+\section{Who held the asset, and who finished ahead?}
+\begin{figure}[H]\centering
+\includegraphics[width=\linewidth]{figures/wealth.pdf}
+\caption{Terminal cash relative to never trading. The passive account keeps
+its initial four shares, receives the same realized dividends and cash
+interest, and redeems at the end, finishing with \$648.69. Actual terminal
+cash includes redemption; no shares remain afterward.}
+\end{figure}
+Traders 00 (MC), 05 (OC), and 08 (MC) held 17, 16, and 15 shares immediately
+before redemption: all 48 outstanding shares. They finished with \$268.66,
+\$283.49, and \$340.06, respectively. Each lost more than \$300 relative to
+passive holding. The other nine traders held no shares at redemption and
+finished above that benchmark.
+
+This comparison includes the consequences of cash interest, not simply
+purchase price minus redemption. Selling earlier transfers shares away and
+leaves cash earning interest; buying at inflated prices commits cash that
+would otherwise compound. Every account starts with the same endowment,
+so the common passive benchmark is a useful accounting comparison.
+
+Total terminal cash is \$7,784.35, compared with \$7,784.28 for twelve passive
+accounts. The seven-cent difference reflects per-account rounding. The large
+individual gains and losses primarily redistribute terminal wealth; they do
+not represent additional aggregate asset value.
+
+These outcomes describe twelve particular model-generated histories. With
+only two traders per archetype in one market, there is no reliable estimate
+of an archetype effect. In particular, the two OC traders finished on opposite
+sides of the passive benchmark. Full terminal accounts appear in
+Appendix~\ref{app:accounts}.
+
+\clearpage
+\section{What changed in the code}
+The new authoring layer replaces loosely specified settings with validated
+objects. The default market economics and serialized version-1 machine
+remain compatible with the earlier experiment. Three layers have distinct jobs:
+\begin{enumerate}
+\item \textbf{Question and response contract.} \texttt{DecisionSchema} builds
+an EDSL \texttt{QuestionDict}, including named forecast fields. It defines
+what each trader is asked and the expected answer fields.
+\item \textbf{Workflow and execution plan.} The workflow schedules trader
+work followed by settlement for 30 rounds. The execution plan assigns LLM
+execution to traders and scripted execution to the exchange. The exchange's
+placeholder answer is \texttt{clear}; its state-changing effect calls
+\texttt{market.settle()}.
+\item \textbf{Shared-state machine.} Registered native handlers admit orders
+and perform settlement. The experiment serializes their declarative machine
+specification and operation names, not arbitrary executable Python source.
+Loading still requires a compatible EDSL runtime with those handlers installed.
+\end{enumerate}
+Each ordinary round constructs \emph{one} EDSL job containing twelve paired
+agent/scenario interviews. \texttt{zip\_assign(over=("agents", "scenarios"))}
+pairs each trader with its private view, avoiding a 12-by-12 cross product.
+Rounds depend on prior settlement and therefore advance sequentially.
+
+\begin{center}\small
+\begin{tabularx}{\linewidth}{@{}lX@{}}\toprule
+Configuration & Settings available for controlled variation\\\midrule
+\texttt{CallMarketRules} & Number of rounds; homogeneous cash/share endowment;
+midpoint, bid, or ask pricing; cash interest; dividend distribution; income
+order; redemption; buy cap; initial reference; forecast keys.\\
+\texttt{TraderTreatment} & Archetype composition; assignment seed; model and
+service; temperature, reasoning effort and token limit; forecast horizons.\\
+Market seed & Seeded randomness for dividends and order priority, separated
+internally by purpose.\\\bottomrule
+\end{tabularx}
+\end{center}
+Unknown fields, invalid numeric values, malformed probability vectors, and
+inconsistent settings fail during construction. Use \texttt{with\_changes(...)}
+for validated edits; Pydantic's \texttt{model\_copy(update=...)} bypasses
+validation. Rules also generate economic instructions and compute the valuation
+benchmark from the configured payment order, including zero-interest variants.
+
+\texttt{OrderIntent}, \texttt{TraderDecision}, \texttt{AcceptedOrder},
+\texttt{TradeFill}, \texttt{Account}, and \texttt{RoundOutcome} validate runtime
+records. Generic maps still exist in the serialized DSL. Semantic finance
+reasoning and beyond-terminal forecast compliance are not automatically enforced.
+No borrowing/shorting, order expiration, cent rounding, seeded tie priority,
+and final redemption timing remain fixed policies. Heterogeneous endowments,
+information disclosure, and independent dividend/tie seed overrides are not
+implemented as treatment settings.
+
+\clearpage
+\section{Execution, recovery, and limits}
+Successful twelve-interview jobs averaged \textbf{35.1 seconds}. This excludes
+the failed final batch and its one-interview retry. There were 31 submissions:
+30 planned round jobs and one retry. The archive has 30 batch-completion
+records because the failed original final batch did not reach that logging
+step. Wall time including diagnosis and recovery was \textbf{31.8 minutes}.
+Recorded model cost was \textbf{\$1.2877}; the failed result has no usage data,
+so this may understate actual billed cost.
+
+\subsection*{One incomplete response, followed by a guarded recovery}
+The initial round-30 job yielded eleven valid decisions and one null decision
+for trader 05. The null record includes no raw model response or usage,
+so its underlying cause is unknown. The backend correctly rejected it as
+\texttt{decision must be a map}. However, the workflow had already recorded
+an immutable submission intent and left that item in \texttt{committing}.
+At that point, 359 valid decisions and 29 settlements were preserved.
+
+The executor now checks that every required answer is present and non-null
+\emph{before} creating a submission intent. The appendix highlights this
+small guard within the complete executor. Two targeted regression tests passed:
+null results do not create an immutable intent, and a partially successful
+batch can retry the unfinished work.
+
+The already-stuck item required a separate, one-time database repair. The
+script backed up both databases, verified the exact null intent and its single
+unapplied effect, and confirmed that no corresponding market event existed.
+It archived and removed that invalid intent, then made only the failed item
+retryable. A one-trader EDSL job returned a valid decision; normal round-30
+settlement then redeemed all 48 shares. This was a guarded intervention,
+not an existing general-purpose recovery API. Its source is preserved in the
+bundle for audit, not as a routine rerun command.
+
+\subsection*{What the completed audit establishes}
+The final audit passed: 360 decisions, 30 settlements, 390 successful attempts
+and one failed attempt; all private views and prompts verified; all shares
+redeemed. It also verified that the 359 decisions and 29 settlements completed
+before recovery were unchanged. The raw archive retains all 361 result records;
+the replay file contains the 360 valid decisions. Source hashes distinguish
+the executor used initially from the fixed executor used for the retry.
+
+The audit establishes execution consistency, not correct economic reasoning.
+V3 supports the narrower finding that this configuration can generate a
+sustained price inflation with a late decline. Repeated sessions and controlled
+prompt/understanding treatments would be needed to distinguish behavioral
+mechanisms from valuation errors and to estimate how often bubbles emerge.
+
+\begin{thebibliography}{9}\small
+\bibitem{ngo} Cady Ngo, Yi-Jhe Chen, Benjamin Manning, Christopher Avery,
+and Colin Camerer. \emph{Building Traders: Persona Construction for LLM Agents
+in Experimental Asset Markets}. Supplied 40-page slide deck, file
+\texttt{140926.pdf}. Design and archetype discussion on slides 6, 10--11, 14,
+19, 25, 32, and 35. Source metadata and SHA-256 are in
+\path{data/source-paper.json}.
+\end{thebibliography}
+
+\clearpage\appendix
+\section{Guide to the highlighted code}
+\textbf{Green background marks added or modified lines relative to the frozen
+source in the previous full-market report.} Gray background marks unchanged
+lines. The new rules and record modules are entirely green. This comparison
+covers the typed refactor introduced for V2 and used by V3, plus the V3 null
+response guard; it is not a claim that every highlighted line was first added
+during V3. Deleted lines are available in the accompanying unified diffs.
+
+\colorbox{newbg}{\strut Added or modified source}\quad
+\colorbox{codebg}{\strut Unchanged source}
+
+The next five appendices print all 1,698 lines of the five core source files,
+without elision. They are split at logical boundaries, retain original line
+numbers, and include all persona text directly in the experiment file.
+Source files were taken from the archived run and checked against their
+recorded hashes. The executor listing is the version used for the successful
+retry; its predecessor is also included in the bundle.
+
+\begin{center}\small
+\begin{tabularx}{\linewidth}{@{}lXr@{}}\toprule
+Appendix & File / role & Lines\\\midrule
+B & \texttt{typed\_market\_experiment.py}: full study authoring & 408\\
+C & \texttt{market\_rules.py}: validated economic settings & 407\\
+D & \texttt{market\_records.py}: decision and record contracts & 214\\
+E & \texttt{call\_market.py}: native market integration & 273\\
+F & \texttt{workflow\_experiment.py}: execution and paired jobs & 396\\\bottomrule
+\end{tabularx}
+\end{center}
+Read Appendix B first for the complete study: configuration, persona prompts,
+questions, role assignment, the thirty-round workflow, and its command-line
+entry point. Appendices C--E show where settings and answers are validated
+and how settlement is executed. Appendix F shows how the workflow becomes
+EDSL jobs, including the pre-submission completeness check near line 355.
+
+\subsection*{A small configuration example}
+The following is an illustrative alternative, \emph{not} the configuration used
+in V3. It changes the round count and pricing rule while validating the result.
+The experiment builder uses these rules when constructing prompts and state.
+\def\activefile{none}
+\begin{lstlisting}[numbers=none]
+from edsl.sharedstate import PricingRule
+from examples.asset_market.typed_market_experiment import RULES
+
+alternative = RULES.with_changes(
+    periods=20,
+    pricing=PricingRule.MARGINAL_ASK,
+)
+\end{lstlisting}
+Changing an economic setting can change the benchmark: compute it with
+\path{alternative.fundamental_value(period)} rather than assuming \$14.
+If forecast horizons are changed, update the market forecast keys to match
+the treatment's decision schema; the builder rejects disagreement.
+
+\input{appendix-experiment.tex}
+\input{appendix-rules.tex}
+\input{appendix-records.tex}
+\input{appendix-market.tex}
+\input{appendix-executor.tex}
+
+\clearpage
+\section{Terminal accounts and reproducibility}\label{app:accounts}
+\begin{center}\small\input{wealth-table.tex}\end{center}
+``Difference'' is terminal cash minus \$648.69 passive wealth. ``Redeemed'' is
+the share count immediately before redemption; every terminal inventory is zero.
+
+\subsection*{Contents of the companion bundle}
+\begin{itemize}
+\item \path{code/}: the complete printed sources, their prior-report baselines
+and diffs, both executor versions, the guarded recovery script, and reporting
+helpers. \path{data/code-changes.json} records highlighted line numbers.
+\item \path{data/}: serialized experiment, economic rules and treatment;
+360 replay responses; final market state; round, decision and wealth tables;
+batch log; recovery and verification records; source manifests; prior-session
+comparison data; all 361 raw result records in a gzip archive.
+\item \path{figures/}: three figures in PDF and PNG.
+\path{manifest.json} records SHA-256 hashes for code, data, and figures.
+\end{itemize}
+To rebuild the PDF from the bundle, run the command below in its root with a
+TeX installation containing \texttt{listings} and \texttt{lstlinebgrd}:
+\begin{lstlisting}[language=bash,numbers=none]
+latexmk -pdf -interaction=nonstopmode -halt-on-error report.tex
+\end{lstlisting}
+The appendix includes the full study-specific experiment and core market
+implementation, not a vendored copy of EDSL. Executing or replaying the
+experiment requires this branch's compatible EDSL runtime; the serialized
+specification alone does not install handlers or dependencies. The supplied
+run artifacts support inspection without making any new model calls.
+See the bundle README for the local replay command and provenance details.
+\end{document}

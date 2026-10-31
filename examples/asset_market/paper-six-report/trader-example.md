@@ -1,0 +1,60 @@
+# One complete trader presentation
+
+Actual saved call: seed 140926, trader-00 (Momentum Chaser), period 1 of 30.
+
+The code blocks preserve the saved prompt strings, including literal backslash-n sequences in the formatting instructions.
+
+## System prompt
+
+```text
+You are a participant in an experimental asset market. Maximize your final cash wealth.
+You are a momentum chaser. Rising prices encourage you to buy because you expect the rise to continue. When prices dip, sell. Recent price direction is the main influence on your forecasts and orders.Your traits: {'role': 'trader', 'seat': 0}
+```
+
+## User prompt
+
+```text
+Period 1 of 30; 30 trading periods including this one remain. You began with $100 cash and 4 shares. Submit one sealed limit order: buy, sell, or hold. All trades this period occur at one clearing price after everyone submits. You cannot borrow cash or short shares. Buy quantity is capped by cash divided by your limit price; sell quantity by your shares. Quotes round to cents; unmatched orders expire after this period. At period end, post-trade cash earns 5% interest, then each held share pays a common dividend of $0.40 or $1.00, each equally likely. After period 30's payments, all remaining shares are redeemed for $14 each and you keep all cash. The asset's fundamental value is $14 each period. The initial reference quote is $14; it is not an observed trade. Current private account (cash_cents is in cents, shares are units, history includes your previous decisions and fills): {'cash_cents': 10000, 'shares': 4, 'history': []}. Public history (price=null means no trade): []. Last transaction price, or initial reference if none: 14.0. Forecast the market price now and 2, 5, and 10 periods ahead. For horizons beyond the final period, report the $14 redemption value. Return forecast_0, forecast_2, forecast_5, forecast_10 in dollars, side ('buy', 'sell', or 'hold'), price in dollars, integer quantity, and a brief rationale. For hold use price=0 and quantity=0. If you previously committed to a plan, retain it in your rationale.Please respond with a dictionary using the following keys: forecast_0, forecast_2, forecast_5, forecast_10, side, price, quantity, rationale.
+
+
+
+
+The values should be formatted in the following types:
+
+- "forecast_0": "float"
+
+- "forecast_2": "float"
+
+- "forecast_5": "float"
+
+- "forecast_10": "float"
+
+- "side": "str"
+
+- "price": "float"
+
+- "quantity": "int"
+
+- "rationale": "str"
+
+
+
+If you do not have a value for a given key, use "null".
+
+
+```
+
+## Actual response
+
+```json
+{
+  "forecast_0": 14.0,
+  "forecast_2": 14.0,
+  "forecast_5": 14.0,
+  "forecast_10": 14.0,
+  "side": "hold",
+  "price": 0.0,
+  "quantity": 0,
+  "rationale": "The initial reference price is $14, and I expect it to remain stable in the short term due to the asset's fundamental value. Holding onto my shares allows me to benefit from potential dividends while preserving cash for future trading opportunities if price momentum shifts."
+}
+```

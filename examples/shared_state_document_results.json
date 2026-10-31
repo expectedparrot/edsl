@@ -1,0 +1,873 @@
+{
+  "model": "gemini-2.5-flash",
+  "rows": [
+    {
+      "agent": "Spanish translator",
+      "round": 1,
+      "user_prompt": "Translate the complete current document into Spanish. Preserve its meaning, tone, and five-sentence structure. Return only the translation, without commentary.\n\nCurrent document:\nThe atmosphere does not recognize national borders. Each country benefits when others reduce emissions, yet each also faces a temptation to delay its own costly action. Durable cooperation therefore requires credible commitments, transparent measurement, and a fair distribution of costs. Wealthier societies have greater capacity to finance the transition, while poorer societies often face the gravest immediate risks. A successful agreement must align individual incentives with the shared interest in a stable climate.",
+      "system_prompt": "You are answering questions as if you were a human. Do not break character.Your traits: {'plan_id': 'climate', 'turn': 1, 'target_language': 'Spanish'}",
+      "answer": "La atm\u00f3sfera no reconoce fronteras nacionales. Cada pa\u00eds se beneficia cuando otros reducen las emisiones, pero cada uno tambi\u00e9n se enfrenta a la tentaci\u00f3n de retrasar su propia acci\u00f3n costosa. Por lo tanto, una cooperaci\u00f3n duradera requiere compromisos cre\u00edbles, mediciones transparentes y una distribuci\u00f3n justa de los costos. Las sociedades m\u00e1s ricas tienen una mayor capacidad para financiar la transici\u00f3n, mientras que las sociedades m\u00e1s pobres a menudo enfrentan los riesgos inmediatos m\u00e1s graves. Un acuerdo exitoso debe alinear los incentivos individuales con el inter\u00e9s compartido en un clima estable.",
+      "comment": null
+    },
+    {
+      "agent": "French translator",
+      "round": 2,
+      "user_prompt": "Translate the complete current document into French. Preserve its meaning, tone, and five-sentence structure. Return only the translation, without commentary.\n\nCurrent document:\nLa atm\u00f3sfera no reconoce fronteras nacionales. Cada pa\u00eds se beneficia cuando otros reducen las emisiones, pero cada uno tambi\u00e9n se enfrenta a la tentaci\u00f3n de retrasar su propia acci\u00f3n costosa. Por lo tanto, una cooperaci\u00f3n duradera requiere compromisos cre\u00edbles, mediciones transparentes y una distribuci\u00f3n justa de los costos. Las sociedades m\u00e1s ricas tienen una mayor capacidad para financiar la transici\u00f3n, mientras que las sociedades m\u00e1s pobres a menudo enfrentan los riesgos inmediatos m\u00e1s graves. Un acuerdo exitoso debe alinear los incentivos individuales con el inter\u00e9s compartido en un clima estable.",
+      "system_prompt": "You are answering questions as if you were a human. Do not break character.Your traits: {'plan_id': 'climate', 'turn': 2, 'target_language': 'French'}",
+      "answer": "L'atmosph\u00e8re ne conna\u00eet pas de fronti\u00e8res nationales. Chaque pays b\u00e9n\u00e9ficie de la r\u00e9duction des \u00e9missions par les autres, mais chacun est \u00e9galement confront\u00e9 \u00e0 la tentation de retarder sa propre action co\u00fbteuse. Par cons\u00e9quent, une coop\u00e9ration durable exige des engagements cr\u00e9dibles, des mesures transparentes et une r\u00e9partition \u00e9quitable des co\u00fbts. Les soci\u00e9t\u00e9s plus riches ont une plus grande capacit\u00e9 \u00e0 financer la transition, tandis que les soci\u00e9t\u00e9s plus pauvres sont souvent confront\u00e9es aux risques imm\u00e9diats les plus graves. Un accord r\u00e9ussi doit aligner les incitations individuelles sur l'int\u00e9r\u00eat partag\u00e9 d'un climat stable.",
+      "comment": null
+    },
+    {
+      "agent": "German translator",
+      "round": 3,
+      "user_prompt": "Translate the complete current document into German. Preserve its meaning, tone, and five-sentence structure. Return only the translation, without commentary.\n\nCurrent document:\nL'atmosph\u00e8re ne conna\u00eet pas de fronti\u00e8res nationales. Chaque pays b\u00e9n\u00e9ficie de la r\u00e9duction des \u00e9missions par les autres, mais chacun est \u00e9galement confront\u00e9 \u00e0 la tentation de retarder sa propre action co\u00fbteuse. Par cons\u00e9quent, une coop\u00e9ration durable exige des engagements cr\u00e9dibles, des mesures transparentes et une r\u00e9partition \u00e9quitable des co\u00fbts. Les soci\u00e9t\u00e9s plus riches ont une plus grande capacit\u00e9 \u00e0 financer la transition, tandis que les soci\u00e9t\u00e9s plus pauvres sont souvent confront\u00e9es aux risques imm\u00e9diats les plus graves. Un accord r\u00e9ussi doit aligner les incitations individuelles sur l'int\u00e9r\u00eat partag\u00e9 d'un climat stable.",
+      "system_prompt": "You are answering questions as if you were a human. Do not break character.Your traits: {'plan_id': 'climate', 'turn': 3, 'target_language': 'German'}",
+      "answer": "Die Atmosph\u00e4re kennt keine nationalen Grenzen. Jedes Land profitiert von der Emissionsreduzierung durch andere, aber jedes ist auch der Versuchung ausgesetzt, seine eigenen kostspieligen Ma\u00dfnahmen zu verz\u00f6gern. Eine dauerhafte Zusammenarbeit erfordert daher glaubw\u00fcrdige Zusagen, transparente Ma\u00dfnahmen und eine gerechte Kostenverteilung. Reichere Gesellschaften haben eine gr\u00f6\u00dfere F\u00e4higkeit, den \u00dcbergang zu finanzieren, w\u00e4hrend \u00e4rmere Gesellschaften oft mit den schwerwiegendsten unmittelbaren Risiken konfrontiert sind. Ein erfolgreiches Abkommen muss individuelle Anreize mit dem gemeinsamen Interesse an einem stabilen Klima in Einklang bringen.",
+      "comment": null
+    },
+    {
+      "agent": "Japanese translator",
+      "round": 4,
+      "user_prompt": "Translate the complete current document into Japanese. Preserve its meaning, tone, and five-sentence structure. Return only the translation, without commentary.\n\nCurrent document:\nDie Atmosph\u00e4re kennt keine nationalen Grenzen. Jedes Land profitiert von der Emissionsreduzierung durch andere, aber jedes ist auch der Versuchung ausgesetzt, seine eigenen kostspieligen Ma\u00dfnahmen zu verz\u00f6gern. Eine dauerhafte Zusammenarbeit erfordert daher glaubw\u00fcrdige Zusagen, transparente Ma\u00dfnahmen und eine gerechte Kostenverteilung. Reichere Gesellschaften haben eine gr\u00f6\u00dfere F\u00e4higkeit, den \u00dcbergang zu finanzieren, w\u00e4hrend \u00e4rmere Gesellschaften oft mit den schwerwiegendsten unmittelbaren Risiken konfrontiert sind. Ein erfolgreiches Abkommen muss individuelle Anreize mit dem gemeinsamen Interesse an einem stabilen Klima in Einklang bringen.",
+      "system_prompt": "You are answering questions as if you were a human. Do not break character.Your traits: {'plan_id': 'climate', 'turn': 4, 'target_language': 'Japanese'}",
+      "answer": "\u5927\u6c17\u306b\u306f\u56fd\u5883\u304c\u3042\u308a\u307e\u305b\u3093\u3002\u5404\u56fd\u306f\u4ed6\u56fd\u306b\u3088\u308b\u6392\u51fa\u524a\u6e1b\u304b\u3089\u5229\u76ca\u3092\u5f97\u307e\u3059\u304c\u3001\u540c\u6642\u306b\u81ea\u56fd\u306e\u8cbb\u7528\u306e\u304b\u304b\u308b\u5bfe\u7b56\u3092\u9045\u3089\u305b\u305f\u3044\u3068\u3044\u3046\u8a98\u60d1\u306b\u3082\u99c6\u3089\u308c\u307e\u3059\u3002\u3057\u305f\u304c\u3063\u3066\u3001\u6c38\u7d9a\u7684\u306a\u5354\u529b\u306b\u306f\u3001\u4fe1\u983c\u3067\u304d\u308b\u516c\u7d04\u3001\u900f\u660e\u6027\u306e\u3042\u308b\u884c\u52d5\u3001\u305d\u3057\u3066\u516c\u6b63\u306a\u8cbb\u7528\u5206\u62c5\u304c\u5fc5\u8981\u3067\u3059\u3002\u8c4a\u304b\u306a\u793e\u4f1a\u306f\u79fb\u884c\u306b\u8cc7\u91d1\u3092\u63d0\u4f9b\u3059\u308b\u80fd\u529b\u304c\u9ad8\u3044\u4e00\u65b9\u3067\u3001\u8ca7\u3057\u3044\u793e\u4f1a\u306f\u3057\u3070\u3057\u3070\u6700\u3082\u6df1\u523b\u306a\u5dee\u3057\u8feb\u3063\u305f\u30ea\u30b9\u30af\u306b\u76f4\u9762\u3057\u307e\u3059\u3002\u6210\u529f\u3059\u308b\u5408\u610f\u306f\u3001\u500b\u3005\u306e\u30a4\u30f3\u30bb\u30f3\u30c6\u30a3\u30d6\u3068\u3001\u5b89\u5b9a\u3057\u305f\u6c17\u5019\u3068\u3044\u3046\u5171\u901a\u306e\u5229\u76ca\u3068\u306e\u30d0\u30e9\u30f3\u30b9\u3092\u53d6\u308b\u5fc5\u8981\u304c\u3042\u308a\u307e\u3059\u3002",
+      "comment": null
+    },
+    {
+      "agent": "Swahili translator",
+      "round": 5,
+      "user_prompt": "Translate the complete current document into Swahili. Preserve its meaning, tone, and five-sentence structure. Return only the translation, without commentary.\n\nCurrent document:\n\u5927\u6c17\u306b\u306f\u56fd\u5883\u304c\u3042\u308a\u307e\u305b\u3093\u3002\u5404\u56fd\u306f\u4ed6\u56fd\u306b\u3088\u308b\u6392\u51fa\u524a\u6e1b\u304b\u3089\u5229\u76ca\u3092\u5f97\u307e\u3059\u304c\u3001\u540c\u6642\u306b\u81ea\u56fd\u306e\u8cbb\u7528\u306e\u304b\u304b\u308b\u5bfe\u7b56\u3092\u9045\u3089\u305b\u305f\u3044\u3068\u3044\u3046\u8a98\u60d1\u306b\u3082\u99c6\u3089\u308c\u307e\u3059\u3002\u3057\u305f\u304c\u3063\u3066\u3001\u6c38\u7d9a\u7684\u306a\u5354\u529b\u306b\u306f\u3001\u4fe1\u983c\u3067\u304d\u308b\u516c\u7d04\u3001\u900f\u660e\u6027\u306e\u3042\u308b\u884c\u52d5\u3001\u305d\u3057\u3066\u516c\u6b63\u306a\u8cbb\u7528\u5206\u62c5\u304c\u5fc5\u8981\u3067\u3059\u3002\u8c4a\u304b\u306a\u793e\u4f1a\u306f\u79fb\u884c\u306b\u8cc7\u91d1\u3092\u63d0\u4f9b\u3059\u308b\u80fd\u529b\u304c\u9ad8\u3044\u4e00\u65b9\u3067\u3001\u8ca7\u3057\u3044\u793e\u4f1a\u306f\u3057\u3070\u3057\u3070\u6700\u3082\u6df1\u523b\u306a\u5dee\u3057\u8feb\u3063\u305f\u30ea\u30b9\u30af\u306b\u76f4\u9762\u3057\u307e\u3059\u3002\u6210\u529f\u3059\u308b\u5408\u610f\u306f\u3001\u500b\u3005\u306e\u30a4\u30f3\u30bb\u30f3\u30c6\u30a3\u30d6\u3068\u3001\u5b89\u5b9a\u3057\u305f\u6c17\u5019\u3068\u3044\u3046\u5171\u901a\u306e\u5229\u76ca\u3068\u306e\u30d0\u30e9\u30f3\u30b9\u3092\u53d6\u308b\u5fc5\u8981\u304c\u3042\u308a\u307e\u3059\u3002",
+      "system_prompt": "You are answering questions as if you were a human. Do not break character.Your traits: {'plan_id': 'climate', 'turn': 5, 'target_language': 'Swahili'}",
+      "answer": "Anga haina mipaka. Kila nchi hunufaika na upunguzaji wa uzalishaji wa hewa chafu unaofanywa na nchi nyingine, lakini wakati huo huo inashawishika kuchelewesha hatua zake za gharama kubwa. Kwa hivyo, ushirikiano endelevu unahitaji ahadi za kuaminika, vitendo vya uwazi, na ugawaji wa gharama ulio sawa. Ingawa jamii tajiri zina uwezo mkubwa wa kufadhili mabadiliko, jamii maskini mara nyingi hukabili hatari kubwa zaidi zilizo karibu. Makubaliano yenye mafanikio yanahitaji kusawazisha vivutio vya kibinafsi na manufaa ya pamoja ya hali ya hewa thabiti.",
+      "comment": null
+    },
+    {
+      "agent": "English translator",
+      "round": 6,
+      "user_prompt": "Translate the complete current document into English. Preserve its meaning, tone, and five-sentence structure. Return only the translation, without commentary.\n\nCurrent document:\nAnga haina mipaka. Kila nchi hunufaika na upunguzaji wa uzalishaji wa hewa chafu unaofanywa na nchi nyingine, lakini wakati huo huo inashawishika kuchelewesha hatua zake za gharama kubwa. Kwa hivyo, ushirikiano endelevu unahitaji ahadi za kuaminika, vitendo vya uwazi, na ugawaji wa gharama ulio sawa. Ingawa jamii tajiri zina uwezo mkubwa wa kufadhili mabadiliko, jamii maskini mara nyingi hukabili hatari kubwa zaidi zilizo karibu. Makubaliano yenye mafanikio yanahitaji kusawazisha vivutio vya kibinafsi na manufaa ya pamoja ya hali ya hewa thabiti.",
+      "system_prompt": "You are answering questions as if you were a human. Do not break character.Your traits: {'plan_id': 'climate', 'turn': 6, 'target_language': 'English'}",
+      "answer": "The atmosphere knows no boundaries. Every country benefits from emissions reductions made by other countries, but at the same time is tempted to delay its own costly actions. Therefore, sustained cooperation requires credible commitments, transparent actions, and an equitable sharing of costs. While richer societies have greater capacity to finance the transition, poorer societies often face the greatest immediate risks. Successful agreements must balance individual incentives with the collective benefits of a stable climate.",
+      "comment": null
+    }
+  ],
+  "shared_state": {
+    "version": 1,
+    "bindings": [
+      {
+        "state_id": "gemini-document-a7b38246-e155-451c-bce1-10ed44944e0a",
+        "definition": {
+          "type": "shared_state_definition",
+          "version": 1,
+          "machines": {
+            "game": {
+              "name": "SharedDocument",
+              "constants": {
+                "title": "Climate cooperation translation chain",
+                "initial_text": "The atmosphere does not recognize national borders. Each country benefits when others reduce emissions, yet each also faces a temptation to delay its own costly action. Durable cooperation therefore requires credible commitments, transparent measurement, and a fair distribution of costs. Wealthier societies have greater capacity to finance the transition, while poorer societies often face the gravest immediate risks. A successful agreement must align individual incentives with the shared interest in a stable climate."
+              },
+              "fields": {
+                "text": {
+                  "type": {
+                    "op": "type",
+                    "args": [
+                      "text"
+                    ],
+                    "kwargs": {}
+                  },
+                  "initial": {
+                    "op": "ref",
+                    "args": [],
+                    "kwargs": {
+                      "namespace": "constant",
+                      "name": "initial_text"
+                    }
+                  }
+                },
+                "revisions": {
+                  "type": {
+                    "op": "type",
+                    "args": [
+                      "sequence"
+                    ],
+                    "kwargs": {
+                      "item": {
+                        "op": "type",
+                        "args": [
+                          "map"
+                        ],
+                        "kwargs": {
+                          "key": {
+                            "op": "type",
+                            "args": [
+                              "text"
+                            ],
+                            "kwargs": {}
+                          },
+                          "value": {
+                            "op": "type",
+                            "args": [
+                              "any"
+                            ],
+                            "kwargs": {}
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "initial": []
+                }
+              },
+              "commands": {
+                "revise": {
+                  "inputs": {
+                    "author": {
+                      "op": "type",
+                      "args": [
+                        "text"
+                      ],
+                      "kwargs": {}
+                    },
+                    "round": {
+                      "op": "type",
+                      "args": [
+                        "integer"
+                      ],
+                      "kwargs": {
+                        "minimum": 1,
+                        "maximum": null
+                      }
+                    },
+                    "text": {
+                      "op": "type",
+                      "args": [
+                        "text"
+                      ],
+                      "kwargs": {}
+                    },
+                    "rationale": {
+                      "op": "type",
+                      "args": [
+                        "text"
+                      ],
+                      "kwargs": {}
+                    }
+                  },
+                  "effects": [
+                    {
+                      "op": "set",
+                      "target": "text",
+                      "args": [
+                        {
+                          "op": "ref",
+                          "args": [],
+                          "kwargs": {
+                            "namespace": "input",
+                            "name": "text"
+                          }
+                        }
+                      ],
+                      "options": {}
+                    },
+                    {
+                      "op": "append",
+                      "target": "revisions",
+                      "args": [
+                        {
+                          "op": "record",
+                          "args": [],
+                          "kwargs": {
+                            "author": {
+                              "op": "ref",
+                              "args": [],
+                              "kwargs": {
+                                "namespace": "input",
+                                "name": "author"
+                              }
+                            },
+                            "round": {
+                              "op": "ref",
+                              "args": [],
+                              "kwargs": {
+                                "namespace": "input",
+                                "name": "round"
+                              }
+                            },
+                            "rationale": {
+                              "op": "ref",
+                              "args": [],
+                              "kwargs": {
+                                "namespace": "input",
+                                "name": "rationale"
+                              }
+                            },
+                            "changed": {
+                              "op": "not_equals",
+                              "args": [
+                                {
+                                  "op": "ref",
+                                  "args": [],
+                                  "kwargs": {
+                                    "namespace": "input",
+                                    "name": "text"
+                                  }
+                                },
+                                {
+                                  "op": "ref",
+                                  "args": [],
+                                  "kwargs": {
+                                    "namespace": "state",
+                                    "name": "text"
+                                  }
+                                }
+                              ],
+                              "kwargs": {}
+                            }
+                          }
+                        }
+                      ],
+                      "options": {}
+                    }
+                  ],
+                  "require": null,
+                  "timing": "after_answer"
+                }
+              },
+              "view": {
+                "title": {
+                  "op": "ref",
+                  "args": [],
+                  "kwargs": {
+                    "namespace": "constant",
+                    "name": "title"
+                  }
+                },
+                "text": {
+                  "op": "ref",
+                  "args": [],
+                  "kwargs": {
+                    "namespace": "state",
+                    "name": "text"
+                  }
+                },
+                "revision_count": {
+                  "op": "length",
+                  "args": [
+                    {
+                      "op": "ref",
+                      "args": [],
+                      "kwargs": {
+                        "namespace": "state",
+                        "name": "revisions"
+                      }
+                    }
+                  ],
+                  "kwargs": {}
+                },
+                "recent_revisions": {
+                  "op": "reduce",
+                  "args": [
+                    "tail",
+                    {
+                      "op": "ref",
+                      "args": [],
+                      "kwargs": {
+                        "namespace": "state",
+                        "name": "revisions"
+                      }
+                    }
+                  ],
+                  "kwargs": {
+                    "count": 10
+                  }
+                }
+              },
+              "complete_when": null,
+              "close_effects": [],
+              "algorithms": []
+            }
+          }
+        },
+        "entry_snapshots": [
+          {
+            "state_id": "gemini-document-a7b38246-e155-451c-bce1-10ed44944e0a",
+            "scope": "plan",
+            "version": 0,
+            "state": {
+              "game": {
+                "text": "The atmosphere does not recognize national borders. Each country benefits when others reduce emissions, yet each also faces a temptation to delay its own costly action. Durable cooperation therefore requires credible commitments, transparent measurement, and a fair distribution of costs. Wealthier societies have greater capacity to finance the transition, while poorer societies often face the gravest immediate risks. A successful agreement must align individual incentives with the shared interest in a stable climate.",
+                "revisions": []
+              }
+            }
+          }
+        ],
+        "events": [
+          {
+            "event_id": "ac750470-d202-4e24-8810-8f3287c576ed",
+            "execution_id": "854e3d6c-09fc-46d4-b46e-0ba65d90657f",
+            "format": 1,
+            "kind": "read",
+            "read_id": "ac750470-d202-4e24-8810-8f3287c576ed",
+            "scope": "plan",
+            "scope_canonical": "\"plan\"",
+            "state_id": "gemini-document-a7b38246-e155-451c-bce1-10ed44944e0a",
+            "step_id": "f5f81c0f-226a-4218-91b2-90e552aabc52",
+            "target": "game",
+            "timestamp": "2026-08-30T22:30:04.179353+00:00",
+            "value": {
+              "recent_revisions": [],
+              "revision_count": 0,
+              "text": "The atmosphere does not recognize national borders. Each country benefits when others reduce emissions, yet each also faces a temptation to delay its own costly action. Durable cooperation therefore requires credible commitments, transparent measurement, and a fair distribution of costs. Wealthier societies have greater capacity to finance the transition, while poorer societies often face the gravest immediate risks. A successful agreement must align individual incentives with the shared interest in a stable climate.",
+              "title": "Climate cooperation translation chain"
+            },
+            "version": 0
+          },
+          {
+            "changed": true,
+            "command": "revise",
+            "event_id": "gemini-document-a7b38246-e155-451c-bce1-10ed44944e0a:\"plan\":1",
+            "execution_id": "854e3d6c-09fc-46d4-b46e-0ba65d90657f",
+            "format": 1,
+            "idempotency_key": "6dfa1c5889f8f884f933390b",
+            "inputs": {
+              "author": "Spanish translator",
+              "rationale": "Translate the current document",
+              "round": 1,
+              "text": "La atm\u00f3sfera no reconoce fronteras nacionales. Cada pa\u00eds se beneficia cuando otros reducen las emisiones, pero cada uno tambi\u00e9n se enfrenta a la tentaci\u00f3n de retrasar su propia acci\u00f3n costosa. Por lo tanto, una cooperaci\u00f3n duradera requiere compromisos cre\u00edbles, mediciones transparentes y una distribuci\u00f3n justa de los costos. Las sociedades m\u00e1s ricas tienen una mayor capacidad para financiar la transici\u00f3n, mientras que las sociedades m\u00e1s pobres a menudo enfrentan los riesgos inmediatos m\u00e1s graves. Un acuerdo exitoso debe alinear los incentivos individuales con el inter\u00e9s compartido en un clima estable."
+            },
+            "kind": "write",
+            "scope": "plan",
+            "scope_canonical": "\"plan\"",
+            "state": {
+              "game": {
+                "revisions": [
+                  {
+                    "author": "Spanish translator",
+                    "changed": true,
+                    "rationale": "Translate the current document",
+                    "round": 1
+                  }
+                ],
+                "text": "La atm\u00f3sfera no reconoce fronteras nacionales. Cada pa\u00eds se beneficia cuando otros reducen las emisiones, pero cada uno tambi\u00e9n se enfrenta a la tentaci\u00f3n de retrasar su propia acci\u00f3n costosa. Por lo tanto, una cooperaci\u00f3n duradera requiere compromisos cre\u00edbles, mediciones transparentes y una distribuci\u00f3n justa de los costos. Las sociedades m\u00e1s ricas tienen una mayor capacidad para financiar la transici\u00f3n, mientras que las sociedades m\u00e1s pobres a menudo enfrentan los riesgos inmediatos m\u00e1s graves. Un acuerdo exitoso debe alinear los incentivos individuales con el inter\u00e9s compartido en un clima estable."
+              }
+            },
+            "state_id": "gemini-document-a7b38246-e155-451c-bce1-10ed44944e0a",
+            "step_id": "ba88d619-618e-49ea-a7d1-cec13f0d931f",
+            "target": "game",
+            "timestamp": "2026-08-30T22:30:05.644763+00:00",
+            "version": 1
+          },
+          {
+            "event_id": "01828cc3-278a-4aa2-be5f-369cc9ae43d5",
+            "execution_id": "4b847cb0-5967-474e-8fc3-3c460d6d3259",
+            "format": 1,
+            "kind": "read",
+            "read_id": "01828cc3-278a-4aa2-be5f-369cc9ae43d5",
+            "scope": "plan",
+            "scope_canonical": "\"plan\"",
+            "state_id": "gemini-document-a7b38246-e155-451c-bce1-10ed44944e0a",
+            "step_id": "f5f81c0f-226a-4218-91b2-90e552aabc52",
+            "target": "game",
+            "timestamp": "2026-08-30T22:30:05.653869+00:00",
+            "value": {
+              "recent_revisions": [
+                {
+                  "author": "Spanish translator",
+                  "changed": true,
+                  "rationale": "Translate the current document",
+                  "round": 1
+                }
+              ],
+              "revision_count": 1,
+              "text": "La atm\u00f3sfera no reconoce fronteras nacionales. Cada pa\u00eds se beneficia cuando otros reducen las emisiones, pero cada uno tambi\u00e9n se enfrenta a la tentaci\u00f3n de retrasar su propia acci\u00f3n costosa. Por lo tanto, una cooperaci\u00f3n duradera requiere compromisos cre\u00edbles, mediciones transparentes y una distribuci\u00f3n justa de los costos. Las sociedades m\u00e1s ricas tienen una mayor capacidad para financiar la transici\u00f3n, mientras que las sociedades m\u00e1s pobres a menudo enfrentan los riesgos inmediatos m\u00e1s graves. Un acuerdo exitoso debe alinear los incentivos individuales con el inter\u00e9s compartido en un clima estable.",
+              "title": "Climate cooperation translation chain"
+            },
+            "version": 1
+          },
+          {
+            "changed": true,
+            "command": "revise",
+            "event_id": "gemini-document-a7b38246-e155-451c-bce1-10ed44944e0a:\"plan\":2",
+            "execution_id": "4b847cb0-5967-474e-8fc3-3c460d6d3259",
+            "format": 1,
+            "idempotency_key": "64df86cdbf8454105fd47ae5",
+            "inputs": {
+              "author": "French translator",
+              "rationale": "Translate the current document",
+              "round": 2,
+              "text": "L'atmosph\u00e8re ne conna\u00eet pas de fronti\u00e8res nationales. Chaque pays b\u00e9n\u00e9ficie de la r\u00e9duction des \u00e9missions par les autres, mais chacun est \u00e9galement confront\u00e9 \u00e0 la tentation de retarder sa propre action co\u00fbteuse. Par cons\u00e9quent, une coop\u00e9ration durable exige des engagements cr\u00e9dibles, des mesures transparentes et une r\u00e9partition \u00e9quitable des co\u00fbts. Les soci\u00e9t\u00e9s plus riches ont une plus grande capacit\u00e9 \u00e0 financer la transition, tandis que les soci\u00e9t\u00e9s plus pauvres sont souvent confront\u00e9es aux risques imm\u00e9diats les plus graves. Un accord r\u00e9ussi doit aligner les incitations individuelles sur l'int\u00e9r\u00eat partag\u00e9 d'un climat stable."
+            },
+            "kind": "write",
+            "scope": "plan",
+            "scope_canonical": "\"plan\"",
+            "state": {
+              "game": {
+                "revisions": [
+                  {
+                    "author": "Spanish translator",
+                    "changed": true,
+                    "rationale": "Translate the current document",
+                    "round": 1
+                  },
+                  {
+                    "author": "French translator",
+                    "changed": true,
+                    "rationale": "Translate the current document",
+                    "round": 2
+                  }
+                ],
+                "text": "L'atmosph\u00e8re ne conna\u00eet pas de fronti\u00e8res nationales. Chaque pays b\u00e9n\u00e9ficie de la r\u00e9duction des \u00e9missions par les autres, mais chacun est \u00e9galement confront\u00e9 \u00e0 la tentation de retarder sa propre action co\u00fbteuse. Par cons\u00e9quent, une coop\u00e9ration durable exige des engagements cr\u00e9dibles, des mesures transparentes et une r\u00e9partition \u00e9quitable des co\u00fbts. Les soci\u00e9t\u00e9s plus riches ont une plus grande capacit\u00e9 \u00e0 financer la transition, tandis que les soci\u00e9t\u00e9s plus pauvres sont souvent confront\u00e9es aux risques imm\u00e9diats les plus graves. Un accord r\u00e9ussi doit aligner les incitations individuelles sur l'int\u00e9r\u00eat partag\u00e9 d'un climat stable."
+              }
+            },
+            "state_id": "gemini-document-a7b38246-e155-451c-bce1-10ed44944e0a",
+            "step_id": "ba88d619-618e-49ea-a7d1-cec13f0d931f",
+            "target": "game",
+            "timestamp": "2026-08-30T22:30:06.625765+00:00",
+            "version": 2
+          },
+          {
+            "event_id": "53149e56-b3ab-482f-a316-c521079867fc",
+            "execution_id": "7ebff608-b686-4961-8551-4077a9e8755c",
+            "format": 1,
+            "kind": "read",
+            "read_id": "53149e56-b3ab-482f-a316-c521079867fc",
+            "scope": "plan",
+            "scope_canonical": "\"plan\"",
+            "state_id": "gemini-document-a7b38246-e155-451c-bce1-10ed44944e0a",
+            "step_id": "f5f81c0f-226a-4218-91b2-90e552aabc52",
+            "target": "game",
+            "timestamp": "2026-08-30T22:30:06.632115+00:00",
+            "value": {
+              "recent_revisions": [
+                {
+                  "author": "Spanish translator",
+                  "changed": true,
+                  "rationale": "Translate the current document",
+                  "round": 1
+                },
+                {
+                  "author": "French translator",
+                  "changed": true,
+                  "rationale": "Translate the current document",
+                  "round": 2
+                }
+              ],
+              "revision_count": 2,
+              "text": "L'atmosph\u00e8re ne conna\u00eet pas de fronti\u00e8res nationales. Chaque pays b\u00e9n\u00e9ficie de la r\u00e9duction des \u00e9missions par les autres, mais chacun est \u00e9galement confront\u00e9 \u00e0 la tentation de retarder sa propre action co\u00fbteuse. Par cons\u00e9quent, une coop\u00e9ration durable exige des engagements cr\u00e9dibles, des mesures transparentes et une r\u00e9partition \u00e9quitable des co\u00fbts. Les soci\u00e9t\u00e9s plus riches ont une plus grande capacit\u00e9 \u00e0 financer la transition, tandis que les soci\u00e9t\u00e9s plus pauvres sont souvent confront\u00e9es aux risques imm\u00e9diats les plus graves. Un accord r\u00e9ussi doit aligner les incitations individuelles sur l'int\u00e9r\u00eat partag\u00e9 d'un climat stable.",
+              "title": "Climate cooperation translation chain"
+            },
+            "version": 2
+          },
+          {
+            "changed": true,
+            "command": "revise",
+            "event_id": "gemini-document-a7b38246-e155-451c-bce1-10ed44944e0a:\"plan\":3",
+            "execution_id": "7ebff608-b686-4961-8551-4077a9e8755c",
+            "format": 1,
+            "idempotency_key": "982721ab40ac4a4aa0a9faeb",
+            "inputs": {
+              "author": "German translator",
+              "rationale": "Translate the current document",
+              "round": 3,
+              "text": "Die Atmosph\u00e4re kennt keine nationalen Grenzen. Jedes Land profitiert von der Emissionsreduzierung durch andere, aber jedes ist auch der Versuchung ausgesetzt, seine eigenen kostspieligen Ma\u00dfnahmen zu verz\u00f6gern. Eine dauerhafte Zusammenarbeit erfordert daher glaubw\u00fcrdige Zusagen, transparente Ma\u00dfnahmen und eine gerechte Kostenverteilung. Reichere Gesellschaften haben eine gr\u00f6\u00dfere F\u00e4higkeit, den \u00dcbergang zu finanzieren, w\u00e4hrend \u00e4rmere Gesellschaften oft mit den schwerwiegendsten unmittelbaren Risiken konfrontiert sind. Ein erfolgreiches Abkommen muss individuelle Anreize mit dem gemeinsamen Interesse an einem stabilen Klima in Einklang bringen."
+            },
+            "kind": "write",
+            "scope": "plan",
+            "scope_canonical": "\"plan\"",
+            "state": {
+              "game": {
+                "revisions": [
+                  {
+                    "author": "Spanish translator",
+                    "changed": true,
+                    "rationale": "Translate the current document",
+                    "round": 1
+                  },
+                  {
+                    "author": "French translator",
+                    "changed": true,
+                    "rationale": "Translate the current document",
+                    "round": 2
+                  },
+                  {
+                    "author": "German translator",
+                    "changed": true,
+                    "rationale": "Translate the current document",
+                    "round": 3
+                  }
+                ],
+                "text": "Die Atmosph\u00e4re kennt keine nationalen Grenzen. Jedes Land profitiert von der Emissionsreduzierung durch andere, aber jedes ist auch der Versuchung ausgesetzt, seine eigenen kostspieligen Ma\u00dfnahmen zu verz\u00f6gern. Eine dauerhafte Zusammenarbeit erfordert daher glaubw\u00fcrdige Zusagen, transparente Ma\u00dfnahmen und eine gerechte Kostenverteilung. Reichere Gesellschaften haben eine gr\u00f6\u00dfere F\u00e4higkeit, den \u00dcbergang zu finanzieren, w\u00e4hrend \u00e4rmere Gesellschaften oft mit den schwerwiegendsten unmittelbaren Risiken konfrontiert sind. Ein erfolgreiches Abkommen muss individuelle Anreize mit dem gemeinsamen Interesse an einem stabilen Klima in Einklang bringen."
+              }
+            },
+            "state_id": "gemini-document-a7b38246-e155-451c-bce1-10ed44944e0a",
+            "step_id": "ba88d619-618e-49ea-a7d1-cec13f0d931f",
+            "target": "game",
+            "timestamp": "2026-08-30T22:30:07.662489+00:00",
+            "version": 3
+          },
+          {
+            "event_id": "5a6b982e-0b1e-4b34-b02a-3cd256e5e661",
+            "execution_id": "399370ae-c03c-4e8c-a198-4ba8b15aa924",
+            "format": 1,
+            "kind": "read",
+            "read_id": "5a6b982e-0b1e-4b34-b02a-3cd256e5e661",
+            "scope": "plan",
+            "scope_canonical": "\"plan\"",
+            "state_id": "gemini-document-a7b38246-e155-451c-bce1-10ed44944e0a",
+            "step_id": "f5f81c0f-226a-4218-91b2-90e552aabc52",
+            "target": "game",
+            "timestamp": "2026-08-30T22:30:07.671978+00:00",
+            "value": {
+              "recent_revisions": [
+                {
+                  "author": "Spanish translator",
+                  "changed": true,
+                  "rationale": "Translate the current document",
+                  "round": 1
+                },
+                {
+                  "author": "French translator",
+                  "changed": true,
+                  "rationale": "Translate the current document",
+                  "round": 2
+                },
+                {
+                  "author": "German translator",
+                  "changed": true,
+                  "rationale": "Translate the current document",
+                  "round": 3
+                }
+              ],
+              "revision_count": 3,
+              "text": "Die Atmosph\u00e4re kennt keine nationalen Grenzen. Jedes Land profitiert von der Emissionsreduzierung durch andere, aber jedes ist auch der Versuchung ausgesetzt, seine eigenen kostspieligen Ma\u00dfnahmen zu verz\u00f6gern. Eine dauerhafte Zusammenarbeit erfordert daher glaubw\u00fcrdige Zusagen, transparente Ma\u00dfnahmen und eine gerechte Kostenverteilung. Reichere Gesellschaften haben eine gr\u00f6\u00dfere F\u00e4higkeit, den \u00dcbergang zu finanzieren, w\u00e4hrend \u00e4rmere Gesellschaften oft mit den schwerwiegendsten unmittelbaren Risiken konfrontiert sind. Ein erfolgreiches Abkommen muss individuelle Anreize mit dem gemeinsamen Interesse an einem stabilen Klima in Einklang bringen.",
+              "title": "Climate cooperation translation chain"
+            },
+            "version": 3
+          },
+          {
+            "changed": true,
+            "command": "revise",
+            "event_id": "gemini-document-a7b38246-e155-451c-bce1-10ed44944e0a:\"plan\":4",
+            "execution_id": "399370ae-c03c-4e8c-a198-4ba8b15aa924",
+            "format": 1,
+            "idempotency_key": "d0e6cd2b8a79a42daf1d9582",
+            "inputs": {
+              "author": "Japanese translator",
+              "rationale": "Translate the current document",
+              "round": 4,
+              "text": "\u5927\u6c17\u306b\u306f\u56fd\u5883\u304c\u3042\u308a\u307e\u305b\u3093\u3002\u5404\u56fd\u306f\u4ed6\u56fd\u306b\u3088\u308b\u6392\u51fa\u524a\u6e1b\u304b\u3089\u5229\u76ca\u3092\u5f97\u307e\u3059\u304c\u3001\u540c\u6642\u306b\u81ea\u56fd\u306e\u8cbb\u7528\u306e\u304b\u304b\u308b\u5bfe\u7b56\u3092\u9045\u3089\u305b\u305f\u3044\u3068\u3044\u3046\u8a98\u60d1\u306b\u3082\u99c6\u3089\u308c\u307e\u3059\u3002\u3057\u305f\u304c\u3063\u3066\u3001\u6c38\u7d9a\u7684\u306a\u5354\u529b\u306b\u306f\u3001\u4fe1\u983c\u3067\u304d\u308b\u516c\u7d04\u3001\u900f\u660e\u6027\u306e\u3042\u308b\u884c\u52d5\u3001\u305d\u3057\u3066\u516c\u6b63\u306a\u8cbb\u7528\u5206\u62c5\u304c\u5fc5\u8981\u3067\u3059\u3002\u8c4a\u304b\u306a\u793e\u4f1a\u306f\u79fb\u884c\u306b\u8cc7\u91d1\u3092\u63d0\u4f9b\u3059\u308b\u80fd\u529b\u304c\u9ad8\u3044\u4e00\u65b9\u3067\u3001\u8ca7\u3057\u3044\u793e\u4f1a\u306f\u3057\u3070\u3057\u3070\u6700\u3082\u6df1\u523b\u306a\u5dee\u3057\u8feb\u3063\u305f\u30ea\u30b9\u30af\u306b\u76f4\u9762\u3057\u307e\u3059\u3002\u6210\u529f\u3059\u308b\u5408\u610f\u306f\u3001\u500b\u3005\u306e\u30a4\u30f3\u30bb\u30f3\u30c6\u30a3\u30d6\u3068\u3001\u5b89\u5b9a\u3057\u305f\u6c17\u5019\u3068\u3044\u3046\u5171\u901a\u306e\u5229\u76ca\u3068\u306e\u30d0\u30e9\u30f3\u30b9\u3092\u53d6\u308b\u5fc5\u8981\u304c\u3042\u308a\u307e\u3059\u3002"
+            },
+            "kind": "write",
+            "scope": "plan",
+            "scope_canonical": "\"plan\"",
+            "state": {
+              "game": {
+                "revisions": [
+                  {
+                    "author": "Spanish translator",
+                    "changed": true,
+                    "rationale": "Translate the current document",
+                    "round": 1
+                  },
+                  {
+                    "author": "French translator",
+                    "changed": true,
+                    "rationale": "Translate the current document",
+                    "round": 2
+                  },
+                  {
+                    "author": "German translator",
+                    "changed": true,
+                    "rationale": "Translate the current document",
+                    "round": 3
+                  },
+                  {
+                    "author": "Japanese translator",
+                    "changed": true,
+                    "rationale": "Translate the current document",
+                    "round": 4
+                  }
+                ],
+                "text": "\u5927\u6c17\u306b\u306f\u56fd\u5883\u304c\u3042\u308a\u307e\u305b\u3093\u3002\u5404\u56fd\u306f\u4ed6\u56fd\u306b\u3088\u308b\u6392\u51fa\u524a\u6e1b\u304b\u3089\u5229\u76ca\u3092\u5f97\u307e\u3059\u304c\u3001\u540c\u6642\u306b\u81ea\u56fd\u306e\u8cbb\u7528\u306e\u304b\u304b\u308b\u5bfe\u7b56\u3092\u9045\u3089\u305b\u305f\u3044\u3068\u3044\u3046\u8a98\u60d1\u306b\u3082\u99c6\u3089\u308c\u307e\u3059\u3002\u3057\u305f\u304c\u3063\u3066\u3001\u6c38\u7d9a\u7684\u306a\u5354\u529b\u306b\u306f\u3001\u4fe1\u983c\u3067\u304d\u308b\u516c\u7d04\u3001\u900f\u660e\u6027\u306e\u3042\u308b\u884c\u52d5\u3001\u305d\u3057\u3066\u516c\u6b63\u306a\u8cbb\u7528\u5206\u62c5\u304c\u5fc5\u8981\u3067\u3059\u3002\u8c4a\u304b\u306a\u793e\u4f1a\u306f\u79fb\u884c\u306b\u8cc7\u91d1\u3092\u63d0\u4f9b\u3059\u308b\u80fd\u529b\u304c\u9ad8\u3044\u4e00\u65b9\u3067\u3001\u8ca7\u3057\u3044\u793e\u4f1a\u306f\u3057\u3070\u3057\u3070\u6700\u3082\u6df1\u523b\u306a\u5dee\u3057\u8feb\u3063\u305f\u30ea\u30b9\u30af\u306b\u76f4\u9762\u3057\u307e\u3059\u3002\u6210\u529f\u3059\u308b\u5408\u610f\u306f\u3001\u500b\u3005\u306e\u30a4\u30f3\u30bb\u30f3\u30c6\u30a3\u30d6\u3068\u3001\u5b89\u5b9a\u3057\u305f\u6c17\u5019\u3068\u3044\u3046\u5171\u901a\u306e\u5229\u76ca\u3068\u306e\u30d0\u30e9\u30f3\u30b9\u3092\u53d6\u308b\u5fc5\u8981\u304c\u3042\u308a\u307e\u3059\u3002"
+              }
+            },
+            "state_id": "gemini-document-a7b38246-e155-451c-bce1-10ed44944e0a",
+            "step_id": "ba88d619-618e-49ea-a7d1-cec13f0d931f",
+            "target": "game",
+            "timestamp": "2026-08-30T22:30:08.866432+00:00",
+            "version": 4
+          },
+          {
+            "event_id": "d2080d52-777b-4cd7-9d65-216a16237501",
+            "execution_id": "7b379ae8-24d2-482a-ae0e-7a4b938d5191",
+            "format": 1,
+            "kind": "read",
+            "read_id": "d2080d52-777b-4cd7-9d65-216a16237501",
+            "scope": "plan",
+            "scope_canonical": "\"plan\"",
+            "state_id": "gemini-document-a7b38246-e155-451c-bce1-10ed44944e0a",
+            "step_id": "f5f81c0f-226a-4218-91b2-90e552aabc52",
+            "target": "game",
+            "timestamp": "2026-08-30T22:30:08.902403+00:00",
+            "value": {
+              "recent_revisions": [
+                {
+                  "author": "Spanish translator",
+                  "changed": true,
+                  "rationale": "Translate the current document",
+                  "round": 1
+                },
+                {
+                  "author": "French translator",
+                  "changed": true,
+                  "rationale": "Translate the current document",
+                  "round": 2
+                },
+                {
+                  "author": "German translator",
+                  "changed": true,
+                  "rationale": "Translate the current document",
+                  "round": 3
+                },
+                {
+                  "author": "Japanese translator",
+                  "changed": true,
+                  "rationale": "Translate the current document",
+                  "round": 4
+                }
+              ],
+              "revision_count": 4,
+              "text": "\u5927\u6c17\u306b\u306f\u56fd\u5883\u304c\u3042\u308a\u307e\u305b\u3093\u3002\u5404\u56fd\u306f\u4ed6\u56fd\u306b\u3088\u308b\u6392\u51fa\u524a\u6e1b\u304b\u3089\u5229\u76ca\u3092\u5f97\u307e\u3059\u304c\u3001\u540c\u6642\u306b\u81ea\u56fd\u306e\u8cbb\u7528\u306e\u304b\u304b\u308b\u5bfe\u7b56\u3092\u9045\u3089\u305b\u305f\u3044\u3068\u3044\u3046\u8a98\u60d1\u306b\u3082\u99c6\u3089\u308c\u307e\u3059\u3002\u3057\u305f\u304c\u3063\u3066\u3001\u6c38\u7d9a\u7684\u306a\u5354\u529b\u306b\u306f\u3001\u4fe1\u983c\u3067\u304d\u308b\u516c\u7d04\u3001\u900f\u660e\u6027\u306e\u3042\u308b\u884c\u52d5\u3001\u305d\u3057\u3066\u516c\u6b63\u306a\u8cbb\u7528\u5206\u62c5\u304c\u5fc5\u8981\u3067\u3059\u3002\u8c4a\u304b\u306a\u793e\u4f1a\u306f\u79fb\u884c\u306b\u8cc7\u91d1\u3092\u63d0\u4f9b\u3059\u308b\u80fd\u529b\u304c\u9ad8\u3044\u4e00\u65b9\u3067\u3001\u8ca7\u3057\u3044\u793e\u4f1a\u306f\u3057\u3070\u3057\u3070\u6700\u3082\u6df1\u523b\u306a\u5dee\u3057\u8feb\u3063\u305f\u30ea\u30b9\u30af\u306b\u76f4\u9762\u3057\u307e\u3059\u3002\u6210\u529f\u3059\u308b\u5408\u610f\u306f\u3001\u500b\u3005\u306e\u30a4\u30f3\u30bb\u30f3\u30c6\u30a3\u30d6\u3068\u3001\u5b89\u5b9a\u3057\u305f\u6c17\u5019\u3068\u3044\u3046\u5171\u901a\u306e\u5229\u76ca\u3068\u306e\u30d0\u30e9\u30f3\u30b9\u3092\u53d6\u308b\u5fc5\u8981\u304c\u3042\u308a\u307e\u3059\u3002",
+              "title": "Climate cooperation translation chain"
+            },
+            "version": 4
+          },
+          {
+            "changed": true,
+            "command": "revise",
+            "event_id": "gemini-document-a7b38246-e155-451c-bce1-10ed44944e0a:\"plan\":5",
+            "execution_id": "7b379ae8-24d2-482a-ae0e-7a4b938d5191",
+            "format": 1,
+            "idempotency_key": "992c1e1e7c8f540456daca42",
+            "inputs": {
+              "author": "Swahili translator",
+              "rationale": "Translate the current document",
+              "round": 5,
+              "text": "Anga haina mipaka. Kila nchi hunufaika na upunguzaji wa uzalishaji wa hewa chafu unaofanywa na nchi nyingine, lakini wakati huo huo inashawishika kuchelewesha hatua zake za gharama kubwa. Kwa hivyo, ushirikiano endelevu unahitaji ahadi za kuaminika, vitendo vya uwazi, na ugawaji wa gharama ulio sawa. Ingawa jamii tajiri zina uwezo mkubwa wa kufadhili mabadiliko, jamii maskini mara nyingi hukabili hatari kubwa zaidi zilizo karibu. Makubaliano yenye mafanikio yanahitaji kusawazisha vivutio vya kibinafsi na manufaa ya pamoja ya hali ya hewa thabiti."
+            },
+            "kind": "write",
+            "scope": "plan",
+            "scope_canonical": "\"plan\"",
+            "state": {
+              "game": {
+                "revisions": [
+                  {
+                    "author": "Spanish translator",
+                    "changed": true,
+                    "rationale": "Translate the current document",
+                    "round": 1
+                  },
+                  {
+                    "author": "French translator",
+                    "changed": true,
+                    "rationale": "Translate the current document",
+                    "round": 2
+                  },
+                  {
+                    "author": "German translator",
+                    "changed": true,
+                    "rationale": "Translate the current document",
+                    "round": 3
+                  },
+                  {
+                    "author": "Japanese translator",
+                    "changed": true,
+                    "rationale": "Translate the current document",
+                    "round": 4
+                  },
+                  {
+                    "author": "Swahili translator",
+                    "changed": true,
+                    "rationale": "Translate the current document",
+                    "round": 5
+                  }
+                ],
+                "text": "Anga haina mipaka. Kila nchi hunufaika na upunguzaji wa uzalishaji wa hewa chafu unaofanywa na nchi nyingine, lakini wakati huo huo inashawishika kuchelewesha hatua zake za gharama kubwa. Kwa hivyo, ushirikiano endelevu unahitaji ahadi za kuaminika, vitendo vya uwazi, na ugawaji wa gharama ulio sawa. Ingawa jamii tajiri zina uwezo mkubwa wa kufadhili mabadiliko, jamii maskini mara nyingi hukabili hatari kubwa zaidi zilizo karibu. Makubaliano yenye mafanikio yanahitaji kusawazisha vivutio vya kibinafsi na manufaa ya pamoja ya hali ya hewa thabiti."
+              }
+            },
+            "state_id": "gemini-document-a7b38246-e155-451c-bce1-10ed44944e0a",
+            "step_id": "ba88d619-618e-49ea-a7d1-cec13f0d931f",
+            "target": "game",
+            "timestamp": "2026-08-30T22:30:10.343766+00:00",
+            "version": 5
+          },
+          {
+            "event_id": "5540e0c8-1cd9-48dc-9cd9-c7cef65981c9",
+            "execution_id": "28f2b2ed-e1c6-455e-ab93-0bd3b7cf7251",
+            "format": 1,
+            "kind": "read",
+            "read_id": "5540e0c8-1cd9-48dc-9cd9-c7cef65981c9",
+            "scope": "plan",
+            "scope_canonical": "\"plan\"",
+            "state_id": "gemini-document-a7b38246-e155-451c-bce1-10ed44944e0a",
+            "step_id": "f5f81c0f-226a-4218-91b2-90e552aabc52",
+            "target": "game",
+            "timestamp": "2026-08-30T22:30:10.354872+00:00",
+            "value": {
+              "recent_revisions": [
+                {
+                  "author": "Spanish translator",
+                  "changed": true,
+                  "rationale": "Translate the current document",
+                  "round": 1
+                },
+                {
+                  "author": "French translator",
+                  "changed": true,
+                  "rationale": "Translate the current document",
+                  "round": 2
+                },
+                {
+                  "author": "German translator",
+                  "changed": true,
+                  "rationale": "Translate the current document",
+                  "round": 3
+                },
+                {
+                  "author": "Japanese translator",
+                  "changed": true,
+                  "rationale": "Translate the current document",
+                  "round": 4
+                },
+                {
+                  "author": "Swahili translator",
+                  "changed": true,
+                  "rationale": "Translate the current document",
+                  "round": 5
+                }
+              ],
+              "revision_count": 5,
+              "text": "Anga haina mipaka. Kila nchi hunufaika na upunguzaji wa uzalishaji wa hewa chafu unaofanywa na nchi nyingine, lakini wakati huo huo inashawishika kuchelewesha hatua zake za gharama kubwa. Kwa hivyo, ushirikiano endelevu unahitaji ahadi za kuaminika, vitendo vya uwazi, na ugawaji wa gharama ulio sawa. Ingawa jamii tajiri zina uwezo mkubwa wa kufadhili mabadiliko, jamii maskini mara nyingi hukabili hatari kubwa zaidi zilizo karibu. Makubaliano yenye mafanikio yanahitaji kusawazisha vivutio vya kibinafsi na manufaa ya pamoja ya hali ya hewa thabiti.",
+              "title": "Climate cooperation translation chain"
+            },
+            "version": 5
+          },
+          {
+            "changed": true,
+            "command": "revise",
+            "event_id": "gemini-document-a7b38246-e155-451c-bce1-10ed44944e0a:\"plan\":6",
+            "execution_id": "28f2b2ed-e1c6-455e-ab93-0bd3b7cf7251",
+            "format": 1,
+            "idempotency_key": "5e25ed62030cd1a7537722cc",
+            "inputs": {
+              "author": "English translator",
+              "rationale": "Translate the current document",
+              "round": 6,
+              "text": "The atmosphere knows no boundaries. Every country benefits from emissions reductions made by other countries, but at the same time is tempted to delay its own costly actions. Therefore, sustained cooperation requires credible commitments, transparent actions, and an equitable sharing of costs. While richer societies have greater capacity to finance the transition, poorer societies often face the greatest immediate risks. Successful agreements must balance individual incentives with the collective benefits of a stable climate."
+            },
+            "kind": "write",
+            "scope": "plan",
+            "scope_canonical": "\"plan\"",
+            "state": {
+              "game": {
+                "revisions": [
+                  {
+                    "author": "Spanish translator",
+                    "changed": true,
+                    "rationale": "Translate the current document",
+                    "round": 1
+                  },
+                  {
+                    "author": "French translator",
+                    "changed": true,
+                    "rationale": "Translate the current document",
+                    "round": 2
+                  },
+                  {
+                    "author": "German translator",
+                    "changed": true,
+                    "rationale": "Translate the current document",
+                    "round": 3
+                  },
+                  {
+                    "author": "Japanese translator",
+                    "changed": true,
+                    "rationale": "Translate the current document",
+                    "round": 4
+                  },
+                  {
+                    "author": "Swahili translator",
+                    "changed": true,
+                    "rationale": "Translate the current document",
+                    "round": 5
+                  },
+                  {
+                    "author": "English translator",
+                    "changed": true,
+                    "rationale": "Translate the current document",
+                    "round": 6
+                  }
+                ],
+                "text": "The atmosphere knows no boundaries. Every country benefits from emissions reductions made by other countries, but at the same time is tempted to delay its own costly actions. Therefore, sustained cooperation requires credible commitments, transparent actions, and an equitable sharing of costs. While richer societies have greater capacity to finance the transition, poorer societies often face the greatest immediate risks. Successful agreements must balance individual incentives with the collective benefits of a stable climate."
+              }
+            },
+            "state_id": "gemini-document-a7b38246-e155-451c-bce1-10ed44944e0a",
+            "step_id": "ba88d619-618e-49ea-a7d1-cec13f0d931f",
+            "target": "game",
+            "timestamp": "2026-08-30T22:30:11.227145+00:00",
+            "version": 6
+          }
+        ],
+        "exit_snapshots": [
+          {
+            "state_id": "gemini-document-a7b38246-e155-451c-bce1-10ed44944e0a",
+            "scope": "plan",
+            "version": 6,
+            "state": {
+              "game": {
+                "revisions": [
+                  {
+                    "author": "Spanish translator",
+                    "changed": true,
+                    "rationale": "Translate the current document",
+                    "round": 1
+                  },
+                  {
+                    "author": "French translator",
+                    "changed": true,
+                    "rationale": "Translate the current document",
+                    "round": 2
+                  },
+                  {
+                    "author": "German translator",
+                    "changed": true,
+                    "rationale": "Translate the current document",
+                    "round": 3
+                  },
+                  {
+                    "author": "Japanese translator",
+                    "changed": true,
+                    "rationale": "Translate the current document",
+                    "round": 4
+                  },
+                  {
+                    "author": "Swahili translator",
+                    "changed": true,
+                    "rationale": "Translate the current document",
+                    "round": 5
+                  },
+                  {
+                    "author": "English translator",
+                    "changed": true,
+                    "rationale": "Translate the current document",
+                    "round": 6
+                  }
+                ],
+                "text": "The atmosphere knows no boundaries. Every country benefits from emissions reductions made by other countries, but at the same time is tempted to delay its own costly actions. Therefore, sustained cooperation requires credible commitments, transparent actions, and an equitable sharing of costs. While richer societies have greater capacity to finance the transition, poorer societies often face the greatest immediate risks. Successful agreements must balance individual incentives with the collective benefits of a stable climate."
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

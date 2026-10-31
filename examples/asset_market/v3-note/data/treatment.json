@@ -1,0 +1,28 @@
+{
+  "composition": [
+    "RA",
+    "MC",
+    "BT",
+    "PC",
+    "NT",
+    "OC",
+    "RA",
+    "MC",
+    "BT",
+    "PC",
+    "NT",
+    "OC"
+  ],
+  "assignment_seed": 140926,
+  "model": "gpt-5-mini",
+  "service": "openai",
+  "temperature": 1.0,
+  "reasoning_effort": "medium",
+  "max_tokens": 8000,
+  "forecast_horizons": [
+    0,
+    2,
+    5,
+    10
+  ]
+}

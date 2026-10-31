@@ -1,0 +1,721 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Players alternate take/pass decisions along a three-node payoff tree."><title>Centipede game</title><style>
+:root{--ink:#17211b;--muted:#637168;--paper:#fafbf7;--card:#fff;--line:#dce5dd;
+--green:#176b4d;--deep:#113d2d;--mint:#e8f4ed;--amber:#b56518;--code:#14201a}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--paper);
+color:var(--ink);font:16.5px/1.62 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+a{color:var(--green)}header{padding:72px 24px 56px;color:#fff;background:linear-gradient(125deg,#123c2d,#176b4d 60%,#347b61)}
+.wrap,main{width:min(1120px,calc(100% - 40px));margin:auto}h1{max-width:900px;margin:0 0 14px;
+font:750 clamp(2.4rem,6vw,4.8rem)/1.02 Georgia,serif;letter-spacing:-.035em}header p{max-width:820px;margin:0;color:#dcece3;font-size:1.18rem}
+main{padding:42px 0 88px}.eyebrow{margin:0 0 8px;color:#bce2cc;text-transform:uppercase;letter-spacing:.12em;font-size:.78rem;font-weight:800}
+h2{margin:52px 0 17px;font:700 2rem/1.16 Georgia,serif}h3{margin:0 0 8px;font-size:1.08rem}.lede{font-size:1.12rem;max-width:830px}
+.stats{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}.stat{min-width:135px;padding:13px 17px;border:1px solid #ffffff35;border-radius:12px;background:#ffffff12}.stat b{display:block;font-size:1.5rem}.stat span{color:#dcece3;font-size:.82rem}
+.toolbar{position:sticky;top:0;z-index:5;padding:13px 0;background:#fafbf7ee;backdrop-filter:blur(9px);border-bottom:1px solid var(--line)}
+.toolbar .wrap{display:flex;gap:14px;align-items:center;justify-content:space-between}.toolbar a{text-decoration:none;font-weight:700}.toolbar input{width:min(430px,55vw);padding:10px 13px;border:1px solid var(--line);border-radius:9px;background:white;font:inherit}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:16px}.card,.panel,.callout{border:1px solid var(--line);border-radius:14px;background:var(--card)}
+.card{display:block;padding:20px;color:inherit;text-decoration:none;transition:.15s transform,.15s box-shadow}.card:hover{transform:translateY(-2px);box-shadow:0 9px 24px #123c2d16}.card small{color:var(--green);font-weight:800}.card h3{margin:5px 0 8px}.card p{margin:0;color:var(--muted);font-size:.94rem}.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}.tag{padding:3px 8px;border-radius:999px;background:var(--mint);color:var(--green);font-size:.75rem;font-weight:750}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:18px}.panel{padding:22px}.panel p:last-child{margin-bottom:0}.result{border-left:5px solid var(--green);background:var(--mint)}
+.callout{padding:18px 22px;border-left:5px solid var(--amber);background:#fff8ec}.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:20px 0}.fact{padding:14px 16px;border:1px solid var(--line);border-radius:11px;background:white}.fact small{display:block;color:var(--muted)}
+table{width:100%;border-collapse:collapse;background:#fff}th,td{padding:11px 13px;border:1px solid var(--line);text-align:left;vertical-align:top}th{background:#eef4ef}td code{font-size:.85rem}.scroll{overflow:auto;border-radius:12px}
+.prompt-table{min-width:1500px}.prompt-table .prompt-cell{min-width:430px}.prompt-table .comment-cell{min-width:300px}.prompt-table td pre{margin:0;max-height:330px;padding:14px;white-space:pre-wrap;overflow:auto;font-size:12px}
+pre{overflow:auto;padding:21px 23px;border-radius:12px;background:var(--code);color:#e8f2eb;font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace}.key{color:#78c8ff}.str{color:#a8d989}.num{color:#f6c177}.bool{color:#ff7ab2}
+.highlight{margin:16px 0 24px}.highlight pre{margin:0}.highlight .k,.highlight .kn,.highlight .kc{color:#ff7ab2;font-weight:650}.highlight .s,.highlight .s1,.highlight .s2,.highlight .sd{color:#a8d989}.highlight .c,.highlight .c1{color:#7f9689;font-style:italic}.highlight .mi,.highlight .mf{color:#f6c177}.highlight .nf,.highlight .nc{color:#62d6b1}.highlight .nb{color:#78c8ff}.highlight .o{color:#c5a3ff}
+details{margin:18px 0}summary{cursor:pointer;color:var(--green);font-weight:750}.navlinks{display:flex;justify-content:space-between;gap:14px;margin:56px 0 0;padding-top:22px;border-top:1px solid var(--line)}footer{margin-top:62px;color:var(--muted);font-size:.9rem}
+@media(max-width:720px){.two{grid-template-columns:1fr}.toolbar .wrap{align-items:stretch;flex-direction:column}.toolbar input{width:100%}header{padding-top:54px}}
+</style></head><body>
+<header><div class="wrap"><p class="eyebrow">Case study 08 · Economic games</p><h1>Centipede game</h1><p>Players alternate take/pass decisions along a three-node payoff tree.</p><div class="stats"><div class="stat"><b>3</b><span>agents</span></div><div class="stat"><b>1</b><span>machine commands</span></div><div class="stat"><b>1</b><span>recorded reads</span></div></div></div></header>
+<div class="toolbar"><div class="wrap"><a href="index.html">← All case studies</a><span>Gemini 2.5 Flash · local inference</span></div></div>
+<main>
+<p class="lede">This page connects one concrete social-science experiment to the state machine that enforced it and the real Gemini responses that changed its state.</p>
+<section><h2>1. The machine</h2><div class="two"><div class="panel"><h3>What it stores</h3><p><b>SharedCentipedeGame</b> has 3 durable fields: <code>history</code>, <code>outcome</code>, <code>payoffs</code>.</p><p>Its public view exposes <code>node_count</code>, <code>history</code>, <code>outcome</code>, <code>payoffs</code>.</p></div><div class="panel"><h3>How it changes</h3><p>Survey interviews can issue <code>move</code>. Inputs are validated and each accepted command is applied atomically.</p><p>Completion predicate: <b>defined</b>. Close effects: <b>0</b>.</p></div></div>
+<details><summary>Inspect the complete serialized Machine</summary><pre>{
+  <span class="key">&quot;name&quot;</span>: <span class="str">&quot;SharedCentipedeGame&quot;</span>,
+  <span class="key">&quot;constants&quot;</span>: {
+    <span class="key">&quot;take_payoffs&quot;</span>: [
+      [
+        <span class="num">2</span>,
+        <span class="num">0</span>
+      ],
+      [
+        <span class="num">1</span>,
+        <span class="num">3</span>
+      ],
+      [
+        <span class="num">4</span>,
+        <span class="num">2</span>
+      ]
+    ],
+    <span class="key">&quot;final_pass_payoffs&quot;</span>: [
+      <span class="num">3</span>,
+      <span class="num">5</span>
+    ],
+    <span class="key">&quot;node_count&quot;</span>: <span class="num">3</span>
+  },
+  <span class="key">&quot;fields&quot;</span>: {
+    <span class="key">&quot;history&quot;</span>: {
+      <span class="key">&quot;type&quot;</span>: {
+        <span class="key">&quot;op&quot;</span>: <span class="str">&quot;type&quot;</span>,
+        <span class="key">&quot;args&quot;</span>: [
+          &quot;sequence&quot;
+        ],
+        <span class="key">&quot;kwargs&quot;</span>: {
+          <span class="key">&quot;item&quot;</span>: {
+            <span class="key">&quot;op&quot;</span>: <span class="str">&quot;type&quot;</span>,
+            <span class="key">&quot;args&quot;</span>: [
+              &quot;map&quot;
+            ],
+            <span class="key">&quot;kwargs&quot;</span>: {
+              <span class="key">&quot;key&quot;</span>: {
+                <span class="key">&quot;op&quot;</span>: <span class="str">&quot;type&quot;</span>,
+                <span class="key">&quot;args&quot;</span>: [
+                  &quot;text&quot;
+                ],
+                <span class="key">&quot;kwargs&quot;</span>: {}
+              },
+              <span class="key">&quot;value&quot;</span>: {
+                <span class="key">&quot;op&quot;</span>: <span class="str">&quot;type&quot;</span>,
+                <span class="key">&quot;args&quot;</span>: [
+                  &quot;any&quot;
+                ],
+                <span class="key">&quot;kwargs&quot;</span>: {}
+              }
+            }
+          }
+        }
+      },
+      <span class="key">&quot;initial&quot;</span>: []
+    },
+    <span class="key">&quot;outcome&quot;</span>: {
+      <span class="key">&quot;type&quot;</span>: {
+        <span class="key">&quot;op&quot;</span>: <span class="str">&quot;type&quot;</span>,
+        <span class="key">&quot;args&quot;</span>: [
+          &quot;optional&quot;
+        ],
+        <span class="key">&quot;kwargs&quot;</span>: {
+          <span class="key">&quot;item&quot;</span>: {
+            <span class="key">&quot;op&quot;</span>: <span class="str">&quot;type&quot;</span>,
+            <span class="key">&quot;args&quot;</span>: [
+              &quot;text&quot;
+            ],
+            <span class="key">&quot;kwargs&quot;</span>: {}
+          }
+        }
+      },
+      <span class="key">&quot;initial&quot;</span>: <span class="bool">null</span>
+    },
+    <span class="key">&quot;payoffs&quot;</span>: {
+      <span class="key">&quot;type&quot;</span>: {
+        <span class="key">&quot;op&quot;</span>: <span class="str">&quot;type&quot;</span>,
+        <span class="key">&quot;args&quot;</span>: [
+          &quot;optional&quot;
+        ],
+        <span class="key">&quot;kwargs&quot;</span>: {
+          <span class="key">&quot;item&quot;</span>: {
+            <span class="key">&quot;op&quot;</span>: <span class="str">&quot;type&quot;</span>,
+            <span class="key">&quot;args&quot;</span>: [
+              &quot;sequence&quot;
+            ],
+            <span class="key">&quot;kwargs&quot;</span>: {
+              <span class="key">&quot;item&quot;</span>: {
+                <span class="key">&quot;op&quot;</span>: <span class="str">&quot;type&quot;</span>,
+                <span class="key">&quot;args&quot;</span>: [
+                  &quot;number&quot;
+                ],
+                <span class="key">&quot;kwargs&quot;</span>: {
+                  <span class="key">&quot;minimum&quot;</span>: <span class="bool">null</span>,
+                  <span class="key">&quot;maximum&quot;</span>: <span class="bool">null</span>
+                }
+              }
+            }
+          }
+        }
+      },
+      <span class="key">&quot;initial&quot;</span>: <span class="bool">null</span>
+    }
+  },
+  <span class="key">&quot;commands&quot;</span>: {
+    <span class="key">&quot;move&quot;</span>: {
+      <span class="key">&quot;inputs&quot;</span>: {
+        <span class="key">&quot;player&quot;</span>: {
+          <span class="key">&quot;op&quot;</span>: <span class="str">&quot;type&quot;</span>,
+          <span class="key">&quot;args&quot;</span>: [
+            &quot;text&quot;
+          ],
+          <span class="key">&quot;kwargs&quot;</span>: {}
+        },
+        <span class="key">&quot;node&quot;</span>: {
+          <span class="key">&quot;op&quot;</span>: <span class="str">&quot;type&quot;</span>,
+          <span class="key">&quot;args&quot;</span>: [
+            &quot;integer&quot;
+          ],
+          <span class="key">&quot;kwargs&quot;</span>: {
+            <span class="key">&quot;minimum&quot;</span>: <span class="num">1</span>,
+            <span class="key">&quot;maximum&quot;</span>: {
+              <span class="key">&quot;op&quot;</span>: <span class="str">&quot;ref&quot;</span>,
+              <span class="key">&quot;args&quot;</span>: [],
+              <span class="key">&quot;kwargs&quot;</span>: {
+                <span class="key">&quot;namespace&quot;</span>: <span class="str">&quot;constant&quot;</span>,
+                <span class="key">&quot;name&quot;</span>: <span class="str">&quot;node_count&quot;</span>
+              }
+            }
+          }
+        },
+        <span class="key">&quot;action&quot;</span>: {
+          <span class="key">&quot;op&quot;</span>: <span class="str">&quot;type&quot;</span>,
+          <span class="key">&quot;args&quot;</span>: [
+            &quot;choice&quot;
+          ],
+          <span class="key">&quot;kwargs&quot;</span>: {
+            <span class="key">&quot;options&quot;</span>: [
+              &quot;take&quot;,
+              &quot;pass&quot;
+            ]
+          }
+        }
+      },
+      <span class="key">&quot;effects&quot;</span>: [
+        {
+          <span class="key">&quot;op&quot;</span>: <span class="str">&quot;append&quot;</span>,
+          <span class="key">&quot;target&quot;</span>: <span class="str">&quot;history&quot;</span>,
+          <span class="key">&quot;args&quot;</span>: [
+            {
+              <span class="key">&quot;op&quot;</span>: <span class="str">&quot;record&quot;</span>,
+              <span class="key">&quot;args&quot;</span>: [],
+              <span class="key">&quot;kwargs&quot;</span>: {
+                <span class="key">&quot;node&quot;</span>: {
+                  <span class="key">&quot;op&quot;</span>: <span class="str">&quot;ref&quot;</span>,
+                  <span class="key">&quot;args&quot;</span>: [],
+                  <span class="key">&quot;kwargs&quot;</span>: {
+                    <span class="key">&quot;namespace&quot;</span>: <span class="str">&quot;input&quot;</span>,
+                    <span class="key">&quot;name&quot;</span>: <span class="str">&quot;node&quot;</span>
+                  }
+                },
+                <span class="key">&quot;player&quot;</span>: {
+                  <span class="key">&quot;op&quot;</span>: <span class="str">&quot;ref&quot;</span>,
+                  <span class="key">&quot;args&quot;</span>: [],
+                  <span class="key">&quot;kwargs&quot;</span>: {
+                    <span class="key">&quot;namespace&quot;</span>: <span class="str">&quot;input&quot;</span>,
+                    <span class="key">&quot;name&quot;</span>: <span class="str">&quot;player&quot;</span>
+                  }
+                },
+                <span class="key">&quot;action&quot;</span>: {
+                  <span class="key">&quot;op&quot;</span>: <span class="str">&quot;ref&quot;</span>,
+                  <span class="key">&quot;args&quot;</span>: [],
+                  <span class="key">&quot;kwargs&quot;</span>: {
+                    <span class="key">&quot;namespace&quot;</span>: <span class="str">&quot;input&quot;</span>,
+                    <span class="key">&quot;name&quot;</span>: <span class="str">&quot;action&quot;</span>
+                  }
+                }
+              }
+            }
+          ],
+          <span class="key">&quot;options&quot;</span>: {}
+        },
+        {
+          <span class="key">&quot;op&quot;</span>: <span class="str">&quot;set&quot;</span>,
+          <span class="key">&quot;target&quot;</span>: <span class="str">&quot;outcome&quot;</span>,
+          <span class="key">&quot;args&quot;</span>: [
+            {
+              <span class="key">&quot;op&quot;</span>: <span class="str">&quot;concat&quot;</span>,
+              <span class="key">&quot;args&quot;</span>: [
+                &quot;take_at_&quot;,
+                {
+                  <span class="key">&quot;op&quot;</span>: <span class="str">&quot;ref&quot;</span>,
+                  <span class="key">&quot;args&quot;</span>: [],
+                  <span class="key">&quot;kwargs&quot;</span>: {
+                    <span class="key">&quot;namespace&quot;</span>: <span class="str">&quot;input&quot;</span>,
+                    <span class="key">&quot;name&quot;</span>: <span class="str">&quot;node&quot;</span>
+                  }
+                }
+              ],
+              <span class="key">&quot;kwargs&quot;</span>: {}
+            }
+          ],
+          <span class="key">&quot;options&quot;</span>: {
+            <span class="key">&quot;when&quot;</span>: {
+              <span class="key">&quot;op&quot;</span>: <span class="str">&quot;equals&quot;</span>,
+              <span class="key">&quot;args&quot;</span>: [
+                {
+                  <span class="key">&quot;op&quot;</span>: <span class="str">&quot;ref&quot;</span>,
+                  <span class="key">&quot;args&quot;</span>: [],
+                  <span class="key">&quot;kwargs&quot;</span>: {
+                    <span class="key">&quot;namespace&quot;</span>: <span class="str">&quot;input&quot;</span>,
+                    <span class="key">&quot;name&quot;</span>: <span class="str">&quot;action&quot;</span>
+                  }
+                },
+                &quot;take&quot;
+              ],
+              <span class="key">&quot;kwargs&quot;</span>: {}
+            }
+          }
+        },
+        {
+          <span class="key">&quot;op&quot;</span>: <span class="str">&quot;set&quot;</span>,
+          <span class="key">&quot;target&quot;</span>: <span class="str">&quot;payoffs&quot;</span>,
+          <span class="key">&quot;args&quot;</span>: [
+            {
+              <span class="key">&quot;op&quot;</span>: <span class="str">&quot;at&quot;</span>,
+              <span class="key">&quot;args&quot;</span>: [
+                {
+                  <span class="key">&quot;op&quot;</span>: <span class="str">&quot;ref&quot;</span>,
+                  <span class="key">&quot;args&quot;</span>: [],
+                  <span class="key">&quot;kwargs&quot;</span>: {
+                    <span class="key">&quot;namespace&quot;</span>: <span class="str">&quot;constant&quot;</span>,
+                    <span class="key">&quot;name&quot;</span>: <span class="str">&quot;take_payoffs&quot;</span>
+                  }
+                },
+                {
+                  <span class="key">&quot;op&quot;</span>: <span class="str">&quot;subtract&quot;</span>,
+                  <span class="key">&quot;args&quot;</span>: [
+                    {
+                      <span class="key">&quot;op&quot;</span>: <span class="str">&quot;ref&quot;</span>,
+                      <span class="key">&quot;args&quot;</span>: [],
+                      <span class="key">&quot;kwargs&quot;</span>: {
+                        <span class="key">&quot;namespace&quot;</span>: <span class="str">&quot;input&quot;</span>,
+                        <span class="key">&quot;name&quot;</span>: <span class="str">&quot;node&quot;</span>
+                      }
+                    },
+                    <span class="num">1</span>
+                  ],
+                  <span class="key">&quot;kwargs&quot;</span>: {}
+                }
+              ],
+              <span class="key">&quot;kwargs&quot;</span>: {}
+            }
+          ],
+          <span class="key">&quot;options&quot;</span>: {
+            <span class="key">&quot;when&quot;</span>: {
+              <span class="key">&quot;op&quot;</span>: <span class="str">&quot;equals&quot;</span>,
+              <span class="key">&quot;args&quot;</span>: [
+                {
+                  <span class="key">&quot;op&quot;</span>: <span class="str">&quot;ref&quot;</span>,
+                  <span class="key">&quot;args&quot;</span>: [],
+                  <span class="key">&quot;kwargs&quot;</span>: {
+                    <span class="key">&quot;namespace&quot;</span>: <span class="str">&quot;input&quot;</span>,
+                    <span class="key">&quot;name&quot;</span>: <span class="str">&quot;action&quot;</span>
+                  }
+                },
+                &quot;take&quot;
+              ],
+              <span class="key">&quot;kwargs&quot;</span>: {}
+            }
+          }
+        },
+        {
+          <span class="key">&quot;op&quot;</span>: <span class="str">&quot;set&quot;</span>,
+          <span class="key">&quot;target&quot;</span>: <span class="str">&quot;outcome&quot;</span>,
+          <span class="key">&quot;args&quot;</span>: [
+            &quot;pass_to_end&quot;
+          ],
+          <span class="key">&quot;options&quot;</span>: {
+            <span class="key">&quot;when&quot;</span>: {
+              <span class="key">&quot;op&quot;</span>: <span class="str">&quot;and&quot;</span>,
+              <span class="key">&quot;args&quot;</span>: [
+                {
+                  <span class="key">&quot;op&quot;</span>: <span class="str">&quot;equals&quot;</span>,
+                  <span class="key">&quot;args&quot;</span>: [
+                    {
+                      <span class="key">&quot;op&quot;</span>: <span class="str">&quot;ref&quot;</span>,
+                      <span class="key">&quot;args&quot;</span>: [],
+                      <span class="key">&quot;kwargs&quot;</span>: {
+                        <span class="key">&quot;namespace&quot;</span>: <span class="str">&quot;input&quot;</span>,
+                        <span class="key">&quot;name&quot;</span>: <span class="str">&quot;action&quot;</span>
+                      }
+                    },
+                    &quot;pass&quot;
+                  ],
+                  <span class="key">&quot;kwargs&quot;</span>: {}
+                },
+                {
+                  <span class="key">&quot;op&quot;</span>: <span class="str">&quot;equals&quot;</span>,
+                  <span class="key">&quot;args&quot;</span>: [
+                    {
+                      <span class="key">&quot;op&quot;</span>: <span class="str">&quot;ref&quot;</span>,
+                      <span class="key">&quot;args&quot;</span>: [],
+                      <span class="key">&quot;kwargs&quot;</span>: {
+                        <span class="key">&quot;namespace&quot;</span>: <span class="str">&quot;input&quot;</span>,
+                        <span class="key">&quot;name&quot;</span>: <span class="str">&quot;node&quot;</span>
+                      }
+                    },
+                    {
+                      <span class="key">&quot;op&quot;</span>: <span class="str">&quot;ref&quot;</span>,
+                      <span class="key">&quot;args&quot;</span>: [],
+                      <span class="key">&quot;kwargs&quot;</span>: {
+                        <span class="key">&quot;namespace&quot;</span>: <span class="str">&quot;constant&quot;</span>,
+                        <span class="key">&quot;name&quot;</span>: <span class="str">&quot;node_count&quot;</span>
+                      }
+                    }
+                  ],
+                  <span class="key">&quot;kwargs&quot;</span>: {}
+                }
+              ],
+              <span class="key">&quot;kwargs&quot;</span>: {}
+            }
+          }
+        },
+        {
+          <span class="key">&quot;op&quot;</span>: <span class="str">&quot;set&quot;</span>,
+          <span class="key">&quot;target&quot;</span>: <span class="str">&quot;payoffs&quot;</span>,
+          <span class="key">&quot;args&quot;</span>: [
+            {
+              <span class="key">&quot;op&quot;</span>: <span class="str">&quot;ref&quot;</span>,
+              <span class="key">&quot;args&quot;</span>: [],
+              <span class="key">&quot;kwargs&quot;</span>: {
+                <span class="key">&quot;namespace&quot;</span>: <span class="str">&quot;constant&quot;</span>,
+                <span class="key">&quot;name&quot;</span>: <span class="str">&quot;final_pass_payoffs&quot;</span>
+              }
+            }
+          ],
+          <span class="key">&quot;options&quot;</span>: {
+            <span class="key">&quot;when&quot;</span>: {
+              <span class="key">&quot;op&quot;</span>: <span class="str">&quot;and&quot;</span>,
+              <span class="key">&quot;args&quot;</span>: [
+                {
+                  <span class="key">&quot;op&quot;</span>: <span class="str">&quot;equals&quot;</span>,
+                  <span class="key">&quot;args&quot;</span>: [
+                    {
+                      <span class="key">&quot;op&quot;</span>: <span class="str">&quot;ref&quot;</span>,
+                      <span class="key">&quot;args&quot;</span>: [],
+                      <span class="key">&quot;kwargs&quot;</span>: {
+                        <span class="key">&quot;namespace&quot;</span>: <span class="str">&quot;input&quot;</span>,
+                        <span class="key">&quot;name&quot;</span>: <span class="str">&quot;action&quot;</span>
+                      }
+                    },
+                    &quot;pass&quot;
+                  ],
+                  <span class="key">&quot;kwargs&quot;</span>: {}
+                },
+                {
+                  <span class="key">&quot;op&quot;</span>: <span class="str">&quot;equals&quot;</span>,
+                  <span class="key">&quot;args&quot;</span>: [
+                    {
+                      <span class="key">&quot;op&quot;</span>: <span class="str">&quot;ref&quot;</span>,
+                      <span class="key">&quot;args&quot;</span>: [],
+                      <span class="key">&quot;kwargs&quot;</span>: {
+                        <span class="key">&quot;namespace&quot;</span>: <span class="str">&quot;input&quot;</span>,
+                        <span class="key">&quot;name&quot;</span>: <span class="str">&quot;node&quot;</span>
+                      }
+                    },
+                    {
+                      <span class="key">&quot;op&quot;</span>: <span class="str">&quot;ref&quot;</span>,
+                      <span class="key">&quot;args&quot;</span>: [],
+                      <span class="key">&quot;kwargs&quot;</span>: {
+                        <span class="key">&quot;namespace&quot;</span>: <span class="str">&quot;constant&quot;</span>,
+                        <span class="key">&quot;name&quot;</span>: <span class="str">&quot;node_count&quot;</span>
+                      }
+                    }
+                  ],
+                  <span class="key">&quot;kwargs&quot;</span>: {}
+                }
+              ],
+              <span class="key">&quot;kwargs&quot;</span>: {}
+            }
+          }
+        }
+      ],
+      <span class="key">&quot;require&quot;</span>: {
+        <span class="key">&quot;op&quot;</span>: <span class="str">&quot;and&quot;</span>,
+        <span class="key">&quot;args&quot;</span>: [
+          {
+            <span class="key">&quot;op&quot;</span>: <span class="str">&quot;equals&quot;</span>,
+            <span class="key">&quot;args&quot;</span>: [
+              {
+                <span class="key">&quot;op&quot;</span>: <span class="str">&quot;ref&quot;</span>,
+                <span class="key">&quot;args&quot;</span>: [],
+                <span class="key">&quot;kwargs&quot;</span>: {
+                  <span class="key">&quot;namespace&quot;</span>: <span class="str">&quot;state&quot;</span>,
+                  <span class="key">&quot;name&quot;</span>: <span class="str">&quot;outcome&quot;</span>
+                }
+              },
+              <span class="bool">null</span>
+            ],
+            <span class="key">&quot;kwargs&quot;</span>: {}
+          },
+          {
+            <span class="key">&quot;op&quot;</span>: <span class="str">&quot;equals&quot;</span>,
+            <span class="key">&quot;args&quot;</span>: [
+              {
+                <span class="key">&quot;op&quot;</span>: <span class="str">&quot;ref&quot;</span>,
+                <span class="key">&quot;args&quot;</span>: [],
+                <span class="key">&quot;kwargs&quot;</span>: {
+                  <span class="key">&quot;namespace&quot;</span>: <span class="str">&quot;input&quot;</span>,
+                  <span class="key">&quot;name&quot;</span>: <span class="str">&quot;node&quot;</span>
+                }
+              },
+              {
+                <span class="key">&quot;op&quot;</span>: <span class="str">&quot;add&quot;</span>,
+                <span class="key">&quot;args&quot;</span>: [
+                  {
+                    <span class="key">&quot;op&quot;</span>: <span class="str">&quot;length&quot;</span>,
+                    <span class="key">&quot;args&quot;</span>: [
+                      {
+                        <span class="key">&quot;op&quot;</span>: <span class="str">&quot;ref&quot;</span>,
+                        <span class="key">&quot;args&quot;</span>: [],
+                        <span class="key">&quot;kwargs&quot;</span>: {
+                          <span class="key">&quot;namespace&quot;</span>: <span class="str">&quot;state&quot;</span>,
+                          <span class="key">&quot;name&quot;</span>: <span class="str">&quot;history&quot;</span>
+                        }
+                      }
+                    ],
+                    <span class="key">&quot;kwargs&quot;</span>: {}
+                  },
+                  <span class="num">1</span>
+                ],
+                <span class="key">&quot;kwargs&quot;</span>: {}
+              }
+            ],
+            <span class="key">&quot;kwargs&quot;</span>: {}
+          }
+        ],
+        <span class="key">&quot;kwargs&quot;</span>: {}
+      },
+      <span class="key">&quot;timing&quot;</span>: <span class="str">&quot;after_answer&quot;</span>
+    }
+  },
+  <span class="key">&quot;view&quot;</span>: {
+    <span class="key">&quot;node_count&quot;</span>: {
+      <span class="key">&quot;op&quot;</span>: <span class="str">&quot;ref&quot;</span>,
+      <span class="key">&quot;args&quot;</span>: [],
+      <span class="key">&quot;kwargs&quot;</span>: {
+        <span class="key">&quot;namespace&quot;</span>: <span class="str">&quot;constant&quot;</span>,
+        <span class="key">&quot;name&quot;</span>: <span class="str">&quot;node_count&quot;</span>
+      }
+    },
+    <span class="key">&quot;history&quot;</span>: {
+      <span class="key">&quot;op&quot;</span>: <span class="str">&quot;ref&quot;</span>,
+      <span class="key">&quot;args&quot;</span>: [],
+      <span class="key">&quot;kwargs&quot;</span>: {
+        <span class="key">&quot;namespace&quot;</span>: <span class="str">&quot;state&quot;</span>,
+        <span class="key">&quot;name&quot;</span>: <span class="str">&quot;history&quot;</span>
+      }
+    },
+    <span class="key">&quot;outcome&quot;</span>: {
+      <span class="key">&quot;op&quot;</span>: <span class="str">&quot;ref&quot;</span>,
+      <span class="key">&quot;args&quot;</span>: [],
+      <span class="key">&quot;kwargs&quot;</span>: {
+        <span class="key">&quot;namespace&quot;</span>: <span class="str">&quot;state&quot;</span>,
+        <span class="key">&quot;name&quot;</span>: <span class="str">&quot;outcome&quot;</span>
+      }
+    },
+    <span class="key">&quot;payoffs&quot;</span>: {
+      <span class="key">&quot;op&quot;</span>: <span class="str">&quot;ref&quot;</span>,
+      <span class="key">&quot;args&quot;</span>: [],
+      <span class="key">&quot;kwargs&quot;</span>: {
+        <span class="key">&quot;namespace&quot;</span>: <span class="str">&quot;state&quot;</span>,
+        <span class="key">&quot;name&quot;</span>: <span class="str">&quot;payoffs&quot;</span>
+      }
+    }
+  },
+  <span class="key">&quot;complete_when&quot;</span>: {
+    <span class="key">&quot;op&quot;</span>: <span class="str">&quot;not_equals&quot;</span>,
+    <span class="key">&quot;args&quot;</span>: [
+      {
+        <span class="key">&quot;op&quot;</span>: <span class="str">&quot;ref&quot;</span>,
+        <span class="key">&quot;args&quot;</span>: [],
+        <span class="key">&quot;kwargs&quot;</span>: {
+          <span class="key">&quot;namespace&quot;</span>: <span class="str">&quot;state&quot;</span>,
+          <span class="key">&quot;name&quot;</span>: <span class="str">&quot;outcome&quot;</span>
+        }
+      },
+      <span class="bool">null</span>
+    ],
+    <span class="key">&quot;kwargs&quot;</span>: {}
+  },
+  <span class="key">&quot;close_effects&quot;</span>: [],
+  <span class="key">&quot;algorithms&quot;</span>: []
+}</pre></details></section>
+<section><h2>2. Complete, standalone Python</h2><p>This is one copyable program: it defines the machine, creates the agents and Survey, selects the schedule, runs Gemini locally, and prints the Results. It uses only public EDSL imports—there are no repository-local imports or private helper functions.</p><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">uuid</span><span class="w"> </span><span class="kn">import</span> <span class="n">uuid4</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">edsl</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Agent</span><span class="p">,</span>
+    <span class="n">AgentList</span><span class="p">,</span>
+    <span class="n">InterviewSchedule</span><span class="p">,</span>
+    <span class="n">Model</span><span class="p">,</span>
+    <span class="n">QuestionFreeText</span><span class="p">,</span>
+    <span class="n">QuestionMultipleChoice</span><span class="p">,</span>
+    <span class="n">QuestionNumerical</span><span class="p">,</span>
+    <span class="n">QuestionRank</span><span class="p">,</span>
+    <span class="n">Survey</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">edsl.sharedstate</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Command</span><span class="p">,</span>
+    <span class="n">Machine</span><span class="p">,</span>
+    <span class="n">T</span><span class="p">,</span>
+    <span class="n">append</span><span class="p">,</span>
+    <span class="n">constant</span><span class="p">,</span>
+    <span class="n">expr</span><span class="p">,</span>
+    <span class="n">field</span><span class="p">,</span>
+    <span class="n">input_</span><span class="p">,</span>
+    <span class="n">record</span><span class="p">,</span>
+    <span class="n">set_</span><span class="p">,</span>
+    <span class="n">state_field</span><span class="p">,</span>
+    <span class="n">when</span><span class="p">,</span>
+    <span class="n">SharedState</span><span class="p">,</span>
+    <span class="n">SharedStateMap</span><span class="p">,</span>
+    <span class="n">current</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">is_take</span> <span class="o">=</span> <span class="n">input_</span><span class="p">(</span><span class="s2">&quot;action&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;take&quot;</span>
+<span class="n">is_final_pass</span> <span class="o">=</span> <span class="p">(</span><span class="n">input_</span><span class="p">(</span><span class="s2">&quot;action&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;pass&quot;</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span>
+    <span class="n">input_</span><span class="p">(</span><span class="s2">&quot;node&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="n">constant</span><span class="p">(</span><span class="s2">&quot;node_count&quot;</span><span class="p">)</span>
+<span class="p">)</span>
+<span class="n">centipede_machine</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;SharedCentipedeGame&quot;</span><span class="p">,</span>
+    <span class="n">constants</span><span class="o">=</span><span class="p">{</span>
+        <span class="s2">&quot;take_payoffs&quot;</span><span class="p">:</span> <span class="p">[[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> <span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="mi">2</span><span class="p">]],</span>
+        <span class="s2">&quot;final_pass_payoffs&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">5</span><span class="p">],</span>
+        <span class="s2">&quot;node_count&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+    <span class="p">},</span>
+    <span class="n">fields</span><span class="o">=</span><span class="p">{</span>
+        <span class="s2">&quot;history&quot;</span><span class="p">:</span> <span class="n">state_field</span><span class="p">(</span><span class="n">T</span><span class="o">.</span><span class="n">sequence</span><span class="p">(</span><span class="n">T</span><span class="o">.</span><span class="n">map</span><span class="p">()),</span> <span class="p">[]),</span>
+        <span class="s2">&quot;outcome&quot;</span><span class="p">:</span> <span class="n">state_field</span><span class="p">(</span><span class="n">T</span><span class="o">.</span><span class="n">optional</span><span class="p">(</span><span class="n">T</span><span class="o">.</span><span class="n">text</span><span class="p">()),</span> <span class="kc">None</span><span class="p">),</span>
+        <span class="s2">&quot;payoffs&quot;</span><span class="p">:</span> <span class="n">state_field</span><span class="p">(</span><span class="n">T</span><span class="o">.</span><span class="n">optional</span><span class="p">(</span><span class="n">T</span><span class="o">.</span><span class="n">sequence</span><span class="p">(</span><span class="n">T</span><span class="o">.</span><span class="n">number</span><span class="p">())),</span> <span class="kc">None</span><span class="p">),</span>
+    <span class="p">},</span>
+    <span class="n">commands</span><span class="o">=</span><span class="p">{</span>
+        <span class="s2">&quot;move&quot;</span><span class="p">:</span> <span class="n">Command</span><span class="p">(</span>
+            <span class="n">inputs</span><span class="o">=</span><span class="p">{</span>
+                <span class="s2">&quot;player&quot;</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">text</span><span class="p">(),</span>
+                <span class="s2">&quot;node&quot;</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">integer</span><span class="p">(</span><span class="n">minimum</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">maximum</span><span class="o">=</span><span class="n">constant</span><span class="p">(</span><span class="s2">&quot;node_count&quot;</span><span class="p">)),</span>
+                <span class="s2">&quot;action&quot;</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">choice</span><span class="p">((</span><span class="s2">&quot;take&quot;</span><span class="p">,</span> <span class="s2">&quot;pass&quot;</span><span class="p">)),</span>
+            <span class="p">},</span>
+            <span class="n">require</span><span class="o">=</span><span class="p">(</span><span class="n">field</span><span class="p">(</span><span class="s2">&quot;outcome&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="o">&amp;</span> <span class="p">(</span><span class="n">input_</span><span class="p">(</span><span class="s2">&quot;node&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="n">field</span><span class="p">(</span><span class="s2">&quot;history&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">length</span><span class="p">()</span> <span class="o">+</span> <span class="mi">1</span><span class="p">),</span>
+            <span class="n">effects</span><span class="o">=</span><span class="p">(</span>
+                <span class="n">append</span><span class="p">(</span>
+                    <span class="s2">&quot;history&quot;</span><span class="p">,</span>
+                    <span class="n">record</span><span class="p">(</span>
+                        <span class="n">node</span><span class="o">=</span><span class="n">input_</span><span class="p">(</span><span class="s2">&quot;node&quot;</span><span class="p">),</span>
+                        <span class="n">player</span><span class="o">=</span><span class="n">input_</span><span class="p">(</span><span class="s2">&quot;player&quot;</span><span class="p">),</span>
+                        <span class="n">action</span><span class="o">=</span><span class="n">input_</span><span class="p">(</span><span class="s2">&quot;action&quot;</span><span class="p">),</span>
+                    <span class="p">),</span>
+                <span class="p">),</span>
+                <span class="n">when</span><span class="p">(</span>
+                    <span class="n">is_take</span><span class="p">,</span> <span class="n">set_</span><span class="p">(</span><span class="s2">&quot;outcome&quot;</span><span class="p">,</span> <span class="n">expr</span><span class="p">(</span><span class="s2">&quot;concat&quot;</span><span class="p">,</span> <span class="s2">&quot;take_at_&quot;</span><span class="p">,</span> <span class="n">input_</span><span class="p">(</span><span class="s2">&quot;node&quot;</span><span class="p">)))</span>
+                <span class="p">),</span>
+                <span class="n">when</span><span class="p">(</span>
+                    <span class="n">is_take</span><span class="p">,</span>
+                    <span class="n">set_</span><span class="p">(</span><span class="s2">&quot;payoffs&quot;</span><span class="p">,</span> <span class="n">constant</span><span class="p">(</span><span class="s2">&quot;take_payoffs&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">at</span><span class="p">(</span><span class="n">input_</span><span class="p">(</span><span class="s2">&quot;node&quot;</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)),</span>
+                <span class="p">),</span>
+                <span class="n">when</span><span class="p">(</span><span class="n">is_final_pass</span><span class="p">,</span> <span class="n">set_</span><span class="p">(</span><span class="s2">&quot;outcome&quot;</span><span class="p">,</span> <span class="s2">&quot;pass_to_end&quot;</span><span class="p">)),</span>
+                <span class="n">when</span><span class="p">(</span><span class="n">is_final_pass</span><span class="p">,</span> <span class="n">set_</span><span class="p">(</span><span class="s2">&quot;payoffs&quot;</span><span class="p">,</span> <span class="n">constant</span><span class="p">(</span><span class="s2">&quot;final_pass_payoffs&quot;</span><span class="p">))),</span>
+            <span class="p">),</span>
+        <span class="p">)</span>
+    <span class="p">},</span>
+    <span class="n">view</span><span class="o">=</span><span class="p">{</span>
+        <span class="s2">&quot;node_count&quot;</span><span class="p">:</span> <span class="n">constant</span><span class="p">(</span><span class="s2">&quot;node_count&quot;</span><span class="p">),</span>
+        <span class="s2">&quot;history&quot;</span><span class="p">:</span> <span class="n">field</span><span class="p">(</span><span class="s2">&quot;history&quot;</span><span class="p">),</span>
+        <span class="s2">&quot;outcome&quot;</span><span class="p">:</span> <span class="n">field</span><span class="p">(</span><span class="s2">&quot;outcome&quot;</span><span class="p">),</span>
+        <span class="s2">&quot;payoffs&quot;</span><span class="p">:</span> <span class="n">field</span><span class="p">(</span><span class="s2">&quot;payoffs&quot;</span><span class="p">),</span>
+    <span class="p">},</span>
+    <span class="n">complete_when</span><span class="o">=</span><span class="n">field</span><span class="p">(</span><span class="s2">&quot;outcome&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">build_experiment</span><span class="p">():</span>
+    <span class="n">states</span> <span class="o">=</span> <span class="n">SharedStateMap</span><span class="p">(</span>
+        <span class="n">SharedState</span><span class="p">(</span><span class="n">game</span><span class="o">=</span><span class="n">centipede_machine</span><span class="p">),</span> <span class="n">state_id</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;gemini-centipede-</span><span class="si">{</span><span class="n">uuid4</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="p">)</span>
+    <span class="n">game</span> <span class="o">=</span> <span class="n">states</span><span class="o">.</span><span class="n">by</span><span class="p">(</span><span class="s2">&quot;game&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">game</span>
+    <span class="n">q</span> <span class="o">=</span> <span class="n">QuestionMultipleChoice</span><span class="p">(</span>
+        <span class="n">question_name</span><span class="o">=</span><span class="s2">&quot;action&quot;</span><span class="p">,</span>
+        <span class="n">question_text</span><span class="o">=</span><span class="s2">&quot;You move at node {{ agent.node }} of a three-node centipede game. Current history: {{ shared_state.game.history }}. Taking at nodes 1, 2, 3 yields payoffs [2,0], [1,3], [4,2]. Passing at the final node yields [3,5]. Choose take or pass.&quot;</span><span class="p">,</span>
+        <span class="n">question_options</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;take&quot;</span><span class="p">,</span> <span class="s2">&quot;pass&quot;</span><span class="p">],</span>
+    <span class="p">)</span>
+    <span class="n">survey</span> <span class="o">=</span> <span class="n">Survey</span><span class="p">(</span>
+        <span class="p">[</span>
+            <span class="n">game</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span>
+            <span class="n">q</span><span class="p">,</span>
+            <span class="n">game</span><span class="o">.</span><span class="n">move</span><span class="p">(</span>
+                <span class="n">player</span><span class="o">=</span><span class="n">current</span><span class="o">.</span><span class="n">agent</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">node</span><span class="o">=</span><span class="n">current</span><span class="o">.</span><span class="n">agent</span><span class="o">.</span><span class="n">node</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="n">q</span><span class="o">.</span><span class="n">answer</span>
+            <span class="p">),</span>
+        <span class="p">]</span>
+    <span class="p">)</span>
+    <span class="n">people</span> <span class="o">=</span> <span class="n">AgentList</span><span class="p">(</span>
+        <span class="p">[</span>
+            <span class="n">Agent</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Player A at node 1&quot;</span><span class="p">,</span> <span class="n">traits</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;game_id&quot;</span><span class="p">:</span> <span class="s2">&quot;game&quot;</span><span class="p">,</span> <span class="s2">&quot;node&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">}),</span>
+            <span class="n">Agent</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Player B at node 2&quot;</span><span class="p">,</span> <span class="n">traits</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;game_id&quot;</span><span class="p">:</span> <span class="s2">&quot;game&quot;</span><span class="p">,</span> <span class="s2">&quot;node&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">}),</span>
+            <span class="n">Agent</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Player A at node 3&quot;</span><span class="p">,</span> <span class="n">traits</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;game_id&quot;</span><span class="p">:</span> <span class="s2">&quot;game&quot;</span><span class="p">,</span> <span class="s2">&quot;node&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">}),</span>
+        <span class="p">]</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="n">survey</span><span class="p">,</span>
+        <span class="n">people</span><span class="p">,</span>
+        <span class="n">InterviewSchedule</span><span class="o">.</span><span class="n">grouped_round_robin</span><span class="p">(</span>
+            <span class="s2">&quot;game_id&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;node&quot;</span><span class="p">,</span>
+            <span class="n">stop_when</span><span class="o">=</span><span class="n">game</span><span class="o">.</span><span class="n">is_complete</span><span class="p">(),</span>
+            <span class="n">finalize_when</span><span class="o">=</span><span class="n">game</span><span class="o">.</span><span class="n">is_complete</span><span class="p">(),</span>
+        <span class="p">),</span>
+    <span class="p">)</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">survey</span><span class="p">,</span> <span class="n">agents</span><span class="p">,</span> <span class="n">schedule</span> <span class="o">=</span> <span class="n">build_experiment</span><span class="p">()</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">survey</span><span class="o">.</span><span class="n">by</span><span class="p">(</span><span class="n">agents</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">by</span><span class="p">(</span><span class="n">Model</span><span class="p">(</span><span class="s2">&quot;gemini-2.5-flash&quot;</span><span class="p">,</span> <span class="n">service_name</span><span class="o">=</span><span class="s2">&quot;google&quot;</span><span class="p">))</span>
+        <span class="o">.</span><span class="n">run</span><span class="p">(</span>
+            <span class="n">cache</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">disable_remote_cache</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">disable_remote_inference</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">interview_schedule</span><span class="o">=</span><span class="n">schedule</span><span class="p">,</span>
+            <span class="n">max_concurrency</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
+</pre></div>
+</section>
+<section><h2>3. The experiment</h2><div class="facts"><div class="fact"><small>Schedule</small><b>grouped_round_robin</b></div><div class="fact"><small>Within round</small><b>serial</b></div><div class="fact"><small>State visibility</small><b>live</b></div><div class="fact"><small>Rounds</small><b>until complete</b></div></div><div class="scroll"><table><thead><tr><th>Question</th><th>Type</th><th>Prompt</th></tr></thead><tbody><tr><td><code>action</code></td><td>multiple_choice</td><td>You move at node {{ agent.node }} of a three-node centipede game. Current history: {{ shared_state.game.history }}. Taking at nodes 1, 2, 3 yields payoffs [2,0], [1,3], [4,2]. Passing at the final node yields [3,5]. Choose take or pass.</td></tr></tbody></table></div><h3 style="margin-top:28px">Survey state sequence</h3><p>These explicit read and write steps determine when interviews observe shared state and when their answers become commands.</p><div class="scroll"><table><thead><tr><th>#</th><th>Phase</th><th>Question boundary</th><th>Operation</th></tr></thead><tbody><tr><td>1</td><td>reads</td><td><code>action</code></td><td><code>read</code></td></tr><tr><td>2</td><td>writes</td><td><code>action</code></td><td><code>move</code></td></tr></tbody></table></div></section>
+<section><h2>4. What happened</h2><div class="two"><div class="panel result"><h3>Observed result</h3><p>The first player took immediately for payoffs `[2,0]`; later interviews were skipped.</p></div><div class="panel"><h3>Final shared state</h3><pre>{
+  <span class="key">&quot;game&quot;</span>: {
+    <span class="key">&quot;history&quot;</span>: [
+      {
+        <span class="key">&quot;action&quot;</span>: <span class="str">&quot;take&quot;</span>,
+        <span class="key">&quot;node&quot;</span>: <span class="num">1</span>,
+        <span class="key">&quot;player&quot;</span>: <span class="str">&quot;Player A at node <span class="num">1</span>&quot;</span>
+      }
+    ],
+    <span class="key">&quot;outcome&quot;</span>: <span class="str">&quot;take_at_1&quot;</span>,
+    <span class="key">&quot;payoffs&quot;</span>: [
+      <span class="num">2</span>,
+      <span class="num">0</span>
+    ]
+  }
+}</pre></div></div><h3 style="margin-top:28px">What each agent contributed</h3><div class="scroll"><table><thead><tr><th>#</th><th>Agent</th><th>Round</th><th>Private traits</th><th>Answer</th><th>Read version</th></tr></thead><tbody><tr><td>1</td><td>Player A at node 1</td><td>—</td><td><code>{&quot;game_id&quot;: &quot;game&quot;, &quot;node&quot;: 1}</code></td><td><code>{&quot;action&quot;: &quot;take&quot;}</code></td><td>0</td></tr><tr><td>2</td><td>Player B at node 2</td><td>—</td><td><code>{&quot;game_id&quot;: &quot;game&quot;, &quot;node&quot;: 2}</code></td><td><code>{&quot;action&quot;: null}</code></td><td>—</td></tr><tr><td>3</td><td>Player A at node 3</td><td>—</td><td><code>{&quot;game_id&quot;: &quot;game&quot;, &quot;node&quot;: 3}</code></td><td><code>{&quot;action&quot;: null}</code></td><td>—</td></tr></tbody></table></div></section>
+<section><h2>5. State evolution</h2><p>The recorded read versions were <code>[0]</code>. The committed command sequence was <code>[&#x27;move&#x27;, &#x27;$close&#x27;]</code>.</p><div class="callout"><b>How to read this:</b> agents sharing a version decided from the same snapshot; increasing versions mean later interviews could observe earlier commits. Command order is commit order, not necessarily interview launch order.</div><details><summary>Inspect raw run summary</summary><pre>{
+  <span class="key">&quot;game&quot;</span>: <span class="str">&quot;centipede&quot;</span>,
+  <span class="key">&quot;answers&quot;</span>: [
+    {
+      <span class="key">&quot;action&quot;</span>: <span class="str">&quot;take&quot;</span>
+    },
+    {
+      <span class="key">&quot;action&quot;</span>: <span class="bool">null</span>
+    },
+    {
+      <span class="key">&quot;action&quot;</span>: <span class="bool">null</span>
+    }
+  ],
+  <span class="key">&quot;commands&quot;</span>: [
+    &quot;move&quot;,
+    &quot;$close&quot;
+  ],
+  <span class="key">&quot;final_state&quot;</span>: {
+    <span class="key">&quot;game&quot;</span>: {
+      <span class="key">&quot;history&quot;</span>: [
+        {
+          <span class="key">&quot;action&quot;</span>: <span class="str">&quot;take&quot;</span>,
+          <span class="key">&quot;node&quot;</span>: <span class="num">1</span>,
+          <span class="key">&quot;player&quot;</span>: <span class="str">&quot;Player A at node <span class="num">1</span>&quot;</span>
+        }
+      ],
+      <span class="key">&quot;outcome&quot;</span>: <span class="str">&quot;take_at_1&quot;</span>,
+      <span class="key">&quot;payoffs&quot;</span>: [
+        <span class="num">2</span>,
+        <span class="num">0</span>
+      ]
+    }
+  },
+  <span class="key">&quot;read_versions&quot;</span>: [
+    <span class="num">0</span>
+  ]
+}</pre></details></section>
+<section><h2>6. What this example teaches us</h2><p class="lede">Early terminal state correctly propagates into schedule-level stopping.</p><p>This is one behavioral realization, not an estimate of Gemini's average behavior. Its main purpose is to test whether the machine, survey, visibility, and schedule jointly express the intended experiment.</p></section>
+<div class="navlinks"><a href="repeated_matrix.html">← Repeated matrix game</a><a href="index.html">Index</a><a href="nash_demand.html">Nash demand →</a></div><footer>Generated from the runnable Survey, serialized Machine, Gemini audit, and case-study report. No result was invented for this page.</footer></main></body></html>
