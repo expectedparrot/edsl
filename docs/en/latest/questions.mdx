@@ -263,3 +263,41 @@ double_score = Question(
 ```
 
 Construction makes no model calls. `coding` requires model execution to generate an answer; `double_score` computes its answer from a scenario's `score` when run. Validate specialized workflows with representative inputs before using them in a study.
+
+### Use `QuestionFunctional` to compute checkbox options
+
+If the occupation is already in a scenario or agent profile, a `QuestionFunctional` can select its task list in Python. A later checkbox can use the functional answer as its options:
+
+```python
+from edsl import QuestionCheckBox, QuestionFunctional, Scenario, Survey
+
+def tasks_for_occupation(scenario, agent_traits):
+    return scenario["tasks_by_occupation"][scenario["occupation"]]
+
+available_tasks = QuestionFunctional(
+    question_name="available_tasks",
+    question_text="Compute the tasks for this occupation.",
+    func=tasks_for_occupation,
+)
+tasks = QuestionCheckBox(
+    question_name="tasks",
+    question_text="Which tasks are part of your work?",
+    question_options="{{ available_tasks.answer }}",
+)
+
+scenario = Scenario(
+    {
+        "occupation": "Chief Executives",
+        "tasks_by_occupation": {
+            "Chief Executives": [
+                "Set organizational goals and policies",
+                "Direct the organization's financial activities",
+            ],
+        },
+    }
+)
+survey = Survey([available_tasks, tasks])
+job = survey.by(scenario)
+```
+
+`QuestionFunctional` receives the scenario and agent traits; it does not receive answers to earlier questions, and it computes an answer rather than displaying a form field. Use this pattern when the occupation is known in the job's input data. If a person chooses the occupation during a hosted survey, use a scenario-backed Jinja lookup keyed by that answer, as in [the Humanize example](/en/latest/humanize#set-question-options-from-an-earlier-answer).
