@@ -266,17 +266,31 @@ Construction makes no model calls. `coding` requires model execution to generate
 
 ### Use `QuestionFunctional` to compute checkbox options
 
-If the occupation is already in a scenario or agent profile, a `QuestionFunctional` can select its task list in Python. A later checkbox can use the functional answer as its options:
+Use a `QuestionFunctional` when a list of choices should be computed in Python from an earlier answer and scenario data. EDSL adds answered question objects to the scenario passed to the function, so the function can read the earlier answer:
 
 ```python
-from edsl import QuestionCheckBox, QuestionFunctional, Scenario, Survey
+from edsl import (
+    QuestionCheckBox,
+    QuestionDropdown,
+    QuestionFunctional,
+    Scenario,
+    Survey,
+)
 
 def tasks_for_occupation(scenario, agent_traits):
-    return scenario["tasks_by_occupation"][scenario["occupation"]]
+    for occupation in scenario["occupation"].answer:
+        return scenario["tasks_by_occupation"][occupation]
+    return []
 
+occupation = QuestionDropdown(
+    question_name="occupation",
+    question_text="Which occupation best describes your work?",
+    question_options=["Chief Executives", "Software Developers"],
+    top_k=1,
+)
 available_tasks = QuestionFunctional(
     question_name="available_tasks",
-    question_text="Compute the tasks for this occupation.",
+    question_text="Compute the task options for the selected occupation.",
     func=tasks_for_occupation,
 )
 tasks = QuestionCheckBox(
@@ -287,17 +301,20 @@ tasks = QuestionCheckBox(
 
 scenario = Scenario(
     {
-        "occupation": "Chief Executives",
         "tasks_by_occupation": {
             "Chief Executives": [
                 "Set organizational goals and policies",
                 "Direct the organization's financial activities",
             ],
+            "Software Developers": [
+                "Analyze user needs and develop software solutions",
+                "Recommend software upgrades for customers' existing programs",
+            ],
         },
     }
 )
-survey = Survey([available_tasks, tasks])
+survey = Survey([occupation, available_tasks, tasks])
 job = survey.by(scenario)
 ```
 
-`QuestionFunctional` receives the scenario and agent traits; it does not receive answers to earlier questions, and it computes an answer rather than displaying a form field. Use this pattern when the occupation is known in the job's input data. If a person chooses the occupation during a hosted survey, use a scenario-backed Jinja lookup keyed by that answer, as in [the Humanize example](/en/latest/humanize#set-question-options-from-an-earlier-answer).
+The function reads the selected occupation from `scenario["occupation"].answer`, looks up its task list, and returns that list as the functional answer. The checkbox then uses `{{ available_tasks.answer }}` as its options. `QuestionFunctional` computes an answer; it does not display a form field. For a hosted human survey, use the scenario-backed Jinja lookup directly, as in [the Humanize example](/en/latest/humanize#set-question-options-from-an-earlier-answer).
