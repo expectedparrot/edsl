@@ -1,0 +1,51 @@
+---
+title: "Saving and sharing objects"
+description: "Save, reopen, and share EDSL objects."
+---
+
+Save EDSL objects to continue a study in another session or give a collaborator the materials needed to inspect and reuse it. An `.ep` file reopens as the same kind of EDSL object; a CSV is a table for analysis in other software. Choose what to save based on what you want to do next:
+
+| What you want to preserve | Save | Reopen with |
+| --- | --- | --- |
+| The questionnaire and its logic | `survey.save("survey.ep")` | `Survey.load("survey.ep")` |
+| The full planned model run, including its inputs | `job.save("job.ep")` | `Jobs.load("job.ep")` |
+| Collected answers, prompts, and study information | `results.save("results.ep")` | `Results.load("results.ep")` |
+| Selected columns for a report or statistical software | `results.select("answer.*").to_csv("answers.csv")` | Your usual CSV reader. |
+
+Loading a saved Results object lets you analyze the collected answers without making new model calls. Saving a job preserves what to run; it does not substitute for saving the completed results.
+
+## Save and reopen a survey
+
+This example writes a local package and reads it back. It makes no model calls or uploads.
+
+```python
+from edsl import QuestionFreeText, Survey
+
+survey = Survey([QuestionFreeText(question_name="feedback", question_text="What should improve?")])
+survey.save("feedback.ep")
+restored = Survey.load("feedback.ep")
+restored.question_names  # ['feedback']; the loaded survey is ready to use.
+```
+
+Use explicit `.json` or `.json.gz` filenames when you need JSON instead of a package. For keeping named versions such as a pilot and a final instrument, see [Survey version history](/en/latest/survey_ep_format). Basic saving and loading do not require Git commands.
+
+## Share through Expected Parrot
+
+With authentication configured, `survey.push(description="Feedback survey", visibility="private")` uploads the survey and returns its identifier. Choose visibility explicitly and retain the returned identifier for retrieval or updates. Sharing a survey does not automatically share every referenced dataset or grant access to all related material.
+
+Use [Expected Parrot objects](/en/latest/coop) and the [CLI Guide](/en/latest/cli) for remote operations. See [Notebooks](/en/latest/notebooks) for sharing a notebook or script as supporting material.
+
+## Preserve a directory of study materials
+
+`Study` captures files in a directory, including subdirectories. Use it when a study includes scripts, notes, and other files alongside individual EDSL objects:
+
+```python
+from edsl import Study
+
+study = Study("study-materials", exclude=[".git/*", "__pycache__/*", "*.tmp"])
+study.to_jsonl("study-materials.jsonl")
+restored = Study.from_jsonl("study-materials.jsonl")
+restored.extract("restored-materials")
+```
+
+This assumes `study-materials` already exists. The archive contains file contents; it does not execute scripts or install dependencies. `exclude` uses relative-path glob patterns and no exclusions are automatic. Review the included files before sharing the archive. `extract()` writes beneath the original directory name (`restored-materials/study-materials` here) and overwrites existing files with matching paths. `study.to_yaml()` returns a readable inventory of the captured files.

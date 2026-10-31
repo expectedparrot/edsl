@@ -1,0 +1,18 @@
+from edsl import QuestionFreeText, QuestionMultipleChoice, QuestionNumerical, Survey
+
+clarity = QuestionMultipleChoice(
+    question_name="clarity",
+    question_text="How clear is this message: {{ scenario.message }}?",
+    question_options=["Clear", "Unclear", "Unsure"],
+)
+reason = QuestionFreeText(
+    question_name="reason",
+    question_text="Explain your assessment of the message.",
+)
+score = QuestionNumerical(
+    question_name="score",
+    question_text="Rate the clarity of this message from 0 to 10: {{ scenario.message }}",
+    min_value=0,
+    max_value=10,
+)
+survey = Survey([clarity, reason, score]).add_targeted_memory(reason, clarity)

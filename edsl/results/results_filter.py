@@ -225,7 +225,7 @@ class ResultsFilter:
             raise ResultsFilterError(
                 f"Error in filter expression: {expression}\n"
                 f"Exception: {e}\n"
-                f"See https://docs.expectedparrot.com/en/latest/results#filtering-results for more details."
+                f"See https://docs.expectedparrot.com/en/latest/results#filter-export-and-reshape for more details."
             )
         except Exception as e:
             hint = self._get_filter_hint(normalized_expression, e)
@@ -235,5 +235,5 @@ class ResultsFilter:
                 f"{hint}\n"
                 f"Make sure the expression is a valid Python expression that evaluates to a boolean.\n"
                 f'For example, \'how_feeling == "Great"\' or \'how_feeling in ["Great", "Terrible"]\'.\n'
-                f"See https://docs.expectedparrot.com/en/latest/results#filtering-results for more details."
+                f"See https://docs.expectedparrot.com/en/latest/results#filter-export-and-reshape for more details."
             )
