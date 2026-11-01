@@ -882,6 +882,18 @@ class TextInterviewConfig(HumanizeSchemaBase):
 # How long the voice interviewer waits after the respondent pauses before it
 # speaks, from "fastest" (jumps in almost at once) to "slowest" (waits a long time).
 VoiceTurnSpeed = Literal["fastest", "faster", "default", "slower", "slowest"]
+VoiceInterviewVoice = Literal[
+    "alloy",
+    "ash",
+    "ballad",
+    "coral",
+    "echo",
+    "sage",
+    "shimmer",
+    "verse",
+    "marin",
+    "cedar",
+]
 
 
 class TurnTakingConfig(HumanizeSchemaBase):
@@ -901,6 +913,9 @@ class VoiceInterviewConfig(HumanizeSchemaBase):
     # (e.g. "english"); the before-validator normalizes case/whitespace, maps
     # None/blank to the default, and rejects unsupported languages.
     language: str = DEFAULT_VOICE_INTERVIEW_LANGUAGE
+    # Built-in voice used by the live voice interviewer. Omit to use the
+    # deployment default; OpenAI recommends marin or cedar for best quality.
+    voice: Optional[VoiceInterviewVoice] = None
     # Always present rather than Optional: every voice call has a starting speed,
     # so None would only mean "use the default" anyway.
     turn_taking: TurnTakingConfig = Field(default_factory=TurnTakingConfig)
