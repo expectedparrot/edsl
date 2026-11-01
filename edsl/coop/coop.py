@@ -143,6 +143,13 @@ class RemoteInferenceCreationInfo(TypedDict):
     version: str
 
 
+def _git_remote(response) -> dict:
+    """``{"git_remote_url": ...}`` when Coop returned one for an ``.ep`` package's
+    push (``git_repo=True``), else {}."""
+    url = response.get("git_remote_url") if isinstance(response, dict) else None
+    return {"git_remote_url": url} if url else {}
+
+
 class Coop(CoopFunctionsMixin):
     """
     Client for the Expected Parrot API that provides cloud-based functionality for EDSL.
@@ -1612,6 +1619,7 @@ class Coop(CoopFunctionsMixin):
         alias: Optional[str] = None,
         value: Optional[EDSLObject] = None,
         visibility: Optional[VisibilityType] = None,
+        git_repo: bool = False,
     ) -> dict:
         """
         Change the attributes of an uploaded object
@@ -1622,6 +1630,8 @@ class Coop(CoopFunctionsMixin):
         :param alias: Optional new alias
         :param value: Optional new object value
         :param visibility: Optional new visibility setting
+        :param git_repo: True for an ``.ep`` package: Coop then returns its git
+            repo's ``git_remote_url``, creating the repo the first time
         """
         # Validate alias before attempting to patch
         self._validate_alias(alias)
@@ -1668,7 +1678,7 @@ class Coop(CoopFunctionsMixin):
             if is_new_format:
                 # Handle new format objects: update metadata first, then upload content
                 return self._patch_new_format_object(
-                    obj_uuid, description, alias, value, visibility
+                    obj_uuid, description, alias, value, visibility, git_repo
                 )
 
         # Handle traditional format objects or metadata-only updates
@@ -1696,6 +1706,7 @@ class Coop(CoopFunctionsMixin):
                     else None
                 ),
                 "visibility": visibility,
+                **({"git_repo": True} if git_repo else {}),
             },
         )
         self._resolve_server_response(response)
@@ -1708,6 +1719,7 @@ class Coop(CoopFunctionsMixin):
         alias: Optional[str],
         value: EDSLObject,
         visibility: Optional[VisibilityType],
+        git_repo: bool = False,
     ) -> dict:
         """
         Handle patching of objects stored in the new format (GCS).
@@ -1763,7 +1775,7 @@ class Coop(CoopFunctionsMixin):
         confirm_response = self._send_server_request(
             uri="api/v0/object/confirm-upload",
             method="POST",
-            payload={"object_uuid": str(obj_uuid)},
+            payload={"object_uuid": str(obj_uuid), **({"git_repo": True} if git_repo else {})},
         )
         self._resolve_server_response(confirm_response)
         confirm_data = confirm_response.json()
@@ -1773,6 +1785,7 @@ class Coop(CoopFunctionsMixin):
             "message": "Object updated successfully (new format - uploaded to GCS and processing triggered)",
             "object_uuid": str(obj_uuid),
             "processing_started": confirm_data.get("processing_started", False),
+            **_git_remote(confirm_data),
         }
 
     def _resolve_to_uuid(self, url_or_uuid: Union[str, UUID]) -> str:
@@ -7213,16 +7226,13 @@ class Coop(CoopFunctionsMixin):
         alias: Optional[str] = None,
         visibility: Optional[VisibilityType] = "private",
         force: bool = False,
-        uuid: Optional[str] = None,
+        git_repo: bool = False,
     ) -> "Scenario":
         """
         Upload an EDSL object to Coop via a signed GCS URL (PUT), then confirm the upload.
 
         Parameters:
             object: The EDSL object to upload (e.g. Survey, Scenario).
-            uuid: Optional uuid for the new object, such as a package's ``object_uuid``,
-                so the object and the package's git repo share one id. Coop answers
-                409 if the uuid is already taken.
 
         Returns:
             Scenario: Coop upload metadata as a ``Scenario`` so notebooks/terminals keep
@@ -7260,7 +7270,6 @@ class Coop(CoopFunctionsMixin):
                 "visibility": visibility,
                 "object_hash": object_hash,
                 "version": self._edsl_version,
-                **({"uuid": str(uuid)} if uuid else {}),
             },
         )
         response_json = response.json()
@@ -7290,6 +7299,7 @@ class Coop(CoopFunctionsMixin):
                     alias=alias,
                     value=object,
                     visibility=visibility,
+                    git_repo=git_repo,
                 )
 
                 # Get complete metadata after the patch
@@ -7306,6 +7316,7 @@ class Coop(CoopFunctionsMixin):
                         "description": metadata.get("description"),
                         "version": self._edsl_version,
                         "visibility": metadata.get("visibility"),
+                        **_git_remote(patch_result),
                     }
                 )
 
@@ -7380,7 +7391,7 @@ class Coop(CoopFunctionsMixin):
         confirm_response = self._send_server_request(
             uri="api/v0/object/confirm-upload",
             method="POST",
-            payload={"object_uuid": object_uuid},
+            payload={"object_uuid": object_uuid, **({"git_repo": True} if git_repo else {})},
         )
         self._resolve_server_response(confirm_response)
 
@@ -7394,6 +7405,7 @@ class Coop(CoopFunctionsMixin):
                 "description": response_json.get("description"),
                 "version": self._edsl_version,
                 "visibility": response_json.get("visibility"),
+                **_git_remote(confirm_response.json()),
             }
         )
 

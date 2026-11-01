@@ -2,29 +2,23 @@
 
 from __future__ import annotations
 
-import atexit
 import json
 import os
 import re
 import shutil
 import subprocess
-import sys
 import tempfile
-import time
 import warnings
 import zipfile
 from pathlib import Path
 from typing import Optional, Type
-from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
-from uuid import uuid4
+from uuid import UUID
 
 from edsl.base.base_exception import BaseException as EDSLBaseException
 
 
-TEMPORARY_PROTOTYPE_REMOTE_NAME = "origin"
-_TEMPORARY_GIT_SERVER_PROCESS: Optional[subprocess.Popen] = None
+REMOTE_NAME = "origin"
 ARCHIVE_PACKAGE_SUFFIX = ".ep"
 
 
@@ -300,36 +294,15 @@ class GitPackage:
 
     def remote_add(self, name: str, url: str) -> dict:
         git(self.path, "remote", "add", name, url, error_cls=self.error_cls)
-        record_remote_metadata(
-            self.path,
-            remote_name=name,
-            remote_url=url,
-            server_uuid=server_uuid_from_remote_url(url),
-            server_url=server_url_from_remote_url(url),
-            object_type=self.object_type,
-            display_name=None,
-            error_cls=self.error_cls,
-        )
         return {"status": "ok", "name": name, "url": url}
 
     def remote_remove(self, name: str) -> dict:
         url = remote_url(self.path, name, error_cls=self.error_cls)
         git(self.path, "remote", "remove", name, error_cls=self.error_cls)
-        remove_remote_metadata(self.path, name, error_cls=self.error_cls)
         return {"status": "ok", "name": name, "url": url}
 
     def remote_set_url(self, name: str, url: str) -> dict:
         git(self.path, "remote", "set-url", name, url, error_cls=self.error_cls)
-        record_remote_metadata(
-            self.path,
-            remote_name=name,
-            remote_url=url,
-            server_uuid=server_uuid_from_remote_url(url),
-            server_url=server_url_from_remote_url(url),
-            object_type=self.object_type,
-            display_name=remote_display_name(self.path, name),
-            error_cls=self.error_cls,
-        )
         return {"status": "ok", "name": name, "url": url}
 
     def fetch(
@@ -379,16 +352,16 @@ class GitPackage:
             or single_remote(self.path, error_cls=self.error_cls)
         )
         if remote is None:
-            remote = ensure_temporary_prototype_remote(
-                self.path,
-                object_type=self.object_type,
-                display_name=self.display_name,
-                token=token,
+            if record_object_remote(self.path, error_cls=self.error_cls) is None:
+                raise ValueError(
+                    "No git remote configured, and Coop gave this package no git repo; "
+                    "push it with 'ep push' (or obj.git.coop_push()) first."
+                )
+            commit_paths(
+                self.path, "manifest.json", message="Record EDSL object remote",
                 error_cls=self.error_cls,
             )
-        ensure_remote_metadata(
-            self.path, remote, object_type=self.object_type, error_cls=self.error_cls
-        )
+            remote = REMOTE_NAME
 
         url = remote_url(self.path, remote, error_cls=self.error_cls)
         auth_env = http_auth_git_env(url, token)
@@ -658,7 +631,9 @@ def remote_url(
 
 
 def http_auth_git_env(url: str, token: Optional[str] = None) -> dict[str, str]:
-    if not url.startswith(("http://", "https://")):
+    """Send the Expected Parrot key as a Bearer header, unless the URL has its own
+    ``user:key@`` credentials, which git then uses instead."""
+    if not url.startswith(("http://", "https://")) or url != without_credentials(url):
         return {}
     token = token or expected_parrot_api_key()
     if token is None:
@@ -837,12 +812,6 @@ def warn_if_nested_in_outer_repo(
     )
 
 
-def temporary_git_server_url() -> str:
-    from edsl.config import CONFIG
-
-    return CONFIG.get("EDSL_GIT_SERVER_URL").rstrip("/")
-
-
 def expected_parrot_api_key() -> Optional[str]:
     from edsl.config import CONFIG
 
@@ -852,339 +821,12 @@ def expected_parrot_api_key() -> Optional[str]:
     return token
 
 
-def server_objects(
-    *,
-    token: Optional[str],
-    server_url: Optional[str],
-    object_type: str,
-    error_cls: Type[Exception] = GitPackageError,
-) -> dict:
-    token = token or expected_parrot_api_key()
-    if token is None:
-        raise ValueError(
-            "Listing git objects requires EXPECTED_PARROT_API_KEY for bearer auth."
-        )
-    server_url = (server_url or temporary_git_server_url()).rstrip("/")
-    url = f"{server_url}/api/v0/git-repos?object_type={object_type}"
-    if can_autostart_temporary_git_server(url):
-        ensure_temporary_git_server_for_remote(url)
-    request = Request(url, method="GET", headers={"Authorization": f"Bearer {token}"})
-    try:
-        with urlopen(request, timeout=30) as response:
-            body = json.loads(response.read().decode())
-    except HTTPError as exc:
-        detail = exc.read().decode(errors="replace")
-        raise error_cls(
-            ["GET", url], stderr=f"Git object server rejected object listing: {detail}"
-        ) from exc
-    except URLError as exc:
-        raise error_cls(
-            ["GET", url],
-            stderr=f"Could not reach configured git object server. EDSL_GIT_SERVER_URL={server_url}. {exc}",
-        ) from exc
-    objects = body.get("objects", body.get("repos", []))
-    return {
-        "status": body.get("status", "ok"),
-        "server_url": body.get("server_url", server_url),
-        "object_type": object_type,
-        "objects": objects,
-    }
-
-
-def ensure_temporary_prototype_remote(
-    path: Path,
-    *,
-    object_type: str,
-    display_name: Optional[str],
-    token: Optional[str] = None,
-    error_cls: Type[Exception] = GitPackageError,
-) -> str:
-    token = token or expected_parrot_api_key()
-    if token is None:
-        raise ValueError(
-            "No git remote configured and EXPECTED_PARROT_API_KEY is not set. Set EXPECTED_PARROT_API_KEY or add a remote explicitly."
-        )
-    url = f"{temporary_git_server_url()}/api/v0/git-repos"
-    payload = json.dumps(
-        {"object_type": object_type, "display_name": display_name}
-    ).encode()
-    request = Request(
-        url,
-        data=payload,
-        method="POST",
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",
-        },
-    )
-    body = create_temporary_prototype_repo(request, url, error_cls=error_cls)
-    url = body["remote_url"]
-    git(
-        path, "remote", "add", TEMPORARY_PROTOTYPE_REMOTE_NAME, url, error_cls=error_cls
-    )
-    record_remote_metadata(
-        path,
-        remote_name=TEMPORARY_PROTOTYPE_REMOTE_NAME,
-        remote_url=url,
-        server_uuid=body.get("uuid"),
-        server_url=temporary_git_server_url(),
-        object_type=object_type,
-        display_name=body.get("display_name"),
-        error_cls=error_cls,
-    )
-    return TEMPORARY_PROTOTYPE_REMOTE_NAME
-
-
-def create_temporary_prototype_repo(
-    request: Request, url: str, *, error_cls: Type[Exception] = GitPackageError
-) -> dict:
-    try:
-        with urlopen(request, timeout=30) as response:
-            return json.loads(response.read().decode())
-    except HTTPError as exc:
-        detail = exc.read().decode(errors="replace")
-        raise error_cls(
-            ["POST", url],
-            stderr=f"Temporary git server rejected repo creation: {detail}",
-        ) from exc
-    except URLError as exc:
-        if can_autostart_temporary_git_server(url):
-            autostart_temporary_git_server()
-            try:
-                with urlopen(request, timeout=30) as response:
-                    return json.loads(response.read().decode())
-            except HTTPError as retry_exc:
-                detail = retry_exc.read().decode(errors="replace")
-                raise error_cls(
-                    ["POST", url],
-                    stderr=f"Temporary git server rejected repo creation: {detail}",
-                ) from retry_exc
-            except URLError as retry_exc:
-                exc = retry_exc
-        raise error_cls(
-            ["POST", url],
-            stderr=f"Could not reach temporary local git server. EDSL_GIT_SERVER_URL={temporary_git_server_url()}. {exc}",
-        ) from exc
-
-
-def can_autostart_temporary_git_server(url: str) -> bool:
-    parsed = urlparse(url)
-    return parsed.scheme == "http" and parsed.hostname in {"localhost", "127.0.0.1"}
-
-
-def ensure_temporary_git_server_for_remote(url: str) -> None:
-    if not can_autostart_temporary_git_server(url):
-        return
-    parsed = urlparse(url)
-    probe_url = f"{parsed.scheme}://{parsed.netloc}/openapi.json"
-    try:
-        with urlopen(probe_url, timeout=0.2) as response:
-            if response.status < 500:
-                return
-    except Exception:
-        pass
-    autostart_temporary_git_server()
-
-
-def autostart_temporary_git_server() -> None:
-    global _TEMPORARY_GIT_SERVER_PROCESS
-    if _TEMPORARY_GIT_SERVER_PROCESS is not None:
-        if _TEMPORARY_GIT_SERVER_PROCESS.poll() is None:
-            wait_for_temporary_git_server()
-            return
-        _TEMPORARY_GIT_SERVER_PROCESS = None
-    server_dir = temporary_git_server_directory()
-    if server_dir is None:
-        return
-    parsed = urlparse(temporary_git_server_url())
-    host = parsed.hostname or "127.0.0.1"
-    if host == "localhost":
-        host = "127.0.0.1"
-    port = str(parsed.port or 8000)
-    _TEMPORARY_GIT_SERVER_PROCESS = subprocess.Popen(
-        [
-            sys.executable,
-            "-m",
-            "uvicorn",
-            "local_app:app",
-            "--host",
-            host,
-            "--port",
-            port,
-            "--log-level",
-            "warning",
-        ],
-        cwd=server_dir,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-    wait_for_temporary_git_server()
-
-
-def temporary_git_server_directory() -> Optional[Path]:
-    from edsl.config import CONFIG
-
-    try:
-        configured = CONFIG.get("EDSL_GIT_SERVER_DIR")
-    except Exception:
-        configured = None
-    if configured and configured != "None":
-        candidate = Path(configured).expanduser() / "local_app.py"
-        if candidate.exists():
-            return candidate.parent
-
-    for parent in Path(__file__).resolve().parents:
-        candidate = parent / "git_server" / "local_app.py"
-        if candidate.exists():
-            return candidate.parent
-        candidate = parent / "edsl-git-server" / "local_app.py"
-        if candidate.exists():
-            return candidate.parent
-    return None
-
-
-def wait_for_temporary_git_server() -> None:
-    deadline = time.time() + 10
-    url = f"{temporary_git_server_url()}/openapi.json"
-    while time.time() < deadline:
-        try:
-            with urlopen(url, timeout=0.2) as response:
-                if response.status < 500:
-                    return
-        except Exception:
-            time.sleep(0.1)
-
-
-@atexit.register
-def stop_temporary_git_server() -> None:
-    if _TEMPORARY_GIT_SERVER_PROCESS is None:
-        return
-    if _TEMPORARY_GIT_SERVER_PROCESS.poll() is not None:
-        return
-    _TEMPORARY_GIT_SERVER_PROCESS.terminate()
-
-
-def ensure_remote_metadata(
-    path: Path,
-    remote_name: str,
-    *,
-    object_type: str,
-    error_cls: Type[Exception] = GitPackageError,
-) -> None:
-    manifest = read_manifest_file(path)
-    remotes = manifest_remotes(manifest)
-    url = remote_url(path, remote_name, error_cls=error_cls)
-    existing = remotes.get(remote_name)
-    if (
-        existing
-        and existing.get("remote_url") == url
-        and "remotes" in manifest
-        and "remote" not in manifest
-    ):
-        return
-    record_remote_metadata(
-        path,
-        remote_name=remote_name,
-        remote_url=url,
-        server_uuid=server_uuid_from_remote_url(url),
-        server_url=server_url_from_remote_url(url),
-        object_type=object_type,
-        display_name=existing.get("display_name") if existing else None,
-        error_cls=error_cls,
-    )
-
-
-def record_remote_metadata(
-    path: Path,
-    *,
-    remote_name: str,
-    remote_url: str,
-    server_uuid: Optional[str],
-    server_url: str,
-    object_type: str,
-    display_name: Optional[str],
-    error_cls: Type[Exception] = GitPackageError,
-) -> None:
-    if not server_uuid:
-        metadata = {"kind": "git", "remote_url": remote_url}
-    else:
-        metadata = {
-            "kind": "edsl_git_server",
-            "server_uuid": server_uuid,
-            "server_url": server_url,
-            "remote_url": remote_url,
-            "object_type": object_type,
-            "display_name": display_name,
-        }
-    manifest = read_manifest_file(path)
-    legacy_primary = manifest.get("remote", {}).get("name")
-    remotes = manifest_remotes(manifest)
-    remotes[remote_name] = metadata
-    manifest["remotes"] = remotes
-    if legacy_primary and "primary_remote" not in manifest:
-        manifest["primary_remote"] = legacy_primary
-    manifest.setdefault("primary_remote", remote_name)
-    manifest.pop("remote", None)
-    write_manifest_dict(path, manifest)
-    git(path, "add", "manifest.json", error_cls=error_cls)
-    if has_staged_changes(path):
-        git(
-            path,
-            "-c",
-            "user.name=EDSL",
-            "-c",
-            "user.email=edsl@example.invalid",
-            "commit",
-            "-m",
-            "Record EDSL remote",
-            error_cls=error_cls,
-        )
-
-
-def remove_remote_metadata(
-    path: Path, remote_name: str, *, error_cls: Type[Exception] = GitPackageError
-) -> None:
-    manifest = read_manifest_file(path)
-    remotes = manifest_remotes(manifest)
-    if remote_name not in remotes and manifest.get("primary_remote") != remote_name:
-        return
-    remotes.pop(remote_name, None)
-    manifest["remotes"] = remotes
-    if manifest.get("primary_remote") == remote_name:
-        manifest["primary_remote"] = next(iter(remotes), None)
-        if manifest["primary_remote"] is None:
-            manifest.pop("primary_remote")
-    manifest.pop("remote", None)
-    write_manifest_dict(path, manifest)
-    git(path, "add", "manifest.json", error_cls=error_cls)
-    if has_staged_changes(path):
-        git(
-            path,
-            "-c",
-            "user.name=EDSL",
-            "-c",
-            "user.email=edsl@example.invalid",
-            "commit",
-            "-m",
-            "Remove EDSL remote",
-            error_cls=error_cls,
-        )
-
-
-def remote_display_name(path: Path, remote_name: str) -> Optional[str]:
-    metadata = manifest_remotes(read_manifest_file(path)).get(remote_name)
-    if not metadata:
-        return None
-    value = metadata.get("display_name")
-    return value if isinstance(value, str) else None
-
-
 OBJECT_REPO_PATTERN = re.compile(r"/obj-([0-9a-f-]{36})(?:\.git)?/?$", re.IGNORECASE)
 
 
 def carry_package_metadata(existing_manifest: dict, manifest: dict) -> None:
     """Keep what a rebuilt manifest must not lose: the package's remotes, and
-    its ``object_uuid`` and ``remote_url`` (see ``ensure_object_uuid``)."""
+    its ``object_uuid`` and ``remote_url`` (see ``record_object_uuid``)."""
     existing_remotes = manifest_remotes(existing_manifest)
     if existing_remotes:
         manifest["remotes"] = existing_remotes
@@ -1197,39 +839,147 @@ def carry_package_metadata(existing_manifest: dict, manifest: dict) -> None:
             manifest[key] = existing_manifest[key]
 
 
-def ensure_object_uuid(path: Path) -> str:
-    """The package's ``object_uuid``, recorded in its manifest on first save.
+def record_object_uuid(path: Path) -> Optional[str]:
+    """Copy the package's Coop object uuid into its manifest as ``object_uuid``,
+    and return it; None for a package never pushed to Coop.
 
-    One uuid names both the package's Coop object and its ``obj-<uuid>`` git
-    repo, so either can be pushed first and they still match. An older package
-    reuses the uuid it already carries: its Coop object's, else the one in its
-    ``obj-<uuid>`` origin. Otherwise it gets a new one.
+    Coop picks the uuid on the first push, and ``coop_info.json`` keeps it. The
+    same uuid names the package's ``obj-<uuid>`` git repo. Writes the manifest
+    without committing it.
     """
     manifest = read_manifest_file(path)
-    if manifest.get("object_uuid"):
-        return manifest["object_uuid"]
-    object_uuid = _carried_object_uuid(path) or str(uuid4())
-    manifest["object_uuid"] = object_uuid
-    write_manifest_dict(path, manifest)
+    try:
+        object_uuid = str(UUID(str(_coop_info(path)["uuid"])))
+    except (KeyError, ValueError):
+        return manifest.get("object_uuid")
+    if manifest.get("object_uuid") != object_uuid:
+        manifest["object_uuid"] = object_uuid
+        write_manifest_dict(path, manifest)
     return object_uuid
 
 
-def _carried_object_uuid(path: Path) -> Optional[str]:
+def _coop_info(path: Path) -> dict:
     info_path = path / "coop_info.json"
-    if info_path.exists():
-        try:
-            value = json.loads(info_path.read_text()).get("uuid")
-        except json.JSONDecodeError:
-            value = None
-        if value:
-            return str(value)
+    try:
+        return json.loads(info_path.read_text()) if info_path.exists() else {}
+    except json.JSONDecodeError:
+        return {}
+
+
+def _origin_url(path: Path) -> Optional[str]:
     result = subprocess.run(
-        ["git", "-C", str(path), "config", "--get", "remote.origin.url"],
+        ["git", "-C", str(path), "config", "--get", f"remote.{REMOTE_NAME}.url"],
         text=True,
         capture_output=True,
     )
-    match = OBJECT_REPO_PATTERN.search(urlparse(result.stdout.strip()).path)
+    return result.stdout.strip() or None
+
+
+def uuid_from_remote_url(url: Optional[str]) -> Optional[str]:
+    """The uuid in an ``.../obj-<uuid>.git`` repo URL, or None for any other URL."""
+    match = OBJECT_REPO_PATTERN.search(urlparse(url).path) if url else None
     return match.group(1).lower() if match else None
+
+
+def without_credentials(url: str) -> str:
+    """The URL without a ``user:key@`` part, so a key never lands in a package."""
+    parsed = urlparse(url)
+    if "@" not in parsed.netloc:
+        return url
+    return parsed._replace(netloc=parsed.netloc.rsplit("@", 1)[1]).geturl()
+
+
+def record_object_remote(
+    path: Path, *, error_cls: Type[Exception] = GitPackageError
+) -> Optional[str]:
+    """Point ``origin`` and the manifest's ``remote_url`` at the package's
+    ``obj-<uuid>`` repo, and return that URL; None when Coop gave none.
+
+    Coop returns the repo's URL as ``git_remote_url`` when an ``.ep`` package is
+    pushed (``git_repo=True``), creating the repo the first time, and
+    ``coop_info.json`` keeps it. So a package goes to Coop first. Writes the
+    manifest without committing it. An ``origin`` that is some other repo is
+    left alone and refused.
+    """
+    object_uuid = record_object_uuid(path)
+    if object_uuid is None:
+        raise error_cls(
+            ["git", "push", REMOTE_NAME],
+            stderr=(
+                "This package has no Expected Parrot object yet; push it with "
+                "'ep push' (or obj.git.coop_push()) to create it and its git repo."
+            ),
+        )
+    manifest = read_manifest_file(path)
+    origin = _origin_url(path)
+    if origin is not None and uuid_from_remote_url(origin) is None:
+        raise error_cls(
+            ["git", "remote", "get-url", REMOTE_NAME],
+            stderr=(
+                f"{REMOTE_NAME} is {without_credentials(origin)}, not an Expected Parrot "
+                f"repo; rename or remove that remote to push to Expected Parrot."
+            ),
+        )
+    url = _coop_info(path).get("git_remote_url")
+    if not url:
+        return None
+    if origin is None:
+        git(path, "remote", "add", REMOTE_NAME, url, error_cls=error_cls)
+    elif origin != url:
+        git(path, "remote", "set-url", REMOTE_NAME, url, error_cls=error_cls)
+    if manifest.get("remote_url") != url:
+        manifest["remote_url"] = url
+        write_manifest_dict(path, manifest)
+    return url
+
+
+def clone_package(
+    url: str,
+    destination: Path,
+    *,
+    package_suffix: str,
+    token: Optional[str] = None,
+    error_cls: Type[Exception] = GitPackageError,
+) -> Path:
+    """``git clone`` a repo into a package at ``destination``, adding no commit,
+    and return its worktree. A ``user:key@`` in the URL is used for the clone
+    only; ``origin`` keeps the URL without it."""
+    worktree_path = new_package_worktree(destination)
+    run_git(
+        ["git", "clone", "-o", REMOTE_NAME, url, str(worktree_path)],
+        error_cls=error_cls,
+        env=http_auth_git_env(url, token),
+    )
+    if without_credentials(url) != url:
+        git(
+            worktree_path,
+            "remote",
+            "set-url",
+            REMOTE_NAME,
+            without_credentials(url),
+            error_cls=error_cls,
+        )
+    pack_package_archive(worktree_path, destination, package_suffix=package_suffix)
+    return worktree_path
+
+
+def commit_paths(
+    path: Path, *paths: str, message: str, error_cls: Type[Exception] = GitPackageError
+) -> None:
+    """Commit ``paths`` as EDSL if any of them changed."""
+    git(path, "add", "-A", "--", *paths, error_cls=error_cls)
+    if has_staged_changes(path):
+        git(
+            path,
+            "-c",
+            "user.name=EDSL",
+            "-c",
+            "user.email=edsl@example.invalid",
+            "commit",
+            "-m",
+            message,
+            error_cls=error_cls,
+        )
 
 
 def manifest_remotes(manifest: dict) -> dict:
@@ -1246,24 +996,6 @@ def manifest_remotes(manifest: dict) -> dict:
             )
         return {name: metadata}
     return {}
-
-
-def server_uuid_from_remote_url(url: str) -> Optional[str]:
-    parsed = urlparse(url)
-    marker = "/api/v0/git/"
-    if marker not in parsed.path:
-        return None
-    tail = parsed.path.split(marker, 1)[1]
-    if not tail.endswith(".git"):
-        return None
-    return tail[: -len(".git")]
-
-
-def server_url_from_remote_url(url: str) -> str:
-    parsed = urlparse(url)
-    if not parsed.scheme or not parsed.netloc:
-        return ""
-    return f"{parsed.scheme}://{parsed.netloc}"
 
 
 def update_local_bare_remote_head(

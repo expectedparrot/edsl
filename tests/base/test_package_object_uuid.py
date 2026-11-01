@@ -1,11 +1,9 @@
-"""A package's ``object_uuid``: its one id for its Coop object and git repo."""
+"""A package's ``object_uuid``: its Coop object's uuid, which also names its git repo."""
 
 import json
 import shutil
-import subprocess
 import zipfile
 from pathlib import Path
-from uuid import UUID
 
 import pytest
 
@@ -15,6 +13,8 @@ from edsl.base import git_package as gitpkg
 pytestmark = pytest.mark.skipif(
     shutil.which("git") is None, reason="package tests require git"
 )
+
+COOP_UUID = "11111111-2222-4333-8444-555555555555"
 
 
 def _manifest(package_path: Path) -> dict:
@@ -36,17 +36,50 @@ def _edit_package(package_path: Path, change) -> None:
         shutil.rmtree(worktree, ignore_errors=True)
 
 
-def test_first_save_records_a_uuid_that_later_saves_keep(tmp_path):
+@pytest.fixture
+def coop(monkeypatch):
+    """Coop picks COOP_UUID for a new object; the push kwargs are kept."""
+    pushed = []
+
+    def fake_push(self, **kwargs):
+        pushed.append(kwargs)
+        return {"uuid": COOP_UUID, "url": "https://example.test/content/x"}
+
+    class FakeCoop:
+        def __init__(self, url=None):
+            pass
+
+        def get_metadata(self, url_or_uuid):
+            return {"uuid": str(url_or_uuid)}
+
+    import edsl.coop as coop_module
+
+    monkeypatch.setattr(Survey, "push", fake_push)
+    monkeypatch.setattr(coop_module, "Coop", FakeCoop)
+    return pushed
+
+
+def test_saving_records_no_uuid(tmp_path):
     package_path = tmp_path / "survey.ep"
     survey = Survey.example()
     survey.git.save(package_path)
-    object_uuid = _manifest(package_path)["object_uuid"]
-    UUID(object_uuid)
-
     survey.git.save(message="resave")
+
+    assert "object_uuid" not in _manifest(package_path)
+
+
+def test_coop_push_records_the_uuid_coop_picked(tmp_path, coop):
+    package_path = tmp_path / "survey.ep"
+    survey = Survey.example()
+    survey.git.save(package_path)
+
+    survey.git.coop_push()
     Survey.git.load(package_path).git.save(message="reopened")
 
-    assert _manifest(package_path)["object_uuid"] == object_uuid
+    assert "uuid" not in coop[0]
+    assert _manifest(package_path)["object_uuid"] == COOP_UUID
+    with zipfile.ZipFile(package_path) as archive:
+        assert json.loads(archive.read("coop_info.json"))["uuid"] == COOP_UUID
 
 
 def test_a_rebuilt_manifest_keeps_remote_url(tmp_path):
@@ -69,83 +102,40 @@ def test_a_rebuilt_manifest_keeps_remote_url(tmp_path):
     assert manifest["name"] == "renamed"
 
 
-@pytest.mark.parametrize("source", ["coop_info", "origin"])
-def test_an_older_package_reuses_the_uuid_it_carries(tmp_path, monkeypatch, source):
+def test_an_older_pushed_package_takes_the_uuid_in_its_coop_info(tmp_path):
     package_path = tmp_path / "survey.ep"
     Survey.example().git.save(package_path)
-    carried = "11111111-2222-4333-8444-555555555555"
+    worktree = gitpkg.unpack_package_archive(package_path, package_suffix=".ep")
+    assert gitpkg.record_object_uuid(worktree) is None
 
-    class FakeCoop:
-        """Save checks Coop for a newer copy of a pushed package; there is none."""
+    (worktree / "coop_info.json").write_text(json.dumps({"uuid": COOP_UUID}))
 
-        def __init__(self, url=None):
-            pass
+    assert gitpkg.record_object_uuid(worktree) == COOP_UUID
+    assert gitpkg.read_manifest_file(worktree)["object_uuid"] == COOP_UUID
 
-        def get_metadata(self, url_or_uuid):
-            return {"uuid": str(url_or_uuid)}
 
-    import edsl.coop as coop_module
+def test_a_coop_info_uuid_that_is_not_a_uuid_is_ignored(tmp_path):
+    package_path = tmp_path / "survey.ep"
+    Survey.example().git.save(package_path)
+    worktree = gitpkg.unpack_package_archive(package_path, package_suffix=".ep")
+    (worktree / "coop_info.json").write_text(json.dumps({"uuid": "survey-uuid"}))
 
-    monkeypatch.setattr(coop_module, "Coop", FakeCoop)
-
-    def make_older(worktree):
-        manifest = gitpkg.read_manifest_file(worktree)
-        manifest.pop("object_uuid")
-        gitpkg.write_manifest_dict(worktree, manifest)
-        if source == "coop_info":
-            (worktree / "coop_info.json").write_text(json.dumps({"uuid": carried}))
-        else:
-            url = f"https://git.example.test/edsl/alice/obj-{carried}.git"
-            subprocess.run(["git", "-C", str(worktree), "remote", "add", "origin", url], check=True)
-
-    _edit_package(package_path, make_older)
-    assert "object_uuid" not in _manifest(package_path)
-
-    Survey.git.load(package_path).git.save(message="resave")
-
-    assert _manifest(package_path)["object_uuid"] == carried
+    assert gitpkg.record_object_uuid(worktree) is None
+    assert "object_uuid" not in gitpkg.read_manifest_file(worktree)
 
 
 def test_only_the_top_level_package_of_a_job_gets_a_uuid(tmp_path):
     package_path = tmp_path / "job.ep"
     Jobs.example().git.save(package_path)
+    worktree = gitpkg.unpack_package_archive(package_path, package_suffix=".ep")
+    (worktree / "coop_info.json").write_text(json.dumps({"uuid": COOP_UUID}))
+    gitpkg.record_object_uuid(worktree)
 
-    with zipfile.ZipFile(package_path) as archive:
-        manifests = [
-            json.loads(archive.read(name))
-            for name in archive.namelist()
-            if name.endswith("manifest.json") and not name.startswith(".git/")
-        ]
+    manifests = {
+        str(path.relative_to(worktree)): json.loads(path.read_text())
+        for path in worktree.rglob("manifest.json")
+        if ".git" not in path.parts
+    }
 
     assert len(manifests) > 1
-    assert [m for m in manifests if "object_uuid" in m] == [_manifest(package_path)]
-
-
-def test_coop_push_sends_the_package_uuid(tmp_path, monkeypatch):
-    package_path = tmp_path / "survey.ep"
-    survey = Survey.example()
-    survey.git.save(package_path)
-    object_uuid = _manifest(package_path)["object_uuid"]
-    sent = []
-
-    def fake_push(self, **kwargs):
-        sent.append(kwargs.get("uuid"))
-        return {"uuid": kwargs.get("uuid"), "url": "https://example.test/content/x"}
-
-    class FakeCoop:
-        def __init__(self, url=None):
-            pass
-
-        def get_metadata(self, url_or_uuid):
-            return {"uuid": str(url_or_uuid)}
-
-    monkeypatch.setattr(Survey, "push", fake_push)
-    import edsl.coop as coop_module
-
-    monkeypatch.setattr(coop_module, "Coop", FakeCoop)
-
-    survey.git.coop_push()
-
-    assert sent == [object_uuid]
-    with zipfile.ZipFile(package_path) as archive:
-        assert json.loads(archive.read("coop_info.json"))["uuid"] == object_uuid
+    assert [name for name, m in manifests.items() if "object_uuid" in m] == ["manifest.json"]

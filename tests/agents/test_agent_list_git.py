@@ -21,20 +21,6 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def _local_git_server_path(tmp_path: Path) -> Path:
-    candidates = [
-        tmp_path.parents[3] / "git_server",
-        Path(__file__).resolve().parents[2] / "git_server",
-        Path(__file__).resolve().parents[3] / "edsl-git-server",
-        Path("/Users/johnhorton/tools/ep/edsl-git-server"),
-        Path("/Users/johnhorton/tools/ep/edsl/git_server"),
-    ]
-    for candidate in candidates:
-        if (candidate / "local_app.py").exists():
-            return candidate
-    pytest.skip("Could not find local EDSL git server checkout.")
-
-
 def _package_json(package_path: Path, member: str):
     with zipfile.ZipFile(package_path) as archive:
         return json.loads(archive.read(member).decode())
@@ -114,7 +100,7 @@ def test_agent_list_git_coop_push_creates_info_then_patches(tmp_path, monkeypatc
         visibility="private",
         expected_parrot_url=None,
         force=False,
-        uuid=None,
+        git_repo=False,
     ):
         push_calls.append(
             {
@@ -123,7 +109,7 @@ def test_agent_list_git_coop_push_creates_info_then_patches(tmp_path, monkeypatc
                 "visibility": visibility,
                 "expected_parrot_url": expected_parrot_url,
                 "force": force,
-                "uuid": uuid,
+                "git_repo": git_repo,
             }
         )
         return {
@@ -138,7 +124,8 @@ def test_agent_list_git_coop_push_creates_info_then_patches(tmp_path, monkeypatc
             self.url = url
 
         def patch(
-            self, url_or_uuid, description=None, alias=None, value=None, visibility=None
+            self, url_or_uuid, description=None, alias=None, value=None, visibility=None,
+            git_repo=False,
         ):
             patch_calls.append(
                 {
@@ -744,10 +731,8 @@ def test_agent_list_git_remote_helpers(tmp_path):
     assert info == {"status": "ok", "name": "origin", "url": str(remote_path)}
     assert agent_list.git.remotes() == {"origin": str(remote_path)}
     manifest = _package_json(package_path, "manifest.json")
-    assert manifest["primary_remote"] == "origin"
-    assert manifest["remotes"] == {
-        "origin": {"kind": "git", "remote_url": str(remote_path)}
-    }
+    assert "remotes" not in manifest
+    assert "primary_remote" not in manifest
 
 
 def test_agent_list_git_supports_multiple_remotes_and_push_to_named_remote(tmp_path):
@@ -768,16 +753,7 @@ def test_agent_list_git_supports_multiple_remotes_and_push_to_named_remote(tmp_p
         "github": str(github_path),
         "origin": str(origin_path),
     }
-    manifest = _package_json(package_path, "manifest.json")
-    assert manifest["primary_remote"] == "origin"
-    assert manifest["remotes"]["origin"] == {
-        "kind": "git",
-        "remote_url": str(origin_path),
-    }
-    assert manifest["remotes"]["github"] == {
-        "kind": "git",
-        "remote_url": str(github_path),
-    }
+    assert "remotes" not in _package_json(package_path, "manifest.json")
 
     cloned = tmp_path / "github-clone"
     subprocess.run(["git", "clone", str(github_path), str(cloned)], check=True)
@@ -803,11 +779,6 @@ def test_agent_list_git_remote_set_url_remove_and_fetch(tmp_path):
 
     assert set_info == {"status": "ok", "name": "origin", "url": str(replacement_path)}
     assert agent_list.git.remotes() == {"origin": str(replacement_path)}
-    manifest = _package_json(package_path, "manifest.json")
-    assert manifest["remotes"]["origin"] == {
-        "kind": "git",
-        "remote_url": str(replacement_path),
-    }
 
     remove_info = agent_list.git.remote_remove("origin")
 
@@ -817,9 +788,6 @@ def test_agent_list_git_remote_set_url_remove_and_fetch(tmp_path):
         "url": str(replacement_path),
     }
     assert agent_list.git.remotes() == {}
-    manifest = _package_json(package_path, "manifest.json")
-    assert manifest["remotes"] == {}
-    assert "primary_remote" not in manifest
 
 
 def test_agent_list_git_pull_and_checkout_refuse_dirty_tree(tmp_path):
@@ -882,264 +850,3 @@ def test_agent_list_git_preserves_agent_file_ids_on_insert(tmp_path):
     assert _package_json(package_path, "agents/000001.json") == alice_file
     assert _package_json(package_path, "agents/000002.json") == bob_file
     assert _package_json(package_path, "agents/000003.json")["name"] == "cara"
-
-
-def test_agent_list_git_push_auto_creates_temporary_local_server_remote(
-    tmp_path, monkeypatch
-):
-    import socket
-    import sys
-    import threading
-    import time
-
-    import httpx
-    import uvicorn
-
-    git_server_path = _local_git_server_path(tmp_path)
-    sys.path.insert(0, str(git_server_path))
-    try:
-        from local_app import create_app
-    finally:
-        sys.path.remove(str(git_server_path))
-
-    app = create_app(
-        database_url=f"sqlite:///{tmp_path / 'server.db'}",
-        storage_root=tmp_path / "repos",
-    )
-    sock = socket.socket()
-    sock.bind(("127.0.0.1", 0))
-    port = sock.getsockname()[1]
-    sock.close()
-    config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning")
-    server = uvicorn.Server(config)
-    thread = threading.Thread(target=server.run, daemon=True)
-    thread.start()
-    base_url = f"http://127.0.0.1:{port}"
-    deadline = time.time() + 5
-    while time.time() < deadline:
-        try:
-            if httpx.get(f"{base_url}/openapi.json", timeout=0.2).status_code == 200:
-                break
-        except Exception:
-            time.sleep(0.05)
-    else:
-        server.should_exit = True
-        thread.join(timeout=2)
-        raise RuntimeError("local git server did not start")
-
-    from edsl.config import CONFIG
-
-    monkeypatch.setattr(CONFIG, "EDSL_GIT_SERVER_URL", base_url, raising=False)
-    monkeypatch.setattr(CONFIG, "EXPECTED_PARROT_API_KEY", "alice-token", raising=False)
-
-    try:
-        package_path = tmp_path / "agents.ep"
-        agent_list = AgentList([Agent(name="alice", traits={"age": 22})])
-        agent_list.git.save(package_path, message="initial agents")
-
-        push_info = agent_list.git.push()
-
-        assert push_info["status"] == "ok"
-        remotes = agent_list.git.remotes()
-        assert set(remotes) == {"origin"}
-        assert remotes["origin"].startswith(f"{base_url}/api/v0/git/")
-        manifest = _package_json(package_path, "manifest.json")
-        assert manifest["primary_remote"] == "origin"
-        assert manifest["remotes"]["origin"]["server_uuid"] in remotes["origin"]
-        assert manifest["remotes"]["origin"]["remote_url"] == remotes["origin"]
-        assert manifest["remotes"]["origin"]["display_name"] == "agents"
-
-        cloned = AgentList.git.clone(remotes["origin"], path=tmp_path / "clone")
-        assert cloned == agent_list
-    finally:
-        server.should_exit = True
-        thread.join(timeout=5)
-
-
-def test_agent_list_git_push_unsaved_agent_list_auto_saves_and_pushes(
-    tmp_path, monkeypatch
-):
-    import socket
-    import sys
-    import threading
-    import time
-
-    import httpx
-    import uvicorn
-
-    git_server_path = _local_git_server_path(tmp_path)
-    sys.path.insert(0, str(git_server_path))
-    try:
-        from local_app import create_app
-    finally:
-        sys.path.remove(str(git_server_path))
-
-    app = create_app(
-        database_url=f"sqlite:///{tmp_path / 'server.db'}",
-        storage_root=tmp_path / "repos",
-    )
-    sock = socket.socket()
-    sock.bind(("127.0.0.1", 0))
-    port = sock.getsockname()[1]
-    sock.close()
-    config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning")
-    server = uvicorn.Server(config)
-    thread = threading.Thread(target=server.run, daemon=True)
-    thread.start()
-    base_url = f"http://127.0.0.1:{port}"
-    deadline = time.time() + 5
-    while time.time() < deadline:
-        try:
-            if httpx.get(f"{base_url}/openapi.json", timeout=0.2).status_code == 200:
-                break
-        except Exception:
-            time.sleep(0.05)
-    else:
-        server.should_exit = True
-        thread.join(timeout=2)
-        raise RuntimeError("local git server did not start")
-
-    from edsl.config import CONFIG
-
-    monkeypatch.setattr(CONFIG, "EDSL_GIT_SERVER_URL", base_url, raising=False)
-    monkeypatch.setattr(CONFIG, "EXPECTED_PARROT_API_KEY", "alice-token", raising=False)
-    monkeypatch.setattr(
-        CONFIG,
-        "EDSL_GIT_SERVER_DIR",
-        str(_local_git_server_path(tmp_path)),
-        raising=False,
-    )
-    monkeypatch.chdir(tmp_path)
-
-    try:
-        agent_list = AgentList.example()
-        push_info = agent_list.git.push()
-
-        assert push_info["status"] == "ok"
-        assert push_info["path"] == "agent_list.ep"
-        assert agent_list.git.path == Path("agent_list.ep")
-        manifest_path = tmp_path / "agent_list.ep"
-        assert manifest_path.is_file()
-        assert set(agent_list.git.remotes()) == {"origin"}
-        manifest = _package_json(manifest_path, "manifest.json")
-        assert (
-            manifest["remotes"]["origin"]["server_uuid"]
-            in agent_list.git.remotes()["origin"]
-        )
-        assert manifest["remotes"]["origin"]["display_name"] == "agent_list"
-
-        cloned = AgentList.git.clone(
-            agent_list.git.remotes()["origin"], path=tmp_path / "clone"
-        )
-        assert cloned == agent_list
-    finally:
-        server.should_exit = True
-        thread.join(timeout=5)
-
-
-def test_agent_list_git_push_autostarts_temporary_local_server(tmp_path, monkeypatch):
-    import socket
-
-    from edsl.base import git_package as gitpkg
-    from edsl.config import CONFIG
-
-    if gitpkg.temporary_git_server_directory() is None:
-        pytest.skip("Could not find local EDSL git server checkout.")
-
-    sock = socket.socket()
-    sock.bind(("127.0.0.1", 0))
-    port = sock.getsockname()[1]
-    sock.close()
-    base_url = f"http://127.0.0.1:{port}"
-
-    monkeypatch.setattr(CONFIG, "EDSL_GIT_SERVER_URL", base_url, raising=False)
-    monkeypatch.setattr(CONFIG, "EXPECTED_PARROT_API_KEY", "alice-token", raising=False)
-    monkeypatch.setenv("LOCAL_GIT_DATABASE_URL", f"sqlite:///{tmp_path / 'server.db'}")
-    monkeypatch.setenv("LOCAL_GIT_STORAGE_ROOT", str(tmp_path / "repos"))
-    monkeypatch.chdir(tmp_path)
-
-    try:
-        agent_list = AgentList.example()
-        push_info = agent_list.git.push()
-
-        assert push_info["status"] == "ok"
-        assert push_info["remote"] == "origin"
-        remote_url = agent_list.git.remotes()["origin"]
-        assert remote_url.startswith(f"{base_url}/api/v0/git/")
-        manifest = _package_json(tmp_path / "agent_list.ep", "manifest.json")
-        assert manifest["remotes"]["origin"]["server_uuid"] in remote_url
-        assert manifest["remotes"]["origin"]["remote_url"] == remote_url
-    finally:
-        process = gitpkg._TEMPORARY_GIT_SERVER_PROCESS
-        if process is not None and process.poll() is None:
-            process.terminate()
-            process.wait(timeout=5)
-        gitpkg._TEMPORARY_GIT_SERVER_PROCESS = None
-
-
-def test_agent_list_git_objects_lists_canonical_server_objects(tmp_path, monkeypatch):
-    import socket
-    import sys
-    import threading
-    import time
-
-    import httpx
-    import uvicorn
-
-    git_server_path = _local_git_server_path(tmp_path)
-    sys.path.insert(0, str(git_server_path))
-    try:
-        from local_app import create_app
-    finally:
-        sys.path.remove(str(git_server_path))
-
-    app = create_app(
-        database_url=f"sqlite:///{tmp_path / 'server.db'}",
-        storage_root=tmp_path / "repos",
-    )
-    sock = socket.socket()
-    sock.bind(("127.0.0.1", 0))
-    port = sock.getsockname()[1]
-    sock.close()
-    config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning")
-    server = uvicorn.Server(config)
-    thread = threading.Thread(target=server.run, daemon=True)
-    thread.start()
-    base_url = f"http://127.0.0.1:{port}"
-    deadline = time.time() + 5
-    while time.time() < deadline:
-        try:
-            if httpx.get(f"{base_url}/openapi.json", timeout=0.2).status_code == 200:
-                break
-        except Exception:
-            time.sleep(0.05)
-    else:
-        server.should_exit = True
-        thread.join(timeout=2)
-        raise RuntimeError("local git server did not start")
-
-    from edsl.config import CONFIG
-
-    monkeypatch.setattr(CONFIG, "EDSL_GIT_SERVER_URL", base_url, raising=False)
-    monkeypatch.setattr(CONFIG, "EXPECTED_PARROT_API_KEY", "alice-token", raising=False)
-
-    try:
-        package_path = tmp_path / "agents.ep"
-        agent_list = AgentList([Agent(name="alice", traits={"age": 22})])
-        agent_list.git.save(package_path, message="initial agents")
-        agent_list.git.push()
-
-        listing = AgentList.git.objects()
-
-        assert listing["status"] == "ok"
-        assert listing["server_url"] == base_url
-        assert listing["object_type"] == "AgentList"
-        assert len(listing["objects"]) == 1
-        obj = listing["objects"][0]
-        assert obj["object_type"] == "AgentList"
-        assert obj["display_name"] == "agents"
-        assert obj["remote_url"] == agent_list.git.remotes()["origin"]
-        assert obj["created_at"]
-    finally:
-        server.should_exit = True
-        thread.join(timeout=5)

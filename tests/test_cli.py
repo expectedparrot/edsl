@@ -11,7 +11,6 @@ import json
 import subprocess
 import sys
 import tempfile
-import zipfile
 from pathlib import Path
 
 import pytest
@@ -8178,8 +8177,6 @@ class TestPush:
 
         package_path = tmp_path / "survey.ep"
         Survey.example().git.save(package_path)
-        with zipfile.ZipFile(package_path) as archive:
-            object_uuid = json.loads(archive.read("manifest.json"))["object_uuid"]
         push_calls = []
 
         def fake_push(
@@ -8189,7 +8186,7 @@ class TestPush:
             visibility=None,
             expected_parrot_url=None,
             force=False,
-            uuid=None,
+            git_repo=False,
         ):
             push_calls.append(
                 {
@@ -8197,7 +8194,7 @@ class TestPush:
                     "alias": alias,
                     "visibility": visibility,
                     "force": force,
-                    "uuid": uuid,
+                    "git_repo": git_repo,
                 }
             )
             return {
@@ -8255,7 +8252,7 @@ class TestPush:
                 "alias": "created-alias",
                 "visibility": "public",
                 "force": False,
-                "uuid": object_uuid,
+                "git_repo": True,
             }
         ]
         html = Survey.git.open(package_path).html()
@@ -8284,7 +8281,10 @@ class TestPush:
             def __init__(self, url=None):
                 pass
 
-            def patch(self, url_or_uuid, description=None, alias=None, value=None, visibility=None):
+            def patch(
+                self, url_or_uuid, description=None, alias=None, value=None, visibility=None,
+                git_repo=False,
+            ):
                 patch_calls.append(
                     {
                         "url_or_uuid": url_or_uuid,
@@ -8292,6 +8292,7 @@ class TestPush:
                         "alias": alias,
                         "object_type": type(value).__name__,
                         "visibility": visibility,
+                        "git_repo": git_repo,
                     }
                 )
                 return {
@@ -8343,6 +8344,7 @@ class TestPush:
                 "alias": "new-alias",
                 "object_type": "Survey",
                 "visibility": "unlisted",
+                "git_repo": True,
             }
         ]
 
