@@ -23,16 +23,37 @@ def register(app: click.Group) -> None:
     @click.argument("identifier")
     @click.option("--path", "output_path", default=None, help="Package path to save to.")
     def clone_object(identifier, output_path):
-        """Clone a shared EDSL object into a git-backed package."""
+        """Clone an EDSL object into a git-backed .ep package.
+
+        IDENTIFIER is a git remote URL (.../obj-<uuid>.git), a uuid, an
+        owner/alias, or a Coop URL. An object whose git repo you can read comes
+        with its full history; any other is fetched from Coop. Cloning adds no
+        commit of its own.
+        """
         try:
+            from edsl.base import git_package as gitpkg
             from edsl.config import CONFIG
             from edsl.coop import Coop
 
+            if gitpkg.uuid_from_remote_url(identifier):
+                _git_clone(identifier, output_path, source=identifier)
+                return
+
             coop_identifier = _coop_content_identifier(identifier, CONFIG.EXPECTED_PARROT_URL)
             coop_client = Coop()
+            coop_info = None if _is_uuid(identifier) else _plain_dict(
+                coop_client.get_metadata(coop_identifier)
+            )
+            object_uuid = identifier if coop_info is None else coop_info.get("uuid")
+            remote_url = _own_repo_url(coop_client, object_uuid)
+            if remote_url:
+                alias = coop_info and coop_info.get("alias")
+                _git_clone(remote_url, output_path, source=identifier, alias=alias)
+                return
+
             obj = coop_client.get(coop_identifier)
-            coop_info = coop_client.get_metadata(coop_identifier)
-            coop_info = _plain_dict(coop_info)
+            if coop_info is None:
+                coop_info = _plain_dict(coop_client.get_metadata(coop_identifier))
 
             if not hasattr(obj, "git"):
                 class_name = type(obj).__name__
@@ -44,10 +65,8 @@ def register(app: click.Group) -> None:
                 )
 
             save_path = output_path or _default_clone_path(identifier, coop_info, obj)
-            save_info = obj.git.save(save_path, message=f"Clone {identifier}")
-            coop_commit_info = obj.git._write_coop_info_and_commit(
-                coop_info,
-                message=f"Store Coop info for {identifier}",
+            save_info = obj.git._save_overwriting_package(
+                save_path, message=f"Clone {identifier}", coop_info=coop_info
             )
 
             data = {
@@ -55,11 +74,12 @@ def register(app: click.Group) -> None:
                 "path": str(obj.git.path),
                 "source": identifier,
                 "resolved_identifier": coop_identifier,
+                "operation": "coop",
                 "coop_info": coop_info,
                 "save": save_info,
-                "commit": coop_commit_info.get("commit"),
-                "branch": coop_commit_info.get("branch"),
-                "message": coop_commit_info.get("message"),
+                "commit": save_info.get("commit"),
+                "branch": save_info.get("branch"),
+                "message": save_info.get("message"),
             }
             output(data)
 
@@ -69,9 +89,74 @@ def register(app: click.Group) -> None:
             error(
                 "CLONE_ERROR",
                 str(e),
-                suggestion="Check the owner/alias, your API key, and the destination path.",
+                suggestion="Check the identifier, your API key, and the destination path.",
                 exit_code=EXIT_REMOTE,
             )
+
+
+    def _git_clone(remote_url: str, output_path, *, source: str, alias=None) -> None:
+        import shutil
+
+        from edsl.base import git_package as gitpkg
+
+        object_uuid = gitpkg.uuid_from_remote_url(remote_url)
+        save_path = output_path or _safe_clone_name(alias or f"obj-{object_uuid}")
+        destination = gitpkg.clone_destination(save_path, package_suffix=".ep")
+        if destination.exists():
+            error(
+                "USAGE_ERROR",
+                f"Destination already exists: {destination}",
+                suggestion="Pass --path to clone somewhere else.",
+                exit_code=EXIT_USAGE,
+            )
+        worktree_path = gitpkg.clone_package(remote_url, destination, package_suffix=".ep")
+        try:
+            commit = gitpkg.head_commit(worktree_path)
+            branch = gitpkg.current_branch(worktree_path)
+            origin = gitpkg.remote_url(worktree_path, gitpkg.REMOTE_NAME)
+        finally:
+            shutil.rmtree(worktree_path, ignore_errors=True)
+        obj = load_git_object(destination)
+        output(
+            {
+                "object_type": type(obj).__name__,
+                "path": str(destination),
+                "source": source,
+                "operation": "git",
+                "remote_url": origin,
+                "object_uuid": object_uuid,
+                "coop_info": obj.git._read_coop_info(),
+                "commit": commit,
+                "branch": branch,
+            }
+        )
+
+
+    def _is_uuid(value: str) -> bool:
+        from uuid import UUID
+
+        try:
+            UUID(value)
+        except (TypeError, ValueError):
+            return False
+        return True
+
+
+    def _own_repo_url(coop_client, object_uuid):
+        """The remote URL of your git repo for ``object_uuid``; None if you have
+        none, or Coop has no git host."""
+        if not object_uuid:
+            return None
+        try:
+            response = coop_client._send_server_request(uri="api/v0/git-repos", method="GET")
+            coop_client._resolve_server_response(response)
+            repos = response.json().get("objects", [])
+        except Exception:
+            return None
+        return next(
+            (repo["remote_url"] for repo in repos if repo.get("uuid") == str(object_uuid)),
+            None,
+        )
 
 
     def _coop_content_identifier(identifier: str, expected_parrot_url: str) -> str:
@@ -146,7 +231,10 @@ def register(app: click.Group) -> None:
         """Push or patch an EDSL object on Expected Parrot.
 
         OBJECT_PATH is a git-backed .ep package, or a .json/.json.gz file for
-        objects that have no package format, such as prompts.
+        objects that have no package format, such as prompts. A package goes
+        to Coop, which picks its uuid on the first push; the package records
+        it, then its history goes to the obj-<uuid> git repo Coop hands out,
+        unless Coop has no git host.
         """
         source_path = Path(object_path)
         try:
@@ -171,14 +259,25 @@ def register(app: click.Group) -> None:
                     exit_code=EXIT_VALIDATION,
                 )
 
+            from edsl.base.git_accessor import GitPushError
+
             had_coop_info = _object_has_coop_info(obj)
-            info = obj.git.coop_push(
-                description=description,
-                alias=alias,
-                visibility=visibility,
-                force=force,
-                message=f"Push {source_path.name} to Expected Parrot",
-            )
+            try:
+                info = obj.git.coop_push(
+                    description=description,
+                    alias=alias,
+                    visibility=visibility,
+                    force=force,
+                    message=f"Push {source_path.name} to Expected Parrot",
+                )
+            except GitPushError as exc:
+                error(
+                    "GIT_PUSH_ERROR",
+                    str(exc),
+                    suggestion="Coop has the object. Run 'ep push' again to retry the git push.",
+                    exit_code=EXIT_REMOTE,
+                    details=[jsonable(exc.result)],
+                )
 
             output(
                 {
@@ -187,6 +286,7 @@ def register(app: click.Group) -> None:
                     "path": str(obj.git.path) if getattr(obj.git, "path", None) else None,
                     "operation": "patch" if had_coop_info else "push",
                     "coop_info": info.get("coop_info"),
+                    "remote_url": obj.git.remotes().get(info["git"]["remote"]) if "git" in info else None,
                     "commit": info.get("commit"),
                     "branch": info.get("branch"),
                     "message": info.get("message"),
@@ -235,12 +335,58 @@ def register(app: click.Group) -> None:
         )
 
 
+    @app.command("log")
+    @click.argument("object_path", type=click.Path(exists=True))
+    @click.option("-n", "--max-count", type=int, default=None, help="Show at most this many commits.")
+    @click.option("--oneline", is_flag=True, default=False, help="One '<short commit> <message>' line per commit.")
+    def log_object(object_path, max_count, oneline):
+        """Show the commit history in a git-backed .ep package, newest first."""
+        import shutil
+
+        from edsl.base import git_package as gitpkg
+
+        source_path = Path(object_path)
+        try:
+            unpacked = not source_path.is_dir()
+            worktree_path = (
+                gitpkg.unpack_package_archive(source_path, package_suffix=".ep")
+                if unpacked
+                else source_path
+            )
+            try:
+                commits = gitpkg.GitPackage(
+                    worktree_path, package_suffix=".ep", object_type="object"
+                ).log()
+            finally:
+                if unpacked:
+                    shutil.rmtree(worktree_path, ignore_errors=True)
+            commits = commits[:max_count] if max_count is not None else commits
+            if oneline:
+                commits = [f"{entry['commit'][:7]} {entry['message']}" for entry in commits]
+            output({"path": str(source_path), "commits": commits})
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "LOG_ERROR",
+                str(e),
+                suggestion="Pass a git-backed .ep package.",
+                exit_code=EXIT_VALIDATION,
+            )
+
+
     @app.command("pull")
     @click.argument("object_path", type=click.Path(exists=True))
     def pull_object(object_path):
-        """Fetch the latest Expected Parrot object into a git-backed package."""
+        """Update a git-backed package from its git repo, then from Coop.
+
+        Fast-forwards from origin if the package has one, then fetches the
+        Coop object if Coop has a newer version than the package records.
+        """
         source_path = Path(object_path)
         try:
+            from edsl.base import git_package as gitpkg
+
             if not (source_path.is_dir() or source_path.suffix == ".ep"):
                 error(
                     "USAGE_ERROR",
@@ -250,37 +396,35 @@ def register(app: click.Group) -> None:
                 )
 
             obj = load_git_object(source_path)
-            if not _object_has_coop_info(obj):
+            has_origin = gitpkg.REMOTE_NAME in obj.git.remotes()
+            if not has_origin and not _object_has_coop_info(obj):
                 error(
-                    "NO_COOP_INFO",
-                    f"No coop_info.json found for package: {object_path}",
-                    suggestion="Use 'ep clone <owner>/<alias>' or 'ep push <object>' first.",
+                    "NO_REMOTE",
+                    f"Package has no git remote and no coop_info.json: {object_path}",
+                    suggestion="Use 'ep clone <owner>/<alias>' or 'ep push <path.ep>' first.",
                     exit_code=EXIT_VALIDATION,
                 )
 
-            info = obj.git._coop_pull_if_remote_updated(
-                message=f"Pull {source_path.name} from Expected Parrot"
-            )
-            coop_info = obj.git._read_coop_info()
-            if info is None:
-                info = {
-                    "status": "unchanged",
-                    "path": str(obj.git.path),
-                    "commit": getattr(obj.git, "commit", None),
-                    "branch": getattr(obj.git, "current_branch", None),
-                    "message": "remote metadata is not newer",
-                }
-            status = info.get("status")
+            before = obj.git.commit
+            git_info = obj.git.pull(remote=gitpkg.REMOTE_NAME) if has_origin else None
+            coop_info = None
+            info = None
+            if _object_has_coop_info(obj):
+                info = obj.git._coop_pull_if_remote_updated(
+                    message=f"Pull {source_path.name} from Expected Parrot"
+                )
+                coop_info = obj.git._read_coop_info()
+            changed = info is not None or obj.git.commit != before
             output(
                 {
                     "object_type": type(obj).__name__,
                     "source": str(source_path),
                     "path": str(obj.git.path) if getattr(obj.git, "path", None) else str(source_path),
-                    "operation": "unchanged" if status == "unchanged" else "updated",
+                    "operation": "updated" if changed else "unchanged",
                     "coop_info": coop_info,
-                    "commit": info.get("commit"),
-                    "branch": info.get("branch"),
-                    "message": info.get("message"),
+                    "commit": obj.git.commit,
+                    "branch": obj.git.current_branch,
+                    "git": git_info,
                     "result": info,
                 }
             )
@@ -291,7 +435,7 @@ def register(app: click.Group) -> None:
             error(
                 "PULL_ERROR",
                 str(e),
-                suggestion="Check the package path, stored Coop info, and Expected Parrot API key.",
+                suggestion="Check the package path, its remotes, and your Expected Parrot API key.",
                 exit_code=EXIT_REMOTE,
             )
 
@@ -425,7 +569,10 @@ def register(app: click.Group) -> None:
     @click.argument("target")
     @click.option("--yes", is_flag=True, default=False, help="Confirm deletion.")
     def delete(target, yes):
-        """Delete a remote object."""
+        """Delete a remote object, and its git repo with it.
+
+        TARGET is a uuid, URL, owner/alias, or a pushed .ep package.
+        """
         if not yes:
             error(
                 "CONFIRMATION_REQUIRED",

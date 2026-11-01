@@ -482,10 +482,13 @@ ep share shared_object.ep --user collaborator@example.com
 ep unshare shared_object.ep --user collaborator@example.com
 ep push shared_object.ep
 ep pull shared_object.ep
+ep log shared_object.ep --oneline
 ep delete shared_object.ep --yes
 ```
 
 Use `delete --yes` only when explicitly requested by the user.
+
+`ep push` pushes a `.ep` to Coop first; Coop picks the object's uuid, the `.ep` records it as `object_uuid` in its manifest, and Coop hands out the object's git repo, `obj-<uuid>`, creating it empty if it has none yet. The package history then goes to that repo. `ep clone` takes a repo URL, uuid, or owner/alias, and clones the repo with its history when you can read it, adding no commit. `ep pull` fast-forwards from the repo, then checks Coop.
 
 The same commands can be reached under `ep objects`:
 

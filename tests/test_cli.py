@@ -8064,6 +8064,7 @@ class TestDefault:
         assert "clone" in data["commands"]
         assert "push" in data["commands"]
         assert "pull" in data["commands"]
+        assert "log" in data["commands"]
         assert "metadata" in data["commands"]
         assert "update-metadata" in data["commands"]
         assert "share" in data["commands"]
@@ -8451,7 +8452,7 @@ class TestPull:
         assert out["status"] == "ok"
         assert out["data"]["operation"] == "unchanged"
 
-    def test_pull_package_without_coop_info_errors(self, tmp_path):
+    def test_pull_package_without_any_remote_errors(self, tmp_path):
         from edsl.surveys import Survey
 
         package_path = tmp_path / "survey.ep"
@@ -8462,4 +8463,4 @@ class TestPull:
         assert result.exit_code == cli_module.EXIT_VALIDATION
         out = json.loads(result.output)
         assert out["status"] == "error"
-        assert out["error"]["code"] == "NO_COOP_INFO"
+        assert out["error"]["code"] == "NO_REMOTE"
