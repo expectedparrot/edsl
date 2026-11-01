@@ -212,6 +212,8 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
 <ParamField path="initial_distribution" type="dict" default={{"type": "uniform"}}>
   **Distribution only** (`distribution`). What the chart shows before the respondent touches it. Respondents answer a distribution question by painting probability across its outcomes or bins; the percentages always add up to 100%.
 
+  In the live survey, respondents can also choose **Reset to Spiked** to put all probability on the first outcome, or **Reset to Uniform** to spread it equally across outcomes. **Reset to start** returns to the configured `initial_distribution`. These are respondent controls, not additional schema settings.
+
   <Expandable title="properties">
     <ParamField path="type" type="string" default="uniform">
       Which starting state to show. Required, even though `"uniform"` is the default when `initial_distribution` is omitted.
