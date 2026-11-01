@@ -118,6 +118,7 @@ from .question_registry import Question
 from .question_check_box import QuestionCheckBox
 from .question_extract import QuestionExtract
 from .question_free_text import QuestionFreeText
+from .question_edit import QuestionEdit
 from .question_url import QuestionURL
 from .question_markdown import QuestionMarkdown
 from .question_functional import QuestionFunctional
@@ -178,6 +179,7 @@ __all__ = [
     "Question",
     # Core question types
     "QuestionFreeText",
+    "QuestionEdit",
     "QuestionURL",
     "QuestionMarkdown",
     "QuestionMultipleChoice",
