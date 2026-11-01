@@ -16,6 +16,7 @@ For data labeling, a question's answer becomes a label: “What topic does this 
 | Type | Use when you need | Answer shape and constraints |
 | --- | --- | --- |
 | `free_text` | An explanation or quotation | String; correctness still needs evaluation. |
+| `email`, `url` | A contact email or web address | Validated email address or absolute URL. |
 | `multiple_choice`, `yes_no` | One category or decision | One permitted option. |
 | `checkbox`, `top_k` | Several categories | List of permitted options; set selection bounds. |
 | `linear_scale`, `likert_five` | An ordered rating | One configured scale value. |
