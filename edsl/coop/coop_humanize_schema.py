@@ -1230,6 +1230,7 @@ class HumanizeSchema(HumanizeSchemaBase):
 # against the correct class.
 QUESTION_TYPE_TO_HUMANIZE_CLASS: Dict[str, Type[BaseModel]] = {
     "free_text": FreeTextHumanizeSchema,
+    "url": FreeTextHumanizeSchema,
     "email": FreeTextHumanizeSchema,
     "budget": BudgetHumanizeSchema,
     "distribution": DistributionHumanizeSchema,
