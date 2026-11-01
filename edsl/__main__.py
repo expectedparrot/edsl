@@ -156,7 +156,7 @@ def auth(ctx):
     """Authentication management."""
     if ctx.invoked_subcommand is None:
         _output({
-            "commands": ["login", "status", "balance"],
+            "commands": ["login", "status", "setup-git", "balance"],
             "help": "Use 'ep auth <command> --help' for details.",
         })
 
