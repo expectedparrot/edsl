@@ -4575,8 +4575,9 @@ class TestHumanizeCli:
         output_path = tmp_path / "responses.ep"
 
         class FakeCoop:
-            def get_human_survey_responses(self, human_survey_uuid):
+            def get_human_survey_responses(self, human_survey_uuid, include_partial=False):
                 assert human_survey_uuid == "human-survey-uuid"
+                assert include_partial is False
                 return Results.example()
 
         monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
@@ -4604,8 +4605,9 @@ class TestHumanizeCli:
         import edsl.coop
 
         class FakeCoop:
-            def get_human_survey_responses(self, human_survey_uuid):
+            def get_human_survey_responses(self, human_survey_uuid, include_partial=False):
                 assert human_survey_uuid == "human-survey-uuid"
+                assert include_partial is False
                 return Results.example()
 
         monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
@@ -4618,6 +4620,29 @@ class TestHumanizeCli:
         assert result.exit_code == 0, result.output
         out = json.loads(result.output)
         assert "--output responses.ep" in out["data"]["next_step"]
+
+    def test_humanize_responses_include_partial(self, monkeypatch):
+        from edsl.results import Results
+        import edsl.coop
+
+        calls = []
+
+        class FakeCoop:
+            def get_human_survey_responses(self, human_survey_uuid, include_partial=False):
+                calls.append(include_partial)
+                return Results.example()
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "responses", "human-survey-uuid", "--include-partial"],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert calls == [True]
+        assert out["data"]["include_partial"] is True
 
     def test_humanize_qr_saves_file(self, tmp_path, monkeypatch):
         import edsl.coop
