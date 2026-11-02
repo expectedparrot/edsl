@@ -559,23 +559,35 @@ def register(humanize: click.Group) -> None:
     @humanize.command("responses")
     @click.argument("human_survey_uuid")
     @click.option("--output", "-o", "output_path", default=None, help="Save responses to .ep, .json, or .json.gz.")
-    def humanize_responses(human_survey_uuid, output_path):
-        """Fetch human survey responses."""
+    @click.option(
+        "--include-partial",
+        "include_partial",
+        is_flag=True,
+        default=False,
+        help="Also fetch responses still in progress; agent.response_status tells them apart.",
+    )
+    def humanize_responses(human_survey_uuid, output_path, include_partial):
+        """Fetch human survey responses (completed only, unless --include-partial)."""
         try:
             from edsl.coop import Coop
 
-            response_obj = Coop().get_human_survey_responses(human_survey_uuid)
+            response_obj = Coop().get_human_survey_responses(
+                human_survey_uuid, include_partial=include_partial
+            )
             data = {
                 "human_survey_uuid": human_survey_uuid,
+                "include_partial": include_partial,
                 "object_type": type(response_obj).__name__,
                 "result_count": len(response_obj) if hasattr(response_obj, "__len__") else None,
             }
             if output_path:
                 data["saved"] = _save_edsl_object(response_obj, output_path)
             else:
+                # Repeat the flag, so the save gets the same responses just listed.
+                partial_flag = " --include-partial" if include_partial else ""
                 data["next_step"] = (
-                    f"Use 'ep humanize responses {human_survey_uuid} --output responses.ep' "
-                    "to save the response data."
+                    f"Use 'ep humanize responses {human_survey_uuid}{partial_flag} "
+                    "--output responses.ep' to save the response data."
                 )
             output(data)
         except SystemExit:

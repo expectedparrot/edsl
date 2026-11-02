@@ -1812,7 +1812,9 @@ class Coop(CoopFunctionsMixin):
 
         Returns:
             dict: A dict with:
-                - human_surveys: list of dicts with uuid, name, visibility, created_ts, n_responses
+                - human_surveys: list of dicts with uuid, name, visibility, created_ts,
+                  n_complete (finished responses) and n_in_progress (responses still
+                  being taken)
                 - current_page, page_size, total_pages, total_count
 
         Raises:
@@ -3017,7 +3019,8 @@ class Coop(CoopFunctionsMixin):
             "admin_url": f"{self.url}/home/human-surveys/{response_json.get('uuid')}",
             "respondent_url": respondent_url,
             "preview_url": self._get_preview_url(respondent_url),
-            "n_responses": response_json.get("n_responses"),
+            "n_complete": response_json.get("n_complete"),
+            "n_in_progress": response_json.get("n_in_progress"),
             "survey_uuid": response_json.get("survey_uuid"),
             "agent_list_uuid": response_json.get("agent_list_uuid"),
             "scenario_list_uuid": response_json.get("scenario_list_uuid"),
@@ -3046,7 +3049,8 @@ class Coop(CoopFunctionsMixin):
             "admin_url": f"{self.url}/home/human-surveys/{response_json.get('uuid')}",
             "respondent_url": respondent_url,
             "preview_url": self._get_preview_url(respondent_url),
-            "n_responses": response_json.get("n_responses"),
+            "n_complete": response_json.get("n_complete"),
+            "n_in_progress": response_json.get("n_in_progress"),
             "survey_uuid": response_json.get("survey_uuid"),
             "agent_list_uuid": response_json.get("agent_list_uuid"),
             "scenario_list_uuid": response_json.get("scenario_list_uuid"),
@@ -5768,6 +5772,7 @@ class Coop(CoopFunctionsMixin):
         *,
         started_after: Optional[Union[str, datetime]] = None,
         started_before: Optional[Union[str, datetime]] = None,
+        include_partial: bool = False,
     ) -> Union["Results", "ScenarioList"]:
         """
         Return a Results object with the responses for a human survey.
@@ -5777,12 +5782,22 @@ class Coop(CoopFunctionsMixin):
         response is "started" when the respondent opened the survey, not when they
         submitted it. Both bounds are inclusive.
 
+        Pass ``include_partial=True`` to also get responses that are still being
+        taken. Each holds the answers submitted so far; a question the respondent
+        hasn't answered yet reads as None. Every result's ``agent.response_status`` is
+        ``"complete"`` or ``"in_progress"``, and ``agent.last_activity_at`` is when the
+        respondent last moved the response forward. A response that is in progress
+        now may be complete, with more answers, the next time you fetch, so combine
+        downloads by ``agent.response_uuid``.
+
         Parameters:
             human_survey_uuid (str): The UUID of the human survey.
             started_after: Only include responses started at or after this time.
                 A timezone-aware datetime, or an ISO 8601 string.
             started_before: Only include responses started at or before this time.
                 A timezone-aware datetime, or an ISO 8601 string.
+            include_partial: Also include responses still in progress
+                (default: False).
 
         If generating the Results object fails, a ScenarioList will be returned instead.
 
@@ -5792,8 +5807,11 @@ class Coop(CoopFunctionsMixin):
             ...     survey_uuid,
             ...     started_after=datetime(2026, 9, 1, tzinfo=timezone.utc),
             ... )
+            >>> coop.get_human_survey_responses(survey_uuid, include_partial=True)
         """
         params: Dict[str, Any] = {}
+        if include_partial:
+            params["include_partial"] = True
         if started_after is not None:
             if isinstance(started_after, datetime):
                 self._human_survey_datetime_must_be_tz_aware(

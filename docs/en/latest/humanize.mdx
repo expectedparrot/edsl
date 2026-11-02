@@ -85,7 +85,8 @@ info  # Contains the respondent link, admin link, and collection UUID.
 | `respondent_url` | Public link for respondents |
 | `admin_url` | Admin dashboard link |
 | `name` | Survey name |
-| `n_responses` | Response count (0 at creation) |
+| `n_complete` | Completed responses (0 at creation) |
+| `n_in_progress` | Responses started but not yet finished (0 at creation) |
 | `survey_uuid` | UUID of the pushed survey object |
 | `scenario_list_uuid` | UUID of the pushed scenario list (if any) |
 | `asset_substitutions` | Old asset uuid → new one, when the schema named assets that were copied into your library. Empty when nothing was copied |
@@ -342,6 +343,8 @@ Each completed response is one result, oldest first. Retrieving data reads the r
 |-------|-------------|
 | `answer.{question}`, `comment.{question}_comment` | The respondent's answer and comment. Empty for a question they didn't see. |
 | `agent.response_uuid`, `agent.agent_name` | The response's ID. |
+| `agent.response_status` | `complete`, or `in_progress` for a response still being taken (see below). |
+| `agent.last_activity_at` | When the respondent last moved the response forward. |
 | `agent.respondent_uuid`, `agent.agent_index` | The respondent's ID and position in the attached agent list. Empty without an agent list. |
 | `agent.{trait}` | The traits of the respondent's agent, when an agent list is attached. |
 | `agent.expectedparrot_username` | The respondent's Expected Parrot username, when the survey requires account sign-in. |
@@ -354,11 +357,26 @@ Fields that show how a response was collected, such as `agent.collection_interfa
 
 To get only some responses, pass `started_after` and/or `started_before` (inclusive; a response is "started" when the respondent opened the survey).
 
+### In-progress responses
+
+By default you get completed responses only. Pass `include_partial=True` to also get responses that are still being taken, for example to look at dropout or check on a survey that is still running:
+
+```python
+results = coop.get_human_survey_responses(
+    "your-human-survey-uuid", include_partial=True
+)
+results.filter("agent.response_status == 'in_progress'").select(
+    "agent.response_uuid", "agent.last_activity_at"
+)
+```
+
+An in-progress response holds the answers submitted so far; questions the respondent hasn't answered yet are empty. Filter to `agent.response_status == 'complete'` before computing anything that assumes a finished survey. A response that is in progress now can have more answers, or be complete, the next time you fetch, so combine downloads by `agent.response_uuid`. `include_partial` works together with `started_after` and `started_before`.
+
 ### Checking response count
 
 ```python
 status = coop.get_human_survey("your-human-survey-uuid")
-print(f"Responses received: {status['n_responses']}")
+print(f"Completed: {status['n_complete']}, in progress: {status['n_in_progress']}")
 ```
 
 ### Find surveys and inspect respondent progress
