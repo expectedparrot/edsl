@@ -196,6 +196,90 @@ info = survey.by(scenarios).humanize(
 )
 ```
 
+### Set question options from an earlier answer
+
+Use a Jinja template for `question_options` when a later question's choices depend on an earlier answer. Put the lookup data in a scenario; the survey server resolves the template after the respondent answers the first question and sends only the matching options to that page. A `QuestionDropdown` answer is a list, so `[0]` selects its single choice.
+
+This example downloads O*NET's [Task Statements CSV](https://www.onetcenter.org/dl_files/database/db_31_0_csv/task_statements.csv), builds a task list for each occupation, then shows the selected occupation's tasks in a checkbox question:
+
+```python
+import csv
+from collections import defaultdict
+from io import TextIOWrapper
+from urllib.request import urlopen
+
+from edsl import (
+    QuestionCheckBox,
+    QuestionDropdown,
+    Scenario,
+    ScenarioList,
+    Survey,
+)
+
+task_url = "https://www.onetcenter.org/dl_files/database/db_31_0_csv/task_statements.csv"
+tasks_by_occupation = defaultdict(list)
+
+with urlopen(task_url) as response:
+    rows = csv.DictReader(TextIOWrapper(response, encoding="utf-8-sig"))
+    for row in rows:
+        choice = f"{row['Title']} [{row['O*NET-SOC Code']}]"
+        tasks_by_occupation[choice].append(row["Task"])
+
+occupation = QuestionDropdown(
+    question_name="occupation",
+    question_text="Which O*NET occupation best describes your work?",
+    question_options=list(tasks_by_occupation),
+    top_k=1,
+)
+tasks = QuestionCheckBox(
+    question_name="tasks",
+    question_text="Which tasks are part of your work?",
+    question_options="{{ scenario.tasks_by_occupation[occupation.answer[0]] }}",
+)
+
+survey = Survey([occupation, tasks])
+scenario = Scenario({"tasks_by_occupation": dict(tasks_by_occupation)})
+info = survey.by(ScenarioList([scenario])).humanize(
+    human_survey_name="Occupation and Tasks",
+    scenario_list_method="single_scenario",
+)
+
+print(info["respondent_url"])
+```
+
+O*NET 31.0 includes 18,838 task statements across 923 occupations. This example includes occupations present in the task file; taxonomy occupations without task statements are left out. For respondent-facing options, the scenario-backed Jinja lookup is the direct approach. The `QuestionCompute` variant below embeds the lookup in the survey when you need a self-contained definition.
+
+#### Embed the lookup in a `QuestionCompute`
+
+For a self-contained survey, you can put the lookup dictionary directly in a `QuestionCompute` template instead of attaching it as a scenario. The compute question reads the prior dropdown answer, and the checkbox receives its answer as its options:
+
+```python
+import json
+
+from edsl import QuestionCompute
+
+# Reuse `tasks_by_occupation` and `occupation` from the example above.
+lookup_json = json.dumps(
+    dict(tasks_by_occupation), ensure_ascii=False, separators=(",", ":")
+)
+
+available_tasks = QuestionCompute(
+    question_name="available_tasks",
+    question_text="{{ " + lookup_json + "[occupation.answer[0]] }}",
+)
+tasks = QuestionCheckBox(
+    question_name="tasks",
+    question_text="Which tasks are part of your work?",
+    question_options="{{ available_tasks.answer }}",
+)
+
+survey = Survey([occupation, available_tasks, tasks])
+info = survey.humanize(human_survey_name="Occupation and Tasks")
+print(info["respondent_url"])
+```
+
+The `QuestionCompute` is an intermediate question; respondents see the occupation dropdown and task checkbox. This avoids a scenario attachment, but serializes the full lookup into the question text. For O*NET 31.0 that is about 1.9 MB, which worked in a local live survey. The scenario-backed version above keeps the question definition much smaller and is easier to maintain; embedding can be reasonable when a self-contained survey is more useful.
+
 ### Scenario list methods
 
 | Method | Behavior |
