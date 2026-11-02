@@ -73,7 +73,6 @@ def register(surveys_group: click.Group) -> None:
     @click.option("--budget-sum", default=None, type=int, help="Total budget for budget allocation questions.")
     @click.option("--min-list-items", default=None, type=int, help="Minimum number of list answer items.")
     @click.option("--max-list-items", default=None, type=int, help="Maximum number of list answer items.")
-    @click.option("--max-options-shown", default=None, type=int, help="Dropdown options shown after search.")
     @click.option("--top-k", default=None, type=int, help="Dropdown top-k search results.")
     @click.option("--permissive/--strict", default=None, help="Relax or enforce answer validation where supported.")
     @click.option("--use-code/--no-use-code", default=None, help="Use option indices instead of option text where supported.")
@@ -83,7 +82,7 @@ def register(surveys_group: click.Group) -> None:
     @click.option("--param", "params", multiple=True, help="Escape hatch: extra constructor param as KEY=JSON.")
     @click.option("--question-json", default=None, help="Question spec JSON string or path. Merged after direct flags.")
     @click.option("--output", "-o", "output_path", required=True, help="Output .ep package, serialized file, or '-' for raw JSON stdout.")
-    def create_survey(question_type: str, question_name: str, question_text: str, options: tuple[str, ...], json_options: tuple[str, ...], question_items: tuple[str, ...], answer_keys: tuple[str, ...], value_types: tuple[str, ...], value_descriptions: tuple[str, ...], answer_template: str | None, option_labels: tuple[str, ...], min_value: float | None, max_value: float | None, num_selections: int | None, min_selections: int | None, max_selections: int | None, budget_sum: int | None, min_list_items: int | None, max_list_items: int | None, max_options_shown: int | None, top_k: int | None, permissive: bool | None, use_code: bool | None, include_comment: bool | None, answering_instructions: str | None, question_presentation: str | None, params: tuple[str, ...], question_json: str | None, output_path: str):
+    def create_survey(question_type: str, question_name: str, question_text: str, options: tuple[str, ...], json_options: tuple[str, ...], question_items: tuple[str, ...], answer_keys: tuple[str, ...], value_types: tuple[str, ...], value_descriptions: tuple[str, ...], answer_template: str | None, option_labels: tuple[str, ...], min_value: float | None, max_value: float | None, num_selections: int | None, min_selections: int | None, max_selections: int | None, budget_sum: int | None, min_list_items: int | None, max_list_items: int | None, top_k: int | None, permissive: bool | None, use_code: bool | None, include_comment: bool | None, answering_instructions: str | None, question_presentation: str | None, params: tuple[str, ...], question_json: str | None, output_path: str):
         """Create a Survey with one question.
 
         \b
@@ -116,7 +115,6 @@ def register(surveys_group: click.Group) -> None:
                 budget_sum=budget_sum,
                 min_list_items=min_list_items,
                 max_list_items=max_list_items,
-                max_options_shown=max_options_shown,
                 top_k=top_k,
                 permissive=permissive,
                 use_code=use_code,
@@ -162,7 +160,6 @@ def register(surveys_group: click.Group) -> None:
     @click.option("--budget-sum", default=None, type=int, help="Total budget for budget allocation questions.")
     @click.option("--min-list-items", default=None, type=int, help="Minimum number of list answer items.")
     @click.option("--max-list-items", default=None, type=int, help="Maximum number of list answer items.")
-    @click.option("--max-options-shown", default=None, type=int, help="Dropdown options shown after search.")
     @click.option("--top-k", default=None, type=int, help="Dropdown top-k search results.")
     @click.option("--permissive/--strict", default=None, help="Relax or enforce answer validation where supported.")
     @click.option("--use-code/--no-use-code", default=None, help="Use option indices instead of option text where supported.")
@@ -174,7 +171,7 @@ def register(surveys_group: click.Group) -> None:
     @click.option("--index", default=None, type=int, help="Insert question at this zero-based index. Defaults to append.")
     @click.option("--replace", is_flag=True, default=False, help="Replace an existing question with the same --question-name.")
     @click.option("--output", "-o", "output_path", default=None, help="Output .ep package, serialized file, or '-' for raw JSON stdout. Defaults to SURVEY_PATH.")
-    def add_question(survey_path: str, question_type: str, question_name: str, question_text: str, options: tuple[str, ...], json_options: tuple[str, ...], question_items: tuple[str, ...], answer_keys: tuple[str, ...], value_types: tuple[str, ...], value_descriptions: tuple[str, ...], answer_template: str | None, option_labels: tuple[str, ...], min_value: float | None, max_value: float | None, num_selections: int | None, min_selections: int | None, max_selections: int | None, budget_sum: int | None, min_list_items: int | None, max_list_items: int | None, max_options_shown: int | None, top_k: int | None, permissive: bool | None, use_code: bool | None, include_comment: bool | None, answering_instructions: str | None, question_presentation: str | None, params: tuple[str, ...], question_json: str | None, index: int | None, replace: bool, output_path: str | None):
+    def add_question(survey_path: str, question_type: str, question_name: str, question_text: str, options: tuple[str, ...], json_options: tuple[str, ...], question_items: tuple[str, ...], answer_keys: tuple[str, ...], value_types: tuple[str, ...], value_descriptions: tuple[str, ...], answer_template: str | None, option_labels: tuple[str, ...], min_value: float | None, max_value: float | None, num_selections: int | None, min_selections: int | None, max_selections: int | None, budget_sum: int | None, min_list_items: int | None, max_list_items: int | None, top_k: int | None, permissive: bool | None, use_code: bool | None, include_comment: bool | None, answering_instructions: str | None, question_presentation: str | None, params: tuple[str, ...], question_json: str | None, index: int | None, replace: bool, output_path: str | None):
         """Add one question to an existing Survey.
 
         \b
@@ -204,7 +201,6 @@ def register(surveys_group: click.Group) -> None:
                 budget_sum=budget_sum,
                 min_list_items=min_list_items,
                 max_list_items=max_list_items,
-                max_options_shown=max_options_shown,
                 top_k=top_k,
                 permissive=permissive,
                 use_code=use_code,
@@ -525,7 +521,6 @@ def _build_question_from_fields(
     budget_sum: int | None = None,
     min_list_items: int | None = None,
     max_list_items: int | None = None,
-    max_options_shown: int | None = None,
     top_k: int | None = None,
     permissive: bool | None = None,
     use_code: bool | None = None,
@@ -559,7 +554,6 @@ def _build_question_from_fields(
         budget_sum=budget_sum,
         min_list_items=min_list_items,
         max_list_items=max_list_items,
-        max_options_shown=max_options_shown,
         top_k=top_k,
         permissive=permissive,
         use_code=use_code,
@@ -688,7 +682,6 @@ def _apply_direct_question_flags(
     budget_sum: int | None,
     min_list_items: int | None,
     max_list_items: int | None,
-    max_options_shown: int | None,
     top_k: int | None,
     permissive: bool | None,
     use_code: bool | None,
@@ -717,7 +710,6 @@ def _apply_direct_question_flags(
         "budget_sum": budget_sum,
         "min_list_items": min_list_items,
         "max_list_items": max_list_items,
-        "max_options_shown": max_options_shown,
         "top_k": top_k,
         "permissive": permissive,
         "use_code": use_code,
