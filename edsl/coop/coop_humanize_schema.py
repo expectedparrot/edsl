@@ -364,6 +364,8 @@ class SurveyHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the survey (e.g. custom styling)."""
 
     custom_css: Optional[str] = None
+    # Require an Expected Parrot account for browser respondents.
+    login_required: bool = False
     presentation: Literal["question", "group"] = "question"
     # How the respondent is shown their position in the survey. Defaults to the
     # bar that shipped before this field existed, so stored configs render
@@ -486,6 +488,16 @@ class QuestionJavaScript(HumanizeSchemaBase):
 
 class FreeTextHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the free text question type."""
+
+    optional: bool = False
+    time_limit: Optional[TimeLimit] = None
+    comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
+
+
+class DropdownHumanizeSchema(HumanizeSchemaBase):
+    """Humanize options for searchable EDSL dropdown questions."""
 
     optional: bool = False
     time_limit: Optional[TimeLimit] = None
@@ -1198,6 +1210,7 @@ HumanizeQuestionSchema = Union[
     FreeTextHumanizeSchema,
     BudgetHumanizeSchema,
     DistributionHumanizeSchema,
+    DropdownHumanizeSchema,
     CheckboxHumanizeSchema,
     CheckboxWithOtherHumanizeSchema,
     ComputeHumanizeSchema,
@@ -1232,6 +1245,7 @@ QUESTION_TYPE_TO_HUMANIZE_CLASS: Dict[str, Type[BaseModel]] = {
     "free_text": FreeTextHumanizeSchema,
     "budget": BudgetHumanizeSchema,
     "distribution": DistributionHumanizeSchema,
+    "dropdown": DropdownHumanizeSchema,
     "checkbox": CheckboxHumanizeSchema,
     "checkbox_with_other": CheckboxWithOtherHumanizeSchema,
     "compute": ComputeHumanizeSchema,

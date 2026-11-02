@@ -73,7 +73,7 @@ info  # Contains the respondent link, admin link, and collection UUID.
 | `survey_description` | str \| None | None | Optional description |
 | `survey_alias` | str \| None | None | URL-friendly alias |
 | `survey_visibility` | str | `"private"` | `"private"`, `"public"`, or `"unlisted"` |
-| `humanize_schema` | dict \| None | None | Controls question styling and optionality — see [Humanize schema](/en/latest/humanize_schema) |
+| `humanize_schema` | dict \| None | None | Controls question settings and survey options, including requiring Expected Parrot sign-in — see [Humanize schema](/en/latest/humanize_schema) |
 
 ### Return value
 
@@ -260,6 +260,7 @@ Each completed response is one result, oldest first. Retrieving data reads the r
 | `agent.response_uuid`, `agent.agent_name` | The response's ID. |
 | `agent.respondent_uuid`, `agent.agent_index` | The respondent's ID and position in the attached agent list. Empty without an agent list. |
 | `agent.{trait}` | The traits of the respondent's agent, when an agent list is attached. |
+| `agent.expectedparrot_username` | The respondent's Expected Parrot username, when the survey requires account sign-in. |
 | `raw_model_response.{question}_started_at`, `_answered_at` | When the respondent reached and answered the question. |
 | `raw_model_response.{question}_question_presented` | `False` if survey logic skipped the question, so a skipped question can be told from one left blank. |
 | `question_options.{question}_question_options` | The options as the respondent saw them, after piping and any randomized order. |

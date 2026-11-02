@@ -724,6 +724,7 @@ class TestValidateHumanizeSchemaTimeLimit:
         "budget",
         "checkbox",
         "checkbox_with_other",
+        "dropdown",
         "file_upload",
         "likert_five",
         "linear_scale",
