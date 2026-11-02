@@ -37,6 +37,8 @@
           "en/latest/questions",
           "en/latest/surveys",
           "en/latest/scenarios",
+          "en/latest/meta_surveys",
+          "en/latest/survey_ep_format",
           "en/latest/agents",
           "en/latest/language_models",
           "en/latest/jobs",
