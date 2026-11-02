@@ -583,9 +583,11 @@ def register(humanize: click.Group) -> None:
             if output_path:
                 data["saved"] = _save_edsl_object(response_obj, output_path)
             else:
+                # Repeat the flag, so the save gets the same responses just listed.
+                partial_flag = " --include-partial" if include_partial else ""
                 data["next_step"] = (
-                    f"Use 'ep humanize responses {human_survey_uuid} --output responses.ep' "
-                    "to save the response data."
+                    f"Use 'ep humanize responses {human_survey_uuid}{partial_flag} "
+                    "--output responses.ep' to save the response data."
                 )
             output(data)
         except SystemExit:

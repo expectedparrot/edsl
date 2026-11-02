@@ -4643,6 +4643,11 @@ class TestHumanizeCli:
         out = json.loads(result.output)
         assert calls == [True]
         assert out["data"]["include_partial"] is True
+        # The save hint asks for the same responses.
+        assert (
+            "ep humanize responses human-survey-uuid --include-partial --output responses.ep"
+            in out["data"]["next_step"]
+        )
 
     def test_humanize_qr_saves_file(self, tmp_path, monkeypatch):
         import edsl.coop
