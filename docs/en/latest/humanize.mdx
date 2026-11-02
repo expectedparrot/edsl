@@ -247,7 +247,7 @@ info = survey.by(ScenarioList([scenario])).humanize(
 print(info["respondent_url"])
 ```
 
-O*NET 31.0 includes 18,838 task statements across 923 occupations. This example includes occupations present in the task file; taxonomy occupations without task statements are left out. `QuestionFunctional` is useful when EDSL should calculate an answer in Python; scenario-backed Jinja is the direct way to populate respondent-facing options from a prior answer.
+O*NET 31.0 includes 18,838 task statements across 923 occupations. This example includes occupations present in the task file; taxonomy occupations without task statements are left out. For respondent-facing options, the scenario-backed Jinja lookup is the direct approach. The `QuestionCompute` variant below embeds the lookup in the survey when you need a self-contained definition.
 
 #### Embed the lookup in a `QuestionCompute`
 
