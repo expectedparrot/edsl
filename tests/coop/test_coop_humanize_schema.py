@@ -725,6 +725,7 @@ class TestValidateHumanizeSchemaTimeLimit:
         "checkbox",
         "checkbox_with_other",
         "file_upload",
+        "email",
         "likert_five",
         "linear_scale",
         "list",
