@@ -48,7 +48,7 @@ Previewing requires [Expected Parrot access](/en/latest/api_keys). Pass the same
       Optional custom CSS for the survey. Can be `null` or omitted. See [Custom CSS](/en/latest/custom_css) for the `edsl-*` CSS classes and HTML structure per question type.
     </ParamField>
     <ParamField path="survey.require_login" type="boolean" default={false}>
-      Require respondents to sign in to an Expected Parrot account before taking the survey. Logged-out visitors are sent to sign in and returned to the survey afterward. When enabled, completed-response results include the account username as `agent.expectedparrot_username`. Use this only when account identification is appropriate for the study, and tell respondents how their username will be used.
+      Require respondents to sign in to an Expected Parrot account before taking the survey. Logged-out visitors are sent to sign in and returned to the survey afterward. When enabled, completed-response results include the account username as `agent.expectedparrot_username`. Use this only when account identification is appropriate for the study, and tell respondents how their username will be used. Prolific participants must sign in too. A survey that requires sign-in can't be taken by an AI agent through its agent link, and its preview links also need sign-in: any signed-in Expected Parrot account can open them.
     </ParamField>
     <ParamField path="survey.progress" type="dict" default={{"type": "bar"}}>
       How the respondent is shown their position in the survey. Omit to keep the progress bar, which is what surveys render by default.
@@ -128,7 +128,7 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
   Note: `optional` currently has no effect for `interview` and `rank`.
 </ParamField>
 
-In Humanize, `QuestionDropdown` is a searchable combo box: respondents enter terms, choose a ranked option, and the choice fills the input. Set `permissive=True` on `QuestionDropdown` to allow custom text when no listed option fits; the default requires a listed option.
+In Humanize, `QuestionDropdown` is a searchable combo box: respondents enter terms, choose from up to `top_k` ranked matches (5 by default), and the choice fills the input. Respondents must choose a listed option, and the answer is that option's text; Humanize ignores `permissive` and `use_code` on dropdowns.
 
 <ParamField path="time_limit" type="dict" required={false}>
   A limit on how long the respondent may spend answering the question. Omit or set to `null` for no limit.

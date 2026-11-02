@@ -4,7 +4,7 @@ description: "Let AI agents take a human survey through an agent link, and contr
 sidebarTitle: "AI agents"
 ---
 
-A human survey can let AI agents take it: a participant hands their AI agent the survey's agent link, and the agent answers through Expected Parrot's API instead of a browser. Agent access is off until the survey's owner turns it on, and only the owner can read or change it.
+A human survey can let AI agents take it: a participant hands their AI agent the survey's agent link, and the agent answers through Expected Parrot's API instead of a browser. Agent access is off until the survey's owner turns it on, and only the owner can read or change it. A survey that requires respondents to sign in ([`survey.require_login`](/en/latest/humanize_schema)) can't be taken through its agent link, even with agent access on.
 
 The agent link is the respondent link with `/respond/human-surveys/` replaced by `/respond/agent/`:
 
