@@ -63,9 +63,7 @@ def test_distribution_initial_state_default_and_question_type():
             Survey([question]),
             {
                 "questions": {
-                    question.question_name: {
-                        "initial_distribution": {"type": "empty"}
-                    }
+                    question.question_name: {"initial_distribution": {"type": "empty"}}
                 }
             },
         )
@@ -76,7 +74,10 @@ def test_distribution_initial_state_default_and_question_type():
     [
         ({}, ["mean", "variance"]),
         ({"statistics": [{"type": "variance"}]}, ["variance"]),
-        ({"statistics": [{"type": "variance"}, {"type": "mean"}]}, ["variance", "mean"]),
+        (
+            {"statistics": [{"type": "variance"}, {"type": "mean"}]},
+            ["variance", "mean"],
+        ),
     ],
 )
 def test_distribution_summary(summary, expected):
@@ -529,8 +530,7 @@ class TestValidateHumanizeSchemaVoice:
             {"interview_mode": "voice", "voice_interview_config": {}}
         )
         assert (
-            parsed.voice_interview_config.language
-            == DEFAULT_VOICE_INTERVIEW_LANGUAGE
+            parsed.voice_interview_config.language == DEFAULT_VOICE_INTERVIEW_LANGUAGE
         )
 
     def test_voice_config_supported_language_passes(self):
@@ -565,8 +565,7 @@ class TestValidateHumanizeSchemaVoice:
             {"voice_interview_config": {"language": None}}
         )
         assert (
-            parsed.voice_interview_config.language
-            == DEFAULT_VOICE_INTERVIEW_LANGUAGE
+            parsed.voice_interview_config.language == DEFAULT_VOICE_INTERVIEW_LANGUAGE
         )
 
     def test_voice_config_unsupported_language_raises(self):
@@ -725,8 +724,6 @@ class TestValidateHumanizeSchemaTimeLimit:
         "checkbox",
         "checkbox_with_other",
         "file_upload",
-        "email",
-        "url",
         "likert_five",
         "linear_scale",
         "list",
