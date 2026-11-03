@@ -97,14 +97,11 @@ def test_serialization_coverage():
         edsl_version.split(".dev")[0] if ".dev" in edsl_version else edsl_version
     )
 
-    data_dir = "tests/serialization/data"
-    files = [f for f in os.listdir(data_dir) if f.startswith(current_version)]
-    assert files, f"No serialization data found for {current_version}"
-    data = []
-    for filename in files:
-        print(f"Testing coverage of {current_version} with {filename}")
-        with open(os.path.join(data_dir, filename), "r") as f:
-            data.extend(json.load(f))
+    file = f"tests/serialization/data/{current_version}.json"
+
+    print(f"Testing coverage of {current_version} with {file}")
+    with open(file, "r") as f:
+        data = json.load(f)
     data_classes = set()
     for item in data:
         class_name = item["class_name"]
