@@ -264,7 +264,9 @@ class GoogleService(InferenceServiceABC):
                     and not uses_thinking_level(model_name)
                     else None
                 ),
-                "thinking_level": "HIGH" if uses_thinking_level(model_name) else None,
+                # Apply Gemini 3's HIGH default at request time so a caller's
+                # explicit thinking_budget can still take precedence.
+                "thinking_level": None,
                 # Backend selection (Vertex AI vs Gemini Developer API). These
                 # are model parameters so they travel with the serialized model:
                 # a job built with use_vertex=True runs on Vertex through coopr's
@@ -478,9 +480,15 @@ class GoogleService(InferenceServiceABC):
                         {key: value for key, value in sampling_overrides.items() if value is not None}
                     )
 
-                if model_uses_thinking_level and self.thinking_level is not None:
+                if model_uses_thinking_level:
+                    if self.thinking_level is not None:
+                        thinking_config = {"thinking_level": self.thinking_level}
+                    elif self.thinking_budget is not None:
+                        thinking_config = {"thinking_budget": self.thinking_budget}
+                    else:
+                        thinking_config = {"thinking_level": "HIGH"}
                     config_kwargs["thinking_config"] = types.ThinkingConfig(
-                        thinking_level=self.thinking_level,
+                        **thinking_config,
                     )
                 elif self.thinking_budget is not None:
                     config_kwargs["thinking_config"] = types.ThinkingConfig(
