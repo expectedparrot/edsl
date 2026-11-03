@@ -17,6 +17,7 @@ For data labeling, a question's answer becomes a label: “What topic does this 
 | --- | --- | --- |
 | `free_text` | An explanation or quotation | String; correctness still needs evaluation. |
 | `edit` | A respondent revises supplied text | Final revised text as a string; Humanize shows inserted and deleted spans. |
+| `email`, `url` | A contact email or web address | Validated email address or absolute URL. |
 | `multiple_choice`, `yes_no` | One category or decision | One permitted option. |
 | `checkbox`, `top_k` | Several categories | List of permitted options; set selection bounds. |
 | `linear_scale`, `likert_five` | An ordered rating | One configured scale value. |
@@ -227,7 +228,7 @@ Choose a specialized type for the behavior you need:
 | Type | Purpose and configuration |
 | --- | --- |
 | `multiple_choice_with_other`, `checkbox_with_other` | Allow supplied choices and custom Other responses. Set `question_options` and optionally `other_option_text`; the checkbox type also supports selection bounds. |
-| `dropdown` | Search a large option set. Supply `question_options`, optionally `question_options_details`, and `max_options_shown` / `top_k` to bound the displayed or retrieved choices. |
+| `dropdown` | Search a large option set. Supply `question_options`, optionally `question_options_details`, and `top_k` to bound the retrieved choices. |
 | `pydantic` | Validate a structured answer against a Pydantic class supplied as `pydantic_model`. |
 | `markdown`, `url` | Collect Markdown text or a valid absolute URL. URL validation does not establish whether the destination exists or supports a claim. |
 | `compute` | Render a template and record its value without an LLM call; useful for deterministic calculated fields. |

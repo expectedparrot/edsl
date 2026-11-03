@@ -73,7 +73,7 @@ info  # Contains the respondent link, admin link, and collection UUID.
 | `survey_description` | str \| None | None | Optional description |
 | `survey_alias` | str \| None | None | URL-friendly alias |
 | `survey_visibility` | str | `"private"` | `"private"`, `"public"`, or `"unlisted"` |
-| `humanize_schema` | dict \| None | None | Controls question styling and optionality — see [Humanize schema](/en/latest/humanize_schema) |
+| `humanize_schema` | dict \| None | None | Controls question settings and survey options, including requiring Expected Parrot sign-in — see [Humanize schema](/en/latest/humanize_schema) |
 
 ### Return value
 
@@ -85,7 +85,8 @@ info  # Contains the respondent link, admin link, and collection UUID.
 | `respondent_url` | Public link for respondents |
 | `admin_url` | Admin dashboard link |
 | `name` | Survey name |
-| `n_responses` | Response count (0 at creation) |
+| `n_complete` | Completed responses (0 at creation) |
+| `n_in_progress` | Responses started but not yet finished (0 at creation) |
 | `survey_uuid` | UUID of the pushed survey object |
 | `scenario_list_uuid` | UUID of the pushed scenario list (if any) |
 | `asset_substitutions` | Old asset uuid → new one, when the schema named assets that were copied into your library. Empty when nothing was copied |
@@ -196,6 +197,90 @@ info = survey.by(scenarios).humanize(
 )
 ```
 
+### Set question options from an earlier answer
+
+Use a Jinja template for `question_options` when a later question's choices depend on an earlier answer. Put the lookup data in a scenario; the survey server resolves the template after the respondent answers the first question and sends only the matching options to that page. A `QuestionDropdown` answer is a list, so `[0]` selects its single choice.
+
+This example downloads O*NET's [Task Statements CSV](https://www.onetcenter.org/dl_files/database/db_31_0_csv/task_statements.csv), builds a task list for each occupation, then shows the selected occupation's tasks in a checkbox question:
+
+```python
+import csv
+from collections import defaultdict
+from io import TextIOWrapper
+from urllib.request import urlopen
+
+from edsl import (
+    QuestionCheckBox,
+    QuestionDropdown,
+    Scenario,
+    ScenarioList,
+    Survey,
+)
+
+task_url = "https://www.onetcenter.org/dl_files/database/db_31_0_csv/task_statements.csv"
+tasks_by_occupation = defaultdict(list)
+
+with urlopen(task_url) as response:
+    rows = csv.DictReader(TextIOWrapper(response, encoding="utf-8-sig"))
+    for row in rows:
+        choice = f"{row['Title']} [{row['O*NET-SOC Code']}]"
+        tasks_by_occupation[choice].append(row["Task"])
+
+occupation = QuestionDropdown(
+    question_name="occupation",
+    question_text="Which O*NET occupation best describes your work?",
+    question_options=list(tasks_by_occupation),
+    top_k=1,
+)
+tasks = QuestionCheckBox(
+    question_name="tasks",
+    question_text="Which tasks are part of your work?",
+    question_options="{{ scenario.tasks_by_occupation[occupation.answer[0]] }}",
+)
+
+survey = Survey([occupation, tasks])
+scenario = Scenario({"tasks_by_occupation": dict(tasks_by_occupation)})
+info = survey.by(ScenarioList([scenario])).humanize(
+    human_survey_name="Occupation and Tasks",
+    scenario_list_method="single_scenario",
+)
+
+print(info["respondent_url"])
+```
+
+O*NET 31.0 includes 18,838 task statements across 923 occupations. This example includes occupations present in the task file; taxonomy occupations without task statements are left out. For respondent-facing options, the scenario-backed Jinja lookup is the direct approach. The `QuestionCompute` variant below embeds the lookup in the survey when you need a self-contained definition.
+
+#### Embed the lookup in a `QuestionCompute`
+
+For a self-contained survey, you can put the lookup dictionary directly in a `QuestionCompute` template instead of attaching it as a scenario. The compute question reads the prior dropdown answer, and the checkbox receives its answer as its options:
+
+```python
+import json
+
+from edsl import QuestionCompute
+
+# Reuse `tasks_by_occupation` and `occupation` from the example above.
+lookup_json = json.dumps(
+    dict(tasks_by_occupation), ensure_ascii=False, separators=(",", ":")
+)
+
+available_tasks = QuestionCompute(
+    question_name="available_tasks",
+    question_text="{{ " + lookup_json + "[occupation.answer[0]] }}",
+)
+tasks = QuestionCheckBox(
+    question_name="tasks",
+    question_text="Which tasks are part of your work?",
+    question_options="{{ available_tasks.answer }}",
+)
+
+survey = Survey([occupation, available_tasks, tasks])
+info = survey.humanize(human_survey_name="Occupation and Tasks")
+print(info["respondent_url"])
+```
+
+The `QuestionCompute` is an intermediate question; respondents see the occupation dropdown and task checkbox. This avoids a scenario attachment, but serializes the full lookup into the question text. For O*NET 31.0 that is about 1.9 MB, which worked in a local live survey. The scenario-backed version above keeps the question definition much smaller and is easier to maintain; embedding can be reasonable when a self-contained survey is more useful.
+
 ### Scenario list methods
 
 | Method | Behavior |
@@ -258,8 +343,11 @@ Each completed response is one result, oldest first. Retrieving data reads the r
 |-------|-------------|
 | `answer.{question}`, `comment.{question}_comment` | The respondent's answer and comment. Empty for a question they didn't see. |
 | `agent.response_uuid`, `agent.agent_name` | The response's ID. |
+| `agent.response_status` | `complete`, or `in_progress` for a response still being taken (see below). |
+| `agent.last_activity_at` | When the respondent last moved the response forward. |
 | `agent.respondent_uuid`, `agent.agent_index` | The respondent's ID and position in the attached agent list. Empty without an agent list. |
 | `agent.{trait}` | The traits of the respondent's agent, when an agent list is attached. |
+| `agent.expectedparrot_username` | The respondent's Expected Parrot username, when the survey requires account sign-in. |
 | `raw_model_response.{question}_started_at`, `_answered_at` | When the respondent reached and answered the question. |
 | `raw_model_response.{question}_question_presented` | `False` if survey logic skipped the question, so a skipped question can be told from one left blank. |
 | `question_options.{question}_question_options` | The options as the respondent saw them, after piping and any randomized order. |
@@ -269,11 +357,26 @@ Fields that show how a response was collected, such as `agent.collection_interfa
 
 To get only some responses, pass `started_after` and/or `started_before` (inclusive; a response is "started" when the respondent opened the survey).
 
+### In-progress responses
+
+By default you get completed responses only. Pass `include_partial=True` to also get responses that are still being taken, for example to look at dropout or check on a survey that is still running:
+
+```python
+results = coop.get_human_survey_responses(
+    "your-human-survey-uuid", include_partial=True
+)
+results.filter("agent.response_status == 'in_progress'").select(
+    "agent.response_uuid", "agent.last_activity_at"
+)
+```
+
+An in-progress response holds the answers submitted so far; questions the respondent hasn't answered yet are empty. Filter to `agent.response_status == 'complete'` before computing anything that assumes a finished survey. A response that is in progress now can have more answers, or be complete, the next time you fetch, so combine downloads by `agent.response_uuid`. `include_partial` works together with `started_after` and `started_before`.
+
 ### Checking response count
 
 ```python
 status = coop.get_human_survey("your-human-survey-uuid")
-print(f"Responses received: {status['n_responses']}")
+print(f"Completed: {status['n_complete']}, in progress: {status['n_in_progress']}")
 ```
 
 ### Find surveys and inspect respondent progress

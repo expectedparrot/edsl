@@ -82,6 +82,7 @@ _EXPORT_TO_MODULE = {
     "QuestionBudget": "questions",
     "QuestionDistribution": "questions",
     "QuestionExtract": "questions",
+    "QuestionEmail": "questions",
     "QuestionMatrix": "questions",
     "QuestionTopK": "questions",
     "QuestionFunctional": "questions",
