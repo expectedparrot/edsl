@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.0.9] - 2026-10-06
+## [1.0.9] - Unreleased
 ### Added
 - **Humanize custom JavaScript (v1)**: Attach author-written scripts to human-survey questions via the humanize schema, run them in the respondent's browser on the `question.ready` hook, and retrieve logged behavioral events. Includes new Coop endpoints, CLI (`ep humanize events`, `custom-js-access`, `--javascript`), and docs. Gated per approved account. (#2673)
 - **Agents can take humanize surveys**: New Coop methods and docs for AI agents answering human surveys through an agent link (participation modes, per-question guidance), plus a helper for humanizing with agents. (#2670, #2552)
@@ -24,7 +24,7 @@
 - **Reliability (fail-closed)**: Fail closed on unsuccessful remote inference runs (#2606) and when completed runner tasks have no answer (#2605); preserve validation failures across execution and persistence (#2599); integrate local adaptive-survey reliability fixes (#2568). (#2614)
 - **Piping & dynamic options**: render templates in individual question options (#2559), allow WithOther answers in mixed piped option lists (#2616), and pipe file-upload answers (#2501).
 - **Survey flexibility**: relax the minimum to allow a single question option (#2590), allow same-group questions to use skip rules based on earlier pages (#2638), omit skipped questions from memory context (#2608), and honor/preserve pinned option orders through Runner execution and JSONL round-trips (#2634, #2635).
-- **Security & performance**: bound and secure scenario network requests (#2609), content-stable FileStore cache key (#2543), and media input-token estimation for rate limiting (#2548).
+- **Security & performance**: add URL validation and finite timeouts to selected scenario fetch paths (#2609); CSV and HTML URL imports remain unbounded. Also add a content-stable FileStore cache key (#2543) and media input-token estimation for rate limiting (#2548).
 - **CLI/output**: keep `ep run` output as a JSON envelope (#2527); `Model.available()` improvements (#2486).
 - **Docs**: clean up old Sphinx docs / Mintlify migration (#2530), EP model-pricing clarification (#2591), align study-start guidance with pre-plan scaffolding (#2650).
 
