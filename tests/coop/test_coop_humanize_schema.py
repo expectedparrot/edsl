@@ -13,6 +13,7 @@ from edsl.questions import (
     QuestionCheckBox,
     QuestionCheckBoxWithOther,
     QuestionDemand,
+    QuestionDict,
     QuestionDistribution,
     QuestionExtract,
     QuestionFreeText,
@@ -268,6 +269,47 @@ class TestValidateHumanizeSchemaGeneral:
             ]
         )
         humanize_schema = {"questions": {"demand_q": {"optional": True}}}
+        with pytest.raises(HumanizeSchemaValidationError) as exc_info:
+            validate_humanize_schema(survey, humanize_schema)
+        assert "optional" in str(exc_info.value).lower()
+
+    def test_dict_accepts_its_settings(self):
+        """A dict question takes a comment, time limit, submitting indicator and
+        script."""
+        survey = Survey(
+            [
+                QuestionDict(
+                    question_name="dict_q",
+                    question_text="Tell us about yourself.",
+                    answer_keys=["name", "age"],
+                    value_types=["str", "int"],
+                ),
+            ]
+        )
+        humanize_schema = {
+            "questions": {
+                "dict_q": {
+                    "comment": {"label": "Anything to add?"},
+                    "time_limit": {"duration": {"type": "fixed", "seconds": 300}},
+                    "submitting_indicator": {"type": "callout"},
+                }
+            }
+        }
+        validate_humanize_schema(survey, humanize_schema)
+
+    def test_dict_rejects_optional(self):
+        """Dict has no `optional` field."""
+        survey = Survey(
+            [
+                QuestionDict(
+                    question_name="dict_q",
+                    question_text="Tell us about yourself.",
+                    answer_keys=["name", "age"],
+                    value_types=["str", "int"],
+                ),
+            ]
+        )
+        humanize_schema = {"questions": {"dict_q": {"optional": True}}}
         with pytest.raises(HumanizeSchemaValidationError) as exc_info:
             validate_humanize_schema(survey, humanize_schema)
         assert "optional" in str(exc_info.value).lower()
@@ -764,6 +806,7 @@ class TestValidateHumanizeSchemaTimeLimit:
         "checkbox",
         "checkbox_with_other",
         "demand",
+        "dict",
         "dropdown",
         "file_upload",
         "likert_five",

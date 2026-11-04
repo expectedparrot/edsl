@@ -515,6 +515,15 @@ class DemandHumanizeSchema(HumanizeSchemaBase):
     javascript: Optional[QuestionJavaScript] = None
 
 
+class DictHumanizeSchema(HumanizeSchemaBase):
+    """Humanize options for the dict question type (no optionality)."""
+
+    time_limit: Optional[TimeLimit] = None
+    comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
+
+
 class BudgetHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the budget question type."""
 
@@ -1224,6 +1233,7 @@ HumanizeQuestionSchema = Union[
     CheckboxWithOtherHumanizeSchema,
     ComputeHumanizeSchema,
     DemandHumanizeSchema,
+    DictHumanizeSchema,
     FileUploadHumanizeSchema,
     ImageGenerationHumanizeSchema,
     InterviewHumanizeSchema,
@@ -1260,6 +1270,7 @@ QUESTION_TYPE_TO_HUMANIZE_CLASS: Dict[str, Type[BaseModel]] = {
     "checkbox_with_other": CheckboxWithOtherHumanizeSchema,
     "compute": ComputeHumanizeSchema,
     "demand": DemandHumanizeSchema,
+    "dict": DictHumanizeSchema,
     "file_upload": FileUploadHumanizeSchema,
     "image_generation": ImageGenerationHumanizeSchema,
     "interview": InterviewHumanizeSchema,
