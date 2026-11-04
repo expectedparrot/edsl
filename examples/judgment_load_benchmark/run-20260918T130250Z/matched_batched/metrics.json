@@ -1,0 +1,85 @@
+{
+  "phase": "matched_batched",
+  "inputs": 100,
+  "questions_per_input": 5,
+  "concurrency": 8,
+  "request_rate_cap": 18.0,
+  "planned_requests": 100,
+  "logical_calls": 100,
+  "http_attempts": 112,
+  "retries": 12,
+  "http_statuses": {
+    "200": 96,
+    "transport_error": 16
+  },
+  "completed_rows": 96,
+  "completed_judgments": 480,
+  "failed_batches": [
+    "batch 62: TypeSafe transport failed after retries",
+    "batch 63: TypeSafe transport failed after retries",
+    "batch 57: TypeSafe transport failed after retries",
+    "batch 41: TypeSafe transport failed after retries"
+  ],
+  "build_seconds": 0.00019262498244643211,
+  "compile_seconds": 0.27717383310664445,
+  "execute_seconds": 71.91345712495968,
+  "end_to_end_seconds": 72.19082358304877,
+  "inputs_per_second": 1.334937907840901,
+  "judgments_per_second": 6.674689539204505,
+  "http_latency_seconds": {
+    "n": 112,
+    "mean": 1.7693214862187492,
+    "p50": 0.19347745849518105,
+    "p95": 0.49871531461831176,
+    "p99": 44.52387971523568,
+    "max": 62.50526187499054
+  },
+  "logical_latency_including_pacing_and_retries_seconds": {
+    "n": 100,
+    "mean": 2.4060870566335506,
+    "p50": 0.3758750624838285,
+    "p95": 0.8349850047146901,
+    "p99": 52.94786208164072,
+    "max": 69.80344929196872
+  },
+  "pacing_wait_seconds": {
+    "n": 112,
+    "mean": 0.12854942333381456,
+    "p50": 0.08396218746202067,
+    "p95": 0.28900688519934187,
+    "p99": 0.33603602373274044,
+    "max": 0.3955794580979273
+  },
+  "usage": {
+    "input_tokens": 71610,
+    "output_tokens": 12096
+  },
+  "estimated_usd": 0.0030076200000000003,
+  "actual_models": [
+    "jev-1.13.0"
+  ],
+  "accuracy": {
+    "n": 96,
+    "accuracy": 0.9895833333333334,
+    "majority_baseline": 0.8854166666666666,
+    "spam_precision": 1.0,
+    "spam_recall": 0.9090909090909091,
+    "brier_score": 0.011923958333333333,
+    "confusion": {
+      "true_spam": 10,
+      "true_ham": 85,
+      "false_spam": 0,
+      "missed_spam": 1
+    },
+    "errors": [
+      {
+        "source_id": 4394,
+        "gold": "spam",
+        "predicted": "ham",
+        "p_spam": 0.11
+      }
+    ]
+  },
+  "cache_entries": 96,
+  "save_packages_seconds": 0.2109613330103457
+}

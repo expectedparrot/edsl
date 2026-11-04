@@ -1,0 +1,48 @@
+{
+  "started_utc": "2026-09-18T12:53:50.899465+00:00",
+  "dataset": {
+    "dataset": "UCI SMS Spam Collection",
+    "dataset_url": "https://archive.ics.uci.edu/dataset/228/sms%2Bspam%2Bcollection",
+    "download_url": "https://archive.ics.uci.edu/static/public/228/sms%2Bspam%2Bcollection.zip",
+    "citation": "Almeida, T. & Hidalgo, J. (2011). SMS Spam Collection. https://doi.org/10.24432/C5CC84",
+    "license": "CC BY 4.0",
+    "source_sha256": "1587ea43e58e82b14ff1f5425c88e17f8496bfcdb67a583dbff9eefaf9963ce3",
+    "downloaded_rows": 5574,
+    "unique_nonconflicting_messages": 5171,
+    "conflicting_messages_excluded": 0,
+    "sampling": "uniform without replacement after exact-text deduplication",
+    "seed": 20260918,
+    "sample_count": 1000,
+    "class_counts": {
+      "ham": 882,
+      "spam": 118
+    },
+    "text_characters": {
+      "n": 1000,
+      "mean": 78.105,
+      "p50": 60.0,
+      "p95": 160.0,
+      "p99": 240.03999999999996,
+      "max": 446
+    },
+    "labels_sent_to_model": false
+  },
+  "model": "jev-1.13.0",
+  "concurrency": 8,
+  "request_rate_cap": 18,
+  "comparison_inputs": 100,
+  "python": "3.12.7",
+  "platform": "macOS-15.5-arm64-arm-64bit",
+  "git_branch": "feature/judgment-evaluation",
+  "git_head": "5e5ec10180f4914265e859c69488b8bfe27a8789",
+  "implementation_sha256": {
+    "__init__.py": "3d517a0fe3b72d8e049edf83acbefeb9413b72d59c17acc8740028c620608a61",
+    "evaluation.py": "d68c6dfc46d8c7c93529c4c5a8d7868faf45da7ef04ac2936c0e6f2c1efb549e",
+    "executor.py": "0b1b81f506f750488abedcef434a4e2a035562b67ddeebe426445dfbd997a09f",
+    "model.py": "ba4410fb8942309cc0e93774ece3a5064fea9221521d592816f00ba3ca754208",
+    "persistence.py": "ebde729d863f4bbbfb3c18d392ff8f550048d0c8e8a05a0414f94ab3a0ff95f9"
+  },
+  "price_per_million_input_tokens_usd": 0.042,
+  "pricing_source": "https://docs.typesafe.ai/models",
+  "price_checked": "2026-09-18"
+}
