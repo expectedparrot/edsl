@@ -524,6 +524,16 @@ class DictHumanizeSchema(HumanizeSchemaBase):
     javascript: Optional[QuestionJavaScript] = None
 
 
+class EmailHumanizeSchema(HumanizeSchemaBase):
+    """Humanize options for the email question type."""
+
+    optional: bool = False
+    time_limit: Optional[TimeLimit] = None
+    comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
+
+
 class BudgetHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the budget question type."""
 
@@ -1244,6 +1254,7 @@ HumanizeQuestionSchema = Union[
     ComputeHumanizeSchema,
     DemandHumanizeSchema,
     DictHumanizeSchema,
+    EmailHumanizeSchema,
     FileUploadHumanizeSchema,
     ImageGenerationHumanizeSchema,
     InterviewHumanizeSchema,
@@ -1282,6 +1293,7 @@ QUESTION_TYPE_TO_HUMANIZE_CLASS: Dict[str, Type[BaseModel]] = {
     "compute": ComputeHumanizeSchema,
     "demand": DemandHumanizeSchema,
     "dict": DictHumanizeSchema,
+    "email": EmailHumanizeSchema,
     "file_upload": FileUploadHumanizeSchema,
     "image_generation": ImageGenerationHumanizeSchema,
     "interview": InterviewHumanizeSchema,
