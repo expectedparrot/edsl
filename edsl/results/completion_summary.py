@@ -3,6 +3,10 @@
 from ..language_models.response_metadata import response_metadata
 
 
+def _answer_present(value):
+    return value is not None and not (isinstance(value, str) and not value.strip())
+
+
 def completion_summary(results) -> dict:
     counts = {
         "planned_interview_rows": getattr(results, "_total_results", None),
@@ -22,7 +26,7 @@ def completion_summary(results) -> dict:
         raw = result.get("raw_model_response") or {}
         validation = result.get("validated_dict") or {}
         failed = False
-        answered = any(value is not None for value in answers.values())
+        answered = any(_answer_present(value) for value in answers.values())
         counts["answered_interviews"] += int(answered)
         evidence = False
         questions = set(answers)
@@ -44,7 +48,7 @@ def completion_summary(results) -> dict:
                 counts["questions_with_unknown_call_count"] += 1
             else:
                 counts["provider_calls_attempted"] += calls
-            present = answers.get(name) is not None
+            present = _answer_present(answers.get(name))
             validated = validation.get(f"{name}_validated")
             counts["answers_produced"] += int(present)
             counts["answers_validated"] += int(present and validated is True)

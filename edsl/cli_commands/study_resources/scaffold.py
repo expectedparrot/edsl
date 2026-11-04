@@ -388,6 +388,19 @@ if __name__ == "__main__":
                 encoding="utf-8",
             )
         makefile = Path(root) / "Makefile"
+        contract_spec = Path(root) / "study-contract.json"
+        if not contract_spec.exists():
+            contract_spec.write_text(json.dumps({
+                "schema_version": 1,
+                "plan_path": "plan.md",
+                "jobs": [{"id": "job_a", "jobs_path": "edsl_jobs/job_a/jobs.ep",
+                          "results_path": "data/results.ep", "expected_rows": expected_rows,
+                          "required_answers": required_answers}],
+                "deliverables": ["writeup/report.html"],
+                "protected_sources": ["analysis/validate_results.py"] +
+                    [str(path.relative_to(Path(root))) for path in source_templates],
+            }, indent=2) + "\n", encoding="utf-8")
+
         marker = "# --- Generated survey validation ---"
         makefile_text = makefile.read_text(encoding="utf-8")
         if marker not in makefile_text:
@@ -417,12 +430,14 @@ if __name__ == "__main__":
                 f"{scenario_variables}"
                 "MODELS := $(JOB_DIR)/model_list.ep\n"
                 "JOBS := $(JOB_DIR)/jobs.ep\n\n"
-                ".PHONY: prepare post-run complete estimate inspect report-data plots exports costs retry-data workflow-setup workflow-verify report-check present\n\n"
+                ".PHONY: contract-freeze prepare post-run complete estimate inspect report-data plots exports costs retry-data workflow-setup workflow-verify report-check present\n\n"
                 "workflow-setup: workflow-gates.json\n"
                 "\t@test -n \"$(APPROVAL_EVIDENCE)\" || { echo \"APPROVAL_EVIDENCE is required\" >&2; exit 2; }\n"
                 "\t$(EP) workflow setup --name \"$(RUN_DESCRIPTION)\" --root . --spec $< --evidence \"$(APPROVAL_EVIDENCE)\"\n"
                 "\t$(EP) workflow gate attest plan-approved --root . --by user --evidence \"$(APPROVAL_EVIDENCE)\"\n\n"
-                "prepare: workflow-setup edsl-objects estimate\n\n"
+                "contract-freeze:\n"
+                "\t$(EP) study contract freeze --root . --spec study-contract.json --approval-evidence \"$(APPROVAL_EVIDENCE)\"\n\n"
+                "prepare: contract-freeze workflow-setup edsl-objects estimate\n\n"
                 "edsl-objects: $(JOBS)\n\n"
                 "$(SURVEY): $(JOB_DIR)/study_survey.py\n"
                 "\tcd $(JOB_DIR) && $(STUDY_PYTHON) study_survey.py\n\n"
@@ -435,14 +450,16 @@ if __name__ == "__main__":
                 f"\t$(EP) jobs build --survey $(SURVEY) --agents $(AGENTS){scenario_argument} --models $(MODELS) --output $@\n\n"
                 "estimate: $(JOBS)\n"
                 "\t$(EP) jobs cost $(JOBS)\n\n"
-                "data: data/results.ep\n\n"
-                "data/results.ep: $(JOBS)\n"
+                "data: $(JOBS)\n"
+                "\t$(EP) study contract verify --root . --phase sources\n"
                 "\t@mkdir -p data\n"
-                "\t@if test -s \"$@\"; then \\\n"
-                "\t\techo \"Existing results preserved: $@\"; \\\n"
+                "\t@if test -s data/results.ep; then \\\n"
+                "\t\techo \"Existing results preserved: data/results.ep\"; \\\n"
                 "\telse \\\n"
-                "\t\t$(EP) run $(JOBS) --remote_inference_description \"$(RUN_DESCRIPTION)\" --results_description \"$(RUN_DESCRIPTION)\" --output $@; \\\n"
+                "\t\t$(EP) run $(JOBS) --remote_inference_description \"$(RUN_DESCRIPTION)\" --results_description \"$(RUN_DESCRIPTION)\" --output data/results.ep; \\\n"
                 "\tfi\n\n"
+                "data/results.ep:\n"
+                "\t@echo \"Saved results missing. Retrieve the existing job or explicitly run make data after approval.\" >&2; exit 2\n\n"
                 "data/report-data.json: data/results.ep\n"
                 "\t@mkdir -p data\n"
                 "\t$(EP) results review data/results.ep $(if $(REPORT_GROUP_BY),--group-by \"$(REPORT_GROUP_BY)\",) > $@\n\n"
@@ -472,12 +489,14 @@ if __name__ == "__main__":
                 "exports: writeup/tables/results.csv writeup/tables/results.json\n\n"
                 "tables: exports\n\n"
                 "qa: analysis/validate_results.py data/results.ep\n"
+                "\t$(EP) study contract verify --root . --phase results\n"
                 "\t$(STUDY_PYTHON) analysis/validate_results.py\n\n"
                 "post-run: report-data exports costs qa plots\n\n"
                 "writeup/report.html: writeup/report.md writeup/report.css writeup/tables/results.csv\n"
                 "\tcd writeup && pandoc report.md -o report.html --standalone --embed-resources --css=report.css\n\n"
                 "report: writeup/report.html\n\n"
                 "report-check: writeup/report.html\n"
+                "\t$(EP) study contract verify --root . --phase complete\n"
                 "\t$(EP) report check --root .\n\n"
                 "workflow-verify: report-check\n"
                 "\t$(EP) workflow verify --root .\n\n"
