@@ -1199,6 +1199,16 @@ class TopKHumanizeSchema(HumanizeSchemaBase):
     javascript: Optional[QuestionJavaScript] = None
 
 
+class URLHumanizeSchema(HumanizeSchemaBase):
+    """Humanize options for the URL question type."""
+
+    optional: bool = False
+    time_limit: Optional[TimeLimit] = None
+    comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
+
+
 class YesNoHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the yes/no question type."""
 
@@ -1246,6 +1256,7 @@ HumanizeQuestionSchema = Union[
     NumericalHumanizeSchema,
     RankHumanizeSchema,
     TopKHumanizeSchema,
+    URLHumanizeSchema,
     YesNoHumanizeSchema,
     SurveyMessageHumanizeSchema,
 ]
@@ -1283,6 +1294,7 @@ QUESTION_TYPE_TO_HUMANIZE_CLASS: Dict[str, Type[BaseModel]] = {
     "numerical": NumericalHumanizeSchema,
     "rank": RankHumanizeSchema,
     "top_k": TopKHumanizeSchema,
+    "url": URLHumanizeSchema,
     "yes_no": YesNoHumanizeSchema,
     "survey_message": SurveyMessageHumanizeSchema,
 }

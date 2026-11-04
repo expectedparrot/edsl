@@ -20,6 +20,7 @@ from edsl.questions import (
     QuestionInterview,
     QuestionMultipleChoice,
     QuestionNumerical,
+    QuestionURL,
     SurveyMessage,
 )
 from edsl.surveys import Survey
@@ -313,6 +314,29 @@ class TestValidateHumanizeSchemaGeneral:
         with pytest.raises(HumanizeSchemaValidationError) as exc_info:
             validate_humanize_schema(survey, humanize_schema)
         assert "optional" in str(exc_info.value).lower()
+
+    def test_url_accepts_its_settings(self):
+        """A URL question takes optional, a comment, time limit, submitting
+        indicator and script."""
+        survey = Survey(
+            [
+                QuestionURL(
+                    question_name="url_q",
+                    question_text="What's your website?",
+                ),
+            ]
+        )
+        humanize_schema = {
+            "questions": {
+                "url_q": {
+                    "optional": True,
+                    "comment": {"label": "Anything to add?"},
+                    "time_limit": {"duration": {"type": "fixed", "seconds": 300}},
+                    "submitting_indicator": {"type": "callout"},
+                }
+            }
+        }
+        validate_humanize_schema(survey, humanize_schema)
 
     def test_survey_message_accepts_only_empty_display_configuration(self):
         survey = Survey(
@@ -818,6 +842,7 @@ class TestValidateHumanizeSchemaTimeLimit:
         "numerical",
         "rank",
         "top_k",
+        "url",
         "yes_no",
     ]
 

@@ -132,7 +132,7 @@ In Humanize, `QuestionDropdown` is a searchable combo box: respondents enter ter
 
 In Humanize, `QuestionDemand` shows a demand curve: for each price, respondents set a quantity with a slider or by typing a number, and the curve redraws as they go. Quantities can't be negative, and the answer is one quantity per price, in price order. `demand` doesn't support `optional`.
 
-In Humanize, `QuestionDict` shows one field per key in `answer_keys`, labelled with the key and its value type, with its entry from `value_descriptions` underneath. `int` and `float` keys take a number, list keys (`list`, `list[str]`, `list[int]`, `list[float]`) take one item per line, and any other key takes text. The answer has exactly the question's keys. `dict` doesn't support `optional`.
+In Humanize, `QuestionDict` shows one field per key in `answer_keys`, labelled with the key and its value type, with its entry from `value_descriptions` underneath. `int` and `float` keys take a number, `bool` keys take Yes or No, list keys (`list`, `list[str]`, `list[int]`, `list[float]`, `list[bool]`) take one item per line, with `list[bool]` items written as `true` or `false`, and any other key takes text. The answer has exactly the question's keys. `dict` doesn't support `optional`.
 
 <ParamField path="time_limit" type="dict" required={false}>
   A limit on how long the respondent may spend answering the question. Omit or set to `null` for no limit.
