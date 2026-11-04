@@ -725,8 +725,13 @@ class Result(Base, UserDict):
             An integer hash value based on the dictionary representation of the Result.
         """
         from ..utilities.utilities import dict_hash
+        from .hash_normalizer import normalize_for_hash
 
-        return dict_hash(self.to_dict(add_edsl_version=False, include_cache_info=False))
+        return dict_hash(
+            normalize_for_hash(
+                self.to_dict(add_edsl_version=False, include_cache_info=False)
+            )
+        )
 
     @classmethod
     def from_dict(cls, data: dict) -> Result:
