@@ -114,6 +114,44 @@ def test_results_jsonl_round_trip_preserves_task_history():
     assert entry["additional_data"]["attempts"] == 3
 
 
+def test_results_jsonl_round_trip_preserves_shared_state():
+    results = Results.example().sample(1)
+    results.shared_state = {
+        "version": 1,
+        "bindings": [{"state_id": "screening", "events": [{"kind": "read"}]}],
+    }
+
+    loaded = Results.from_jsonl(results.to_jsonl())
+
+    assert loaded.shared_state == results.shared_state
+
+
+def test_results_git_round_trip_preserves_shared_state(tmp_path):
+    results = Results.example().sample(1)
+    results.shared_state = {
+        "version": 1,
+        "bindings": [{"state_id": "screening", "events": [{"kind": "write"}]}],
+    }
+    package_path = tmp_path / "shared-state-results.ep"
+
+    results.git.save(package_path)
+    loaded = Results.git.load(package_path)
+
+    assert loaded.shared_state == results.shared_state
+
+
+def test_results_jsonl_loads_manifest_without_shared_state():
+    results = Results.example().sample(1)
+    lines = results.to_jsonl().splitlines()
+    manifest = json.loads(lines[1])
+    manifest.pop("shared_state")
+    lines[1] = json.dumps(manifest)
+
+    loaded = Results.from_jsonl("\n".join(lines))
+
+    assert loaded.shared_state is None
+
+
 def test_results_jsonl_records_authoritative_empty_task_history():
     results = Results.example().sample(1)
     lines = results.to_jsonl().splitlines()

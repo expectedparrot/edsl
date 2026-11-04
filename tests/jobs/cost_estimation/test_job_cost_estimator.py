@@ -1,5 +1,6 @@
 import pytest
 from edsl.jobs import Jobs
+from edsl.jobs.fetch_invigilator import FetchInvigilator
 from edsl.language_models import Model
 from edsl.questions import QuestionFreeText
 from edsl.questions.question_compute import QuestionCompute
@@ -379,6 +380,18 @@ class TestInterviewAgentScenario:
             price_lookup=PRICE_LOOKUP,
         )
         assert with_agent._rows[0]["prompt_tokens"] > no_agent._rows[0]["prompt_tokens"]
+
+    def test_runtime_answer_placeholder_is_not_rendered_as_question_data(self):
+        """Prompt setup must not leak its runtime answer into serialization."""
+        job = self._interview_job(scenario=Scenario({"topic": "coffee"}))
+        interview = job.interviews()[0]
+        question = interview.survey.questions[0]
+        invigilator = FetchInvigilator(interview)(question)
+
+        invigilator.prompt_constructor.prior_answers_dict()
+
+        assert "answer" not in question.to_dict(add_edsl_version=False)
+        assert invigilator._rendered_question().question_text == "Tell me about coffee."
 
     def test_longer_scenario_increases_prompt_tokens(self):
         """Scenario values substitute into question_text and interview_guide."""

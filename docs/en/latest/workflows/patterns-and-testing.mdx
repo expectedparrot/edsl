@@ -1,0 +1,185 @@
+---
+title: "Workflow patterns and testing"
+description: "Inspect audit evidence and develop protocols using reusable patterns and deterministic tests."
+---
+
+This chapter continues the [workflow manual](/en/latest/workflows).
+
+## Visualization and audit evidence
+
+Render an instance as a standalone vertical DAG:
+
+```python
+from edsl.workflows import WorkflowDAGVisualization
+
+path = WorkflowDAGVisualization(coordinator, instance_id).save("dag.html")
+```
+
+The visualization shows:
+
+* wall-clock ordering on the vertical axis;
+* dependency edges;
+* participant-specific colors;
+* question-type glyphs;
+* work-item status;
+* rendered question text and options;
+* submitted responses;
+* shared-state snapshots and transitions;
+* lifecycle timestamps;
+* execution attempts and error classifications; and
+* the ordered workflow event timeline.
+
+Failed items are visually distinct. Repeat conditions and derived expression
+conditions are rendered as readable labels.
+
+The visualization reads persisted evidence. It does not rerun conditions or
+call a model merely to construct the page.
+
+## Pattern: parallel brainstorm and selection
+
+```python
+ideas = builder.step(
+    "idea",
+    idea_survey,
+    assigned_to=role("ideator"),
+)
+
+builder.step(
+    "select",
+    Survey([
+        QuestionFreeText(
+            question_name="choice",
+            question_text=f"Choose from {ideas.outputs('idea').template}.",
+        )
+    ]),
+    assigned_to=role("chair"),
+    after=ideas,
+)
+```
+
+This is the simplest fan-out/fan-in pattern.
+
+## Pattern: blind review
+
+An author writes an artifact. Several reviewers can read it but cannot read one
+another's reviews. An editor receives the collected reviews.
+
+Use output visibility for sealed responses and shared-state capabilities for
+durable artifacts. Be explicit about which layer protects which information.
+
+## Pattern: approval with revision
+
+```python
+branch = if_(review.answer("approved").equals("Yes"))
+
+revision = builder.step("revise", ..., when=branch.otherwise)
+builder.step(
+    "publish",
+    Survey([
+        QuestionFreeText(
+            question_name="publication",
+            question_text=(
+                "Publish "
+                f"{revision.answer('copy').template_or(draft.answer('copy'))}"
+            ),
+        )
+    ]),
+    after=(review, revision),
+    when=join_any(branch.then, revision.completed),
+)
+```
+
+This pattern demonstrates complementary branches and typed fallback selection.
+
+## Pattern: Delphi forecasting
+
+A Delphi workflow combines several features:
+
+1. experts answer independently;
+2. only the facilitator sees identity-bearing source work;
+3. the facilitator returns an anonymous synthesis;
+4. derived expressions calculate authoritative statistics;
+5. a bounded repeat continues for at least two rounds; and
+6. a typed range condition stops later rounds after convergence.
+
+The simulation that motivated derived values revealed an important principle:
+the facilitator correctly discussed disagreements but misstated the arithmetic
+and termination result. The engine should compute facts; the model should
+explain them.
+
+## Pattern: probabilistically ending public-goods game
+
+```python
+def build_round(iteration):
+    previous = rounds_by_number.get(iteration.number - 1)
+    # Construct a survey referencing the previous contribution vector.
+    current = iteration.step(
+        "round",
+        survey,
+        assigned_to=role("player"),
+    )
+    iteration.stop_when(
+        not_(chance(0.70, key=f"continue-after-round-{iteration.number}"))
+    )
+    rounds_by_number[iteration.number] = current
+
+builder.repeat("public-goods-rounds", max_iterations=5, build=build_round)
+```
+
+Stable chance ensures a restart cannot redraw whether the game continues.
+
+## Pattern: peer prediction
+
+Peer prediction requires identity-preserving sealed reports, deterministic
+matching, and deterministic scoring. The current workflow can deliver sealed
+submissions to a scorer, but scoring arithmetic should be a derived expression
+or a future allowlisted algorithm—not prose delegated to an LLM.
+
+Per-recipient output projection is also important: respondents should receive
+their own score rather than the full scoring table.
+
+## Testing workflows
+
+Use scripted answerers for semantic tests:
+
+```python
+class Answers:
+    def answer(self, agent, opened):
+        if opened.step_name == "propose":
+            return {"activity": "Sailing"}
+        return {"approved": "Yes"}
+```
+
+A strong workflow test should verify:
+
+* definition serialization and reconstruction;
+* initial ready fan-out;
+* delivery order;
+* exact rendered downstream context;
+* completed and skipped work-item statuses;
+* condition decisions;
+* shared-state results and versions;
+* submission idempotency;
+* restart behavior using a new store and coordinator object;
+* retry exhaustion and workflow failure; and
+* visualization generation.
+
+For derived expressions, also test rejection of raw Python and unknown operators.
+For visibility, test that an unauthorized derived reference fails compilation.
+
+## Operational checklist
+
+Before a real deployment:
+
+1. Serialize and reconstruct the workflow in a fresh process.
+2. Verify every role matches the intended participant count.
+3. Audit every `visible_to` declaration and identity-bearing submission.
+4. Use stable idempotency keys in delivery and submission adapters.
+5. Put the SQLite database on durable, access-controlled storage.
+6. Choose lease durations longer than expected provider latency.
+7. Restrict retryable errors and set a finite attempt budget.
+8. Test a crash after delivery and a crash during answer retrieval.
+9. Use deterministic expressions for arithmetic and authoritative decisions.
+10. Render and inspect the DAG and event history.
+11. Verify Humanize surveys are private where required.
+12. Decide how operators are alerted when an instance fails.

@@ -1,0 +1,394 @@
+--- previous/typed_market_experiment.py
++++ v3/typed_market_experiment.py
+@@ -1,12 +1,8 @@
+-"""Self-contained authoring version of the completed 30-round market.
+-
+-This post-run consolidation imports no other experiment module. Its complete
+-specification is checked against the archived experiment, allowing fresh UUIDs.
+-Requires the shared-state branch with paired assignments from PR #2622.
+-
+-Safe replay (no model calls):
+-    python full_market_experiment.py --output replay --responses responses.json
+-Prepare only: add --prepare-only. Omit --responses for a new paid model session.
++"""Typed, configurable authoring of the 30-round asset-market experiment.
++
++Default prompts and wire specification reproduce the archived experiment.
++All economics are supplied by CallMarketRules; treatment settings are separate.
++Use --prepare-only or --responses for execution without model calls.
+ """
+ 
+ import argparse
+@@ -15,8 +11,19 @@
+ from pathlib import Path
+ import random
+ 
+-from edsl import Agent, QuestionDict, QuestionFreeText, Survey
++from edsl import Agent, QuestionFreeText, Survey
++from pydantic import Field, StrictInt, StrictStr, field_validator
++from typing import Literal
++from edsl.sharedstate.market_rules import MarketModel, NonnegativeNumber, PositiveInt
+ from edsl.sharedstate import (
++    CallMarketRules,
++    CashInterest,
++    Endowment,
++    Redemption,
++    ShareDividend,
++    DiscreteDistribution,
++    PricingRule,
++    DecisionSchema,
+     SharedState,
+     SharedStateMap,
+     call_market,
+@@ -34,16 +41,61 @@
+ SEED = 140926
+ PERIODS = 30
+ COMPOSITION = ["RA", "MC", "BT", "PC", "NT", "OC"] * 2
+-KEYS = [
+-    "forecast_0",
+-    "forecast_2",
+-    "forecast_5",
+-    "forecast_10",
+-    "side",
+-    "price",
+-    "quantity",
+-    "rationale",
+-]
++# This object is the single source for settlement, economic instructions, and
++# the report's theoretical price benchmark. with_changes(...) revalidates edits.
++RULES = CallMarketRules(
++    periods=PERIODS,
++    endowment=Endowment(cash_cents=10_000, shares=4),
++    pricing=PricingRule.MARGINAL_MIDPOINT,
++    income=(
++        CashInterest(rate=0.05),
++        ShareDividend(
++            distribution=DiscreteDistribution(
++                values_cents=(40, 100), probabilities=(0.5, 0.5)
++            ),
++        ),
++    ),
++    redemption=Redemption(value_cents=1_400),
++)
++
++
++class TraderTreatment(MarketModel):
++    composition: tuple[Literal["RA", "MC", "BT", "PC", "NT", "OC"], ...] = tuple(
++        COMPOSITION
++    )
++    assignment_seed: StrictInt | StrictStr = SEED
++    model: StrictStr = Field("gpt-5-mini", min_length=1)
++    service: StrictStr = Field("openai", min_length=1)
++    temperature: NonnegativeNumber = 1
++    reasoning_effort: Literal["low", "medium", "high"] = "medium"
++    max_tokens: PositiveInt = 8000
++    forecast_horizons: tuple[StrictInt, ...] = (0, 2, 5, 10)
++
++    @field_validator("composition")
++    @classmethod
++    def participants_required(cls, value):
++        if not value:
++            raise ValueError("composition must contain at least one trader")
++        return value
++
++    @field_validator("forecast_horizons")
++    @classmethod
++    def increasing_horizons(cls, value):
++        if not value or value[0] != 0 or any(a >= b for a, b in zip(value, value[1:])):
++            raise ValueError(
++                "forecast_horizons must start at zero and strictly increase"
++            )
++        return value
++
++    @property
++    def decision_schema(self):
++        return DecisionSchema(
++            forecast_keys=tuple(f"forecast_{h}" for h in self.forecast_horizons)
++        )
++
++
++TREATMENT = TraderTreatment()
++
+ 
+ COMMON = (
+     "You are a participant in an experimental asset market. Maximize your final cash wealth. "
+@@ -56,7 +108,7 @@
+ PERSONAS = {
+     "RA": (
+         "You are a rational arbitrageur. Compare the asset's expected dividend and "
+-        "resale return with the 5% cash return. Buy when the expected excess return "
++        "resale return with the {cash_return} cash return. Buy when the expected excess return "
+         "clears a meaningful threshold, sell overpriced holdings, and avoid trades "
+         "without an advantage."
+     ),
+@@ -112,20 +164,32 @@
+ }
+ 
+ 
+-def question_text(period, periods):
++def question_text(period, rules=RULES, treatment=TREATMENT):
++    periods = rules.periods
++    horizons = treatment.forecast_horizons
++    history_labels = ", ".join("now" if h == 0 else f"+{h}" for h in horizons)
++    history_values = ", ".join(
++        "{{ h.decision.forecast_" + str(h) + " }}" for h in horizons
++    )
++    future = [str(h) for h in horizons[1:]]
++    if not future:
++        forecast_instruction = "Forecast the transaction price now, then choose "
++    else:
++        ahead = (
++            future[0]
++            if len(future) == 1
++            else ", ".join(future[:-1]) + ", and " + future[-1]
++        )
++        unit = "period" if future == ["1"] else "periods"
++        forecast_instruction = (
++            f"Forecast transaction prices now and {ahead} {unit} ahead, then choose "
++        )
++    forecast_names = ", ".join(treatment.decision_schema.forecast_keys)
+     return (
+         f"Period {period} of {periods}; {periods - period + 1} trading periods remain, including this one.\n\n"
+         "MARKET RULES\n"
+-        "There are 12 traders. Each began with $100 cash and 4 shares. Submit one "
+-        "sealed limit order: buy, sell, or hold. A buy limit is the most you will "
+-        "pay per share; a sell limit is the least you will accept. The exchange "
+-        "matches crossing orders and all filled orders receive one clearing price. "
+-        "Unmatched orders expire. You cannot borrow or short shares. Buy quantities "
+-        "are capped by cash divided by your limit; sells by your inventory. Quotes "
+-        "round to cents. After trading, cash earns 5% interest, then each held share "
+-        "pays the same dividend: $0.40 or $1.00, equally likely. "
+-        f"After period {periods}'s income, each remaining share is redeemed for $14; you keep all cash.\n\n"
+-        "YOUR ACCOUNT (all money below is in dollars)\n"
++        + rules.instructions(len(treatment.composition))
++        + "YOUR ACCOUNT (all money below is in dollars)\n"
+         "Cash: {{ shared_state.market.your_account.cash_cents / 100 }}. "
+         "Shares: {{ shared_state.market.your_account.shares }}.\n"
+         "Your previous decisions and fills:\n"
+@@ -134,9 +198,7 @@
+         "{{ h.limit_cents / 100 }}; admitted {{ h.accepted_quantity }}; signed fill "
+         "{{ h.fill }}; market price {{ h.transaction_price }}; interest "
+         "{{ h.interest }}; dividend per share {{ h.dividend_per_share }}. "
+-        "Your forecasts (now, +2, +5, +10): {{ h.decision.forecast_0 }}, "
+-        "{{ h.decision.forecast_2 }}, {{ h.decision.forecast_5 }}, "
+-        "{{ h.decision.forecast_10 }}. Your rationale: {{ h.decision.rationale }}\n"
++        f"Your forecasts ({history_labels}): {history_values}. Your rationale: {{{{ h.decision.rationale }}}}\n"
+         "{% else %}No previous decisions.\n{% endfor %}\n"
+         "PUBLIC HISTORY\n"
+         "{% for row in shared_state.market.tape %}"
+@@ -147,25 +209,26 @@
+         "{% else %}The market has not traded yet. There is no opening reference quote.\n{% endfor %}"
+         "A null or None price means there was no transaction that period.\n\n"
+         "YOUR DECISION\n"
+-        "Forecast transaction prices now and 2, 5, and 10 periods ahead, then choose "
+-        "your order using your trading approach. For forecast horizons beyond the "
+-        "last trading period, use the terminal redemption amount. Return forecast_0, "
+-        "forecast_2, forecast_5, forecast_10, side ('buy', 'sell', or 'hold'), price, "
++        + forecast_instruction
++        + "your order using your trading approach. For forecast horizons beyond the "
++        "last trading period, use the terminal redemption amount. Return "
++        f"{forecast_names}, side ('buy', 'sell', or 'hold'), price, "
+         "integer quantity, and a brief rationale. All forecasts and prices are in "
+         "dollars. For hold use price=0 and quantity=0. Retain any precommitted "
+         "schedule or exit plan in your rationale.\n"
+     )
+ 
+ 
+-def build_agents():
+-    """Two traders per archetype, with a reproducible seat assignment."""
+-    types = list(COMPOSITION)
+-    random.Random(SEED).shuffle(types)
++def build_agents(rules=RULES, treatment=TREATMENT):
++    """Assign the declared composition reproducibly; render economic persona facts."""
++    types = list(treatment.composition)
++    random.Random(treatment.assignment_seed).shuffle(types)
+     agents = [
+         Agent(
+             name=f"trader-{seat:02d}",
+             traits={"role": "trader", "seat": seat},
+-            instruction=COMMON + PERSONAS[kind],
++            instruction=COMMON
++            + PERSONAS[kind].format(cash_return=f"{rules.interest.rate * 100:g}%"),
+         )
+         for seat, kind in enumerate(types)
+     ]
+@@ -173,44 +236,23 @@
+     return agents
+ 
+ 
+-def build_market(trader_names):
+-    """Declare economics; standard EDSL commands admit and settle the orders."""
+-    return call_market(
+-        trader_names,
+-        periods=PERIODS,
+-        seed=SEED,
+-        initial_cash_cents=10000,
+-        initial_shares=4,
+-        initial_reference_price=14.0,  # Internal only; never shown as a quote.
+-        redemption_cents=1400,
+-        pricing_rule="marginal_midpoint",
+-        maximum_buy_quantity=48,
+-        income_schedule=[
+-            {"kind": "cash_interest", "rate": 0.05},
+-            {
+-                "kind": "share_dividend",
+-                "values_cents": [40, 100],
+-                "probabilities": [0.5, 0.5],
+-                "sampling": "python_random_choice_v1",
+-            },
+-        ],
+-        forecast_keys=KEYS[:4],
+-    )
+-
+-
+-def build_execution_plan():
++def build_market(trader_names, rules=RULES, seed=SEED):
++    return call_market(trader_names, rules=rules, seed=seed)
++
++
++def build_execution_plan(treatment=TREATMENT):
+     """EDSL asks traders; the exchange receives a literal scripted answer."""
+     return (
+         ExecutionPlan()
+         .bind(
+             role("trader"),
+             llm(
+-                model="gpt-5-mini",
+-                service="openai",
++                model=treatment.model,
++                service=treatment.service,
+                 parameters={
+-                    "temperature": 1,
+-                    "reasoning_effort": "medium",
+-                    "max_tokens": 8000,
++                    "temperature": treatment.temperature,
++                    "reasoning_effort": treatment.reasoning_effort,
++                    "max_tokens": treatment.max_tokens,
+                 },
+             ),
+         )
+@@ -218,30 +260,31 @@
+     )
+ 
+ 
+-def build(*, created_at=None):
++def build(*, rules=RULES, treatment=TREATMENT, seed=SEED, created_at=None):
+     """Build a serializable experiment: state, participants, workflow, execution."""
+-    agents = build_agents()
+-    machine = build_market([a.name for a in agents if a.traits["role"] == "trader"])
++    if rules.forecast_keys != treatment.decision_schema.forecast_keys:
++        raise ValueError("market forecast_keys must match treatment forecast_horizons")
++    agents = build_agents(rules, treatment)
++    machine = build_market(
++        [a.name for a in agents if a.traits["role"] == "trader"], rules, seed
++    )
+     states = SharedStateMap(
+         SharedState(market=machine), state_id="portable-asset-market"
+     )
+     market = states.by("session").market
+     workflow = Workflow(
+-        "Speculative asset market: full 30-round session",
++        f"Speculative asset market: full {rules.periods}-round session",
+         metadata={
+-            "economic_horizon": PERIODS,
++            "economic_horizon": rules.periods,
+             "prompt_variant": "speculative-v1",
+-            "observation_design": "Full 30 rounds fixed before execution; no early observation pauses.",
++            "observation_design": f"Full {rules.periods} rounds fixed before execution; no early observation pauses.",
+         },
+     )
+     previous = None
+-    for period in range(1, PERIODS + 1):
+-        question = QuestionDict(
++    for period in range(1, rules.periods + 1):
++        question = treatment.decision_schema.question(
+             question_name="decision",
+-            question_text=question_text(period, PERIODS),
+-            answer_keys=KEYS,
+-            value_types=["float"] * 4 + ["str", "float", "int", "str"],
+-            include_comment=False,
++            question_text=question_text(period, rules, treatment),
+         )
+         orders = workflow.step(
+             f"orders-{period}",
+@@ -276,12 +319,12 @@
+         workflow.compile(),
+         [states],
+         agents,
+-        build_execution_plan(),
++        build_execution_plan(treatment),
+         metadata={
+-            "seed": SEED,
++            "seed": seed,
+             "prompt_variant": "speculative-v1",
+-            "economic_horizon": PERIODS,
+-            "observation_horizon": PERIODS,
++            "economic_horizon": rules.periods,
++            "observation_horizon": rules.periods,
+             "fresh_model_calls": True,
+             "created_at": created_at or datetime.now(timezone.utc).isoformat(),
+         },
+@@ -294,15 +337,35 @@
+     parser.add_argument(
+         "--responses", type=Path, help="Saved answers; prevents model calls"
+     )
++    parser.add_argument("--rules", type=Path, help="CallMarketRules JSON")
++    parser.add_argument("--treatment", type=Path, help="TraderTreatment JSON")
++    parser.add_argument("--seed", type=int, default=SEED)
+     parser.add_argument("--resume", action="store_true")
+     parser.add_argument("--prepare-only", action="store_true")
+     args = parser.parse_args()
++    rules = (
++        CallMarketRules.from_dict(json.loads(args.rules.read_text()))
++        if args.rules
++        else RULES
++    )
++    treatment = (
++        TraderTreatment.from_dict(json.loads(args.treatment.read_text()))
++        if args.treatment
++        else TREATMENT
++    )
+     specification = args.output / "specification.json"
++    if (args.resume or specification.exists()) and (
++        args.rules or args.treatment or args.seed != SEED
++    ):
++        raise ValueError(
++            "cannot override a saved specification; use a fresh output directory"
++        )
+     if args.prepare_only:
+-        args.output.mkdir(parents=True, exist_ok=True)
+         if specification.exists():
+             raise FileExistsError(specification)
+-        build().save(specification)
++        experiment = build(rules=rules, treatment=treatment, seed=args.seed)
++        args.output.mkdir(parents=True, exist_ok=True)
++        experiment.save(specification)
+         print(json.dumps({"status": "prepared", "path": str(specification)}))
+         return
+     if args.resume:
+@@ -310,7 +373,7 @@
+     elif specification.exists():
+         experiment = WorkflowExperiment.load(specification)
+     else:
+-        experiment = build()
++        experiment = build(rules=rules, treatment=treatment, seed=args.seed)
+     responses = None
+     if args.responses:
+         responses = json.loads(args.responses.read_text())
+@@ -329,9 +392,14 @@
+         .state["market"]
+     )
+     (args.output / "market.json").write_text(json.dumps(state, indent=2) + "\n")
+-    assert result["status"] == "completed" and result["completed_items"] == 390
+-    assert state["finished"] and len(state["tape"]) == PERIODS
+-    assert len(state["order_log"]) == 12 * PERIODS
++    periods = experiment.metadata["economic_horizon"]
++    traders = sum(a.traits["role"] == "trader" for a in experiment.agents)
++    assert (
++        result["status"] == "completed"
++        and result["completed_items"] == (traders + 1) * periods
++    )
++    assert state["finished"] and len(state["tape"]) == periods
++    assert len(state["order_log"]) == traders * periods
+     assert all(a["shares"] == 0 for a in state["accounts"].values())
+     print(json.dumps({"status": "ok", "data": result, "warnings": []}))
+ 

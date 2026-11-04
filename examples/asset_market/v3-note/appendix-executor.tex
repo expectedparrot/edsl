@@ -1,0 +1,14 @@
+\Needspace{16\baselineskip}
+\section{Complete workflow executor after the retry fix}
+The baseline is the executor printed in the previous report. The highlighted null-response guard was added after the failed final-round batch; both runtime versions are in the bundle.
+\par\textit{Source:} \path{code/workflow_experiment.py}.
+\def\activefile{executor}
+\Needspace{6\baselineskip}
+\subsection{Bundle and serialization}
+\lstinputlisting[firstline=1,lastline=126,firstnumber=1]{code/workflow_experiment.py}
+\Needspace{6\baselineskip}
+\subsection{Execution and recovery}
+\lstinputlisting[firstline=127,lastline=257,firstnumber=127]{code/workflow_experiment.py}
+\Needspace{6\baselineskip}
+\subsection{Paired EDSL jobs and response admission}
+\lstinputlisting[firstline=258,lastline=396,firstnumber=258]{code/workflow_experiment.py}

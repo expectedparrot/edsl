@@ -196,6 +196,19 @@ class QuestionBase(
         - Questions can be used independently or as part of surveys
     """
 
+    @property
+    def answer(self):
+        """Reference this question's answer, or return an assigned runtime answer."""
+        if "_answer" in self.__dict__:
+            return self.__dict__["_answer"]
+        from ..sharedstate.refs import AnswerRef
+
+        return AnswerRef(self.question_name)
+
+    @answer.setter
+    def answer(self, value):
+        self.__dict__["_answer"] = value
+
     question_name: str = QuestionNameDescriptor()  # type: ignore[assignment]
     question_text: str = QuestionTextDescriptor()  # type: ignore[assignment]
 
@@ -421,7 +434,8 @@ class QuestionBase(
         options = getattr(self, "question_options", None)
         if not isinstance(options, (list, tuple)):
             return []
-        answer = getattr(self, "answer", None)
+        # The public answer property returns an AnswerRef during authoring.
+        answer = self.__dict__.get("_answer")
         if answer is None:
             return []
         selected = set(answer) if isinstance(answer, (list, tuple, set)) else {answer}
@@ -459,6 +473,7 @@ class QuestionBase(
         """
         exclude_list = [
             "question_type",
+            "_answer",  # runtime answer/placeholder; not constructor data
             # "_include_comment",
             # "_use_code",
             "_model_instructions",

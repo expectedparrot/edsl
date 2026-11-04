@@ -1,0 +1,285 @@
+{
+  "same_economics_agents_and_question_templates": true,
+  "same_realized_dividends": true,
+  "passive_terminal_cash": 648.69,
+  "previous": {
+    "path": "examples/asset_market/runs/gpt5-v2-30-typed",
+    "rounds": 30,
+    "decisions": 360,
+    "volume": 69,
+    "trading_rounds": 19,
+    "first_trade_round": 3,
+    "peak_price": 26.0,
+    "peak_round": 3,
+    "last_transaction_price": 15.0,
+    "longest_consecutive_prices_at_least_17_50": 1,
+    "post_peak_drawdown": 0.4326923076923077,
+    "recorded_model_cost": 1.19659225,
+    "audit": {
+      "passed": true,
+      "orders": {
+        "submit": 360,
+        "settle": 30
+      },
+      "attempts": {
+        "succeeded": 390
+      },
+      "all_private_views_and_prompts_verified": true,
+      "shares_redeemed": 48
+    },
+    "execution": {
+      "initial_serial_decisions": 0,
+      "batched_decisions": 360,
+      "edsl_jobs_completed": 30,
+      "mean_full_round_job_seconds": 30.97661173326584,
+      "pairing": "zip_assign from PR #2622",
+      "wall_seconds": 1034.442484,
+      "started_at": "2026-09-16T12:18:32.806578+00:00",
+      "completed_at": "2026-09-16T12:35:47.249062+00:00",
+      "all_rounds_batched": true
+    },
+    "terminal_forecast_violations": 16,
+    "violations": [
+      {
+        "trader": "trader-01",
+        "period": 21,
+        "horizon": 10,
+        "forecast": 14.5
+      },
+      {
+        "trader": "trader-00",
+        "period": 26,
+        "horizon": 5,
+        "forecast": 14.6
+      },
+      {
+        "trader": "trader-01",
+        "period": 26,
+        "horizon": 5,
+        "forecast": 14.9
+      },
+      {
+        "trader": "trader-04",
+        "period": 26,
+        "horizon": 5,
+        "forecast": 15.0
+      },
+      {
+        "trader": "trader-11",
+        "period": 26,
+        "horizon": 5,
+        "forecast": 15.5
+      },
+      {
+        "trader": "trader-00",
+        "period": 27,
+        "horizon": 5,
+        "forecast": 14.6
+      },
+      {
+        "trader": "trader-01",
+        "period": 27,
+        "horizon": 5,
+        "forecast": 14.9
+      },
+      {
+        "trader": "trader-04",
+        "period": 27,
+        "horizon": 5,
+        "forecast": 15.0
+      },
+      {
+        "trader": "trader-11",
+        "period": 27,
+        "horizon": 5,
+        "forecast": 15.5
+      },
+      {
+        "trader": "trader-00",
+        "period": 28,
+        "horizon": 5,
+        "forecast": 14.6
+      },
+      {
+        "trader": "trader-01",
+        "period": 28,
+        "horizon": 5,
+        "forecast": 14.9
+      },
+      {
+        "trader": "trader-11",
+        "period": 28,
+        "horizon": 5,
+        "forecast": 15.5
+      },
+      {
+        "trader": "trader-00",
+        "period": 29,
+        "horizon": 2,
+        "forecast": 15.0
+      },
+      {
+        "trader": "trader-00",
+        "period": 29,
+        "horizon": 5,
+        "forecast": 14.6
+      },
+      {
+        "trader": "trader-11",
+        "period": 29,
+        "horizon": 2,
+        "forecast": 15.0
+      },
+      {
+        "trader": "trader-11",
+        "period": 29,
+        "horizon": 5,
+        "forecast": 15.5
+      }
+    ],
+    "transaction_rounds_above_fundamental": 19
+  },
+  "v3": {
+    "path": "examples/asset_market/runs/gpt5-v3-30-typed",
+    "rounds": 30,
+    "decisions": 360,
+    "volume": 107,
+    "trading_rounds": 17,
+    "first_trade_round": 5,
+    "peak_price": 29.5,
+    "peak_round": 25,
+    "last_transaction_price": 23.75,
+    "longest_consecutive_prices_at_least_17_50": 8,
+    "post_peak_drawdown": 0.19491525423728814,
+    "recorded_model_cost": 1.2877415,
+    "incomplete_result_records": 1,
+    "audit": {
+      "passed": true,
+      "orders": {
+        "submit": 360,
+        "settle": 30
+      },
+      "attempts": {
+        "failed": 1,
+        "succeeded": 390
+      },
+      "all_private_views_and_prompts_verified": true,
+      "shares_redeemed": 48
+    },
+    "execution": {
+      "initial_serial_decisions": 0,
+      "batched_decisions": 360,
+      "edsl_jobs_completed": 30,
+      "edsl_jobs_started": 31,
+      "batches_without_completion_record": 1,
+      "mean_full_round_job_seconds": 35.05532533044582,
+      "pairing": "zip_assign from PR #2622"
+    },
+    "terminal_forecast_violations": 17,
+    "violations": [
+      {
+        "trader": "trader-00",
+        "period": 26,
+        "horizon": 5,
+        "forecast": 34.0
+      },
+      {
+        "trader": "trader-01",
+        "period": 26,
+        "horizon": 5,
+        "forecast": 43.0
+      },
+      {
+        "trader": "trader-02",
+        "period": 26,
+        "horizon": 5,
+        "forecast": 15.0
+      },
+      {
+        "trader": "trader-03",
+        "period": 26,
+        "horizon": 5,
+        "forecast": 15.0
+      },
+      {
+        "trader": "trader-08",
+        "period": 26,
+        "horizon": 5,
+        "forecast": 33.5
+      },
+      {
+        "trader": "trader-02",
+        "period": 27,
+        "horizon": 5,
+        "forecast": 15.0
+      },
+      {
+        "trader": "trader-03",
+        "period": 27,
+        "horizon": 5,
+        "forecast": 15.0
+      },
+      {
+        "trader": "trader-08",
+        "period": 27,
+        "horizon": 5,
+        "forecast": 33.5
+      },
+      {
+        "trader": "trader-02",
+        "period": 28,
+        "horizon": 5,
+        "forecast": 15.0
+      },
+      {
+        "trader": "trader-07",
+        "period": 28,
+        "horizon": 5,
+        "forecast": 20.0
+      },
+      {
+        "trader": "trader-08",
+        "period": 28,
+        "horizon": 5,
+        "forecast": 33.5
+      },
+      {
+        "trader": "trader-02",
+        "period": 29,
+        "horizon": 2,
+        "forecast": 19.0
+      },
+      {
+        "trader": "trader-02",
+        "period": 29,
+        "horizon": 5,
+        "forecast": 15.0
+      },
+      {
+        "trader": "trader-07",
+        "period": 29,
+        "horizon": 2,
+        "forecast": 26.0
+      },
+      {
+        "trader": "trader-07",
+        "period": 29,
+        "horizon": 5,
+        "forecast": 20.0
+      },
+      {
+        "trader": "trader-08",
+        "period": 29,
+        "horizon": 2,
+        "forecast": 31.0
+      },
+      {
+        "trader": "trader-08",
+        "period": 29,
+        "horizon": 5,
+        "forecast": 33.5
+      }
+    ],
+    "transaction_rounds_above_fundamental": 17
+  }
+}

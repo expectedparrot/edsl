@@ -1,0 +1,428 @@
+---
+title: "Balanced experimental assignment"
+description: "Assign one of two conditions while balancing total counts and two categorical characteristics."
+---
+
+This example asks two characteristics and assigns a condition in the same survey
+pass. The policy balances total arm counts, age bands, and prior experience using
+Machine expressions. The behavior is serialized; Python only builds the definition.
+
+## Build and run the complete example
+
+Everything needed for this example is defined on this page. Use an EDSL build
+that includes the Machine and Runner APIs documented in this manual. Execute the
+following four Python blocks in order in one session, or concatenate them into
+one script. They require EDSL and the Python standard library; no repository
+example modules or external data files are needed. The scripted run makes no
+model API calls.
+
+The twelve-person scripted population produces six Control and six Treatment
+assignments. Every respondent then answers a question naming their assigned
+condition. The demo makes no model API calls.
+
+### 1. Define the Machine
+
+The Machine derives marginal counts from its assignment ledger. It selects
+a minimum-cost arm, breaks ties with seeded ordering, and preserves prior assignments.
+
+```python
+from edsl.sharedstate import (
+    Command,
+    Machine,
+    StateType,
+    require,
+    constant,
+    current_value,
+    field,
+    filter_items,
+    arg,
+    local,
+    map_sequence,
+    put,
+    record,
+    reduce,
+    seeded_order,
+    assign,
+    state_field,
+    when,
+)
+
+ARMS = ("Control", "Treatment")
+
+AGES = ("Younger", "Older")
+
+EXPERIENCE = ("New", "Experienced")
+
+def build_machine(seed="balanced-2026"):
+    if not isinstance(seed, str) or not seed:
+        raise ValueError("seed must be nonempty text")
+    rid, age, experience = arg("respondent_id"), arg("age"), arg("experience")
+    assignments = field("assignments")
+    rows = assignments.values()
+    old = assignments.get(rid, {})
+    seen = assignments.contains(rid)
+    arm = local("arm")
+    # Minimizing this sum also minimizes the increase in the sum of squared
+    # marginal counts (total, matching age, matching experience), with equal weights.
+    in_arm = filter_items(rows, item="r", predicate=local("r").get("arm") == arm)
+    score = (
+        in_arm.length()
+        + filter_items(
+            in_arm, item="r", predicate=local("r").get("age") == age
+        ).length()
+        + filter_items(
+            in_arm, item="r", predicate=local("r").get("experience") == experience
+        ).length()
+    )
+    ranked = reduce(
+        "sort_records",
+        map_sequence(
+            constant("arms"), item="arm", value_expr=record(arm=arm, score=score)
+        ),
+        fields=["score", "arm"],
+    )
+    tied = map_sequence(
+        filter_items(
+            ranked,
+            item="r",
+            predicate=local("r").get("score") == ranked.first().get("score"),
+        ),
+        item="r",
+        value_expr=local("r").get("arm"),
+    )
+    selected = seeded_order(
+        tied, seed=constant("seed"), scope=current_value("study_id", "study"), key=rid
+    ).first()
+    return Machine(
+        name="BalancedAssignment",
+        constants={"arms": list(ARMS), "seed": seed},
+        fields={
+            "assignments": state_field(
+                StateType.map(
+                    StateType.text(),
+                    StateType.record(
+                        {
+                            "arm": StateType.choice(ARMS),
+                            "age": StateType.choice(AGES),
+                            "experience": StateType.choice(EXPERIENCE),
+                        }
+                    ),
+                ),
+                {},
+            ),
+            "closed": state_field(StateType.boolean(), False),
+        },
+        commands={
+            "assign": Command(
+                inputs={
+                    "respondent_id": StateType.text(),
+                    "age": StateType.choice(AGES),
+                    "experience": StateType.choice(EXPERIENCE),
+                },
+                effects=(
+                    require(rid.stripped().length() > 0, code="missing_respondent_id"),
+                    require(
+                        ~seen
+                        | (
+                            (old.get("age") == age)
+                            & (old.get("experience") == experience)
+                        ),
+                        code="characteristics_changed",
+                    ),
+                    when(~seen, require(~field("closed"), code="assignment_closed")),
+                    put(
+                        "assignments",
+                        rid,
+                        record(arm=selected, age=age, experience=experience),
+                        once=True,
+                    ),
+                ),
+            )
+        },
+        close_effects=(assign("closed", True),),
+        view={
+            "age": assignments.get(current_value("respondent_id", ""), {}).get("age"),
+            "experience": assignments.get(current_value("respondent_id", ""), {}).get(
+                "experience"
+            ),
+            "arm": assignments.get(current_value("respondent_id", ""), {}).get("arm"),
+            "counts": reduce(
+                "count_by",
+                map_sequence(rows, item="r", value_expr=local("r").get("arm")),
+            ),
+            "accepting": ~field("closed"),
+        },
+    )
+```
+
+### 2. Construct the Survey
+
+The survey asks both characteristics before assignment, then reads the assigned
+arm. Its gate prevents a conflicting repeat report from silently using an old assignment.
+
+```python
+from edsl import (
+    Agent,
+    AgentList,
+    InterviewSchedule,
+    Model,
+    QuestionCompute,
+    QuestionFreeText,
+    QuestionMultipleChoice,
+    Survey,
+)
+
+from edsl.sharedstate import SharedState, SharedStateMap, current
+
+def build_survey(*, state_id=None, seed="balanced-2026"):
+    states = SharedStateMap(SharedState(balance=build_machine(seed)), state_id=state_id)
+    balance = states.by(current.agent.study_id).balance
+    age = QuestionMultipleChoice(
+        question_name="age_group",
+        question_text="Which age band describes you?",
+        question_options=list(AGES),
+    )
+    experience = QuestionMultipleChoice(
+        question_name="experience",
+        question_text="How much prior experience do you have?",
+        question_options=list(EXPERIENCE),
+    )
+    arm = QuestionCompute(
+        question_name="assigned_arm",
+        question_text="{{ shared_state.balance.arm if shared_state.balance.age == age_group.answer and shared_state.balance.experience == experience.answer else 'unassigned' }}",
+    )
+    response = QuestionFreeText(
+        question_name="response",
+        question_text="Your assigned condition is {{ assigned_arm.answer }}. What do you think of the proposal?",
+    )
+    survey = Survey(
+        [
+            age,
+            experience,
+            balance.assign(
+                respondent_id=current.agent.respondent_id,
+                age=age.answer,
+                experience=experience.answer,
+            ),
+            balance.read(),
+            arm,
+            response,
+        ]
+    )
+    survey.add_stop_rule(arm, "{{ assigned_arm.answer }} == 'unassigned'")
+    return survey, states, InterviewSchedule.grouped_round_robin("study_id", "turn")
+```
+
+### 3. Define the scripted respondents
+
+The twelve scripted respondents cycle through four age/experience combinations.
+Their final response is fixed so the example isolates allocation behavior.
+
+```python
+def demo_answer(self, question, scenario):
+    if question.question_name in ("age_group", "experience"):
+        return self.traits[question.question_name]
+    return "A clear proposal."
+
+def demo_agents(count=12):
+    agents = AgentList()
+    for i in range(count):
+        agent = Agent(
+            traits={
+                "respondent_id": f"R{i}",
+                "study_id": "study",
+                "turn": i,
+                "age_group": AGES[i % 2],
+                "experience": EXPERIENCE[(i // 2) % 2],
+            }
+        )
+        agent.add_direct_question_answering_method(demo_answer)
+        agents.append(agent)
+    return agents
+```
+
+### 4. Run and inspect the answers
+
+`Model("test")` supplies the Jobs model dimension. The agents above answer locally,
+and `QuestionCompute` evaluates the routing gates without a model call.
+
+```python
+from edsl import Model
+from edsl.runner import Runner
+
+survey, states, schedule = build_survey(seed="balanced-2026")
+results = Runner(interview_schedule=schedule).submit(
+    survey.by(demo_agents()).by(Model("test")), cache=False
+).results()
+assert not results.has_unfixed_exceptions
+print(results.select("answer.age_group", "answer.experience", "answer.assigned_arm").to_list())
+```
+
+## Follow the first six assignments
+
+The follow-up Python blocks use the definitions and Results created above.
+The table below comes from the default run above, with seed `balanced-2026` and study ID
+`study`. Candidate scores are computed from the ledger **before** each assignment.
+A lower score wins; a tie uses the seeded draw.
+
+| Respondent | Age band | Experience | Control score | Treatment score | Assigned arm |
+| --- | --- | --- | --- | --- | --- |
+| R0 | Younger | New | 0 | 0 | Control |
+| R1 | Older | New | 2 | 0 | Treatment |
+| R2 | Younger | Experienced | 2 | 1 | Treatment |
+| R3 | Older | Experienced | 1 | 4 | Control |
+| R4 | Younger | New | 4 | 4 | Control |
+| R5 | Older | New | 6 | 4 | Treatment |
+
+R1 enters while Control already contains one New respondent. Assigning R1 to
+Control would add to both its total count and its New count, so Control's score
+is two. Treatment is empty and scores zero. By R4, the scores tie again; the
+stable seed and respondent ID determine the arm.
+
+This is what makes the example adaptive across people: R4's assignment depends
+on the four preceding records, while repeated delivery for R4 keeps the original
+assignment rather than rerunning the allocation as a new person.
+
+### Inspect the final balance, including a limitation
+
+The complete twelve-person run has these **marginal** counts:
+
+| Characteristic | Control | Treatment |
+| --- | --- | --- |
+| All respondents | 6 | 6 |
+| Younger | 3 | 3 |
+| Older | 3 | 3 |
+| New | 3 | 3 |
+| Experienced | 3 | 3 |
+
+But the joint age-by-experience cells look different:
+
+| Joint cell | Control | Treatment |
+| --- | --- | --- |
+| Younger, New | 3 | 0 |
+| Younger, Experienced | 0 | 3 |
+| Older, New | 0 | 3 |
+| Older, Experienced | 3 | 0 |
+
+The implementation worked as specified, but this is not a balanced design for
+comparing every subgroup. Good marginal balance can hide very poor joint balance.
+If the joint cells matter, they must become part of the assignment objective;
+changing the seed alone is not a guarantee.
+
+Reproduce both views from Results instead of relying only on the total split:
+
+```python
+from collections import Counter
+
+marginals = {arm: Counter() for arm in ("Control", "Treatment")}
+joint = {arm: Counter() for arm in marginals}
+for row in results:
+    arm = row.answer["assigned_arm"]
+    age = row.answer["age_group"]
+    experience = row.answer["experience"]
+    marginals[arm].update(["All", age, experience])
+    joint[arm][(age, experience)] += 1
+
+assert marginals["Control"] == marginals["Treatment"]
+assert marginals["Control"]["All"] == 6
+assert joint["Control"][("Younger", "New")] == 3
+assert joint["Treatment"][("Younger", "New")] == 0
+print({arm: dict(counts) for arm, counts in marginals.items()})
+```
+
+## Assignment policy
+
+The example has two arms (Control, Treatment), two age bands (Younger, Older),
+and two experience categories (New, Experienced). State contains an immutable
+record per respondent with those two characteristics and the selected arm.
+
+For a new respondent, calculate for each arm:
+
+```text
+score = respondents already in this arm
+      + respondents in this arm with the same age band
+      + respondents in this arm with the same experience category
+```
+
+Choose an arm with the lowest score. With equal weights, this also minimizes the
+increase in the sum of squared counts across these three margins. It is a greedy
+local criterion, not a global optimization over future arrivals. It does not
+balance every joint age-by-experience cell or guarantee exact equality at every
+sample size.
+
+If the scores tie, `seeded_order` orders the tied arm IDs using the configured seed,
+`study_id` from runtime context, and the respondent ID as the draw key. The direct
+runtime example defaults the study key to `study`; the Survey supplies the actual
+study trait. See [portable randomization](/en/latest/shared-state/randomization-and-money)
+for the byte protocol and reproducibility contract.
+
+`assign(respondent_id, age, experience)` checks the current ledger and writes
+atomically. A repeat with the same characteristics preserves its first arm;
+changed characteristics reject explicitly. Closing stops new assignments but
+retains prior ones. Counts are derived from the ledger, avoiding separate mutable
+counters. There is no intrinsic sample-size completion condition.
+
+## Survey integration
+
+The survey asks the two characteristics, calls `assign`, reads the personal view,
+and computes the assigned arm. Its final question uses that computed answer in
+the prompt. If a later interview changes the same respondent's characteristics,
+the command refuses the update and a gate suppresses the final question, rather
+than silently treating the old assignment as based on the new report.
+
+A grouped sequential schedule makes the demo's arrival order reproducible even
+if the supplied AgentList is reversed. Concurrent writers still make atomic
+assignments, but their transaction order can change the result. Reuse the saved
+state map and stable IDs to resume without recounting respondents.
+
+## Replay an assignment without admitting someone twice
+
+The record, not the current balancing score, governs a returning respondent.
+This small example also shows how a conflicting report is represented without
+partially changing the state:
+
+```python
+from edsl.sharedstate import Machine
+from edsl.sharedstate import Runtime
+
+machine = Machine.from_json(build_machine().to_json())
+runtime = Runtime()
+initial = runtime.initial_state(machine)
+inputs = {"respondent_id": "R0", "age": "Younger", "experience": "New"}
+first = runtime.execute(machine, initial, "assign", inputs)
+repeat = runtime.execute(machine, first.state, "assign", inputs)
+changed = runtime.execute(machine, repeat.state, "assign", {
+    **inputs, "age": "Older"
+})
+assert first.state["assignments"]["R0"]["arm"] == "Control"
+assert repeat.event["status"] == "noop"
+assert changed.event["reason_code"] == "characteristics_changed"
+assert changed.state == first.state
+```
+
+The Survey checks the personal view after assignment. A refused changed report
+therefore cannot silently continue into the final question as if the old arm
+had been selected from the newly reported characteristics.
+
+## Tests and design findings
+
+The [application tests](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/tests/sharedstate/test_survey_applications.py)
+compute candidate costs independently over mixed-characteristic streams and
+verify that the chosen arm has minimum cost. They also check reproducibility,
+immutable assignments, changed reports, closure, concurrent writers, SQLite
+restart/delivery replay, scope isolation, fresh-process JSON execution, and
+ordinary Survey routing.
+
+This is an allocation example, not a recommendation for a particular experiment.
+Greedy marginal balance is order-dependent and need not achieve every balancing
+goal. Stable public seeds are reproducible, not concealed; IDs, reported
+characteristics, seed policy, and arrival order must be controlled by the host.
+The example does not claim allocation concealment, independent random assignment,
+or statistical validity for a particular estimator.
+
+The current definition is 10,997 JSON bytes. Its twelve-assignment corpus replay
+peaks at 28,432 host budget steps per transition. Recomputing marginal counts from
+the full ledger becomes more expensive as the study grows; larger studies should
+probe incremental count invariants, expression reuse, and interpreter budgets.
+Maintainers with a repository checkout can optionally run
+`python -m examples.machine_primitives.profile_corpus` to reproduce local measurements. No new interpreter or navigation primitives were needed.
