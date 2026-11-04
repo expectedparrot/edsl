@@ -128,7 +128,9 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
   Note: `optional` currently has no effect for `interview` and `rank`.
 </ParamField>
 
-In Humanize, `QuestionDropdown` is a searchable combo box: respondents enter terms, choose from up to `top_k` ranked matches (5 by default), and the choice fills the input. Respondents must choose a listed option, and the answer is that option's text; Humanize ignores `permissive` and `use_code` on dropdowns.
+In Humanize, `QuestionDropdown` is a searchable combo box: respondents enter terms, choose from up to `top_k` ranked matches (5 by default), and the choice fills the input. Respondents must choose a listed option, and the answer is that option's text.
+
+In Humanize, `QuestionDemand` shows a demand curve: for each price, respondents set a quantity with a slider or by typing a number, and the curve redraws as they go. Quantities can't be negative, and the answer is one quantity per price, in price order. `demand` doesn't support `optional`.
 
 <ParamField path="time_limit" type="dict" required={false}>
   A limit on how long the respondent may spend answering the question. Omit or set to `null` for no limit.
@@ -137,7 +139,7 @@ In Humanize, `QuestionDropdown` is a searchable combo box: respondents enter ter
 
   A time limit applies only while the question is alone on its page. When `survey.presentation` is `"group"`, every question's `time_limit` is ignored, including a question that is the only one in its group. The countdown runs in the respondent's browser, so reloading the page starts it again.
 
-  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `dropdown`, `file_upload`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
+  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `demand`, `dropdown`, `file_upload`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
 
   <Expandable title="properties">
     <ParamField path="duration" type="dict" required={true}>
@@ -384,7 +386,7 @@ In Humanize, `QuestionDropdown` is a searchable combo box: respondents enter ter
   Optional comment input shown with the question.
   Submitted comment text appears in survey results under `comment.{question_name}_comment`.
 
-  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `dropdown`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
+  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `demand`, `dropdown`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
 
   <Expandable title="properties">
     <ParamField path="label" type="string" required={true}>
@@ -396,7 +398,7 @@ In Humanize, `QuestionDropdown` is a searchable combo box: respondents enter ter
 <ParamField path="submitting_indicator" type="dict" required={false}>
   Optional indicator shown after the respondent clicks **Next**, while the following question runs. Omit or set to `null` for no indicator.
 
-  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `dropdown`, `file_upload`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
+  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `demand`, `dropdown`, `file_upload`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
 
   Note: not supported for `compute` or `image_generation` (both run in the background and auto-advance, so neither is ever the question a respondent submits), or for `interview`.
 
@@ -413,7 +415,7 @@ In Humanize, `QuestionDropdown` is a searchable combo box: respondents enter ter
 <ParamField path="javascript" type="dict" required={false}>
   Optional JavaScript that runs on the respondent's page for this question. Omit or set to `null` to run no script. See [Custom JavaScript](/en/latest/custom_javascript) for how to write a hook, what a script may do, and how to retrieve the events it logs.
 
-  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `distribution`, `dropdown`, `file_upload`, `interview`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`, `survey_message`.
+  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `demand`, `distribution`, `dropdown`, `file_upload`, `interview`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`, `survey_message`.
 
   Note: not supported for `compute` or `image_generation`. Both run in the background and are dropped from the page, so there is no rendered question for a script to attach to.
 
@@ -523,7 +525,7 @@ writes plain JSON. Both are readable by the commands that take `--schema`.
 If the schema is invalid, Expected Parrot raises `HumanizeSchemaValidationError`. Common causes:
 
 - A key in `questions` is not a question name in the survey, or is an instruction.
-- A question's type is not supported for humanize schema (e.g. `demand`, `dropdown`).
+- A question's type is not supported for humanize schema (e.g. `extract`).
 - A question's entry has the wrong shape for its type (e.g. wrong field types or extra fields that aren’t allowed).
 - A `time_limit` has `seconds` outside 30–7200, or a `duration` without its `"type": "fixed"`.
 - Top-level structure is invalid (e.g. `questions` not a dict, or an entry not a dict).

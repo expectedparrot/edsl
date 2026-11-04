@@ -14,6 +14,7 @@ from edsl.questions import (
     QuestionCheckBoxWithOther,
     QuestionDemand,
     QuestionDistribution,
+    QuestionExtract,
     QuestionFreeText,
     QuestionInterview,
     QuestionMultipleChoice,
@@ -216,7 +217,47 @@ class TestValidateHumanizeSchemaGeneral:
         assert "instruction" in str(exc_info.value).lower()
 
     def test_unsupported_question_type_raises(self):
-        """Humanize schema for an unsupported question type (e.g. demand) raises."""
+        """Humanize schema for an unsupported question type (e.g. extract) raises."""
+        survey = Survey(
+            [
+                QuestionExtract(
+                    question_name="extract_q",
+                    question_text="My name is Alex and I live in Boston.",
+                    answer_template={"name": "Jane", "city": "Paris"},
+                ),
+            ]
+        )
+        humanize_schema = {"questions": {"extract_q": {"optional": True}}}
+        with pytest.raises(HumanizeSchemaValidationError) as exc_info:
+            validate_humanize_schema(survey, humanize_schema)
+        assert "extract_q" in str(exc_info.value)
+        assert "not supported" in str(exc_info.value).lower()
+
+    def test_demand_accepts_its_settings(self):
+        """A demand question takes a comment, time limit, submitting indicator and
+        script."""
+        survey = Survey(
+            [
+                QuestionDemand(
+                    question_name="demand_q",
+                    question_text="How many would you buy at each price?",
+                    prices=[1.0, 2.0, 3.0],
+                ),
+            ]
+        )
+        humanize_schema = {
+            "questions": {
+                "demand_q": {
+                    "comment": {"label": "Anything to add?"},
+                    "time_limit": {"duration": {"type": "fixed", "seconds": 300}},
+                    "submitting_indicator": {"type": "callout"},
+                }
+            }
+        }
+        validate_humanize_schema(survey, humanize_schema)
+
+    def test_demand_rejects_optional(self):
+        """Demand has no `optional` field."""
         survey = Survey(
             [
                 QuestionDemand(
@@ -229,8 +270,7 @@ class TestValidateHumanizeSchemaGeneral:
         humanize_schema = {"questions": {"demand_q": {"optional": True}}}
         with pytest.raises(HumanizeSchemaValidationError) as exc_info:
             validate_humanize_schema(survey, humanize_schema)
-        assert "demand_q" in str(exc_info.value)
-        assert "not supported" in str(exc_info.value).lower()
+        assert "optional" in str(exc_info.value).lower()
 
     def test_survey_message_accepts_only_empty_display_configuration(self):
         survey = Survey(
@@ -723,6 +763,7 @@ class TestValidateHumanizeSchemaTimeLimit:
         "budget",
         "checkbox",
         "checkbox_with_other",
+        "demand",
         "dropdown",
         "file_upload",
         "likert_five",
