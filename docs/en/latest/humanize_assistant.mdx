@@ -79,11 +79,11 @@ Your `system_prompt` adds to the role's built-in rules but doesn't replace them.
 
 With `can_fill_answers` on (the default), the assistant can fill these question types:
 
-`multiple_choice`, `likert_five`, `yes_no`, `linear_scale`, `multiple_choice_with_other`, `checkbox`, `checkbox_with_other`, `top_k`, `rank`, `numerical`, `free_text`, `list`, `budget`, `matrix`, `distribution`.
+`multiple_choice`, `likert_five`, `yes_no`, `linear_scale`, `multiple_choice_with_other`, `checkbox`, `checkbox_with_other`, `top_k`, `rank`, `numerical`, `free_text`, `edit`, `email`, `list`, `budget`, `matrix`, `distribution`, `url`.
 
 It explains, but never fills:
 
-- file uploads and interviews;
+- demand, dict, dropdown, file upload and interview questions;
 - questions the server answers itself, such as compute and image generation questions;
 - questions with two options (or matrix rows, or distribution outcomes) that read the same, since a filled answer couldn't say which one it meant;
 - any question you set to `fillable: false`.
