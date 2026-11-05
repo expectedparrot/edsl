@@ -123,7 +123,7 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
 <ParamField path="optional" type="boolean" default={false}>
   Whether the question is optional. Default is `false` when omitted.
 
-  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `dropdown`, `email`, `file_upload`, `interview`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `url`, `yes_no`.
+  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `dropdown`, `edit`, `email`, `file_upload`, `interview`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `url`, `yes_no`.
 
   Note: `optional` currently has no effect for `interview` and `rank`.
 </ParamField>
@@ -138,6 +138,8 @@ In Humanize, `QuestionURL` is a one-line text box. Respondents can leave off the
 
 In Humanize, `QuestionEmail` is a one-line email box. Spaces around the address are dropped, and the answer must be a valid email address, as EDSL requires.
 
+In Humanize, `QuestionEdit` shows `text_to_edit` in an editable text box, with a tracked-changes preview underneath: deleted text is struck through in red and inserted text is green. The answer is the full revised text.
+
 <ParamField path="time_limit" type="dict" required={false}>
   A limit on how long the respondent may spend answering the question. Omit or set to `null` for no limit.
 
@@ -145,7 +147,7 @@ In Humanize, `QuestionEmail` is a one-line email box. Spaces around the address 
 
   A time limit applies only while the question is alone on its page. When `survey.presentation` is `"group"`, every question's `time_limit` is ignored, including a question that is the only one in its group. The countdown runs in the respondent's browser, so reloading the page starts it again.
 
-  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `demand`, `dict`, `dropdown`, `email`, `file_upload`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `url`, `yes_no`.
+  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `demand`, `dict`, `dropdown`, `edit`, `email`, `file_upload`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `url`, `yes_no`.
 
   <Expandable title="properties">
     <ParamField path="duration" type="dict" required={true}>
@@ -392,7 +394,7 @@ In Humanize, `QuestionEmail` is a one-line email box. Spaces around the address 
   Optional comment input shown with the question.
   Submitted comment text appears in survey results under `comment.{question_name}_comment`.
 
-  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `demand`, `dict`, `dropdown`, `email`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `url`, `yes_no`.
+  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `demand`, `dict`, `dropdown`, `edit`, `email`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `url`, `yes_no`.
 
   <Expandable title="properties">
     <ParamField path="label" type="string" required={true}>
@@ -404,7 +406,7 @@ In Humanize, `QuestionEmail` is a one-line email box. Spaces around the address 
 <ParamField path="submitting_indicator" type="dict" required={false}>
   Optional indicator shown after the respondent clicks **Next**, while the following question runs. Omit or set to `null` for no indicator.
 
-  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `demand`, `dict`, `dropdown`, `email`, `file_upload`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `url`, `yes_no`.
+  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `demand`, `dict`, `dropdown`, `edit`, `email`, `file_upload`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `url`, `yes_no`.
 
   Note: not supported for `compute` or `image_generation` (both run in the background and auto-advance, so neither is ever the question a respondent submits), or for `interview`.
 
@@ -421,7 +423,7 @@ In Humanize, `QuestionEmail` is a one-line email box. Spaces around the address 
 <ParamField path="javascript" type="dict" required={false}>
   Optional JavaScript that runs on the respondent's page for this question. Omit or set to `null` to run no script. See [Custom JavaScript](/en/latest/custom_javascript) for how to write a hook, what a script may do, and how to retrieve the events it logs.
 
-  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `demand`, `dict`, `distribution`, `dropdown`, `email`, `file_upload`, `interview`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `url`, `yes_no`, `survey_message`.
+  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `demand`, `dict`, `distribution`, `dropdown`, `edit`, `email`, `file_upload`, `interview`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `url`, `yes_no`, `survey_message`.
 
   Note: not supported for `compute` or `image_generation`. Both run in the background and are dropped from the page, so there is no rendered question for a script to attach to.
 

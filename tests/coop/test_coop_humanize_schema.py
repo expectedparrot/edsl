@@ -15,6 +15,7 @@ from edsl.questions import (
     QuestionDemand,
     QuestionDict,
     QuestionDistribution,
+    QuestionEdit,
     QuestionEmail,
     QuestionExtract,
     QuestionFreeText,
@@ -315,6 +316,30 @@ class TestValidateHumanizeSchemaGeneral:
         with pytest.raises(HumanizeSchemaValidationError) as exc_info:
             validate_humanize_schema(survey, humanize_schema)
         assert "optional" in str(exc_info.value).lower()
+
+    def test_edit_accepts_its_settings(self):
+        """An edit question takes optional, a comment, time limit, submitting
+        indicator and script."""
+        survey = Survey(
+            [
+                QuestionEdit(
+                    question_name="edit_q",
+                    question_text="Tighten this sentence.",
+                    text_to_edit="The report was made by the team and it has many details.",
+                ),
+            ]
+        )
+        humanize_schema = {
+            "questions": {
+                "edit_q": {
+                    "optional": True,
+                    "comment": {"label": "Anything to add?"},
+                    "time_limit": {"duration": {"type": "fixed", "seconds": 300}},
+                    "submitting_indicator": {"type": "callout"},
+                }
+            }
+        }
+        validate_humanize_schema(survey, humanize_schema)
 
     def test_email_accepts_its_settings(self):
         """An email question takes optional, a comment, time limit, submitting
@@ -856,6 +881,7 @@ class TestValidateHumanizeSchemaTimeLimit:
         "demand",
         "dict",
         "dropdown",
+        "edit",
         "email",
         "file_upload",
         "likert_five",
