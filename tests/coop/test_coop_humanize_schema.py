@@ -737,6 +737,42 @@ class TestValidateHumanizeSchemaVoice:
             validate_humanize_schema(self._survey(), humanize_schema)
         assert "klingon" in str(exc_info.value).lower()
 
+    def test_voice_config_supported_voice_passes(self):
+        """A supported built-in voice validates through the public schema."""
+        humanize_schema = {
+            "questions": {
+                "q1": {
+                    "interview_mode": "voice",
+                    "voice_interview_config": {"voice": "marin"},
+                }
+            }
+        }
+        validate_humanize_schema(self._survey(), humanize_schema)
+
+    def test_voice_config_unsupported_voice_raises(self):
+        """A voice outside the built-in choices is rejected."""
+        humanize_schema = {
+            "questions": {
+                "q1": {
+                    "interview_mode": "voice",
+                    "voice_interview_config": {"voice": "not-a-voice"},
+                }
+            }
+        }
+        with pytest.raises(HumanizeSchemaValidationError) as exc_info:
+            validate_humanize_schema(self._survey(), humanize_schema)
+        assert "not-a-voice" in str(exc_info.value).lower()
+
+    def test_voice_config_voice_omitted_or_none_uses_default(self):
+        """Omitting voice or setting it to null preserves the deployment default."""
+        from edsl.coop.coop_humanize_schema import InterviewHumanizeSchema
+
+        for config in ({}, {"voice": None}):
+            parsed = InterviewHumanizeSchema.model_validate(
+                {"voice_interview_config": config}
+            )
+            assert parsed.voice_interview_config.voice is None
+
 
 class TestValidateHumanizeSchemaComments:
     """Comment-related validate_humanize_schema behavior."""
