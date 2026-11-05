@@ -5003,8 +5003,12 @@ class Coop(CoopFunctionsMixin):
         filters = {"response_uuid": response_uuid, "include_previews": include_previews}
         # The trace first, so every turn it names is listed in the others, or soon
         # will be.
-        interactions = self.get_all_human_survey_interactions(human_survey_uuid, **filters)
-        messages = self.get_all_human_survey_assistant_messages(human_survey_uuid, **filters)
+        interactions = self.get_all_human_survey_interactions(
+            human_survey_uuid, **filters
+        )
+        messages = self.get_all_human_survey_assistant_messages(
+            human_survey_uuid, **filters
+        )
         edits = self.get_all_human_survey_assistant_edits(human_survey_uuid, **filters)
         return AssistantConversations.build(interactions, messages, edits)
 
@@ -6223,9 +6227,13 @@ class Coop(CoopFunctionsMixin):
         }
 
     def preflight_prolific_study(
-        self, human_survey_uuid: str, study_id: str, *,
+        self,
+        human_survey_uuid: str,
+        study_id: str,
+        *,
         required_questions: Optional[List[str]] = None,
-        expected_survey=None, required_credits: Optional[float] = None,
+        expected_survey=None,
+        required_credits: Optional[float] = None,
     ) -> dict:
         """Check the current draft, deployed survey and balance without publishing.
 
@@ -6239,9 +6247,14 @@ class Coop(CoopFunctionsMixin):
         """
         from .coop_prolific_preflight import preflight
 
-        return preflight(self, human_survey_uuid, study_id,
-                         required_questions=required_questions,
-                         expected_survey=expected_survey, required_credits=required_credits)
+        return preflight(
+            self,
+            human_survey_uuid,
+            study_id,
+            required_questions=required_questions,
+            expected_survey=expected_survey,
+            required_credits=required_credits,
+        )
 
     def publish_prolific_study(
         self,
@@ -6261,11 +6274,16 @@ class Coop(CoopFunctionsMixin):
         A successful preflight is not spending authorization or a funds reservation.
         """
         check = self.preflight_prolific_study(
-            human_survey_uuid, study_id, required_questions=required_questions,
-            expected_survey=expected_survey, required_credits=required_credits,
+            human_survey_uuid,
+            study_id,
+            required_questions=required_questions,
+            expected_survey=expected_survey,
+            required_credits=required_credits,
         )
         if not check["ready"]:
-            raise CoopValueError("Prolific preflight failed: " + "; ".join(check["blockers"]))
+            raise CoopValueError(
+                "Prolific preflight failed: " + "; ".join(check["blockers"])
+            )
         response = self._send_server_request(
             uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies/{study_id}/status",
             method="POST",
