@@ -1257,6 +1257,134 @@ def register(humanize: click.Group) -> None:
                 exit_code=EXIT_REMOTE,
             )
 
+    @humanize.group("background", invoke_without_command=True)
+    @click.pass_context
+    def humanize_background(ctx):
+        """Debug a survey's background questions (thinking and image generation
+        questions): how their runs went, and what the model was sent and returned.
+
+        \b
+        Examples:
+          ep humanize background summary <uuid>
+          ep humanize background runs <uuid> --failed
+          ep humanize background run <uuid> <run-uuid>
+        """
+        if ctx.invoked_subcommand is None:
+            output({
+                "commands": ["summary", "runs", "run"],
+                "help": "Use 'ep humanize background <command> --help' for details.",
+            })
+
+    @humanize_background.command("summary")
+    @click.argument("human_survey_uuid")
+    @click.option("--response", "response_uuid", default=None, help="Count only this response's runs.")
+    @click.option("--question", "question_name", default=None, help="Count only this question's runs.")
+    @click.option("--include-previews", is_flag=True, default=False, help="Also count runs from preview links.")
+    def humanize_background_summary(human_survey_uuid, response_uuid, question_name, include_previews):
+        """Get where a survey's background questions stand: runs by status,
+        failures by error kind, retries and the latest failure, overall and per
+        question.
+
+        Start here, then list the failing runs with 'runs --failed'.
+        """
+        try:
+            from edsl.coop import Coop
+
+            output(
+                Coop().get_human_survey_background_runs_summary(
+                    human_survey_uuid,
+                    response_uuid=response_uuid,
+                    question_name=question_name,
+                    include_previews=include_previews,
+                )
+            )
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "HUMANIZE_ERROR",
+                str(e),
+                suggestion="Check the human survey UUID and Expected Parrot API key.",
+                exit_code=EXIT_REMOTE,
+            )
+
+    @humanize_background.command("runs")
+    @click.argument("human_survey_uuid")
+    @click.option("--after", default=None, help="Only runs after this one, e.g. the next_cursor from an earlier run.")
+    @click.option("--limit", default=100, type=int, help="Rows per request, at most 200.")
+    @click.option("--response", "response_uuid", default=None, help="Only this response's runs.")
+    @click.option("--question", "question_name", default=None, help="Only this question's runs.")
+    @click.option("--status", "status", multiple=True, type=click.Choice(["queued", "running", "succeeded", "failed", "timed_out", "abandoned"]), help="Only runs with this status. Repeat for several.")
+    @click.option("--failed", "failed_only", is_flag=True, default=False, help="Only runs that ended without an answer (failed, timed_out, abandoned).")
+    @click.option("--all", "fetch_all", is_flag=True, default=False, help="Fetch every row, not one batch. Requires --output.")
+    @click.option("--output", "-o", "output_path", default=None, type=click.Path(dir_okay=False), help="Save rows to a .json or .jsonl file.")
+    @click.option("--include-previews", is_flag=True, default=False, help="Also include runs from preview links, each marked is_preview.")
+    def humanize_background_runs(human_survey_uuid, after, limit, response_uuid, question_name, status, failed_only, fetch_all, output_path, include_previews):
+        """Get a survey's background-question runs, oldest first, retries
+        included: the question, attempt, status, model, timing and, for a run that
+        failed, its error. For the survey's owner, credits. For the prompts and
+        the model's reply, use 'run'.
+
+        Rows from preview links are left out unless --include-previews. Each result
+        carries next_cursor: pass it back as --after, with the same filters, to get
+        only newer runs.
+
+        \b
+        Examples:
+          ep humanize background runs <uuid> --failed
+          ep humanize background runs <uuid> --question classify_feedback --status timed_out
+          ep humanize background runs <uuid> --all --output runs.jsonl
+        """
+        if failed_only and status:
+            _humanize_usage_error("Pass --failed or --status, not both.")
+        _humanize_rows(
+            human_survey_uuid,
+            key="runs",
+            fetch_name="get_human_survey_background_runs",
+            iterate_name="_iter_human_survey_background_run_batches",
+            after=after,
+            limit=limit,
+            fetch_all=fetch_all,
+            output_path=output_path,
+            filters={
+                "response_uuid": response_uuid,
+                "question_name": question_name,
+                "status": list(status) or None,
+                "failed_only": failed_only,
+                "include_previews": include_previews,
+            },
+        )
+
+    @humanize_background.command("run")
+    @click.argument("human_survey_uuid")
+    @click.argument("run_uuid")
+    def humanize_background_run(human_survey_uuid, run_uuid):
+        """Get one background-question run in full: the prompts as sent, after
+        piping, the files attached, the model and its parameters, the reply, the
+        answer recorded, token usage and, for a run that failed, its error.
+
+        \b
+        Examples:
+          ep humanize background run <uuid> <run-uuid>
+        """
+        try:
+            from edsl.coop import Coop
+
+            output(
+                jsonable(
+                    Coop().get_human_survey_background_run(human_survey_uuid, run_uuid)
+                )
+            )
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "HUMANIZE_ERROR",
+                str(e),
+                suggestion="Check the human survey UUID, the run UUID, and Expected Parrot API key.",
+                exit_code=EXIT_REMOTE,
+            )
+
     @humanize.command("custom-js-access")
     def humanize_custom_js_access():
         """Check whether your account may use custom JavaScript in a humanize schema."""
