@@ -86,6 +86,8 @@ _EXPORT_TO_MODULE = {
     "QuestionMatrix": "questions",
     "QuestionTopK": "questions",
     "QuestionFunctional": "questions",
+    "QuestionDetectAI": "questions",
+    "DetectAI": "questions",
     "QuestionBase": "questions",
     "QuestionDiagram": "questions",
     "QuestionImageGeneration": "questions",

@@ -1,0 +1,203 @@
+---
+title: "Detect AI with Pangram"
+description: "Analyze text with DetectAI, pipe Pangram JSON into follow-up questions, and route surveys using detection results."
+---
+
+`DetectAI` is a question that sends text to Pangram and returns its full JSON
+response as a Python dictionary. Use it to analyze scenario text or an earlier
+answer, then pass the result to another question or use its fields in survey
+rules. It uses Pangram directly; an LLM does not answer the detection question.
+
+`DetectAI` and `QuestionDetectAI` are two names for the same class. The question
+type used by the registry and serialized definitions is `detect_ai`.
+
+## Set up the SDK and key
+
+Install the SDK in the Python environment where you run EDSL:
+
+```bash
+python -m pip install --upgrade pangram-sdk
+```
+
+Get your key from [Pangram's API console](https://www.pangram.com/apikey). Add
+`PANGRAM_API_KEY` to your local `.env` file, which EDSL loads when it initializes.
+To enter the key without displaying it and preserve other entries in that file:
+
+```bash
+python -c 'from getpass import getpass; from dotenv import set_key; set_key(".env", "PANGRAM_API_KEY", getpass("Pangram API key: "))'
+```
+
+You can also supply `PANGRAM_API_KEY` as an environment variable. The SDK reads
+the key but does not provide a CLI that retrieves it or writes `.env`. Keep
+`.env` out of version control. If EDSL is already imported in a notebook,
+restart the kernel after changing `.env`, or explicitly reload it with
+`dotenv.load_dotenv(override=True)`.
+
+## Analyze scenario text
+
+By default, the input template is `{{ text }}`. Supply a scenario with that
+field, run the question, and select its answer:
+
+```python
+from edsl import DetectAI, Model, Scenario
+
+passage = (
+    "Yesterday I walked to the corner bakery before work. The owner was still "
+    "setting out trays, and the windows were fogged from the ovens. I bought "
+    "a loaf of rye bread and waited while she looked for a paper bag large "
+    "enough to hold it. Outside, a delivery driver had parked across the bike "
+    "lane. Two cyclists went around the truck, and one stopped to help the "
+    "driver pick up a box that had split open on the pavement. I arrived at "
+    "the office a few minutes late, carrying warm bread instead of my usual coffee."
+)
+detection = DetectAI(question_name="detection")
+results = detection.by(Scenario({"text": passage})).by(Model("test")).run(
+    disable_remote_inference=True,
+    stop_on_exception=True,
+)
+analysis = results.select("answer.detection").to_list()[0]
+print(analysis["fraction_ai"])
+```
+
+`Model("test")` supplies the job's model slot; DetectAI bypasses it and makes a
+real Pangram request. This example needs a Pangram key but no LLM provider key.
+
+For literal text or a differently named scenario field, set `text` explicitly:
+
+```python
+literal = DetectAI("literal_detection", text=passage)
+templated = DetectAI("document_detection", text="{{ document }}")
+```
+
+`question_text` is an equivalent input argument. Supply either `text` or
+`question_text`, not both.
+
+## Pipe answers into and out of DetectAI
+
+This survey generates an essay, sends that answer to Pangram, then asks an LLM
+to interpret the returned analysis. The essay and review questions require
+[model access](/en/latest/api_keys).
+
+```python
+from edsl import DetectAI, Model, QuestionFreeText, Survey
+
+essay = QuestionFreeText(
+    "essay", "Write a 150-word essay about how cities change over time."
+)
+detection = DetectAI("detection", text="{{ essay.answer }}")
+review = QuestionFreeText(
+    "review",
+    "Interpret this Pangram analysis: {{ detection.answer | tojson }}. "
+    "The fraction classified as AI-generated is {{ detection.answer.fraction_ai }}.",
+)
+survey = Survey([essay, detection, review])
+model = Model()
+piped_results = survey.by(model).run(
+    disable_remote_inference=True,
+    stop_on_exception=True,
+)
+piped_results.select("answer.essay", "answer.detection", "answer.review")
+```
+
+Place the source question before DetectAI and any consumers after it. Piping
+works without adding survey memory. In templates, `detection.answer` is the
+whole dictionary; `| tojson` formats it as JSON text. Use
+`{{ detection.answer.fraction_ai }}` for a single field.
+
+## Use detection fields in skip rules
+
+To ask `review` only when at least half of the text is classified as
+AI-generated, add this rule to the survey **before running it**:
+
+```python
+survey.add_skip_rule("review", "{{ detection.answer }}['fraction_ai'] < 0.5")
+```
+
+The condition is evaluated before `review`; when it is true, that question is
+skipped. The rule substitutes the answer dictionary, then reads its `fraction_ai`
+field. The older expression `detection['fraction_ai'] < 0.5` also works, but EDSL
+converts it to the template form with a warning. The threshold is an example
+routing choice. For more branching
+patterns, see [Survey logic and piping](/en/latest/guides/survey_logic).
+
+## Work with the returned JSON
+
+EDSL preserves the response dictionary, including nested window data and any
+additional fields returned by Pangram. Common fields include:
+
+| Field | Meaning |
+| --- | --- |
+| `stage` | Completion status; normally `STAGE_SUCCESS`. |
+| `version` | Pangram model version used for the analysis. |
+| `headline` | Summary classification. |
+| `fraction_ai` | Fraction of text classified as AI-generated. |
+| `fraction_ai_assisted` | Fraction classified as AI-assisted. |
+| `fraction_human` | Fraction classified as human-written. |
+| `windows` | Segment-level analysis, including labels and text offsets. |
+
+The fraction fields describe portions of the text, not the probability that a
+particular person used AI. Consult the
+[Pangram SDK reference](https://pangram.readthedocs.io/en/latest/api/pangram.html)
+for the response fields available in your version. DetectAI calls
+`predict(model="default", public_dashboard_link=False)` and returns the
+completed response.
+
+## Save and reload
+
+Question definitions support dictionary and JSON round-trips. The `text` alias
+is serialized under the canonical `question_text` field:
+
+```python
+from edsl import DetectAI, QuestionBase
+
+question_data = detection.to_dict()
+restored_question = QuestionBase.from_dict(question_data)
+detection.save("detection.json")
+loaded_question = DetectAI.load("detection.json")
+```
+
+For durable `.ep` packages, save the containing Survey or Jobs object. Standalone
+questions use `.json` or `.json.gz`, not `.ep`:
+
+```python
+from edsl import Survey, Results
+
+survey.save("detection-survey.ep")
+loaded_survey = Survey.load("detection-survey.ep")
+results.save("detection-results.ep")
+loaded_results = Results.load("detection-results.ep")
+assert loaded_results.select("answer.detection").to_list()[0] == analysis
+```
+
+Templates, timing settings, survey rules, and nested Pangram answers survive
+serialization. The API key is never included in the question definition. Reading
+saved results needs no Pangram call; executing a reloaded question reads the key
+from that execution environment. See [Saving objects](/en/latest/guides/saving_objects).
+
+## Parameters and execution behavior
+
+| Parameter | Default | Purpose |
+| --- | --- | --- |
+| `question_name` | `"detect_ai"` | Name used in result columns, piping, and rules. |
+| `text` or `question_text` | `"{{ text }}"` | Literal text or an EDSL template to analyze. |
+| `timeout` | `300` | SDK timeout for waiting for completion, in seconds. |
+| `poll_interval` | `0.5` | Requested interval between SDK polling attempts, in seconds. |
+
+Both timing values must be finite positive numbers. The SDK polls until the
+analysis completes; EDSL runs that blocking operation in a worker thread so it
+does not block the survey event loop.
+
+`disable_remote_inference=True` runs the EDSL job locally, but DetectAI still
+sends its input to Pangram. A remote worker needs the DetectAI implementation,
+the SDK, and `PANGRAM_API_KEY` in its own environment; saving or submitting a
+question does not transfer your local key.
+
+Pangram bills detection requests separately. EDSL's LLM cost estimate does not
+include these charges, and its LLM cache does not cache detection responses.
+Repeated interviews, models, iterations, or retries can therefore make additional
+Pangram calls.
+
+Missing credentials, a missing SDK, empty rendered text, SDK timeouts, and API
+failures are reported as errors rather than classification answers. Use
+`stop_on_exception=True`, as in the examples, to surface errors immediately while
+setting up a job.

@@ -78,3 +78,7 @@ If you already know the items before the interview, `question.loop(scenarios)` i
 ## Compute scores within a survey
 
 A follow-up can also use a calculated value. For a survey containing numeric questions named `score_a` and `score_b`, `survey.add_summation_question(question_name="total", include=["score_a", "score_b"])` adds a question that computes their sum. `add_weighted_linear_scale_sum()` creates a score from linear-scale questions with specified weights. These calculations use the earlier answers directly and do not ask a model to do the arithmetic. Use them when the score belongs in the interview itself; use [Results transformations](/en/latest/results) when you only need it during analysis.
+
+For routing based on AI-detection results, [Detect AI with Pangram](/en/latest/guides/detect_ai)
+shows how to pipe earlier text into DetectAI and use fields from its JSON answer
+in follow-up questions and skip rules.

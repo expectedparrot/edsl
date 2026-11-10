@@ -247,13 +247,18 @@ class DirectAnswerRegistry:
                 scenario = scenario | answered_questions | agent_context
 
         kwargs = {"scenario": scenario, "agent_traits": agent_traits}
-        signature = inspect.signature(entry.question.answer_question_directly)
+        answer_func = getattr(
+            entry.question,
+            "async_answer_question_directly",
+            entry.question.answer_question_directly,
+        )
+        signature = inspect.signature(answer_func)
         if "current_answers" in signature.parameters:
             kwargs["current_answers"] = current_answers
 
         # QuestionFunctional.answer_question_directly returns a dict
         result = await self._maybe_await(
-            entry.question.answer_question_directly(**kwargs)
+            answer_func(**kwargs)
         )
 
         # Handle both dict and direct value returns

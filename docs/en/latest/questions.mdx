@@ -26,6 +26,7 @@ For data labeling, a question's answer becomes a label: “What topic does this 
 | `list` | Open-ended items | List; optionally limit its length. |
 | `extract` | Fields extracted from supplied material | Dictionary following an answer template. |
 | `dict` | Named fields with declared types | Dictionary with configured keys and value types. |
+| `detect_ai` | Pangram analysis of supplied text | Full Pangram JSON object, available to later questions and survey rules. |
 | `matrix` | Ratings for several items | Mapping from each item to an allowed option. |
 | `interview` | A guided interview | Structured transcript; see [Human interviews](/en/latest/guides/human_interviews). |
 
@@ -50,6 +51,25 @@ Use `question_text` for the research question and `answering_instructions` for h
 ## Run a question
 
 Questions can run individually or as part of a survey. Follow the [Run your first survey](/en/latest/starter_tutorial) tutorial for an executable local example and model setup.
+
+### Detect AI with Pangram
+
+`QuestionDetectAI` (also exported as `DetectAI`) sends text to Pangram and stores
+the full response as a dictionary in `answer`. It can analyze scenario text or
+an earlier question's answer:
+
+```python
+from edsl import DetectAI
+
+detection = DetectAI("detection", text="{{ essay.answer }}")
+```
+
+Follow-on templates can use `{{ detection.answer.fraction_ai }}` or
+`{{ detection.answer | tojson }}`. Skip rules can access the answer dictionary
+with expressions such as `{{ detection.answer }}['fraction_ai'] < 0.5`.
+
+See [Detect AI with Pangram](/en/latest/guides/detect_ai) for SDK and key setup,
+complete piping and skip-rule examples, serialization, and execution details.
 
 ## Common methods
 
