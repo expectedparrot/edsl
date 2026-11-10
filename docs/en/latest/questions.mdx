@@ -61,7 +61,7 @@ an earlier question's answer:
 ```python
 from edsl import DetectAI
 
-detection = DetectAI("detection", text="{{ essay.answer }}")
+detection = DetectAI("detection", question_text="{{ essay.answer }}")
 ```
 
 Follow-on templates can use `{{ detection.answer.fraction_ai }}` or

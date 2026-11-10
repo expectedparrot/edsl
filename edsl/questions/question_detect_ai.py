@@ -35,13 +35,12 @@ class QuestionDetectAI(QuestionBase):
     Pangram calls are external API requests even when EDSL runs locally, and
     Pangram bills them separately. They do not use EDSL's LLM response cache.
 
-    ``question_text`` (or its ``text`` alias) accepts ordinary EDSL templates,
-    including scenario fields and prior answers. With neither supplied, the
-    input is ``{{ text }}``. Later questions can use
+    ``question_text`` is required and accepts literal text or ordinary EDSL
+    templates, including scenario fields and prior answers. Later questions can use
     ``{{ detection.answer.fraction_ai }}``, and skip rules can use
     ``detection['fraction_ai'] > 0.5``.
 
-    >>> q = QuestionDetectAI(question_name="detection", text="{{ essay.answer }}")
+    >>> q = QuestionDetectAI(question_name="detection", question_text="{{ essay.answer }}")
     >>> q.question_type
     'detect_ai'
     """
@@ -52,17 +51,14 @@ class QuestionDetectAI(QuestionBase):
 
     def __init__(
         self,
-        question_name: str = "detect_ai",
-        question_text: Optional[str] = None,
+        question_name: str,
+        question_text: str,
         answering_instructions: Optional[str] = None,
         question_presentation: Optional[str] = None,
         *,
-        text: Optional[str] = None,
         timeout: float = 300,
         poll_interval: float = 0.5,
     ):
-        if text is not None and question_text is not None:
-            raise ValueError("Pass either text or question_text, not both.")
         for name, value in (("timeout", timeout), ("poll_interval", poll_interval)):
             if (
                 isinstance(value, bool)
@@ -73,12 +69,9 @@ class QuestionDetectAI(QuestionBase):
                 raise ValueError(f"{name} must be a finite positive number.")
 
         self.question_name = question_name
-        input_text = text if text is not None else question_text
-        if input_text is None:
-            input_text = "{{ text }}"
-        if not isinstance(input_text, str) or not input_text.strip():
-            raise ValueError("DetectAI requires non-empty text.")
-        self.question_text = input_text
+        if not isinstance(question_text, str) or not question_text.strip():
+            raise ValueError("DetectAI requires non-empty question_text.")
+        self.question_text = question_text
         self.answering_instructions = answering_instructions
         self.question_presentation = question_presentation
         self._timeout = timeout

@@ -33,13 +33,13 @@ the key but does not provide a CLI that retrieves it or writes `.env`. Keep
 restart the kernel after changing `.env`, or explicitly reload it with
 `dotenv.load_dotenv(override=True)`.
 
-## Analyze scenario text
+## Analyze supplied text
 
-By default, the input template is `{{ text }}`. Supply a scenario with that
-field, run the question, and select its answer:
+Pass the text to analyze through `question_text`, just as you supply input to
+other question types. Both `question_name` and `question_text` are required:
 
 ```python
-from edsl import DetectAI, Model, Scenario
+from edsl import DetectAI, Model
 
 passage = (
     "Yesterday I walked to the corner bakery before work. The owner was still "
@@ -50,8 +50,8 @@ passage = (
     "driver pick up a box that had split open on the pavement. I arrived at "
     "the office a few minutes late, carrying warm bread instead of my usual coffee."
 )
-detection = DetectAI(question_name="detection")
-results = detection.by(Scenario({"text": passage})).by(Model("test")).run(
+detection = DetectAI(question_name="detection", question_text=passage)
+results = detection.by(Model("test")).run(
     disable_remote_inference=True,
     stop_on_exception=True,
 )
@@ -62,15 +62,17 @@ print(analysis["fraction_ai"])
 `Model("test")` supplies the job's model slot; DetectAI bypasses it and makes a
 real Pangram request. This example needs a Pangram key but no LLM provider key.
 
-For literal text or a differently named scenario field, set `text` explicitly:
+To analyze scenario data, reference the chosen field explicitly in
+`question_text`. The field name is yours to choose:
 
 ```python
-literal = DetectAI("literal_detection", text=passage)
-templated = DetectAI("document_detection", text="{{ document }}")
+from edsl import Scenario
+
+templated = DetectAI("document_detection", question_text="{{ document }}")
+job = templated.by(Scenario({"document": passage}))
 ```
 
-`question_text` is an equivalent input argument. Supply either `text` or
-`question_text`, not both.
+There is no implicit scenario field or separate `text` argument.
 
 ## Pipe answers into and out of DetectAI
 
@@ -84,7 +86,7 @@ from edsl import DetectAI, Model, QuestionFreeText, Survey
 essay = QuestionFreeText(
     "essay", "Write a 150-word essay about how cities change over time."
 )
-detection = DetectAI("detection", text="{{ essay.answer }}")
+detection = DetectAI("detection", question_text="{{ essay.answer }}")
 review = QuestionFreeText(
     "review",
     "Interpret this Pangram analysis: {{ detection.answer | tojson }}. "
@@ -144,8 +146,8 @@ completed response.
 
 ## Save and reload
 
-Question definitions support dictionary and JSON round-trips. The `text` alias
-is serialized under the canonical `question_text` field:
+Question definitions support dictionary and JSON round-trips, preserving the
+explicit `question_text` input:
 
 ```python
 from edsl import DetectAI, QuestionBase
@@ -178,8 +180,8 @@ from that execution environment. See [Saving objects](/en/latest/guides/saving_o
 
 | Parameter | Default | Purpose |
 | --- | --- | --- |
-| `question_name` | `"detect_ai"` | Name used in result columns, piping, and rules. |
-| `text` or `question_text` | `"{{ text }}"` | Literal text or an EDSL template to analyze. |
+| `question_name` | Required | Name used in result columns, piping, and rules. |
+| `question_text` | Required | Literal text or an explicit EDSL template to analyze. |
 | `timeout` | `300` | SDK timeout for waiting for completion, in seconds. |
 | `poll_interval` | `0.5` | Requested interval between SDK polling attempts, in seconds. |
 

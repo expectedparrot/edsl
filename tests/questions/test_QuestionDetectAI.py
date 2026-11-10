@@ -38,9 +38,14 @@ def pangram(monkeypatch):
 
 
 def test_registration_and_serialization(pangram):
-    q = DetectAI("detection", text="{{ passage }}", timeout=42, poll_interval=0.2)
+    q = DetectAI(
+        "detection", question_text="{{ passage }}", timeout=42, poll_interval=0.2
+    )
     assert DetectAI is QuestionDetectAI
-    assert isinstance(Question("detect_ai", question_text="hello"), QuestionDetectAI)
+    assert isinstance(
+        Question("detect_ai", question_name="detection", question_text="hello"),
+        QuestionDetectAI,
+    )
     serialized = q.to_dict()
     assert "test-key" not in str(serialized)
     restored = QuestionBase.from_dict(serialized)
@@ -55,7 +60,7 @@ def test_registration_and_serialization(pangram):
 @pytest.mark.parametrize("suffix", [".json", ".json.gz"])
 def test_question_file_roundtrip(pangram, tmp_path, suffix):
     question = DetectAI(
-        "detection", text="{{ passage }}", timeout=42, poll_interval=0.2
+        "detection", question_text="{{ passage }}", timeout=42, poll_interval=0.2
     )
     path = tmp_path / f"detection{suffix}"
     question.save(path)
@@ -74,7 +79,12 @@ def test_question_file_roundtrip(pangram, tmp_path, suffix):
 def test_survey_and_jobs_package_roundtrip(pangram, tmp_path, as_jobs):
     survey = Survey(
         [
-            DetectAI("detection", text="{{ passage }}", timeout=42, poll_interval=0.2),
+            DetectAI(
+                "detection",
+                question_text="{{ passage }}",
+                timeout=42,
+                poll_interval=0.2,
+            ),
             QuestionCompute("score", "{{ detection.answer.fraction_ai }}"),
         ]
     ).add_skip_rule("score", "detection['fraction_ai'] < 0.5")
@@ -94,11 +104,11 @@ def test_survey_and_jobs_package_roundtrip(pangram, tmp_path, as_jobs):
 
 
 @pytest.mark.parametrize(
-    "scenario", [{"text": "Sample text"}, Scenario({"text": "Sample text"})]
+    "scenario", [{"document": "Sample text"}, Scenario({"document": "Sample text"})]
 )
 def test_full_json_answer_from_scenario(pangram, scenario):
     factory, client, payload = pangram
-    q = DetectAI()
+    q = DetectAI("detection", question_text="{{ document }}")
     result = q.answer_question_directly(scenario)
     assert result["answer"] == payload
     factory.assert_called_once_with(api_key="test-key")
@@ -112,27 +122,27 @@ def test_full_json_answer_from_scenario(pangram, scenario):
 
 
 def test_literal_text(pangram):
-    DetectAI(text="Literal passage").answer_question_directly({})
+    DetectAI("detection", question_text="Literal passage").answer_question_directly({})
     assert pangram[1].predict.call_args.args == ("Literal passage",)
 
 
 def test_missing_key(pangram, monkeypatch):
     monkeypatch.delenv("PANGRAM_API_KEY")
     with pytest.raises(ValueError, match="PANGRAM_API_KEY"):
-        DetectAI(text="Passage").answer_question_directly({})
+        DetectAI("detection", question_text="Passage").answer_question_directly({})
     pangram[0].assert_not_called()
 
 
 def test_missing_sdk(pangram, monkeypatch):
     monkeypatch.setitem(sys.modules, "pangram", None)
     with pytest.raises(ImportError, match="pip install --upgrade pangram-sdk"):
-        DetectAI(text="Passage").answer_question_directly({})
+        DetectAI("detection", question_text="Passage").answer_question_directly({})
 
 
 @pytest.mark.parametrize("text", ["", "   ", "{{ missing }}"])
 def test_empty_text_never_calls_pangram(pangram, text):
     with pytest.raises(ValueError, match="non-empty"):
-        DetectAI(text=text).answer_question_directly({})
+        DetectAI("detection", question_text=text).answer_question_directly({})
     pangram[0].assert_not_called()
 
 
@@ -140,31 +150,42 @@ def test_empty_text_never_calls_pangram(pangram, text):
 @pytest.mark.parametrize("value", [0, -1, float("inf"), float("nan"), True, "3"])
 def test_invalid_timing(name, value):
     with pytest.raises(ValueError, match=name):
-        DetectAI(**{name: value})
+        DetectAI("detection", question_text="Passage", **{name: value})
 
 
-def test_conflicting_text_arguments():
-    with pytest.raises(ValueError, match="either text or question_text"):
-        DetectAI(text="a", question_text="b")
+def test_question_text_is_required():
+    from edsl.questions.exceptions import QuestionInitializationError
+
+    with pytest.raises(
+        QuestionInitializationError, match="Missing required parameters"
+    ):
+        DetectAI(question_name="detection")
+
+
+def test_text_alias_is_rejected():
+    from edsl.questions.exceptions import QuestionInitializationError
+
+    with pytest.raises(QuestionInitializationError, match="Unknown parameter 'text'"):
+        DetectAI(question_name="detection", text="Passage")
 
 
 @pytest.mark.parametrize("error", [TimeoutError("timed out"), ValueError("API error")])
 def test_api_errors_propagate(pangram, error):
     pangram[1].predict.side_effect = error
     with pytest.raises(type(error), match=str(error)):
-        DetectAI(text="Passage").answer_question_directly({})
+        DetectAI("detection", question_text="Passage").answer_question_directly({})
 
 
 def test_failed_task_is_not_an_answer(pangram):
     pangram[1].predict.return_value = {"stage": "STAGE_FAILED", "fraction_ai": 0}
     with pytest.raises(ValueError, match="Pangram failed"):
-        DetectAI(text="Passage").answer_question_directly({})
+        DetectAI("detection", question_text="Passage").answer_question_directly({})
 
 
 def test_non_object_response_rejected(pangram):
     pangram[1].predict.return_value = "AI"
     with pytest.raises(ValidationError):
-        DetectAI(text="Passage").answer_question_directly({})
+        DetectAI("detection", question_text="Passage").answer_question_directly({})
 
 
 @pytest.mark.asyncio
@@ -176,7 +197,9 @@ async def test_async_execution_uses_worker_thread(pangram):
         return pangram[2]
 
     pangram[1].predict.side_effect = predict
-    result = await DetectAI(text="Passage").async_answer_question_directly({})
+    result = await DetectAI(
+        "detection", question_text="Passage"
+    ).async_answer_question_directly({})
     assert result["answer"] == pangram[2]
     assert thread_ids[0] != threading.get_ident()
 
@@ -191,7 +214,7 @@ async def test_invigilator_pipes_prior_answers_and_awaits_detection(pangram):
 
     pangram[1].predict.side_effect = predict
     source = QuestionFreeText("essay", "Write a passage")
-    detection = DetectAI("detection", text="{{ essay.answer }}")
+    detection = DetectAI("detection", question_text="{{ essay.answer }}")
     response = await Agent().async_answer_question(
         question=detection,
         scenario=Scenario(),
@@ -208,7 +231,9 @@ async def test_invigilator_pipes_prior_answers_and_awaits_detection(pangram):
 def test_no_llm_cost_estimate():
     from edsl.jobs.cost_estimation.question_estimators import _build_default_registry
 
-    estimate = _build_default_registry(4)["detect_ai"](DetectAI(), {})
+    estimate = _build_default_registry(4)["detect_ai"](
+        DetectAI("detection", question_text="Passage"), {}
+    )
     assert estimate.billable is False
 
 
@@ -218,7 +243,7 @@ def test_survey_piping_skip_rules_and_result_roundtrip(
 ):
     pangram[2]["fraction_ai"] = fraction_ai
     source = QuestionCompute("essay", "{{ passage }}")
-    detection = DetectAI("detection", text="{{ essay.answer }}")
+    detection = DetectAI("detection", question_text="{{ essay.answer }}")
     followup = QuestionCompute("score", "{{ detection.answer.fraction_ai }}")
     conditional = QuestionCompute("conditional", "Reached follow-up")
     survey = Survey([source, detection, followup, conditional]).add_skip_rule(
@@ -259,7 +284,7 @@ def test_pangram_fields_pipe_into_llm_prompt(pangram):
 
     survey = Survey(
         [
-            DetectAI("detection", text="Sample text"),
+            DetectAI("detection", question_text="Sample text"),
             QuestionFreeText(
                 "review", "Discuss this score: {{ detection.answer.fraction_ai }}"
             ),
