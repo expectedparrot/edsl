@@ -33,13 +33,39 @@ def _translate_rule_expression(expression, questions, question_ids):
         if question is None:
             raise ValueError("unknown question")
         options = getattr(question, "question_options", None)
+        if isinstance(options, (str, dict)):
+            raise ValueError("dynamic choices cannot be coded statically")
         if options is not None and operator in ("==", "!="):
             matching = [i for i, option in enumerate(options, 1) if str(option) == str(value)]
             if not matching:
                 raise ValueError("option not found")
             value = str(matching[0])
+        elif options is not None and operator in (">", ">=", "<", "<="):
+            try:
+                numeric_options = [float(option) for option in options]
+                threshold = float(value)
+            except (TypeError, ValueError):
+                raise ValueError("ordered option comparison is not numeric")
+            if numeric_options != sorted(numeric_options):
+                raise ValueError("ordered option comparison requires ascending options")
+            operations = {
+                ">": lambda option: option > threshold,
+                ">=": lambda option: option >= threshold,
+                "<": lambda option: option < threshold,
+                "<=": lambda option: option <= threshold,
+            }
+            matched_codes = [i + 1 for i, option in enumerate(numeric_options) if operations[operator](option)]
+            if not matched_codes:
+                return "False"
+            if len(matched_codes) == len(options):
+                return "True"
+            if operator in (">", ">="):
+                return f"{question_ids[name]} >= {min(matched_codes)}"
+            return f"{question_ids[name]} <= {max(matched_codes)}"
         elif value is None:
             raise ValueError("unsupported comparison")
+        elif match.group(3) is not None or match.group(4) is not None:
+            value = json.dumps(value, ensure_ascii=False)
         return f"{question_ids[name]} {operator} {value}"
 
     try:
@@ -49,6 +75,8 @@ def _translate_rule_expression(expression, questions, question_ids):
     # Do not claim this is vendor-readable if any EDSL answer reference remains.
     if re.search(r"\{\{.*?\.answer.*?\}\}", translated):
         return None
+    # An untemplated boolean rule (for example, add_skip_rule(..., "True"))
+    # is already readable in the programming convention.
     return translated
 
 
@@ -57,7 +85,7 @@ def survey_from_docx(source):
     from docx import Document
     from ..questions.question_base import QuestionBase
     from .survey import Survey
-    from ..instructions import Instruction
+    from ..instructions import Instruction, ChangeInstruction
 
     path = getattr(source, "path", source)
     doc = Document(path)
@@ -65,6 +93,7 @@ def survey_from_docx(source):
     records = []
     current = None
     current_rule_lines = []
+    reading_respondent_text = False
     for paragraph in paragraphs:
         text = paragraph.text.strip()
         if paragraph.style.name == "Heading 2" and text.startswith("Q_") and " (" in text:
@@ -72,8 +101,16 @@ def survey_from_docx(source):
                 current["rules"] = current_rule_lines
                 records.append(current)
             qid, name = text.split(" (", 1)
-            current = {"id": qid, "name": name[:-1], "rules": [], "options": [], "anchors": {}, "fields": {}}
+            current = {"id": qid, "name": name[:-1], "rules": [], "option_codes": {}, "anchors": {}, "fields": {}, "wording": []}
             current_rule_lines = []
+            reading_respondent_text = False
+            continue
+        if paragraph.style.name == "Heading 2" and text == "Instruction control":
+            if current is not None:
+                current["rules"] = current_rule_lines
+                records.append(current)
+                current = None
+            records.append({"change_instruction": True})
             continue
         if paragraph.style.name == "Heading 2" and text == "Section transition":
             if current is not None:
@@ -92,6 +129,25 @@ def survey_from_docx(source):
         if current is None:
             if records and records[-1].get("instruction") and "text" not in records[-1] and text:
                 records[-1]["text"] = text
+            elif records and records[-1].get("change_instruction") and "keep" not in records[-1]:
+                match = re.match(r"\[PROGRAMMER: KEEP (.*); DROP (.*)\]", text)
+                if match:
+                    records[-1]["keep"] = json.loads(match.group(1))
+                    records[-1]["drop"] = json.loads(match.group(2))
+            continue
+        if text == "[RESPONDENT TEXT]":
+            reading_respondent_text = True
+            continue
+        if text == "[END RESPONDENT TEXT]":
+            current["text"] = "\n".join(current["wording"])
+            reading_respondent_text = False
+            continue
+        if reading_respondent_text:
+            current["wording"].append(paragraph.text)
+            continue
+        if text.startswith("[EDSL QUESTION OPTIONS: ") and text.endswith("]"):
+            current["fields"]["question_options"] = json.loads(text[len("[EDSL QUESTION OPTIONS: "):-1])
+            current["dynamic_options"] = True
             continue
         if text.startswith("Question type: "):
             current["type"] = text.partition(": ")[2]
@@ -116,14 +172,17 @@ def survey_from_docx(source):
             if separator:
                 current["fields"][key] = _parse_docx_scalar(value)
         else:
-            coded = re.match(r"^(\d+) = (.*)$", text)
+            coded = re.match(r"^(-?\d+) = (.*)$", text)
             if coded:
                 value = _parse_docx_scalar(coded.group(2))
                 if current.get("reading_anchors"):
                     current["anchors"][coded.group(1)] = value
                 else:
-                    current["options"].append(value)
-            elif "type" in current and "text" not in current and text and not text.startswith("Response format:"):
+                    code = int(coded.group(1))
+                    if code in current["option_codes"]:
+                        raise ValueError(f"Duplicate response code {code} for {current['id']}.")
+                    current["option_codes"][code] = value
+            elif "type" in current and "text" not in current and text:
                 current["text"] = text
     if current is not None:
         current["rules"] = current_rule_lines
@@ -132,13 +191,17 @@ def survey_from_docx(source):
     questions = []
     by_id = {}
     for record in records:
-        if record.get("instruction"):
+        if record.get("instruction") or record.get("change_instruction"):
             continue
         if not all(key in record for key in ("name", "type", "text")):
             raise ValueError("A question in the DOCX is missing its ID, type, or respondent-facing text.")
         data = {"question_name": record["name"], "question_text": record["text"], "question_type": record["type"]}
-        if record["options"]:
-            data["question_options"] = record["options"]
+        if record["option_codes"]:
+            codes = sorted(record["option_codes"])
+            if codes != list(range(1, len(codes) + 1)):
+                raise ValueError(f"Response codes for {record['id']} must be unique consecutive integers starting at 1.")
+            record["option_codes"] = {code: record["option_codes"][code] for code in codes}
+            data["question_options"] = list(record["option_codes"].values())
         if record["anchors"]:
             data["option_labels"] = {int(k): v for k, v in record["anchors"].items()}
         data.update(record["fields"])
@@ -149,15 +212,27 @@ def survey_from_docx(source):
         questions.append(question)
         by_id[record["id"]] = (record, question)
 
-    survey = Survey()
+    ordered_components = []
     for record in records:
         if record.get("instruction"):
-            survey.add_instruction(Instruction(name=record.get("name") or f"docx_instruction_{len(survey._instruction_names_to_instructions) + 1}", text=record.get("text", "")))
+            ordered_components.append(
+                Instruction(
+                    name=record.get("name") or f"docx_instruction_{len(ordered_components) + 1}",
+                    text=record.get("text", ""),
+                )
+            )
+        elif record.get("change_instruction"):
+            ordered_components.append(
+                ChangeInstruction(keep=record.get("keep"), drop=record.get("drop"))
+            )
         else:
-            survey.add_question(by_id[record["id"]][1])
+            ordered_components.append(by_id[record["id"]][1])
+    survey = Survey(ordered_components)
 
     for record in records:
         if record.get("instruction"):
+            continue
+        if record.get("change_instruction"):
             continue
         question = by_id[record["id"]][1]
         for line in record.get("rules", []):
@@ -196,26 +271,39 @@ def _parse_docx_scalar(value):
 
 def _docx_logic_to_expression(condition, by_id):
     """Convert simple coded comparisons in the visible DOCX back to EDSL."""
-    pattern = re.compile(r"\b(Q_[A-Za-z_]\w*)\s*(==|!=|>=|<=|>|<)\s*(-?\d+(?:\.\d+)?)")
+    if condition.strip() in {"True", "False"}:
+        return condition.strip()
+    pattern = re.compile(
+        r'\b(Q_[A-Za-z_]\w*)\s*(==|!=|>=|<=|>|<)\s*("(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|-?\d+(?:\.\d+)?)'
+    )
     def replace(match):
-        qid, operator, code = match.groups()
+        qid, operator, token = match.groups()
         if qid not in by_id:
             raise ValueError(f"Unknown question ID {qid}")
-        question = by_id[qid][1]
+        record, question = by_id[qid]
         options = getattr(question, "question_options", None)
-        if options is not None and operator in ("==", "!="):
-            i = int(float(code)) - 1
-            if i < 0 or i >= len(options):
+        if token.startswith(("\"", "'")):
+            value = _parse_docx_scalar(token)
+            answer = repr(value)
+        elif options is not None:
+            code = int(float(token))
+            if code not in record["option_codes"]:
                 raise ValueError(f"Invalid option code {code} for {qid}")
-            answer = repr(options[i])
+            option_value = record["option_codes"][code]
+            if operator in ("==", "!="):
+                answer = repr(option_value)
+            else:
+                answer = repr(option_value)
         else:
-            answer = code
+            answer = token
         return f"{{{{ {question.question_name}.answer }}}} {operator} {answer}"
     try:
         result, count = pattern.subn(replace, condition)
     except ValueError:
         return None
-    return result if count and not re.search(r"\bQ_", result) else None
+    if not count:
+        return condition if condition.strip() in {"True", "False"} else None
+    return result if not re.search(r"\bQ_", result) else None
 
 
 def _add_logo_watermark(section):
@@ -225,7 +313,7 @@ def _add_logo_watermark(section):
     from docx.oxml import OxmlElement
     from docx.oxml.ns import qn
 
-    logo = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../docs/logo.png"))
+    logo = os.path.join(os.path.dirname(__file__), "assets", "expected_parrot_logo.png")
     if not os.path.exists(logo):
         return
     paragraph = section.header.paragraphs[0]
@@ -318,6 +406,7 @@ class SurveyExport:
         """Generate a vendor-oriented survey programming specification."""
         from docx import Document
         from edsl import FileStore
+        from ..instructions import ChangeInstruction, Instruction
 
         if not filename:  # handles None and ""
             tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".docx")
@@ -345,19 +434,38 @@ class SurveyExport:
 
         ordered = self.survey.recombined_questions_and_instructions()
         for item in ordered:
-            if item.__class__.__name__ == "Instruction":
+            if isinstance(item, Instruction):
                 doc.add_heading(f"Section transition ({item.name})", level=2)
                 text = getattr(item, "text", None) or getattr(item, "instruction", None) or str(item)
                 doc.add_paragraph(str(text))
+                continue
+            if isinstance(item, ChangeInstruction):
+                doc.add_heading("Instruction control", level=2)
+                doc.add_paragraph(
+                    "[PROGRAMMER: KEEP "
+                    + json.dumps(item.keep, ensure_ascii=False)
+                    + "; DROP "
+                    + json.dumps(item.drop, ensure_ascii=False)
+                    + "]"
+                )
                 continue
             qid = question_ids[item.question_name]
             doc.add_heading(f"{qid} ({item.question_name})", level=2)
             p = doc.add_paragraph()
             p.add_run("Question type: ").bold = True
             p.add_run(str(item.question_type))
+            doc.add_paragraph("[RESPONDENT TEXT]")
             doc.add_paragraph(str(item.question_text))
+            doc.add_paragraph("[END RESPONDENT TEXT]")
             options = getattr(item, "question_options", None)
-            if options is not None:
+            if isinstance(options, (str, dict)):
+                doc.add_paragraph("[PROGRAMMER: DYNAMIC RESPONSE OPTIONS; PRESERVE THE EDSL SOURCE VALUE]")
+                doc.add_paragraph(
+                    "[EDSL QUESTION OPTIONS: "
+                    + json.dumps(options, ensure_ascii=False)
+                    + "]"
+                )
+            elif options is not None:
                 doc.add_paragraph("[PROGRAMMER: CODE RESPONSE OPTIONS AS FOLLOWS]")
                 for code, option in enumerate(options, 1):
                     doc.add_paragraph(f"{code} = {json.dumps(option, ensure_ascii=False)}")
@@ -370,7 +478,7 @@ class SurveyExport:
             if labels:
                 doc.add_paragraph("[PROGRAMMER: SCALE ANCHORS]")
                 for code, label in labels.items():
-                    doc.add_paragraph(f"{code} = {json.dumps(label, ensure_ascii=False)}")
+                    doc.add_paragraph(f"{int(code)} = {json.dumps(label, ensure_ascii=False)}")
             for attr, label in (("min_selections", "Minimum selections"), ("max_selections", "Maximum selections"),
                                 ("min_value", "Minimum value"), ("max_value", "Maximum value"),
                                 ("max_characters", "Character limit")):
