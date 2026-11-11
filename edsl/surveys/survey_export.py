@@ -41,27 +41,44 @@ def _translate_rule_expression(expression, questions, question_ids):
                 raise ValueError("option not found")
             value = str(matching[0])
         elif options is not None and operator in (">", ">=", "<", "<="):
-            try:
-                numeric_options = [float(option) for option in options]
-                threshold = float(value)
-            except (TypeError, ValueError):
-                raise ValueError("ordered option comparison is not numeric")
-            if numeric_options != sorted(numeric_options):
-                raise ValueError("ordered option comparison requires ascending options")
             operations = {
-                ">": lambda option: option > threshold,
-                ">=": lambda option: option >= threshold,
-                "<": lambda option: option < threshold,
-                "<=": lambda option: option <= threshold,
+                ">": lambda option, threshold: option > threshold,
+                ">=": lambda option, threshold: option >= threshold,
+                "<": lambda option, threshold: option < threshold,
+                "<=": lambda option, threshold: option <= threshold,
             }
-            matched_codes = [i + 1 for i, option in enumerate(numeric_options) if operations[operator](option)]
+            quoted_value = match.group(3) is not None or match.group(4) is not None
+            if quoted_value and all(isinstance(option, str) for option in options):
+                threshold = str(value)
+                comparisons = operations
+                compared_options = options
+            else:
+                try:
+                    compared_options = [float(option) for option in options]
+                    threshold = float(value)
+                except (TypeError, ValueError):
+                    raise ValueError("ordered option comparison is not numeric")
+                if compared_options != sorted(compared_options):
+                    raise ValueError("ordered option comparison requires ascending options")
+                comparisons = operations
+            try:
+                matched_codes = [
+                    i + 1 for i, option in enumerate(compared_options)
+                    if comparisons[operator](option, threshold)
+                ]
+            except TypeError:
+                raise ValueError("ordered option comparison has incompatible values")
             if not matched_codes:
                 return "False"
             if len(matched_codes) == len(options):
                 return "True"
-            if operator in (">", ">="):
+            if matched_codes == list(range(min(matched_codes), len(options) + 1)):
                 return f"{question_ids[name]} >= {min(matched_codes)}"
-            return f"{question_ids[name]} <= {max(matched_codes)}"
+            if matched_codes == list(range(1, max(matched_codes) + 1)):
+                return f"{question_ids[name]} <= {max(matched_codes)}"
+            return " OR ".join(
+                f"{question_ids[name]} == {code}" for code in matched_codes
+            )
         elif value is None:
             raise ValueError("unsupported comparison")
         elif match.group(3) is not None or match.group(4) is not None:
@@ -172,12 +189,14 @@ def survey_from_docx(source):
             if separator:
                 current["fields"][key] = _parse_docx_scalar(value)
         else:
-            coded = re.match(r"^(-?\d+) = (.*)$", text)
+            coded = re.match(r"^(-?\d+(?:\.\d+)?) = (.*)$", text)
             if coded:
                 value = _parse_docx_scalar(coded.group(2))
                 if current.get("reading_anchors"):
-                    current["anchors"][coded.group(1)] = value
+                    current["anchors"][_parse_docx_scalar(coded.group(1))] = value
                 else:
+                    if "." in coded.group(1):
+                        raise ValueError(f"Response code {coded.group(1)} for {current['id']} must be an integer.")
                     code = int(coded.group(1))
                     if code in current["option_codes"]:
                         raise ValueError(f"Duplicate response code {code} for {current['id']}.")
@@ -203,7 +222,7 @@ def survey_from_docx(source):
             record["option_codes"] = {code: record["option_codes"][code] for code in codes}
             data["question_options"] = list(record["option_codes"].values())
         if record["anchors"]:
-            data["option_labels"] = {int(k): v for k, v in record["anchors"].items()}
+            data["option_labels"] = record["anchors"]
         data.update(record["fields"])
         try:
             question = QuestionBase.from_dict(data)
@@ -478,7 +497,7 @@ class SurveyExport:
             if labels:
                 doc.add_paragraph("[PROGRAMMER: SCALE ANCHORS]")
                 for code, label in labels.items():
-                    doc.add_paragraph(f"{int(code)} = {json.dumps(label, ensure_ascii=False)}")
+                    doc.add_paragraph(f"{code} = {json.dumps(label, ensure_ascii=False)}")
             for attr, label in (("min_selections", "Minimum selections"), ("max_selections", "Maximum selections"),
                                 ("min_value", "Minimum value"), ("max_value", "Maximum value"),
                                 ("max_characters", "Character limit")):
