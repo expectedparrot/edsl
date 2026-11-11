@@ -483,6 +483,19 @@ class QuestionBaseGenMixin:
             except Exception:
                 pass
 
+        original_prices = self.data.get("prices")
+        if isinstance(original_prices, str):
+            try:
+                native_prices = render_native(original_prices)
+                if isinstance(native_prices, tuple):
+                    native_prices = list(native_prices)
+                if isinstance(native_prices, list):
+                    rendered_dict["prices"] = native_prices
+            except SecurityError:
+                raise
+            except Exception:
+                pass
+
         if return_dict:
             return rendered_dict
         else:

@@ -245,6 +245,11 @@ Choose a specialized type for the behavior you need:
 | `group_discussion` | Simulate discussion among configured `participants`, with `max_rounds`, `turn_order`, and optional decision settings. Several participant turns can incur model costs. |
 | `survey_message` | Display a routable message without asking for an answer; see [Survey messages](/en/latest/survey_messages). |
 
+`QuestionDemand.prices` can use a numeric list from an earlier question, such
+as `prices="{{ grid.answer }}"`. EDSL resolves the list before building the
+demand response validator, which then requires one quantity for each price.
+The earlier question must return a list of numbers.
+
 For example, define a text-edit question:
 
 ```python
