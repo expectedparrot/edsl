@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Optional
 from uuid import uuid4
 
@@ -27,6 +28,30 @@ class EmailResponseValidator(ResponseValidatorABC):
         ({"answer": "not-an-email"}, {}, "Answer must be a valid email address."),
         ({"answer": "missing-domain@"}, {}, "Answer must be a valid email address."),
     ]
+
+    _email_candidate_pattern = re.compile(
+        r"(?<![\w.+-])[\w.!#$%&'*+/=?^`{|}~-]+@[\w.-]+", re.UNICODE
+    )
+
+    def fix(self, response: dict, verbose: bool = False) -> dict:
+        """Recover and validate the first email address embedded in a reply."""
+        answer = response.get("answer")
+        if isinstance(answer, dict):
+            answer = answer.get("answer")
+        if not isinstance(answer, str):
+            return response
+
+        for match in self._email_candidate_pattern.finditer(answer):
+            candidate = match.group(0).strip(".,;:!?)]}>\"'`")
+            try:
+                normalized = EmailResponse.model_validate({"answer": candidate}).answer
+            except Exception:
+                continue
+            fixed_response = dict(response)
+            fixed_response["answer"] = str(normalized)
+            return fixed_response
+
+        return response
 
 
 class QuestionEmail(QuestionBase):
