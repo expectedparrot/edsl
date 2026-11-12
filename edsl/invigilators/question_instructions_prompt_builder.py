@@ -226,6 +226,28 @@ class QuestionInstructionPromptBuilder:
                 scenario, prior_answers_dict
             ).get_question_options(question_data=question_data)
             question_data["question_options"] = question_options
+        if isinstance(question_data.get("prices"), str):
+            from .question_attribute_processor import QuestionAttributeProcessor
+
+            prices = QuestionAttributeProcessor(
+                scenario, prior_answers_dict
+            )._render_template_to_native_value(question_data["prices"])
+            if isinstance(prices, tuple):
+                prices = list(prices)
+            if not isinstance(prices, list):
+                from .exceptions import InvigilatorValueError
+
+                raise InvigilatorValueError(
+                    "QuestionDemand prices must resolve to a list of numbers."
+                )
+            try:
+                question_data["prices"] = [float(price) for price in prices]
+            except (TypeError, ValueError) as exc:
+                from .exceptions import InvigilatorValueError
+
+                raise InvigilatorValueError(
+                    "QuestionDemand prices must resolve to a list of numbers."
+                ) from exc
         if "min_value" in question_data and question_data["min_value"] is not None:
             from .question_numerical_processor import QuestionNumericalProcessor
 
