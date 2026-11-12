@@ -301,6 +301,8 @@ class RawResponseHandler:
 
         When *is_free_text* is True, the full generated string is kept as
         the answer and no comment is inferred from newlines or delimiters.
+        This is used for free-text and edit questions, whose answers may be
+        multiline or JSON-shaped literal text.
         """
 
         from edsl.data_transfer_models import EDSLOutput

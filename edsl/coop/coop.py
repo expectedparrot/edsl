@@ -1812,7 +1812,9 @@ class Coop(CoopFunctionsMixin):
 
         Returns:
             dict: A dict with:
-                - human_surveys: list of dicts with uuid, name, visibility, created_ts, n_responses
+                - human_surveys: list of dicts with uuid, name, visibility, created_ts,
+                  n_complete (finished responses) and n_in_progress (responses still
+                  being taken)
                 - current_page, page_size, total_pages, total_count
 
         Raises:
@@ -3017,7 +3019,8 @@ class Coop(CoopFunctionsMixin):
             "admin_url": f"{self.url}/home/human-surveys/{response_json.get('uuid')}",
             "respondent_url": respondent_url,
             "preview_url": self._get_preview_url(respondent_url),
-            "n_responses": response_json.get("n_responses"),
+            "n_complete": response_json.get("n_complete"),
+            "n_in_progress": response_json.get("n_in_progress"),
             "survey_uuid": response_json.get("survey_uuid"),
             "agent_list_uuid": response_json.get("agent_list_uuid"),
             "scenario_list_uuid": response_json.get("scenario_list_uuid"),
@@ -3046,7 +3049,8 @@ class Coop(CoopFunctionsMixin):
             "admin_url": f"{self.url}/home/human-surveys/{response_json.get('uuid')}",
             "respondent_url": respondent_url,
             "preview_url": self._get_preview_url(respondent_url),
-            "n_responses": response_json.get("n_responses"),
+            "n_complete": response_json.get("n_complete"),
+            "n_in_progress": response_json.get("n_in_progress"),
             "survey_uuid": response_json.get("survey_uuid"),
             "agent_list_uuid": response_json.get("agent_list_uuid"),
             "scenario_list_uuid": response_json.get("scenario_list_uuid"),
@@ -4999,8 +5003,12 @@ class Coop(CoopFunctionsMixin):
         filters = {"response_uuid": response_uuid, "include_previews": include_previews}
         # The trace first, so every turn it names is listed in the others, or soon
         # will be.
-        interactions = self.get_all_human_survey_interactions(human_survey_uuid, **filters)
-        messages = self.get_all_human_survey_assistant_messages(human_survey_uuid, **filters)
+        interactions = self.get_all_human_survey_interactions(
+            human_survey_uuid, **filters
+        )
+        messages = self.get_all_human_survey_assistant_messages(
+            human_survey_uuid, **filters
+        )
         edits = self.get_all_human_survey_assistant_edits(human_survey_uuid, **filters)
         return AssistantConversations.build(interactions, messages, edits)
 
@@ -5022,6 +5030,254 @@ class Coop(CoopFunctionsMixin):
             >>> url = coop.get_human_survey_assistant_url("your-human-survey-uuid")  # doctest: +SKIP
         """
         return f"{self.url}/home/human-surveys/{human_survey_uuid}/events/assistant"
+
+    def get_human_survey_background_runs_summary(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        response_uuid: Optional[Union[str, UUID]] = None,
+        question_name: Optional[str] = None,
+        include_previews: bool = False,
+    ) -> dict:
+        """
+        Get where a human survey's background questions (thinking and image
+        generation questions) stand: the place to start when one isn't working.
+
+        - ``runs``: how many times background questions were run, retries included.
+        - ``by_status``: runs by status: ``queued``, ``running``, ``succeeded``,
+          ``failed``, ``timed_out`` or ``abandoned``.
+        - ``failures``: the runs that ended without an answer, by error kind.
+        - ``retries``: how many runs were automatic second tries.
+        - ``last_failure_at``: when the latest failure ended.
+        - ``questions``: the same for each question, with its ``question_name``
+          and ``run_type`` (``thinking`` or ``image_generation``).
+
+        Runs from preview links are left out unless ``include_previews`` is true.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+            response_uuid: Count only this response's runs.
+            question_name: Count only this question's runs.
+            include_previews: Also count runs from preview links.
+
+        Returns:
+            dict: The summary.
+
+        Example:
+            >>> summary = coop.get_human_survey_background_runs_summary("your-human-survey-uuid")  # doctest: +SKIP
+        """
+        params: Dict[str, Any] = {"include_previews": str(include_previews).lower()}
+        if response_uuid is not None:
+            params["response_uuid"] = str(response_uuid)
+        if question_name is not None:
+            params["question_name"] = question_name
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/background-runs/summary",
+            method="GET",
+            params=params,
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def get_human_survey_background_runs(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        after: Optional[str] = None,
+        limit: int = 100,
+        response_uuid: Optional[Union[str, UUID]] = None,
+        question_name: Optional[str] = None,
+        status: Optional[List[str]] = None,
+        failed_only: bool = False,
+        include_previews: bool = False,
+    ) -> dict:
+        """
+        Get one batch of a human survey's background-question runs, oldest first.
+
+        One row per run of a thinking or image generation question, retries
+        included: the question, the ``attempt`` (2 is the automatic retry), the
+        ``status``, the model, when it was queued, started and finished, and the
+        ``error`` of a run that failed: its ``kind``, the ``stage`` it failed at, a
+        ``message``, and whether it was ``retryable``. For the survey's owner,
+        ``credits``. What the model was sent and returned is on
+        ``get_human_survey_background_run``.
+
+        To continue, pass the returned ``next_cursor`` as ``after`` while
+        ``has_more`` is true, with the same filters.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+            after: Return only runs after this one, given by its ``uuid``. Omit to
+                start from the first.
+            limit: Rows to return, at most 200.
+            response_uuid: Return only this response's runs.
+            question_name: Return only this question's runs.
+            status: Return only runs with these statuses: ``queued``, ``running``,
+                ``succeeded``, ``failed``, ``timed_out``, ``abandoned``.
+            failed_only: Return only runs that ended without an answer. Pass this
+                or ``status``, not both.
+            include_previews: Also return runs from preview links.
+
+        Returns:
+            dict: ``{"runs": [...], "next_cursor", "has_more"}``
+
+        Example:
+            >>> batch = coop.get_human_survey_background_runs("your-human-survey-uuid", failed_only=True)  # doctest: +SKIP
+        """
+        params: Dict[str, Any] = {
+            "limit": limit,
+            "failed_only": str(failed_only).lower(),
+            "include_previews": str(include_previews).lower(),
+        }
+        if after is not None:
+            params["after"] = str(after)
+        if response_uuid is not None:
+            params["response_uuid"] = str(response_uuid)
+        if question_name is not None:
+            params["question_name"] = question_name
+        if status:
+            params["status"] = list(status)
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/background-runs",
+            method="GET",
+            params=params,
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "runs": data.get("runs", []),
+            "next_cursor": data.get("next_cursor"),
+            "has_more": bool(data.get("has_more")),
+        }
+
+    def _iter_human_survey_background_run_batches(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        after: Optional[str] = None,
+        limit: int = 200,
+        response_uuid: Optional[Union[str, UUID]] = None,
+        question_name: Optional[str] = None,
+        status: Optional[List[str]] = None,
+        failed_only: bool = False,
+        include_previews: bool = False,
+    ) -> Iterator[dict]:
+        """Yield batches from ``get_human_survey_background_runs``, following the
+        cursor to the end."""
+        while True:
+            batch = self.get_human_survey_background_runs(
+                human_survey_uuid,
+                after=after,
+                limit=limit,
+                response_uuid=response_uuid,
+                question_name=question_name,
+                status=status,
+                failed_only=failed_only,
+                include_previews=include_previews,
+            )
+            yield batch
+            if not batch["has_more"]:
+                return
+            after = batch["next_cursor"]
+
+    def get_all_human_survey_background_runs(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        after: Optional[str] = None,
+        response_uuid: Optional[Union[str, UUID]] = None,
+        question_name: Optional[str] = None,
+        status: Optional[List[str]] = None,
+        failed_only: bool = False,
+        include_previews: bool = False,
+    ) -> List[dict]:
+        """
+        Get every background-question run of a human survey, oldest first, with
+        the filters of ``get_human_survey_background_runs``.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+            after: Return only runs after this one, given by its ``uuid``. Pass the
+                last run you already have to fetch just the new ones.
+            response_uuid: Return only this response's runs.
+            question_name: Return only this question's runs.
+            status: Return only runs with these statuses.
+            failed_only: Return only runs that ended without an answer.
+            include_previews: Also return runs from preview links, each marked
+                ``is_preview`` under ``response``.
+
+        Returns:
+            list[dict]: One dict per run.
+
+        Example:
+            >>> failed = coop.get_all_human_survey_background_runs("your-human-survey-uuid", failed_only=True)  # doctest: +SKIP
+        """
+        return [
+            row
+            for batch in self._iter_human_survey_background_run_batches(
+                human_survey_uuid,
+                after=after,
+                response_uuid=response_uuid,
+                question_name=question_name,
+                status=status,
+                failed_only=failed_only,
+                include_previews=include_previews,
+            )
+            for row in batch["runs"]
+        ]
+
+    def get_human_survey_background_run(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        run_uuid: Union[str, UUID],
+    ) -> dict:
+        """
+        Get one background-question run in full: what the model was sent and what
+        it returned.
+
+        Besides the fields of ``get_human_survey_background_runs``: the prompts as
+        sent, after piping (``system_prompt``, ``user_prompt``), the ``files``
+        attached (name and type), the model's ``service`` and
+        ``model_parameters``, the reply (``raw_output``, ``generated_tokens``,
+        ``reasoning_summary``), the ``answer`` and ``comment`` recorded, and token
+        ``usage``. An image generation run's ``raw_output`` is a reference to the
+        stored image, not the image.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+            run_uuid: The run's ``uuid``.
+
+        Returns:
+            dict: The run.
+
+        Example:
+            >>> run = coop.get_human_survey_background_run("your-human-survey-uuid", "run-uuid")  # doctest: +SKIP
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/background-runs/{run_uuid}",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        return response.json().get("run", {})
+
+    def get_human_survey_background_runs_url(
+        self, human_survey_uuid: Union[str, UUID]
+    ) -> str:
+        """
+        Get the page where a human survey's background-question runs can be read
+        in the browser: every run, failures filterable, and each run's prompts and
+        reply.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+
+        Returns:
+            str: The page's URL.
+
+        Example:
+            >>> url = coop.get_human_survey_background_runs_url("your-human-survey-uuid")  # doctest: +SKIP
+        """
+        return f"{self.url}/home/human-surveys/{human_survey_uuid}/events/background"
 
     def get_human_survey_respondent_links(
         self,
@@ -5768,6 +6024,7 @@ class Coop(CoopFunctionsMixin):
         *,
         started_after: Optional[Union[str, datetime]] = None,
         started_before: Optional[Union[str, datetime]] = None,
+        include_partial: bool = False,
     ) -> Union["Results", "ScenarioList"]:
         """
         Return a Results object with the responses for a human survey.
@@ -5777,12 +6034,22 @@ class Coop(CoopFunctionsMixin):
         response is "started" when the respondent opened the survey, not when they
         submitted it. Both bounds are inclusive.
 
+        Pass ``include_partial=True`` to also get responses that are still being
+        taken. Each holds the answers submitted so far; a question the respondent
+        hasn't answered yet reads as None. Every result's ``agent.response_status`` is
+        ``"complete"`` or ``"in_progress"``, and ``agent.last_activity_at`` is when the
+        respondent last moved the response forward. A response that is in progress
+        now may be complete, with more answers, the next time you fetch, so combine
+        downloads by ``agent.response_uuid``.
+
         Parameters:
             human_survey_uuid (str): The UUID of the human survey.
             started_after: Only include responses started at or after this time.
                 A timezone-aware datetime, or an ISO 8601 string.
             started_before: Only include responses started at or before this time.
                 A timezone-aware datetime, or an ISO 8601 string.
+            include_partial: Also include responses still in progress
+                (default: False).
 
         If generating the Results object fails, a ScenarioList will be returned instead.
 
@@ -5792,8 +6059,11 @@ class Coop(CoopFunctionsMixin):
             ...     survey_uuid,
             ...     started_after=datetime(2026, 9, 1, tzinfo=timezone.utc),
             ... )
+            >>> coop.get_human_survey_responses(survey_uuid, include_partial=True)
         """
         params: Dict[str, Any] = {}
+        if include_partial:
+            params["include_partial"] = True
         if started_after is not None:
             if isinstance(started_after, datetime):
                 self._human_survey_datetime_must_be_tz_aware(
@@ -6205,9 +6475,13 @@ class Coop(CoopFunctionsMixin):
         }
 
     def preflight_prolific_study(
-        self, human_survey_uuid: str, study_id: str, *,
+        self,
+        human_survey_uuid: str,
+        study_id: str,
+        *,
         required_questions: Optional[List[str]] = None,
-        expected_survey=None, required_credits: Optional[float] = None,
+        expected_survey=None,
+        required_credits: Optional[float] = None,
     ) -> dict:
         """Check the current draft, deployed survey and balance without publishing.
 
@@ -6221,9 +6495,14 @@ class Coop(CoopFunctionsMixin):
         """
         from .coop_prolific_preflight import preflight
 
-        return preflight(self, human_survey_uuid, study_id,
-                         required_questions=required_questions,
-                         expected_survey=expected_survey, required_credits=required_credits)
+        return preflight(
+            self,
+            human_survey_uuid,
+            study_id,
+            required_questions=required_questions,
+            expected_survey=expected_survey,
+            required_credits=required_credits,
+        )
 
     def publish_prolific_study(
         self,
@@ -6243,11 +6522,16 @@ class Coop(CoopFunctionsMixin):
         A successful preflight is not spending authorization or a funds reservation.
         """
         check = self.preflight_prolific_study(
-            human_survey_uuid, study_id, required_questions=required_questions,
-            expected_survey=expected_survey, required_credits=required_credits,
+            human_survey_uuid,
+            study_id,
+            required_questions=required_questions,
+            expected_survey=expected_survey,
+            required_credits=required_credits,
         )
         if not check["ready"]:
-            raise CoopValueError("Prolific preflight failed: " + "; ".join(check["blockers"]))
+            raise CoopValueError(
+                "Prolific preflight failed: " + "; ".join(check["blockers"])
+            )
         response = self._send_server_request(
             uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies/{study_id}/status",
             method="POST",

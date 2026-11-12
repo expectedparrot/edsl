@@ -203,3 +203,37 @@ def test_parse_response_free_text_does_not_json_coerce():
     assert model_response.answer == expected_text
     assert model_response.generated_tokens == expected_text
     assert model_response.comment is None
+
+
+def test_get_response_edit_preserves_multiline_revision():
+    from edsl import Cache
+
+    revision = "First revised paragraph.\n\nSecond revised paragraph."
+    model = LanguageModel.example(test_model=True, canned_response=revision)
+
+    response = model.get_response(
+        user_prompt="Revise the text.",
+        system_prompt="",
+        cache=Cache(),
+        question_type="edit",
+    )
+
+    assert response.edsl_dict.answer == revision
+    assert response.edsl_dict.comment is None
+
+
+def test_get_response_edit_does_not_json_coerce_revision():
+    from edsl import Cache
+
+    revision = '{"title": "Revised",\n"body": "Keep these braces as text."}'
+    model = LanguageModel.example(test_model=True, canned_response=revision)
+
+    response = model.get_response(
+        user_prompt="Revise the text.",
+        system_prompt="",
+        cache=Cache(),
+        question_type="edit",
+    )
+
+    assert response.edsl_dict.answer == revision
+    assert isinstance(response.edsl_dict.answer, str)
