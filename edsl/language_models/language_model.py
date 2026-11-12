@@ -636,7 +636,7 @@ class LanguageModel(
         Examples:
             >>> m = LanguageModel.example()
             >>> hash(m)  # Actual value may vary
-            1865859436931396641
+            1782250594623006057
         """
         return dict_hash(self.to_dict(add_edsl_version=False))
 
