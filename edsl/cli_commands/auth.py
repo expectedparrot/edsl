@@ -103,10 +103,62 @@ def register(app: click.Group, auth: click.Group) -> None:
         output(_get_expected_parrot_balance())
 
 
-    @app.command("balance")
-    def balance():
-        """Get the authenticated Expected Parrot credit balance."""
-        output(_get_expected_parrot_balance())
+    @app.group("balance", invoke_without_command=True)
+    @click.pass_context
+    def balance(ctx):
+        """Get the authenticated Expected Parrot credit balance.
+
+        \b
+        Examples:
+          ep balance
+          ep balance alert
+          ep balance alert --threshold 25
+          ep balance alert --off
+        """
+        if ctx.invoked_subcommand is None:
+            output(_get_expected_parrot_balance())
+
+    @balance.command("alert")
+    @click.option(
+        "--on/--off",
+        "enabled",
+        default=None,
+        help="Turn the low-balance email on or off.",
+    )
+    @click.option(
+        "--threshold",
+        "threshold_usd",
+        type=float,
+        default=None,
+        help="Email when the balance drops below this many US dollars (1 to 10,000).",
+    )
+    def balance_alert(enabled, threshold_usd):
+        """Show or change the low-balance email.
+
+        With no options, shows the current setting.
+
+        \b
+        Examples:
+          ep balance alert
+          ep balance alert --threshold 25
+          ep balance alert --on --threshold 50
+          ep balance alert --off
+        """
+        if enabled is None and threshold_usd is None:
+            output(
+                _call_expected_parrot(
+                    lambda coop: coop.get_low_balance_alert(), "BALANCE_ALERT_ERROR"
+                )
+            )
+        else:
+            output(
+                _call_expected_parrot(
+                    lambda coop: coop.update_low_balance_alert(
+                        enabled=enabled, threshold_usd=threshold_usd
+                    ),
+                    "BALANCE_ALERT_ERROR",
+                )
+            )
 
     @app.command("credits")
     @click.option("--browser/--no-browser", default=True, help="Open the credits page in a browser.")
@@ -134,6 +186,16 @@ def register(app: click.Group, auth: click.Group) -> None:
 
     def _get_expected_parrot_balance() -> dict:
         """Return Expected Parrot balance data using the configured API key."""
+        balance_info = _call_expected_parrot(
+            lambda coop: coop.get_balance(), "BALANCE_ERROR"
+        )
+        if hasattr(balance_info, "items"):
+            return dict(balance_info)
+        return {"balance": balance_info}
+
+
+    def _call_expected_parrot(call, error_code: str):
+        """Return ``call(coop)`` for a Coop using the configured API key."""
         from edsl.coop.ep_key_handling import ExpectedParrotKeyHandler
 
         api_key = ExpectedParrotKeyHandler().get_ep_api_key()
@@ -153,19 +215,15 @@ def register(app: click.Group, auth: click.Group) -> None:
             old_stdout = sys.stdout
             sys.stdout = io.StringIO()
             try:
-                balance_info = Coop(api_key=api_key).get_balance()
+                return call(Coop(api_key=api_key))
             finally:
                 sys.stdout = old_stdout
         except SystemExit:
             raise
         except Exception as e:
             error(
-                "BALANCE_ERROR",
+                error_code,
                 str(e),
                 suggestion="Check your Expected Parrot API key and network connection.",
                 exit_code=EXIT_REMOTE,
             )
-
-        if hasattr(balance_info, "items"):
-            return dict(balance_info)
-        return {"balance": balance_info}

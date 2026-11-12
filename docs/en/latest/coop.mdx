@@ -1,338 +1,141 @@
 ---
-title: "Expected Parrot"
-description: "Expected Parrot provides a free platform for storing, sharing and collaborating on AI-based research, fully integrated with EDSL via the Coop module."
-sidebarTitle: "Expected Parrot"
+title: "Expected Parrot objects"
+description: "Store, retrieve, update, and share EDSL objects through the Expected Parrot platform."
 ---
 
+Expected Parrot is a platform for model access, remote execution, caching, human research, and sharing study materials. The `Coop` client exposes its services in Python. This page covers storing and retrieving EDSL objects; see [Remote Inference](/en/latest/remote_inference), [Remote Caching](/en/latest/remote_caching), and [Human studies](/en/latest/guides/human_studies) for execution and collection workflows.
 
-Expected Parrot provides a free platform for creating, storing and sharing AI-based research, and validating it with human respondents. It is fully integrated with EDSL via the *Coop* module, allowing you to post, store and retrieve any objects that you've created with EDSL, together with data, notebooks and other project content.
+Use these methods to reopen a study from another computer, reuse a collaborator's questionnaire, or share completed results. `push()` uploads an object and `pull()` retrieves it as a usable EDSL object. The returned **UUID** is its unique identifier, which you can keep instead of searching for the object each time.
 
-You can also explore public content and collaborate on projects privately with other users:
+## Authentication
 
-<Frame>
-<img src="/images/en/latest/coop_1.png" alt="Expected Parrot page view" />
-</Frame>
+Create an Expected Parrot account and configure your key using [Managing Keys](/en/latest/api_keys). Remote operations below require authentication. Saving a local [`.ep` package](/en/latest/guides/saving_objects) does not upload it.
 
-Your Expected Parrot account provides access to special features for running EDSL surveys and storing results remotely at the Expected Parrot server, and launching hybrid human-AI inference jobs interactively. Learn more about these features in the [Remote Inference](/en/latest/remote_inference), [Remote Caching](/en/latest/remote_caching) and [Survey Builder](/en/latest/survey_builder) sections of the documentation.
+## Upload and retrieve a survey
 
-## Getting started
-
-### 1. Create an account
-
-[Sign up](https://www.expectedparrot.com/login) with an email address.
-
-Your account comes with an **Expected Parrot API key** that allows you to:
-
-- Post and share content
-- Run surveys remotely
-- Use any available models with your surveys
-- Use the universal cache of stored prompts and responses
-
-You can inspect your key and reset it at any time at your [Keys](https://www.expectedparrot.com/home/keys) page.
-
-### 2. Your Expected Parrot API key
-
-Remote inference is a feature that allows you to run EDSL surveys and inference jobs at the Expected Parrot server, and store results at your account. It is activated by default when you create an account. When remote inference is activated, your survey jobs and results are automatically stored at the Expected Parrot server and accessible at the [Results](https://www.expectedparrot.com/home/remote-inference) page of your account.
-
-You can also post any EDSL objects to Expected Parrot from your workspace, includes Results, Surveys, Agents, Scenarios, Notebooks and data files (using the FileStore module). To do this, you first need to store your Expected Parrot API key. If you have activated remote inference (at your [Settings](https://www.expectedparrot.com/home/settings) page), your key is automatically stored.
-
-If you are only using EDSL locally, create a file named .env in your EDSL working directory and store your key in it using the following format:
-
-```bash
-EXPECTED_PARROT_API_KEY = 'your_key_here'
-```
-
-Learn more about storing API keys in the [Managing Keys](/en/latest/api_keys) section of the documentation.
-
-### 3. Post objects to Expected Parrot
-
-Use the `Coop` module and methods to post and share objects (see examples below). You can set the visibility status of an object when you post it or update it later, from your workspace or interactively at your account. There are 3 status options:
-
-- *public*: Visible to everyone
-- *private*: Visible to logged in users that you have granted access
-- *unlisted*: Visible to anyone with the link but not listed in search results (default)
-
-See details on methods for uploading, downloading, updating and deleting content at your account below.
-
-### 4. Explore content
-
-Content that you have created with remote inference or posted to Expected Parrot is available at your [Content](https://www.expectedparrot.com/content) page.
-
-You can access public content at the [Explore](https://www.expectedparrot.com/login) tab, and copy code and examples to modify or rerun at your workspace.
-
-## Methods
-
-When remote inference is activated the results of your surveys are automatically added to your [Content](https://www.expectedparrot.com/content) page. You can modify them from your workspace or interactively at your account.
-
-You can also post, update, download and delete any objects using the `Coop` module and methods (see examples below).
-
-### Posting
-
-There are 2 methods for uploading/posting an object from your workspace to your account:
-
-1. Call the *push()* method on the object directly.
-2. Call the *create()* method on a `Coop` client object and pass it the object.
-
-You can optionally pass a description, a convenient alias for the Expected Parrot URL and a *visibility* status (public, private or unlisted (default)) when you create an object. These can be changed at any time.
-
-**Direct method**
-
-Here we post a question object by calling the *push()* method on it:
+This example creates a local survey, then uploads a private copy. The upload stores the definition; it does not run the survey or generate responses.
 
 ```python
-from edsl import QuestionFreeText
+from edsl import QuestionFreeText, Survey
 
-q = QuestionFreeText(
-  question_name = "example",
-  question_text = "How are you today?"
-)
-
-q.push(
-  description="This is an example question", # optional
-  alias = "my-example-question", # optional
-  visibility="public" # optional
-)
+survey = Survey([
+    QuestionFreeText(question_name="feedback", question_text="What should improve?")
+])
+info = survey.push(description="Feature feedback survey", visibility="private")
+survey_uuid = info["uuid"]
+restored = Survey.pull(survey_uuid)
 ```
 
-We can see the description, alias and visibility status that we specified in the information that is returned:
+Keep the returned UUID with the study. Choose visibility explicitly. Sharing a survey definition is separate from publishing a respondent link; use `survey.humanize()` when collecting human responses.
 
-```json
-{'description': 'This is an example question',
-'object_type': 'question',
-'url': 'https://www.expectedparrot.com/content/1706e6f9-2675-4433-8b0a-080654a5cd08',
-'alias_url': 'https://www.expectedparrot.com/content/RobinHorton/my-example-question',
-'uuid': '1706e6f9-2675-4433-8b0a-080654a5cd08',
-'version': '0.1.47.dev1',
-'visibility': 'public'}
-```
+## Use the client directly
 
-**Using a `Coop` client**
-
-Here we post the same question by passing it to the *create()* method of a `Coop` client object:
-
-```python
-from edsl import Coop, QuestionFreeText
-
-q = QuestionFreeText(
-  question_name = "example",
-  question_text = "How are you today?"
-)
-c = Coop()
-c.create(q)
-```
-
-Here we include a description and visibility status:
-
-```python
-from edsl import Coop, QuestionFreeText
-
-q = QuestionFreeText(
-  question_name = "example",
-  question_text = "How are you today?"
-)
-c = Coop()
-c.create(object=q, description="This is an example question", alias = "another-example-question", visibility="public")
-```
-
-This will return the same information about the object as the direct method shown above (with a unique uuid and URL for viewing the object at the Expected Parrot platform).
-
-### Updating
-
-There are 3 methods for updating/editing an object to Expected Parrot:
-
-1. Edit the object at the Expected Parrot platform.
-2. Call the *patch()* method on the object directly.
-3. Call the *patch()* method on a `Coop` client object.
-
-For each patch() method, pass the alias_url or the uuid of the object and the parameter(s) that you want to update: *description*, *visibility*, *alias* and/or *value*.
-
-- The *description* parameter is used to update the description of an object, such as a question or survey.
-- The *visibility* parameter is used to update the visibility of an object: *public*, *private* or *unlisted*.
-- The *value* parameter is used to update the content of an object, such as the text of a question or the code in a notebook.
-
-**At the Expected Parrot platform**
-
-You can manually update the description or visibility of an object at the Expected Parrot platform. Navigate to the [Explore](https://www.expectedparrot.com/login) page and open the page view for an object. You can select options to change the **visibility** of the object (*public*, *private* or *unlisted*) or to **edit** the description.
-
-**Direct method**
-
-Here we update the description and *visibility* of the question we created and uploaded in the examples above by calling the patch() method on it:
-
-```python
-q.patch("https://www.expectedparrot.com/content/RobinHorton/my-example-question",
-        description="This is an updated question",
-        visibility="unlisted")
-```
-
-This will return a status message:
-
-```json
-{'status': 'success'}
-```
-
-Here we change the question itself by modifying the value parameter:
-
-```python
-from edsl import QuestionMultipleChoice
-
-new_q = QuestionMultipleChoice(
-  question_name = "example",
-  question_text = "How are you today?",
-  question_options = ["Good", "Bad", "OK"]
-)
-q.patch("https://www.expectedparrot.com/content/RobinHorton/my-example-question",
-        value=new_q)
-```
-
-**Using a `Coop` client**
-
-Here we do the same using a `Coop` client object:
+The equivalent client operations let you work with multiple object types. Continuing with the UUID returned above:
 
 ```python
 from edsl import Coop
 
-c = Coop()
-c.patch("https://www.expectedparrot.com/content/1706e6f9-2675-4433-8b0a-080654a5cd08",
-        description="This is an updated question",
-        visibility="public")
+coop = Coop()
+restored = coop.get(survey_uuid, expected_object_type="survey")
 ```
 
-This will return the same status message as above.
+Use `coop.push(object, description=..., visibility=...)` to upload another object. Objects such as surveys, agents, scenarios, and results preserve different parts of a study; saving one does not automatically preserve every related artifact.
 
-### Replicating / Downloading
+## Find objects with filters and pagination
 
-There are a variety of methods for replicating or downloading an object at Expected Parrot:
-
-1. Selecting options to download or copy code at the Expected Parrot platform
-2. Calling the *pull()* method on the class of the object
-3. Calling the *get()* method on a `Coop` client object
-
-**Copy code at the Expected Parrot platform**
-
-The platform provides copyable code for downloading or reconstructing an object that has been posted:
-
-<Steps>
-  <Step>
-  Navigate to the [Explore](https://www.expectedparrot.com/login) page and select an object
-  </Step>
-  <Step>
-  Go to the object’s page
-  </Step>
-  <Step>
-  Select the option to **Download** the object
-  </Step>
-</Steps>
-
-OR
-
-Select the option to **Pull** the object using its uuid or **Raw** to get the code for constructing the object.
-
-
-Use this code in your workspace to download the object locally or to reconstruct it.
-
-**Class method**
-
-Here we download the question posted above by calling the pull() method on the object class (Question) and passing the uuid of the object:
-
-```python
-from edsl import Question
-
-q = Question.pull("1706e6f9-2675-4433-8b0a-080654a5cd08")
-q
-```
-
-This will return the object (the multiple choice question question that replaced the free text question):
-
-| key | value |
-| :--- | :--- |
-| question_name | example |
-| question_text | How are you today? |
-| question_options:0 | Good |
-| question_options:1 | Bad |
-| question_options:2 | OK |
-| question_type | multiple_choice |
-
-**Using a `Coop` client**
-
-Here we download the question by calling the get() method on a `Coop` client object:
+`coop.list()` returns a `CoopRegularObjects` collection of object metadata. For example, find private surveys and results whose descriptions match a study label:
 
 ```python
 from edsl import Coop
 
-c = Coop()
-q = c.get("1706e6f9-2675-4433-8b0a-080654a5cd08")
-q
-```
-
-This will return the same object as above.
-
-### Deleting
-
-There are 3 methods for deleting an object from your account:
-
-1. Selecting options to delete at the web app
-2. Calling the *delete()* method on the class of the object
-3. Calling the *delete()* method on a `Coop` client object
-
-**At the Expected Parrot platform**
-
-You can manually delete objects at the Expected Parrot platform:
-
-<Steps>
-  <Step>
-  Navigate to [Explore](https://www.expectedparrot.com/login) and open an object’s page view (see image above for *Uploading* content)
-  </Step>
-  <Step>
-  Select the option to **delete** the object:
-
-<Frame>
-<img src="/images/en/latest/coop_5.png" alt="Expected Parrot page view" />
-</Frame>
-  </Step>
-</Steps>
-
-**Directly**
-
-Here we delete a question object by calling the *delete()* method on the class of the object (*Question*) and passing the uuid of the object:
-
-```python
-from edsl import Question
-
-Question.delete("1234abcd-abcd-1234-abcd-1234abcd1234") # mock uuid
-```
-
-This will return a status message:
-
-```json
-{'status': 'success'}
-```
-
-**Using a `Coop` client**
-
-Here we delete a question by calling the *delete()* method on a `Coop` client object, passing the uuid of the object:
-
-```python
-from edsl import Coop
-
-c = Coop()
-c.delete(uuid="1234abcd-abcd-1234-abcd-1234abcd1234") # mock uuid
-```
-
-This will return the same status message as above (so long as the object was not already deleted).
-
-### Projects
-
-You can create a project at the Expected Parrot platform by selecting the option to **Create a project** at the top right of the page.
-
-You can also create a project by calling the *create_project()* method on a `Coop` client object:
-
-```python
-from edsl import Coop
-
-c = Coop()
-c.create_project(
-  project_name = "My project",
-  description = "This is a project",
-  visibility = "public"
+coop = Coop()
+objects = coop.list(
+    object_type=["survey", "results"],
+    visibility="private",
+    search_query="Customer feedback",
+    page=1,
+    page_size=20,
+    sort_ascending=False,
 )
+objects.select("uuid", "object_type", "description", "visibility")
+# In a script, append .print() to display the selected metadata.
 ```
+
+| Argument | Meaning |
+| --- | --- |
+| `object_type` | One type or a list, such as `"survey"`, `"results"`, `"agent_list"`, or `"scenario_list"`. Omit to include all types. |
+| `visibility` | One value or a list drawn from `private`, `unlisted`, and `public`. |
+| `search_query` | Search descriptions; this does not search the contents of questions or answers. |
+| `page` | Page number, starting at **1**. |
+| `page_size` | Objects per page, from 1 to 100. |
+| `sort_ascending` | `False` returns the most recently created objects first. |
+| `community` | `False` searches objects you own or that are shared with you. `True` searches public objects owned by other users. |
+
+The returned collection exposes `current_page`, `total_pages`, `page_size`, and `total_count`. To retrieve another page, call `coop.list()` again with the same filters and a different `page` value. Fetching one page does not fetch all matches.
+
+You can also filter the metadata you have already downloaded:
+
+```python
+surveys_on_page = objects.filter("object_type == 'survey'")
+surveys_on_page.select("uuid", "description")
+```
+
+This local filter returns a ScenarioList and only examines the current page. Use `object_type="survey"` in `coop.list()` to filter the search across all matching objects.
+
+## Retrieve the listed objects
+
+Listing metadata does not download each object's contents. Call `fetch()` on the original collection to download all objects on that page:
+
+```python
+downloaded = objects.fetch()  # A Python list of EDSL objects.
+```
+
+To download only the surveys selected above, retrieve each by its object UUID:
+
+```python
+surveys = [
+    coop.pull(item["uuid"], expected_object_type="survey")
+    for item in surveys_on_page
+]
+```
+
+For a known object UUID or URL, `coop.pull(identifier, expected_object_type="results")` retrieves the Results object directly; `Results.pull(identifier)` is the class-specific alternative. `coop.get()` also retrieves and deserializes objects. These identifiers refer to stored objects. Use the [background jobs guide](/en/latest/guides/background_jobs#find-jobs-with-filters-and-pagination) to find execution records and obtain their results UUIDs.
+
+## Update and share
+
+`coop.patch(survey_uuid, description="Revised description")` updates metadata. Supply `value=updated_survey` to replace object content deliberately. Preserve a local version before updating a shared definition that collaborators may rely on.
+
+Read metadata without downloading the object with `coop.get_metadata(survey_uuid)`. `coop.patch_metadata(survey_uuid, description="Revised description", visibility="private")` changes metadata without replacing the object contents.
+
+Use Python methods for access management:
+
+```python
+coop.get_object_shared_users(survey_uuid)
+# To grant access to a particular person:
+# coop.share_object(survey_uuid, username_or_email="collaborator@example.com")
+# To remove their access later:
+# coop.unshare_object(survey_uuid, username_or_email="collaborator@example.com")
+```
+
+Sharing and unsharing change who can access the remote object. Private, unlisted, and public visibility have different access implications; choose the appropriate setting before sharing a link. The [CLI alternatives](/en/latest/cli) are `ep shared`, `ep share`, and `ep unshare`.
+
+## Delete a remote object
+
+`coop.delete(survey_uuid)` deletes the remote object. Use it only when that deletion is intended. It is separate from removing a local file. The CLI equivalent is `ep delete`, which requires explicit confirmation in automated use.
+
+## Research materials and provenance
+
+Keep questions, logic, source data, model settings, prompts, results, and the EDSL version needed to interpret a run. Use [Notebooks](/en/latest/notebooks) to share supporting notebooks or scripts and [Saving objects](/en/latest/guides/saving_objects) for local versioning.
+
+## Common methods
+
+These client methods contact Expected Parrot and require configured access. `url_or_uuid` can be a stored object's URL or UUID.
+
+| Call | Arguments and result |
+| --- | --- |
+| `coop.push(object, description=..., visibility="private")` | Upload an EDSL object and return its remote metadata, including its UUID. |
+| `coop.pull(url_or_uuid, expected_object_type="results")` | Download and deserialize a stored object; optionally require a particular type. |
+| `coop.get(url_or_uuid, expected_object_type="survey")` | Retrieve and deserialize an object; optionally require a particular type. |
+| `coop.list(object_type="survey", page=1, page_size=10)` | Retrieve a page of accessible objects, optionally filtered by type. |
+| `coop.patch(url_or_uuid, description=...)` | Update supplied metadata fields. Use `value=updated_object` to replace the stored content. |
+| `coop.delete(url_or_uuid)` | Delete the remote object when you intend to remove it. |

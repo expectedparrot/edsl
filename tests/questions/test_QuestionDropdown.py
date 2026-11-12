@@ -20,7 +20,7 @@ valid_question_with_details = {
     ],
     "question_name": "restaurant_choice",
     "sample_indices": [0, 1, 2],
-    "max_options_shown": 2,
+    "top_k": 2,
 }
 
 large_question = {
@@ -33,7 +33,7 @@ large_question = {
     ],
     "question_name": "language_choice",
     "sample_indices": [0, 5, 10, 15, 20],
-    "max_options_shown": 5,
+    "top_k": 5,
 }
 
 
@@ -49,19 +49,19 @@ def test_QuestionDropdown_construction():
 
     # Default sample_indices should be first 10 options (or all if fewer than 10)
     assert q.sample_indices == [0, 1, 2, 3, 4, 5]
-    assert q.max_options_shown == 5  # default
+    assert q.top_k == 5  # default
 
     # Construction with details
     q_with_details = QuestionDropdown(**valid_question_with_details)
     assert isinstance(q_with_details, QuestionDropdown)
     assert q_with_details.question_options_details == valid_question_with_details["question_options_details"]
     assert q_with_details.sample_indices == [0, 1, 2]
-    assert q_with_details.max_options_shown == 2
+    assert q_with_details.top_k == 2
 
     # Large question with custom sample indices
     q_large = QuestionDropdown(**large_question)
     assert q_large.sample_indices == [0, 5, 10, 15, 20]
-    assert q_large.max_options_shown == 5
+    assert q_large.top_k == 5
 
 
 def test_QuestionDropdown_construction_errors():
@@ -146,12 +146,12 @@ def test_QuestionDropdown_bm25_search():
     # Test search with relevant keywords
     results = q.perform_bm25_search("big city urban", verbose=False)
     assert isinstance(results, list)
-    assert len(results) <= q.max_options_shown
+    assert len(results) <= q.top_k
     assert all(result in [str(opt) for opt in q.question_options] for result in results)
 
     # Test empty search terms
     results_empty = q.perform_bm25_search("", verbose=False)
-    assert len(results_empty) <= q.max_options_shown
+    assert len(results_empty) <= q.top_k
 
     # Test with top_k = 1 (similar to former feeling_lucky mode)
     limited_question = valid_question_with_details.copy()

@@ -235,10 +235,137 @@ class SurveyBranding(HumanizeSchemaBase):
     logo: Optional[SurveyLogo] = None
 
 
+# Caps on the assistant's private text, which the model reads on every turn.
+MAX_ASSISTANT_SYSTEM_PROMPT_CHARS = 20_000
+MAX_ASSISTANT_INSTRUCTIONS_CHARS = 4_000
+# Caps on what the chat displays, so a long line can't take over the panel.
+MAX_ASSISTANT_NAME_CHARS = 60
+MAX_ASSISTANT_EMPTY_STATE_CHARS = 120
+
+AssistantName = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True, min_length=1, max_length=MAX_ASSISTANT_NAME_CHARS
+    ),
+]
+AssistantEmptyStateText = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True, min_length=1, max_length=MAX_ASSISTANT_EMPTY_STATE_CHARS
+    ),
+]
+AssistantSystemPrompt = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True,
+        min_length=1,
+        max_length=MAX_ASSISTANT_SYSTEM_PROMPT_CHARS,
+    ),
+]
+AssistantInstructions = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True,
+        min_length=1,
+        max_length=MAX_ASSISTANT_INSTRUCTIONS_CHARS,
+    ),
+]
+
+
+class AssistantEmptyState(HumanizeSchemaBase):
+    """What the chat shows before the respondent writes. The assistant never speaks
+    first."""
+
+    # None: the built-in line for the assistant's role.
+    heading: Optional[AssistantEmptyStateText] = None
+    # None: the built-in placeholder.
+    placeholder: Optional[AssistantEmptyStateText] = None
+
+
+class SidebarPresentation(HumanizeSchemaBase):
+    """The chat in a resizable panel beside the form."""
+
+    type: Literal["sidebar"]
+    empty_state: AssistantEmptyState = Field(default_factory=AssistantEmptyState)
+    # The composer's placeholder once the chat has started. None: "Reply".
+    reply_placeholder: Optional[AssistantEmptyStateText] = None
+
+
+class ModalPresentation(HumanizeSchemaBase):
+    """A button in the corner that opens the chat over the page."""
+
+    type: Literal["modal"]
+    empty_state: AssistantEmptyState = Field(default_factory=AssistantEmptyState)
+    # The composer's placeholder once the chat has started. None: "Reply".
+    reply_placeholder: Optional[AssistantEmptyStateText] = None
+
+
+# How the chat appears, chosen by ``type``. A drawer on phones whatever the type.
+AssistantPresentation = Annotated[
+    Union[SidebarPresentation, ModalPresentation], Field(discriminator="type")
+]
+
+
+class AssistantQuestionOverride(HumanizeSchemaBase):
+    """One question's exceptions to the survey's assistant settings.
+
+    The switches default to on, so only ``false`` needs writing. ``chat`` and
+    ``context`` apply to the whole page holding the question: when pages are
+    groups, one question's ``false`` covers its group.
+    """
+
+    # False: the chat stays, but can't fill this question (a consent item, say).
+    fillable: bool = True
+    # False: no chat on the page holding this question.
+    chat: bool = True
+    # False: on later pages the assistant doesn't know about the page holding this
+    # question: not its answers, nor what was said there.
+    context: bool = True
+    # Extra guidance for the assistant while the question is on screen. Never shown
+    # to respondents.
+    instructions: Optional[AssistantInstructions] = None
+
+
+class AssistantModelConfig(HumanizeSchemaBase):
+    """The model the assistant's replies come from. Only OpenAI's gpt-5.5 for now."""
+
+    service: str = "openai"
+    name: str = "gpt-5.5"
+
+
+class SurveyAssistantSchema(HumanizeSchemaBase):
+    """The survey assistant: a chat beside the form that helps the respondent answer.
+
+    One block for the whole survey, since the conversation follows the respondent
+    from page to page; exceptions per question go in ``question_overrides``.
+    """
+
+    # Off unless set, so a block saved ahead of time doesn't switch it on.
+    enabled: bool = False
+    # None: the default name.
+    name: Optional[AssistantName] = None
+    # "express_intent" helps the respondent say what they think and doesn't
+    # recommend; "advise" may recommend answers.
+    role: Literal["express_intent", "advise"] = "express_intent"
+    # How the chat appears. Required: there is no default.
+    presentation: AssistantPresentation
+    # A persona and survey-wide instructions for the assistant. Never shown to
+    # respondents.
+    system_prompt: Optional[AssistantSystemPrompt] = None
+    # False: the assistant can talk but never fills an answer.
+    can_fill_answers: bool = True
+    # A change applies from the assistant's next reply.
+    model: AssistantModelConfig = Field(default_factory=AssistantModelConfig)
+    # Keyed by question name. A survey message may appear too, setting only ``chat``.
+    question_overrides: Dict[str, AssistantQuestionOverride] = {}
+
+
 class SurveyHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the survey (e.g. custom styling)."""
 
     custom_css: Optional[str] = None
+    # Require an Expected Parrot account for browser respondents.
+    login_required: bool = False
     presentation: Literal["question", "group"] = "question"
     # How the respondent is shown their position in the survey. Defaults to the
     # bar that shipped before this field existed, so stored configs render
@@ -247,6 +374,8 @@ class SurveyHumanizeSchema(HumanizeSchemaBase):
     # None: no banner, which is how every survey stored before this field existed
     # renders. Assets it names are checked when the schema is written.
     branding: Optional[SurveyBranding] = None
+    # None: no assistant.
+    assistant: Optional[SurveyAssistantSchema] = None
 
 
 class CommentConfig(HumanizeSchemaBase):
@@ -359,6 +488,54 @@ class QuestionJavaScript(HumanizeSchemaBase):
 
 class FreeTextHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the free text question type."""
+
+    optional: bool = False
+    time_limit: Optional[TimeLimit] = None
+    comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
+
+
+class DropdownHumanizeSchema(HumanizeSchemaBase):
+    """Humanize options for searchable EDSL dropdown questions."""
+
+    optional: bool = False
+    time_limit: Optional[TimeLimit] = None
+    comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
+
+
+class DemandHumanizeSchema(HumanizeSchemaBase):
+    """Humanize options for the demand question type (no optionality)."""
+
+    time_limit: Optional[TimeLimit] = None
+    comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
+
+
+class DictHumanizeSchema(HumanizeSchemaBase):
+    """Humanize options for the dict question type (no optionality)."""
+
+    time_limit: Optional[TimeLimit] = None
+    comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
+
+
+class EditHumanizeSchema(HumanizeSchemaBase):
+    """Humanize options for the edit question type."""
+
+    optional: bool = False
+    time_limit: Optional[TimeLimit] = None
+    comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
+
+
+class EmailHumanizeSchema(HumanizeSchemaBase):
+    """Humanize options for the email question type."""
 
     optional: bool = False
     time_limit: Optional[TimeLimit] = None
@@ -1042,6 +1219,16 @@ class TopKHumanizeSchema(HumanizeSchemaBase):
     javascript: Optional[QuestionJavaScript] = None
 
 
+class URLHumanizeSchema(HumanizeSchemaBase):
+    """Humanize options for the URL question type."""
+
+    optional: bool = False
+    time_limit: Optional[TimeLimit] = None
+    comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
+
+
 class YesNoHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the yes/no question type."""
 
@@ -1071,9 +1258,14 @@ HumanizeQuestionSchema = Union[
     FreeTextHumanizeSchema,
     BudgetHumanizeSchema,
     DistributionHumanizeSchema,
+    DropdownHumanizeSchema,
     CheckboxHumanizeSchema,
     CheckboxWithOtherHumanizeSchema,
     ComputeHumanizeSchema,
+    DemandHumanizeSchema,
+    DictHumanizeSchema,
+    EditHumanizeSchema,
+    EmailHumanizeSchema,
     FileUploadHumanizeSchema,
     ImageGenerationHumanizeSchema,
     InterviewHumanizeSchema,
@@ -1086,6 +1278,7 @@ HumanizeQuestionSchema = Union[
     NumericalHumanizeSchema,
     RankHumanizeSchema,
     TopKHumanizeSchema,
+    URLHumanizeSchema,
     YesNoHumanizeSchema,
     SurveyMessageHumanizeSchema,
 ]
@@ -1105,9 +1298,14 @@ QUESTION_TYPE_TO_HUMANIZE_CLASS: Dict[str, Type[BaseModel]] = {
     "free_text": FreeTextHumanizeSchema,
     "budget": BudgetHumanizeSchema,
     "distribution": DistributionHumanizeSchema,
+    "dropdown": DropdownHumanizeSchema,
     "checkbox": CheckboxHumanizeSchema,
     "checkbox_with_other": CheckboxWithOtherHumanizeSchema,
     "compute": ComputeHumanizeSchema,
+    "demand": DemandHumanizeSchema,
+    "dict": DictHumanizeSchema,
+    "edit": EditHumanizeSchema,
+    "email": EmailHumanizeSchema,
     "file_upload": FileUploadHumanizeSchema,
     "image_generation": ImageGenerationHumanizeSchema,
     "interview": InterviewHumanizeSchema,
@@ -1120,6 +1318,7 @@ QUESTION_TYPE_TO_HUMANIZE_CLASS: Dict[str, Type[BaseModel]] = {
     "numerical": NumericalHumanizeSchema,
     "rank": RankHumanizeSchema,
     "top_k": TopKHumanizeSchema,
+    "url": URLHumanizeSchema,
     "yes_no": YesNoHumanizeSchema,
     "survey_message": SurveyMessageHumanizeSchema,
 }

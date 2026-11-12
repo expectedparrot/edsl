@@ -221,5 +221,42 @@ def test_QuestionDict_simulation():
     assert all(isinstance(item, str) for item in answer["ingredients"])
 
 
+def test_QuestionDict_bool_values():
+    """bool and list[bool] keys take booleans."""
+    q = QuestionDict(
+        question_name="triage",
+        question_text="Triage this ticket.",
+        answer_keys=["urgent", "flags"],
+        value_types=["bool", "list[bool]"],
+    )
+
+    result = q._validate_answer({"answer": {"urgent": True, "flags": [False, True]}})
+    assert result["answer"] == {"urgent": True, "flags": [False, True]}
+
+    # Lenient, like int and float: common boolean spellings are converted.
+    result = q._validate_answer({"answer": {"urgent": "false", "flags": ["yes", 0]}})
+    assert result["answer"] == {"urgent": False, "flags": [True, False]}
+
+    with pytest.raises(QuestionAnswerValidationError):
+        q._validate_answer({"answer": {"urgent": "maybe", "flags": []}})
+    with pytest.raises(QuestionAnswerValidationError):
+        q._validate_answer({"answer": {"urgent": True, "flags": [2]}})
+
+    assert q._simulate_answer()["answer"] == {"urgent": True, "flags": [True]}
+
+
+def test_QuestionDict_bool_type_object():
+    """Passing the bool type itself works like the "bool" string."""
+    q = QuestionDict(
+        question_name="triage",
+        question_text="Triage this ticket.",
+        answer_keys=["urgent"],
+        value_types=[bool],
+    )
+    assert q.value_types == ["bool"]
+    result = q._validate_answer({"answer": {"urgent": True}})
+    assert result["answer"] == {"urgent": True}
+
+
 if __name__ == "__main__":
     pytest.main([__file__])

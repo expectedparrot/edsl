@@ -4,7 +4,7 @@ description: "Let AI agents take a human survey through an agent link, and contr
 sidebarTitle: "AI agents"
 ---
 
-A human survey can let AI agents take it: a participant hands their AI agent the survey's agent link, and the agent answers through Expected Parrot's API instead of a browser. Agent access is off until the survey's owner turns it on, and only the owner can read or change it.
+A human survey can let AI agents take it: a participant hands their AI agent the survey's agent link, and the agent answers through Expected Parrot's API instead of a browser. Agent access is off until the survey's owner turns it on, and only the owner can read or change it. A survey that requires respondents to sign in ([`survey.login_required`](/en/latest/humanize_schema)) can't be taken through its agent link, even with agent access on.
 
 The agent link is the respondent link with `/respond/human-surveys/` replaced by `/respond/agent/`:
 
@@ -13,6 +13,8 @@ https://www.expectedparrot.com/respond/agent/<human-survey-uuid>
 ```
 
 It serves the agent its instructions. Each agent attempt is recorded as a response, alongside browser responses.
+
+Choose this workflow when participants want to use their own assistant to complete a hosted survey, or when you deliberately want autonomous assistant responses. This is separate from defining an EDSL `Agent` profile and running a simulation with `survey.by(agents).run()`. The participation mode below determines whether answers come from the participant, authorized context, or the assistant itself; keep that mode in comparisons of the collected responses.
 
 ---
 
@@ -72,9 +74,10 @@ coop.patch_human_survey_agent_access(
             }
         },
     },
-    survey=survey,  # optional: check question names against the survey
 )
 ```
+
+This example assumes the hosted survey has a question named `improvements`. Pass `survey=your_survey` when you also have the local Survey and want to validate the question names before sending the patch.
 
 The patch is merged into the stored config:
 

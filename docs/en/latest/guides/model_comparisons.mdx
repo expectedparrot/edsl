@@ -1,0 +1,61 @@
+---
+title: "Comparing models"
+description: "Apply selected models to matched inputs and inspect disagreement."
+---
+
+import Example from '/snippets/examples/scenarios.mdx';
+
+Different models can interpret the same request differently, even when they must choose from the same answer options. A model comparison sends matched inputs to several models and puts their answers side by side. This is useful when choosing a model for a labeling task, examining whether a finding depends on the model, or identifying records that deserve closer review.
+
+Here you will ask two models to classify the sentiment of the same three feedback messages. EDSL handles the repeated interviews; the comparison table lets you see where their labels agree or differ.
+
+## Prepare one task for every model
+
+The example below creates a multiple-choice question and three scenarios. Each scenario carries a `record_id` so its answers can be matched across models, and a `feedback` field that fills the placeholder in the question. The `job` asks the question separately for each record:
+
+<Example />
+
+Use `job` for the comparison below. The final lines also demonstrate `question.loop(feedback)`, which creates a `variant_survey` containing three distinct questions in one interview. That alternative is useful when the records belong together in one questionnaire; the separate-interview design here keeps one answer column and one row per record and model.
+
+## Select two available models
+
+With [model access configured](/en/latest/api_keys), display the model catalog:
+
+```python
+from edsl import Model, ModelList
+
+Model.available()
+```
+
+Choose two model identifiers and their inference services from the catalog, then replace the placeholders below. The models can be from the same service or different services. A ModelList groups them so you can attach both to the existing job in one call:
+
+```python
+models = ModelList([
+    Model("MODEL_A", service_name="SERVICE_A"),
+    Model("MODEL_B", service_name="SERVICE_B"),
+])
+comparison_job = job.by(models)
+```
+
+You can also discover models from the terminal with `ep models --text`. See [Language models](/en/latest/language_models) for catalog filters and model parameters.
+
+## Compare answers for each record
+
+Three records times two models gives six interviews for one iteration. The following code runs them, selects the record identifier, model name, and answer, then rearranges those six rows into a table with one column per model:
+
+```python
+results = comparison_job.run()
+frame = results.select("scenario.record_id", "model.model", "answer.sentiment").to_pandas()
+comparison = frame.pivot(index="scenario.record_id", columns="model.model", values="answer.sentiment")
+comparison
+```
+
+Use two distinct model names and one iteration for this pivot. Its three rows line up the answers for `f1`, `f2`, and `f3`, so a disagreement is visible on the same row. Read those rows alongside the original feedback: differences may reveal ambiguous text, different interpretations of the categories, or a model error. Agreement tells you whether the models made the same choice; [human reference labels](/en/latest/research/human_validation) let you assess whether that choice matches your intended classification.
+
+## Adapt the comparison
+
+You can reuse this pattern with any EDSL survey, including numerical ratings, free-text critiques, and questions about [files or images](/en/latest/scenarios#data-and-files). Choose models that support the input types your survey uses.
+
+To compare configurations of one model, put multiple instances of that model in a ModelList with different supported parameters. Retain the parameter columns in the results: the model name alone will no longer identify a configuration. Similarly, `comparison_job.run(n=3)` produces three iterations for each record and model; retain the `iteration` field instead of using the single-answer pivot above. [Results](/en/latest/results) explains selecting and grouping these fields.
+
+If the question is how instructions affect an answer, keep the model fixed and use the [Prompt sensitivity](/en/latest/research/prompt_sensitivity) design. If you simply want to run one chosen model, attach it directly with `job.by(model)`; a ModelList is only needed for the multi-model comparison.

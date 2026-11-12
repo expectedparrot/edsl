@@ -4,13 +4,15 @@ description: "CSS classes and HTML structure for styling human-facing surveys wi
 sidebarTitle: "Custom CSS"
 ---
 
-Every question component supported by humanize has `edsl-*` CSS classes so you can customise the survey appearance.
+Custom CSS changes the appearance of a human survey, such as text size, spacing, colors, and logo dimensions. Use it to adapt the questionnaire to your study's visual design. For choices such as dropdowns, optional questions, or grouped pages, use the [Humanize schema](/en/latest/humanize_schema).
+
+The examples below use CSS selectors to identify parts of the survey: `.edsl-question-text`, for example, selects question wording. The HTML reference shows the structure EDSL generates; you do not need to write that HTML yourself.
 
 ## Applying custom CSS
 
 ### When creating a human survey
 
-Pass your CSS string in the `humanize_schema` under `survey.custom_css`.
+The following example gives the survey a light-gray background and makes question text bold and dark gray. Pass the CSS string under `survey.custom_css`; the other schema entries make the rating a dropdown and feedback optional.
 
 ```python
 from edsl import Survey, QuestionFreeText, QuestionMultipleChoice
@@ -43,7 +45,7 @@ humanize_schema = {
 survey.humanize(humanize_schema=humanize_schema)
 ```
 
-Pass `"survey": {"custom_css": None}` (or omit `custom_css`) to create the survey without any custom CSS.
+Use `survey.preview(humanize_schema=humanize_schema)` to inspect the appearance before publishing, including how long questions and answer options fit on a phone. Pass `"survey": {"custom_css": None}` (or omit `custom_css`) to create the survey without custom styling.
 
 ### Updating CSS on an existing human survey
 
