@@ -78,14 +78,20 @@ class EmailResponseValidator(ResponseValidatorABC):
             candidate = answer[local_start:domain_end]
 
             # Quotes and backticks can be wrappers, but they are also allowed
-            # in local parts. Treat them as wrappers only when they are paired.
-            if (
-                candidate
-                and candidate[0] in self._wrapping_quotes
-                and domain_end < len(answer)
-                and answer[domain_end] == candidate[0]
+            # in local parts. Remove them only where the opening run mirrors
+            # the closing run, so ``ann@x.com`` and '`ann@x.com`' lose every
+            # wrapper while an unpaired leading quote stays in the address.
+            closing_end = domain_end
+            while (
+                closing_end < len(answer)
+                and answer[closing_end] in self._wrapping_quotes
             ):
-                candidate = candidate[1:]
+                closing_end += 1
+            closing = answer[domain_end:closing_end]
+            for size in range(min(len(closing), len(candidate)), 0, -1):
+                if candidate[:size] == closing[:size][::-1]:
+                    candidate = candidate[size:]
+                    break
 
             normalized = self._normalize_candidate(candidate)
             if normalized is None:
