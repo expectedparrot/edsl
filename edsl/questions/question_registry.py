@@ -124,7 +124,7 @@ class Question(metaclass=Meta):
 
         >>> from edsl import Question
         >>> Question.list_question_types()
-        ['checkbox', 'checkbox_with_other', 'compute', 'demand', 'diagram', 'dict', 'distribution', 'dropdown', 'edsl_object', 'extract', 'file_upload', 'free_text', 'functional', 'group_discussion', 'image_generation', 'interview', 'likert_five', 'linear_scale', 'list', 'markdown', 'matrix', 'matrix_with_text', 'multiple_choice', 'multiple_choice_with_other', 'numerical', 'pydantic', 'random', 'rank', 'survey_message', 'thinking', 'top_k', 'url', 'yes_no']
+        ['checkbox', 'checkbox_with_other', 'compute', 'demand', 'diagram', 'dict', 'distribution', 'dropdown', 'edit', 'edsl_object', 'email', 'extract', 'file_upload', 'free_text', 'functional', 'group_discussion', 'image_generation', 'interview', 'likert_five', 'linear_scale', 'list', 'markdown', 'matrix', 'matrix_with_text', 'multiple_choice', 'multiple_choice_with_other', 'numerical', 'pydantic', 'random', 'rank', 'survey_message', 'thinking', 'top_k', 'url', 'yes_no']
         """
         return [
             q
@@ -170,7 +170,6 @@ class Question(metaclass=Meta):
             )
 
 
-
 def get_question_class(question_type):
     """Return the class for the given question type."""
     q2c = RegisterQuestionsMeta.question_types_to_classes()
@@ -188,6 +187,7 @@ question_purpose = {
     "multiple_choice_with_other": "When options are known but you want to allow for custom responses",
     "checkbox_with_other": "When multiple options can be selected and custom responses are allowed",
     "free_text": "When options are unknown or unlimited",
+    "edit": "When respondents should revise supplied text",
     "checkbox": "When multiple options can be selected",
     "numerical": "When the answer is a single numerical value e.g., a float",
     "linear_scale": "When options are text, but can be ordered, e.g., daily, weekly, monthly, etc.",

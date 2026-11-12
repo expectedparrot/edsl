@@ -364,6 +364,8 @@ class SurveyHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the survey (e.g. custom styling)."""
 
     custom_css: Optional[str] = None
+    # Require an Expected Parrot account for browser respondents.
+    login_required: bool = False
     presentation: Literal["question", "group"] = "question"
     # How the respondent is shown their position in the survey. Defaults to the
     # bar that shipped before this field existed, so stored configs render
@@ -486,6 +488,54 @@ class QuestionJavaScript(HumanizeSchemaBase):
 
 class FreeTextHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the free text question type."""
+
+    optional: bool = False
+    time_limit: Optional[TimeLimit] = None
+    comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
+
+
+class DropdownHumanizeSchema(HumanizeSchemaBase):
+    """Humanize options for searchable EDSL dropdown questions."""
+
+    optional: bool = False
+    time_limit: Optional[TimeLimit] = None
+    comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
+
+
+class DemandHumanizeSchema(HumanizeSchemaBase):
+    """Humanize options for the demand question type (no optionality)."""
+
+    time_limit: Optional[TimeLimit] = None
+    comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
+
+
+class DictHumanizeSchema(HumanizeSchemaBase):
+    """Humanize options for the dict question type (no optionality)."""
+
+    time_limit: Optional[TimeLimit] = None
+    comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
+
+
+class EditHumanizeSchema(HumanizeSchemaBase):
+    """Humanize options for the edit question type."""
+
+    optional: bool = False
+    time_limit: Optional[TimeLimit] = None
+    comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
+
+
+class EmailHumanizeSchema(HumanizeSchemaBase):
+    """Humanize options for the email question type."""
 
     optional: bool = False
     time_limit: Optional[TimeLimit] = None
@@ -1169,6 +1219,16 @@ class TopKHumanizeSchema(HumanizeSchemaBase):
     javascript: Optional[QuestionJavaScript] = None
 
 
+class URLHumanizeSchema(HumanizeSchemaBase):
+    """Humanize options for the URL question type."""
+
+    optional: bool = False
+    time_limit: Optional[TimeLimit] = None
+    comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
+
+
 class YesNoHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the yes/no question type."""
 
@@ -1198,9 +1258,14 @@ HumanizeQuestionSchema = Union[
     FreeTextHumanizeSchema,
     BudgetHumanizeSchema,
     DistributionHumanizeSchema,
+    DropdownHumanizeSchema,
     CheckboxHumanizeSchema,
     CheckboxWithOtherHumanizeSchema,
     ComputeHumanizeSchema,
+    DemandHumanizeSchema,
+    DictHumanizeSchema,
+    EditHumanizeSchema,
+    EmailHumanizeSchema,
     FileUploadHumanizeSchema,
     ImageGenerationHumanizeSchema,
     InterviewHumanizeSchema,
@@ -1213,6 +1278,7 @@ HumanizeQuestionSchema = Union[
     NumericalHumanizeSchema,
     RankHumanizeSchema,
     TopKHumanizeSchema,
+    URLHumanizeSchema,
     YesNoHumanizeSchema,
     SurveyMessageHumanizeSchema,
 ]
@@ -1232,9 +1298,14 @@ QUESTION_TYPE_TO_HUMANIZE_CLASS: Dict[str, Type[BaseModel]] = {
     "free_text": FreeTextHumanizeSchema,
     "budget": BudgetHumanizeSchema,
     "distribution": DistributionHumanizeSchema,
+    "dropdown": DropdownHumanizeSchema,
     "checkbox": CheckboxHumanizeSchema,
     "checkbox_with_other": CheckboxWithOtherHumanizeSchema,
     "compute": ComputeHumanizeSchema,
+    "demand": DemandHumanizeSchema,
+    "dict": DictHumanizeSchema,
+    "edit": EditHumanizeSchema,
+    "email": EmailHumanizeSchema,
     "file_upload": FileUploadHumanizeSchema,
     "image_generation": ImageGenerationHumanizeSchema,
     "interview": InterviewHumanizeSchema,
@@ -1247,6 +1318,7 @@ QUESTION_TYPE_TO_HUMANIZE_CLASS: Dict[str, Type[BaseModel]] = {
     "numerical": NumericalHumanizeSchema,
     "rank": RankHumanizeSchema,
     "top_k": TopKHumanizeSchema,
+    "url": URLHumanizeSchema,
     "yes_no": YesNoHumanizeSchema,
     "survey_message": SurveyMessageHumanizeSchema,
 }
