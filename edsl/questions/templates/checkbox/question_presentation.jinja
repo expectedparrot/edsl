@@ -12,11 +12,14 @@
 {# Restrictions #}
 {% if min_selections != None and max_selections != None and min_selections == max_selections %}
 You must select exactly {{min_selections}} options.
+{% if exclusive_options %}An exclusive option may instead be selected by itself.{% endif %}
 {% elif min_selections != None and max_selections != None %}
 Minimum number of options that must be selected: {{min_selections}}.
+{% if exclusive_options %}An exclusive option may instead be selected by itself, even if that is below the minimum.{% endif %}
 Maximum number of options that must be selected: {{max_selections}}.
 {% elif min_selections != None %}
 Minimum number of options that must be selected: {{min_selections}}.
+{% if exclusive_options %}An exclusive option may instead be selected by itself, even if that is below the minimum.{% endif %}
 {% elif max_selections != None %}
 Maximum number of options that must be selected: {{max_selections}}.
 {% endif %}

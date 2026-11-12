@@ -6,6 +6,7 @@ Please respond only with a comma-separated list in square brackets. Use the opti
 {% endif %}
 {% if exclusive_options %}
 Each of these options must be selected by itself and never with another option or a custom response: {% if use_code %}[{% for option in exclusive_options %}{{ question_options.index(option) }}{% if not loop.last %}, {% endif %}{% endfor %}]{% else %}{{ exclusive_options }}{% endif %}.
+An exclusive option may be selected by itself even if that is fewer than the minimum number of selections.
 {% endif %}
 {% if include_comment %}
 After the answer, you can put a comment explaining your choice on the next line.

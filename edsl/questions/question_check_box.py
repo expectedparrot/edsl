@@ -446,6 +446,17 @@ class CheckBoxResponseValidator(ResponseValidatorABC):
         if verbose:
             print("Invalid response of QuestionCheckBox was: ", response)
 
+        # Do not silently discard selections to make an answer containing an
+        # exclusive option validate. This is especially important for
+        # checkbox-with-other, where generic option extraction cannot preserve
+        # custom responses such as "Other: Sushi".
+        original_exception = getattr(self, "original_exception", None)
+        original_message = getattr(original_exception, "message", "")
+        if "Exclusive options must be selected by themselves" in str(
+            original_message
+        ):
+            return response
+
         # Check if answer exists and is a comma-separated string (common LLM output format)
         if (
             "answer" in response
@@ -946,31 +957,50 @@ class QuestionCheckBox(QuestionBase):
         """
         from edsl.utilities.utilities import random_string
 
-        min_sel = self.min_selections or 1
-        max_sel = self.max_selections or len(self.question_options)
-        # Ensure we don't try to select more options than available
-        max_sel = min(max_sel, len(self.question_options))
-        min_sel = min(min_sel, max_sel)
+        options = list(self.question_options)
+        exclusive_options = [
+            option for option in options if option in self.exclusive_options
+        ]
+        regular_options = [
+            option for option in options if option not in self.exclusive_options
+        ]
+        minimum = self.min_selections if self.min_selections is not None else 1
+        maximum = (
+            self.max_selections
+            if self.max_selections is not None
+            else len(options)
+        )
+        maximum = min(maximum, len(options))
 
-        num_selections = random.randint(min_sel, max_sel)
+        can_choose_exclusive = bool(exclusive_options) and maximum >= 1
+        regular_minimum = minimum
+        if regular_minimum > len(regular_options):
+            if not can_choose_exclusive:
+                raise ValueError("No valid checkbox answer can be simulated")
+            regular_minimum = maximum + 1
+
+        choices = []
+        if can_choose_exclusive:
+            choices.append([random.choice(exclusive_options)])
+        if regular_minimum <= min(maximum, len(regular_options)):
+            count = random.randint(
+                regular_minimum, min(maximum, len(regular_options))
+            )
+            choices.append(random.sample(regular_options, count))
+        if not choices:
+            if minimum == 0 and maximum == 0:
+                selected_options = []
+            else:
+                raise ValueError("No valid checkbox answer can be simulated")
+        else:
+            selected_options = random.choice(choices)
 
         if human_readable:
-            # Select a random number of options from self.question_options
-            selected_options = random.sample(self.question_options, num_selections)
-            answer = {
-                "answer": selected_options,
-                "comment": random_string(),
-            }
+            selected_answer = selected_options
         else:
-            # Select a random number of indices from the range of self.question_options
-            selected_indices = random.sample(
-                range(len(self.question_options)), num_selections
-            )
-            answer = {
-                "answer": selected_indices,
-                "comment": random_string(),
-            }
-        return answer
+            option_indices = {option: index for index, option in enumerate(options)}
+            selected_answer = [option_indices[option] for option in selected_options]
+        return {"answer": selected_answer, "comment": random_string()}
 
     @property
     def question_html_content(self) -> str:
