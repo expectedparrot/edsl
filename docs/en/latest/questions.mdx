@@ -245,31 +245,6 @@ Choose a specialized type for the behavior you need:
 | `group_discussion` | Simulate discussion among configured `participants`, with `max_rounds`, `turn_order`, and optional decision settings. Several participant turns can incur model costs. |
 | `survey_message` | Display a routable message without asking for an answer; see [Survey messages](/en/latest/survey_messages). |
 
-In model runs, `QuestionDemand.prices` can use a numeric list from an earlier
-question. EDSL resolves the list before building the prompt and response
-validator, which requires one quantity for each price:
-
-```python
-from edsl import QuestionDemand, QuestionList, Survey
-
-grid = QuestionList(
-    question_name="grid",
-    question_text="List five plausible prices as numbers, from low to high.",
-    max_list_items=5,
-)
-demand = QuestionDemand(
-    question_name="demand",
-    question_text="How many units would you buy at each price?",
-    prices="{{ grid.answer }}",
-)
-survey = Survey([grid, demand])
-```
-
-The earlier answer must be a list of numeric values (or numeric strings that
-can be converted to numbers). The prompt shows those prices, and the answer
-validator checks that the demand response has one quantity for each price.
-This piping path has not been verified in Humanize.
-
 For example, define a text-edit question:
 
 ```python
