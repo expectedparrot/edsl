@@ -156,9 +156,7 @@ def test_run_reports_partial_results(tmp_path, monkeypatch):
     # A minimal answered row: `ep run` reads each result for its completion
     # summary, but this CLI metadata test shouldn't invoke an example model run.
     fake_results = Results(data=[{"answer": {"q0": "hi"}}])
-    fake_results.task_history = SimpleNamespace(
-        unfixed_exceptions=[{"q0": "failed"}]
-    )
+    fake_results.task_history = SimpleNamespace(unfixed_exceptions=[{"q0": "failed"}])
     monkeypatch.setattr(Jobs, "run", lambda self, **kwargs: fake_results)
     monkeypatch.setattr(
         run_command,
