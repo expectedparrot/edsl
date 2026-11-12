@@ -132,7 +132,8 @@ Output:
         "name": "Customer feedback",
         "visibility": "private",
         "created_ts": "2026-07-04T12:00:00Z",
-        "n_responses": 12
+        "n_complete": 12,
+        "n_in_progress": 3
       }
     ],
     "page": 1,
@@ -221,7 +222,8 @@ Output:
     "uuid": "human-survey-uuid",
     "admin_url": "https://www.expectedparrot.com/home/human-surveys/human-survey-uuid",
     "respondent_url": "https://www.expectedparrot.com/respond/human-surveys/human-survey-uuid",
-    "n_responses": 0,
+    "n_complete": 0,
+    "n_in_progress": 0,
     "survey_uuid": "survey-uuid",
     "agent_list_uuid": null,
     "scenario_list_uuid": null,
@@ -259,7 +261,8 @@ Output:
     "uuid": "human-survey-uuid",
     "admin_url": "https://www.expectedparrot.com/home/human-surveys/human-survey-uuid",
     "respondent_url": "https://www.expectedparrot.com/respond/human-surveys/human-survey-uuid",
-    "n_responses": 12,
+    "n_complete": 12,
+    "n_in_progress": 3,
     "survey_uuid": "survey-uuid",
     "agent_list_uuid": null,
     "scenario_list_uuid": null
@@ -275,7 +278,7 @@ Fetch human responses and optionally save them.
 Backs onto:
 
 ```python
-Coop.get_human_survey_responses(human_survey_uuid)
+Coop.get_human_survey_responses(human_survey_uuid, include_partial=...)
 ```
 
 Flags:
@@ -283,6 +286,7 @@ Flags:
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `--output`, `-o` | path | null | Save as `.ep`, `.json`, or `.json.gz` |
+| `--include-partial` | bool | false | Also fetch responses still in progress |
 
 Output without `--output`:
 
@@ -291,6 +295,7 @@ Output without `--output`:
   "status": "ok",
   "data": {
     "human_survey_uuid": "human-survey-uuid",
+    "include_partial": false,
     "object_type": "Results",
     "result_count": 12
   },
@@ -305,6 +310,7 @@ Output with `--output`:
   "status": "ok",
   "data": {
     "human_survey_uuid": "human-survey-uuid",
+    "include_partial": false,
     "object_type": "Results",
     "result_count": 12,
     "saved": {
@@ -321,6 +327,8 @@ Output with `--output`:
 Notes:
 
 - `get_human_survey_responses()` may return a `Results` object or `ScenarioList` fallback.
+- Without `--include-partial`, only completed responses are returned. With it, responses still in progress are included too, holding the answers submitted so far; unanswered questions read as `None`. Each result's `agent.response_status` is `complete` or `in_progress`, and `agent.last_activity_at` is when the respondent last moved the response forward. An in-progress response can come back later with more answers or as complete, so combine downloads by `agent.response_uuid`.
+- `n_complete` and `n_in_progress` (from `list` and `status`) count finished responses and responses still being taken.
 - The save helper must support both. Existing `_save_results()` supports Results only; implementation should add `_save_edsl_object(obj, output_path)` or branch for ScenarioList.
 
 ### `edsl humanize qr <human_survey_uuid>`
