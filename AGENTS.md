@@ -539,6 +539,7 @@ ep humanize create --jobs jobs.ep --scenario_method randomize
 ep humanize list --page 1 --page_size 20
 ep humanize status <human_survey_uuid>
 ep humanize responses <human_survey_uuid> --output responses.ep
+ep humanize responses <human_survey_uuid> --include-partial --output responses.ep
 ep humanize qr <human_survey_uuid> --output qr.png
 ep humanize preview --survey survey.ep --schema humanize.json
 ```

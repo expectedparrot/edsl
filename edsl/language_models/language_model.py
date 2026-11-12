@@ -838,7 +838,8 @@ class LanguageModel(
         Args:
             raw_response: The complete response dictionary from the model API
             is_free_text: If True, the full model text is the answer (no
-                COMMENT:/newline splitting). Used for ``free_text`` questions.
+                COMMENT:/newline splitting). Used for ``free_text`` and
+                ``edit`` questions.
 
         Returns:
             EDSLOutput: Standardized output structure with answer and optional comment
@@ -1074,8 +1075,9 @@ class LanguageModel(
             iteration: The iteration number (default: 1)
             files_list: Optional list of files to include in the prompt
             **kwargs: Additional parameters (invigilator, response_schema,
-                question_type, etc.). For ``question_type="free_text"``,
-                ``parse_response`` is called with ``is_free_text=True``.
+                question_type, etc.). For ``question_type="free_text"`` or
+                ``question_type="edit"``, ``parse_response`` is called with
+                ``is_free_text=True`` so the complete response remains literal.
 
         Returns:
             AgentResponseDict: Complete response object with inputs, raw outputs, and parsed data
@@ -1107,7 +1109,7 @@ class LanguageModel(
         if "response_schema_name" in kwargs:
             params.update({"response_schema_name": kwargs["response_schema_name"]})
 
-        is_free_text = kwargs.get("question_type") == "free_text"
+        is_free_text = kwargs.get("question_type") in {"free_text", "edit"}
 
         # Create structured input record
         model_inputs = ModelInputs(user_prompt=user_prompt, system_prompt=system_prompt)

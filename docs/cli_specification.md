@@ -678,6 +678,7 @@ edsl humanize create --jobs jobs.ep --scenario_method randomize
 edsl humanize list --page 1 --page_size 20
 edsl humanize status <human_survey_uuid>
 edsl humanize responses <human_survey_uuid> --output responses.ep
+edsl humanize responses <human_survey_uuid> --include-partial --output responses.ep
 edsl humanize qr <human_survey_uuid> --output qr.png
 edsl humanize preview --survey survey.ep --schema humanize.json
 edsl humanize schema validate --survey survey.ep --schema humanize.json
