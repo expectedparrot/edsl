@@ -235,5 +235,37 @@ def test_QuestionDemand_different_prices():
     assert len(q3.prices) == 5
 
 
+def test_dynamic_prices_preserve_final_survey_answer():
+    from edsl import Model, QuestionList, Survey
+
+    responses = iter(["[0.5, 1.5, 3.0]", "[10,5,2]"])
+    model = Model(
+        "test",
+        func=lambda user_prompt, system_prompt, files_list: next(responses),
+    )
+    price_grid = QuestionList(
+        question_name="grid",
+        question_text="Provide three numeric prices.",
+        max_list_items=3,
+    )
+    demand = QuestionDemand(
+        question_name="demand",
+        question_text="How many units would you buy at each price?",
+        prices="{{ grid.answer }}",
+    )
+
+    results = Survey([price_grid, demand]).by(model).run(
+        disable_remote_inference=True,
+        disable_remote_cache=True,
+        cache=False,
+    )
+
+    assert results.select("demand").first() == [
+        {"$0.50": 10.0},
+        {"$1.50": 5.0},
+        {"$3.00": 2.0},
+    ]
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

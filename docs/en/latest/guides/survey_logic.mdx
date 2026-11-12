@@ -7,7 +7,7 @@ import Example from '/snippets/examples/survey_logic.mdx';
 
 Survey logic lets an interview respond to the answers it receives. You can screen out respondents who have not used a product, ask a follow-up about a problem they described, or repeat a question for each item they name. These patterns are useful whenever asking everyone the same fixed sequence would produce irrelevant questions.
 
-Three EDSL features work together here. **Branching** decides which question comes next. **Piping** inserts an earlier answer into a later question's wording. **Memory** gives the model earlier questions and answers as context when it answers a later question. A survey can use any combination of these features.
+Three EDSL features work together here. **Branching** decides which question comes next. **Piping** inserts an earlier answer into a later question's wording, options, or prices. **Memory** gives the model earlier questions and answers as context when it answers a later question. A survey can use any combination of these features.
 
 ## Build a follow-up interview
 
@@ -29,6 +29,48 @@ results.select("answer.used", "answer.problem", "answer.followup")
 ```
 
 This returns one interview with an answer column for each question; skipped questions have no substantive answer. To ask the same survey of several profiles or about several products, attach [agents](/en/latest/agents) or [scenarios](/en/latest/scenarios) with `survey.by(...)` before running it. For a closing message on an early-exit path, see [Survey messages](/en/latest/survey_messages).
+
+## Pipe answers into options and prices
+
+Piping isn't limited to question wording. A question's choices can come from an earlier list answer: set `question_options` to a template instead of a list. The example below asks which of the features named earlier matters most:
+
+```python
+from edsl import QuestionList, QuestionMultipleChoice, Survey
+
+features = QuestionList(
+    question_name="features",
+    question_text="List up to three features you use.",
+    max_list_items=3,
+)
+favorite = QuestionMultipleChoice(
+    question_name="favorite",
+    question_text="Which of these features matters most to you?",
+    question_options="{{ features.answer }}",
+)
+survey = Survey([features, favorite])
+```
+
+If the first answer is `["exports", "search", "sharing"]`, those three features are the options for `favorite`. The results record the options each interview used in `question_options.favorite_question_options`. For respondent surveys, including options looked up from a scenario, see [Set question options from an earlier answer](/en/latest/humanize#set-question-options-from-an-earlier-answer).
+
+A demand question's `prices` can come from an earlier answer the same way, so one question can produce a price grid and the next can ask for quantities at those prices. In model runs, EDSL resolves the list before building the prompt and response validator, which requires one quantity for each price:
+
+```python
+from edsl import QuestionDemand, QuestionList, Survey
+
+grid = QuestionList(
+    question_name="grid",
+    question_text="List five plausible prices as numbers, from low to high.",
+    max_list_items=5,
+)
+demand = QuestionDemand(
+    question_name="demand",
+    question_text="How many units would you buy at each price?",
+    prices="{{ grid.answer }}",
+)
+survey = Survey([grid, demand])
+```
+
+The earlier answer must be a list of numeric values (or numeric strings that can be converted to numbers). The prompt shows those prices, and the answer validator checks that the demand response has one quantity for each price.
 
 ## Choose which prior answers a model sees
 
