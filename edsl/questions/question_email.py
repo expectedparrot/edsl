@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from typing import Optional
 from uuid import uuid4
 
@@ -29,27 +28,77 @@ class EmailResponseValidator(ResponseValidatorABC):
         ({"answer": "missing-domain@"}, {}, "Answer must be a valid email address."),
     ]
 
-    _email_candidate_pattern = re.compile(
-        r"(?<![\w.+-])[\w.!#$%&'*+/=?^`{|}~-]+@[\w.-]+", re.UNICODE
-    )
+    _local_part_extra_chars = frozenset(".!#$%&'*+/=?^`{|}~-")
+    _domain_extra_chars = frozenset(".-_")
+    _wrapping_quotes = frozenset("\"'`")
+
+    @classmethod
+    def _is_local_part_char(cls, char: str) -> bool:
+        return char == "_" or char.isalnum() or char in cls._local_part_extra_chars
+
+    @classmethod
+    def _is_domain_char(cls, char: str) -> bool:
+        return char.isalnum() or char in cls._domain_extra_chars
+
+    @staticmethod
+    def _normalize_candidate(candidate: str) -> Optional[str]:
+        try:
+            return str(EmailResponse.model_validate({"answer": candidate}).answer)
+        except Exception:
+            return None
 
     def fix(self, response: dict, verbose: bool = False) -> dict:
-        """Recover and validate the first email address embedded in a reply."""
+        """Recover the first valid email address embedded in a reply.
+
+        Scan from each ``@`` so malformed text without an at-sign does not
+        trigger repeated regex backtracking. Validate the complete candidate
+        before trimming punctuation, since several punctuation characters are
+        valid at the start of an email local part.
+        """
         answer = response.get("answer")
         if isinstance(answer, dict):
             answer = answer.get("answer")
         if not isinstance(answer, str):
             return response
 
-        for match in self._email_candidate_pattern.finditer(answer):
-            candidate = match.group(0).strip(".,;:!?)]}>\"'`")
-            try:
-                normalized = EmailResponse.model_validate({"answer": candidate}).answer
-            except Exception:
-                continue
-            fixed_response = dict(response)
-            fixed_response["answer"] = str(normalized)
-            return fixed_response
+        at_index = answer.find("@")
+        while at_index != -1:
+            local_start = at_index
+            while local_start > 0 and self._is_local_part_char(
+                answer[local_start - 1]
+            ):
+                local_start -= 1
+
+            domain_end = at_index + 1
+            while domain_end < len(answer) and self._is_domain_char(
+                answer[domain_end]
+            ):
+                domain_end += 1
+
+            candidate = answer[local_start:domain_end]
+
+            # Quotes and backticks can be wrappers, but they are also allowed
+            # in local parts. Treat them as wrappers only when they are paired.
+            if (
+                candidate
+                and candidate[0] in self._wrapping_quotes
+                and domain_end < len(answer)
+                and answer[domain_end] == candidate[0]
+            ):
+                candidate = candidate[1:]
+
+            normalized = self._normalize_candidate(candidate)
+            if normalized is None:
+                trimmed_candidate = candidate.strip(".,;:!?)]}>\"'`")
+                if trimmed_candidate != candidate:
+                    normalized = self._normalize_candidate(trimmed_candidate)
+
+            if normalized is not None:
+                fixed_response = dict(response)
+                fixed_response["answer"] = normalized
+                return fixed_response
+
+            at_index = answer.find("@", at_index + 1)
 
         return response
 
