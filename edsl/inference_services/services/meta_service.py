@@ -149,6 +149,7 @@ class MetaService(OpenAIService):
                 return {
                     "model": self.model,
                     "input": input_messages,
+                    "max_output_tokens": self.max_tokens,
                     "stream": False,
                 }
 

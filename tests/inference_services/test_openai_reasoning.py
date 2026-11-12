@@ -115,13 +115,13 @@ def test_unspecified_effort_and_defaults(monkeypatch, service, name, options):
         assert request_effort(service, params) == (
             "medium" if known_reasoning else None
         )
-        assert params["max_completion_tokens"] == (5000 if known_reasoning else 1000)
+        assert params["max_completion_tokens"] == (2000 if name == "gpt-4o" else 16000)
     else:
         assert request_effort(service, params) is None
         assert params.get("reasoning") == (
             {"summary": "auto"} if known_reasoning else None
         )
-        assert params["max_output_tokens"] == (16000 if known_reasoning else 2000)
+        assert params["max_output_tokens"] == (2000 if name == "gpt-4o" else 16000)
     if not known_reasoning:
         assert "reasoning_effort" not in params
         assert "reasoning" not in params
@@ -201,7 +201,7 @@ def test_invalid_reasoning_dictionary_fails_visibly(monkeypatch, reasoning):
 def test_builder_defaults_do_not_raise_explicit_token_limits():
     assert (
         OpenAIParameterBuilder.build_params("gpt-6-astra", [])["max_completion_tokens"]
-        == 5000
+        == 16000
     )
     params = OpenAIParameterBuilder.build_params("gpt-6-astra", [], max_tokens=64)
     assert params["max_completion_tokens"] == 64

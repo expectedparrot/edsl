@@ -198,11 +198,14 @@ def register(jobs_group: click.Group) -> None:
                 "status": status.get("status") if status else None,
                 "result_count": len(results_obj) if hasattr(results_obj, "__len__") else None,
             }
+            if status is not None:
+                data["cost_reconciliation"] = results_obj.reconcile_job_cost(status, notify=False)
             if output_path:
                 data["saved"] = save_results(results_obj, output_path)
                 if raw_output_written(data["saved"]):
                     return
-            output(data)
+            reconciliation = data.get("cost_reconciliation", {})
+            output(data, warnings=[reconciliation["message"]] if reconciliation.get("status") == "mismatch" else [])
         except SystemExit:
             raise
         except Exception as e:
@@ -390,9 +393,20 @@ def register(jobs_group: click.Group) -> None:
                         scenarios=obj.scenarios,
                     )
             cost_data = Coop().remote_inference_cost(obj, iterations=iterations)
+            from edsl.language_models.output_token_policy import (
+                model_token_policy,
+                token_limit_warnings,
+            )
+
+            cost_data["output_token_policies"] = [
+                model_token_policy(m) for m in getattr(obj, "models", [])
+            ]
             cost_warnings = [
                 {"code": "COST_ESTIMATE_UNCERTAIN", "message": message}
-                for message in (cost_data.get("warnings") or [])
+                for message in [
+                    *(cost_data.get("warnings") or []),
+                    *token_limit_warnings(getattr(obj, "models", [])),
+                ]
             ]
             output(jsonable(cost_data), warnings=cost_warnings)
         except SystemExit:

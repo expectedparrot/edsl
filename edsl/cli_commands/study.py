@@ -67,7 +67,7 @@ def _orientation(root: Path, topic: str, summary_limit: int) -> dict:
 def study(ctx):
     """Allocate and scaffold reproducible study workspaces."""
     if ctx.invoked_subcommand is None:
-        output({"commands": ["start", "scaffold"], "help": "Use 'ep study <command> --help' for details."})
+        output({"commands": ["start", "scaffold", "contract"], "help": "Use 'ep study <command> --help' for details."})
 
 
 @study.command("start")
@@ -147,4 +147,7 @@ def scaffold(path: Path, root: Path | None, study_type: str, template: str | Non
 
 
 def register(app):
+    from .study_contract import contract
+
+    study.add_command(contract)
     app.add_command(study)
