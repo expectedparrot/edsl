@@ -358,8 +358,24 @@ def register(app: click.Group) -> None:
             meta["remote_job"] = jsonable(remote_status)
 
         if not background:
+            completion = (
+                results_obj.completion_summary()
+                if hasattr(results_obj, "completion_summary")
+                else None
+            )
+            if completion is not None:
+                meta["completion"] = completion
             task_history = getattr(results_obj, "task_history", None)
             failed_count = len(getattr(task_history, "unfixed_exceptions", []) or [])
+            if completion is not None:
+                failed_count = max(failed_count, completion["unsuccessful_interviews"])
+                if completion["truncated_responses"]:
+                    envelope_warnings.append(
+                        {
+                            "code": "TRUNCATED_RESPONSES",
+                            "message": f"{completion['truncated_responses']} responses reached a provider token limit; parsed answers remain available.",
+                        }
+                    )
             if remote_status is not None and str(
                 remote_status.get("status") or ""
             ).lower() in {"partial_failed", "partially_failed"}:
