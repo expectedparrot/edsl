@@ -25,7 +25,6 @@ class RemoteJobConstants:
 
     REMOTE_JOB_POLL_INTERVAL = 1
     REMOTE_JOB_VERBOSE = False
-    DISCORD_URL = "https://discord.com/invite/mxAYkjfy9m"
 
 
 @dataclass
@@ -319,7 +318,7 @@ class JobsRemoteInferenceHandler:
         if hasattr(job_info.logger, "job_completed"):
             job_info.logger.job_completed(JobsStatus.FAILED)
         job_info.logger.update(
-            f"Need support? [Visit Discord]({RemoteJobConstants.DISCORD_URL})",
+            "Need support? Email [info@expectedparrot.com](mailto:info@expectedparrot.com).",
             status=JobsStatus.FAILED,
         )
 
@@ -372,7 +371,7 @@ class JobsRemoteInferenceHandler:
             status=JobsStatus.PARTIALLY_FAILED,
         )
         job_info.logger.update(
-            f"Need support? [Visit Discord]({RemoteJobConstants.DISCORD_URL})",
+            "Need support? Email [info@expectedparrot.com](mailto:info@expectedparrot.com).",
             status=JobsStatus.PARTIALLY_FAILED,
         )
 

@@ -2,7 +2,8 @@ from __future__ import annotations
 from enum import Enum
 from typing import Union, Literal, Optional, List, Any
 
-from jinja2 import Template
+from ..utilities.jinja import safe_template as Template
+from jinja2.exceptions import SecurityError
 from pydantic import BaseModel, Field, StrictFloat, StrictInt
 
 from .question_base import QuestionBase
@@ -503,7 +504,7 @@ class QuestionMultipleChoice(QuestionBase):
         ```
 
     See also:
-        https://docs.expectedparrot.com/en/latest/questions#questionmultiplechoice-class
+        https://docs.expectedparrot.com/en/latest/questions#question-type-details
     """
 
     question_type = "multiple_choice"
@@ -741,6 +742,8 @@ class QuestionMultipleChoice(QuestionBase):
                     Template(str(option)).render(substitution_dict)
                     for option in question_options
                 ]
+            except SecurityError:
+                raise
             except Exception:
                 # In case where user used question_options = [{{scenario.opt1}, {{scenario.opt2}}]
                 from collections import defaultdict

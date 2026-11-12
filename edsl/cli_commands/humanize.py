@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import gzip
 import json
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -24,9 +25,27 @@ from edsl.cli_shared import (
     jsonable,
     load_git_object,
     load_openable_json,
+    private_output,
     output,
     read_serialized_object,
 )
+
+
+_ASSET_FORMATS_SUGGESTION = (
+    "Accepted formats: PNG, JPEG, WebP, and static GIF, at most 2 MB and 4096 "
+    "pixels on each side."
+)
+
+_ASSET_NOT_FOUND_PATTERN = re.compile(r"Asset [0-9a-fA-F-]{36} not found")
+_ASSET_NOT_FOUND_SUGGESTION = (
+    "That asset is not in your library, and you cannot see any survey that uses "
+    "it. Ask whoever shared the schema for the image file, then apply the schema "
+    "with --logo-file PATH to upload your own copy."
+)
+
+# Stands in for the uuid of a --logo-file upload while the schema is built and
+# validated, so that nothing is uploaded for a command that fails locally.
+_PENDING_LOGO_ASSET_UUID = "00000000-0000-0000-0000-000000000000"
 
 
 def register(humanize: click.Group) -> None:
@@ -39,11 +58,12 @@ def register(humanize: click.Group) -> None:
         Examples:
           ep humanize schema create --survey survey.ep --optional feedback --output humanize.json
           ep humanize schema validate --survey survey.ep --schema humanize.json
+          ep humanize schema get <uuid> --out humanize.json
           ep humanize schema set <uuid> --format rating=dropdown --comment rating="Why?"
         """
         if ctx.invoked_subcommand is None:
             output({
-                "commands": ["create", "validate", "patch", "set"],
+                "commands": ["create", "validate", "get", "patch", "set"],
                 "help": "Use 'ep humanize schema <command> --help' for details.",
             })
 
@@ -56,6 +76,24 @@ def register(humanize: click.Group) -> None:
             output({
                 "commands": ["patch"],
                 "help": "Use 'ep humanize css <command> --help' for details.",
+            })
+
+
+    @humanize.group("assets", invoke_without_command=True)
+    @click.pass_context
+    def humanize_assets(ctx):
+        """Manage the image library your surveys' branding draws from.
+
+        \b
+        Examples:
+          ep humanize assets upload lab_logo.png
+          ep humanize assets list
+          ep humanize assets get <asset-uuid> -o logo.png
+        """
+        if ctx.invoked_subcommand is None:
+            output({
+                "commands": ["upload", "list", "get", "delete"],
+                "help": "Use 'ep humanize assets <command> --help' for details.",
             })
 
 
@@ -110,13 +148,24 @@ def register(humanize: click.Group) -> None:
             })
 
 
+    @humanize.group("agent-access", invoke_without_command=True)
+    @click.pass_context
+    def humanize_agent_access(ctx):
+        """Manage whether AI agents may take a human survey through its agent link."""
+        if ctx.invoked_subcommand is None:
+            output({
+                "commands": ["get", "patch"],
+                "help": "Use 'ep humanize agent-access <command> --help' for details.",
+            })
+
+
     @humanize.group("prolific", invoke_without_command=True)
     @click.pass_context
     def humanize_prolific(ctx):
         """Manage Prolific studies for human surveys."""
         if ctx.invoked_subcommand is None:
             output({
-                "commands": ["filters", "cost", "create", "publish", "responses"],
+                "commands": ["filters", "cost", "settings", "create", "publish", "responses"],
                 "help": "Use 'ep humanize prolific <command> --help' for details.",
             })
 
@@ -201,6 +250,19 @@ def register(humanize: click.Group) -> None:
             error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
 
 
+    @humanize_prolific.command("settings")
+    def humanize_prolific_settings():
+        """Show whose Prolific account new studies run on, and the participant limit."""
+        try:
+            from edsl.coop import Coop
+
+            output(jsonable(Coop().get_prolific_study_settings()))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
+
+
     @humanize_prolific.command("create")
     @click.argument("human_survey_uuid")
     @click.option("--config", "config_path", required=True, type=click.Path(exists=True), help="Prolific study config JSON.")
@@ -219,15 +281,51 @@ def register(humanize: click.Group) -> None:
             error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
 
 
+    @humanize_prolific.command("preflight")
+    @click.argument("human_survey_uuid")
+    @click.argument("study_id")
+    @click.option("--survey", "survey_path", type=click.Path(exists=True), help="Expected saved Survey; compare with the deployed survey.")
+    @click.option("--require-question", multiple=True, help="Required deployed question name; repeat as needed.")
+    @click.option("--required-credits", type=float, help="All-in credits including any AI reserve; defaults to recruitment only.")
+    def humanize_prolific_preflight(human_survey_uuid, study_id, survey_path, require_question, required_credits):
+        """Check a draft's deployed content and balance without publishing."""
+        try:
+            from edsl.coop import Coop
+            from edsl import Survey
+
+            check = Coop().preflight_prolific_study(
+                human_survey_uuid, study_id,
+                expected_survey=Survey.load(survey_path) if survey_path else None,
+                required_questions=list(require_question), required_credits=required_credits,
+            )
+            output(jsonable(check))
+            if not check["ready"]:
+                raise SystemExit(EXIT_VALIDATION)
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
+
     @humanize_prolific.command("publish")
     @click.argument("human_survey_uuid")
     @click.argument("study_id")
-    def humanize_prolific_publish(human_survey_uuid, study_id):
-        """Publish a Prolific study."""
+    @click.option("--survey", "survey_path", type=click.Path(exists=True), help="Expected saved Survey; compare with the deployed survey.")
+    @click.option("--require-question", multiple=True, help="Required deployed question name; repeat as needed.")
+    @click.option("--required-credits", type=float, help="All-in credits including any AI reserve; defaults to recruitment only.")
+    def humanize_prolific_publish(human_survey_uuid, study_id, survey_path, require_question, required_credits):
+        """Publish an authorized Prolific study after fresh preflight checks."""
         try:
             from edsl.coop import Coop
+            from edsl import Survey
 
-            output(jsonable(Coop().publish_prolific_study(human_survey_uuid, study_id)))
+            options = {}
+            if survey_path:
+                options["expected_survey"] = Survey.load(survey_path)
+            if require_question:
+                options["required_questions"] = list(require_question)
+            if required_credits is not None:
+                options["required_credits"] = required_credits
+            output(jsonable(Coop().publish_prolific_study(human_survey_uuid, study_id, **options)))
         except SystemExit:
             raise
         except Exception as e:
@@ -345,7 +443,7 @@ def register(humanize: click.Group) -> None:
 
     @humanize_schema.command("create")
     @click.option("--survey", "survey_path", required=True, type=click.Path(exists=True), help="Survey .ep, JSON, or package directory.")
-    @click.option("--output", "-o", "output_path", default=None, help="Write schema JSON to this path. Omit to return it in the JSON envelope.")
+    @click.option("--output", "-o", "output_path", default=None, help="Write schema JSON to this path. Use a .json.gz suffix for gzip. Omit to return it in the JSON envelope.")
     @click.option("--optional", "optional_questions", multiple=True, help="Question to mark optional. Repeat or use 'all'.")
     @click.option("--required", "required_questions", multiple=True, help="Question to mark required. Repeat or use 'all'.")
     @click.option("--format", "format_specs", multiple=True, help="QUESTION=radio|dropdown|input. Repeat for multiple questions.")
@@ -362,6 +460,12 @@ def register(humanize: click.Group) -> None:
     @click.option("--checklist-hidden", "hidden_checklist_questions", multiple=True, help="Question whose checklist is hidden from participants.")
     @click.option("--checklist-visible", "visible_checklist_questions", multiple=True, help="Question whose checklist is visible to participants.")
     @click.option("--custom-css", "custom_css_path", default=None, type=click.Path(exists=True), help="CSS file to store in survey.custom_css.")
+    @click.option("--javascript", "javascript_specs", multiple=True, help="QUESTION:HOOK=FILE JavaScript file to run on a question hook, e.g. rating:question.ready=rating.js. Repeat for multiple questions or hooks.")
+    @click.option("--logo-asset", "logo_asset", default=None, help="Asset UUID to show as the survey's logo. Upload one with 'ep humanize assets upload'.")
+    @click.option("--logo-file", "logo_file", default=None, type=click.Path(exists=True), help="Not available here: upload with 'ep humanize assets upload', then pass --logo-asset.")
+    @click.option("--logo-alt", "logo_alt", default=None, help="Alt text naming the organization the logo identifies, e.g. \"Acme Research logo\".")
+    @click.option("--logo-decorative", "logo_decorative", is_flag=True, default=False, help="Mark the logo decorative, rendering it with an empty alt.")
+    @click.option("--logo-position", "logo_position", default=None, type=click.Choice(["left", "center", "right"]), help="Where the logo sits in the banner. Omit to use the default.")
     @click.option("--back-button", is_flag=True, default=False, help="Enable Back navigation for respondents.")
     @click.option("--no-back-past", "no_back_past_questions", multiple=True, help="Question that acts as a Back navigation boundary.")
     def humanize_schema_create(
@@ -383,6 +487,12 @@ def register(humanize: click.Group) -> None:
         hidden_checklist_questions,
         visible_checklist_questions,
         custom_css_path,
+        javascript_specs,
+        logo_asset,
+        logo_file,
+        logo_alt,
+        logo_decorative,
+        logo_position,
         back_button,
         no_back_past_questions,
     ):
@@ -394,7 +504,18 @@ def register(humanize: click.Group) -> None:
           ep humanize schema create --survey survey.ep --optional feedback --format rating=dropdown --comment rating="Why?"
           ep humanize schema create --survey survey.ep --slider age:18:99:1 --output humanize.json
           ep humanize schema create --survey survey.ep --interview-mode interview=both --voice-language interview=spanish
+          ep humanize schema create --survey survey.ep --logo-asset <asset-uuid> --logo-alt "Acme Research logo"
+          ep humanize schema create --survey survey.ep --javascript rating:question.ready=rating.js --output humanize.json
         """
+        _validate_logo_flags(
+            allow_logo_file=False,
+            logo_asset=logo_asset,
+            logo_file=logo_file,
+            logo_alt=logo_alt,
+            logo_decorative=logo_decorative,
+            logo_position=logo_position,
+            clear_logo=False,
+        )
         try:
             survey = _load_survey_object(survey_path)
             schema = _build_humanize_schema_from_controls(
@@ -416,6 +537,12 @@ def register(humanize: click.Group) -> None:
                 hidden_checklist_questions=hidden_checklist_questions,
                 visible_checklist_questions=visible_checklist_questions,
                 custom_css_path=custom_css_path,
+                javascript_specs=javascript_specs,
+                logo_asset=logo_asset,
+                logo_alt=logo_alt,
+                logo_decorative=logo_decorative,
+                logo_position=logo_position,
+                clear_logo=False,
                 back_button=back_button,
                 no_back_past_questions=no_back_past_questions,
             )
@@ -438,23 +565,35 @@ def register(humanize: click.Group) -> None:
     @humanize.command("responses")
     @click.argument("human_survey_uuid")
     @click.option("--output", "-o", "output_path", default=None, help="Save responses to .ep, .json, or .json.gz.")
-    def humanize_responses(human_survey_uuid, output_path):
-        """Fetch human survey responses."""
+    @click.option(
+        "--include-partial",
+        "include_partial",
+        is_flag=True,
+        default=False,
+        help="Also fetch responses still in progress; agent.response_status tells them apart.",
+    )
+    def humanize_responses(human_survey_uuid, output_path, include_partial):
+        """Fetch human survey responses (completed only, unless --include-partial)."""
         try:
             from edsl.coop import Coop
 
-            response_obj = Coop().get_human_survey_responses(human_survey_uuid)
+            response_obj = Coop().get_human_survey_responses(
+                human_survey_uuid, include_partial=include_partial
+            )
             data = {
                 "human_survey_uuid": human_survey_uuid,
+                "include_partial": include_partial,
                 "object_type": type(response_obj).__name__,
                 "result_count": len(response_obj) if hasattr(response_obj, "__len__") else None,
             }
             if output_path:
                 data["saved"] = _save_edsl_object(response_obj, output_path)
             else:
+                # Repeat the flag, so the save gets the same responses just listed.
+                partial_flag = " --include-partial" if include_partial else ""
                 data["next_step"] = (
-                    f"Use 'ep humanize responses {human_survey_uuid} --output responses.ep' "
-                    "to save the response data."
+                    f"Use 'ep humanize responses {human_survey_uuid}{partial_flag} "
+                    "--output responses.ep' to save the response data."
                 )
             output(data)
         except SystemExit:
@@ -553,7 +692,10 @@ def register(humanize: click.Group) -> None:
                         row["qr_path"] = None
                         continue
                     qr_path = qr_directory / f"respondent-{respondent_uuid}.png"
-                    QRCode(url).save(str(qr_path))
+                    # Private, and replaced only by a complete image: each code is a
+                    # respondent's credential.
+                    with private_output(qr_path) as temp:
+                        QRCode(url).save(str(temp))
                     row["qr_path"] = str(qr_path)
                     qr_paths.append(str(qr_path))
                 column_names = list(rows[0]) if rows else ["qr_path"]
@@ -562,7 +704,10 @@ def register(humanize: click.Group) -> None:
                     for column in column_names
                 ])
 
-            links.to_csv(filename=output_path)
+            # Private, since the links are credentials, and swapped in only once
+            # written in full, so a failure never erases the previous export.
+            with private_output(output_path) as temp:
+                links.to_csv(filename=str(temp))
             output({
                 "human_survey_uuid": human_survey_uuid,
                 "saved_to": output_path,
@@ -591,6 +736,706 @@ def register(humanize: click.Group) -> None:
                 suggestion="Check that the survey has an attached agent list and that the output paths are writable.",
                 exit_code=EXIT_REMOTE,
             )
+
+
+    @humanize.command("events")
+    @click.argument("human_survey_uuid")
+    @click.option("--after", default=None, help="Only events after this event id, e.g. the next_cursor from an earlier run.")
+    @click.option("--limit", default=200, type=int, help="Events per request, at most 200.")
+    @click.option("--all", "fetch_all", is_flag=True, default=False, help="Fetch every event, not one batch. Requires --output.")
+    @click.option("--output", "-o", "output_path", default=None, type=click.Path(dir_okay=False), help="Save events to a .json or .jsonl file.")
+    @click.option("--count", "count_only", is_flag=True, default=False, help="Print how many events the survey has, and fetch none.")
+    @click.option("--include-previews", is_flag=True, default=False, help="Also include events from preview links, each marked is_preview.")
+    def humanize_events(human_survey_uuid, after, limit, fetch_all, output_path, count_only, include_previews):
+        """Get the events a human survey's custom JavaScript logged, oldest first.
+
+        Events from preview links are left out unless --include-previews. Each result
+        carries next_cursor: pass it back as --after, with the same --include-previews,
+        to get only newer events.
+
+        \b
+        Examples:
+          ep humanize events <uuid>
+          ep humanize events <uuid> --all --output events.jsonl
+          ep humanize events <uuid> --all --after <next_cursor> --output new.jsonl
+          ep humanize events <uuid> --count
+        """
+        if count_only and (fetch_all or output_path or after):
+            _humanize_usage_error("--count cannot be combined with --all, --after or --output.")
+        # Payloads hold whatever an author's script chose to log, which can be
+        # sensitive, so a whole log goes to a file rather than the terminal.
+        if fetch_all and not output_path:
+            _humanize_usage_error("--all requires --output.")
+        file_format = _events_file_format(output_path) if output_path else None
+        try:
+            from edsl.coop import Coop
+
+            coop = Coop()
+            if count_only:
+                output({
+                    "human_survey_uuid": human_survey_uuid,
+                    "total": coop.count_human_survey_events(
+                        human_survey_uuid, include_previews=include_previews
+                    ),
+                })
+                return
+            if fetch_all:
+                batches = coop._iter_human_survey_event_batches(
+                    human_survey_uuid,
+                    after=after,
+                    limit=limit,
+                    include_previews=include_previews,
+                )
+            else:
+                batch = coop.get_human_survey_events(
+                    human_survey_uuid,
+                    after=after,
+                    limit=limit,
+                    include_previews=include_previews,
+                )
+                if not output_path:
+                    output(jsonable(batch))
+                    return
+                batches = [batch]
+            event_count, last_batch = _stream_events_to_file(
+                batches, output_path, file_format
+            )
+            output({
+                "human_survey_uuid": human_survey_uuid,
+                "saved_to": output_path,
+                "format": file_format,
+                "event_count": event_count,
+                "next_cursor": last_batch["next_cursor"] if last_batch else after,
+                "has_more": bool(last_batch and last_batch["has_more"]),
+            })
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "HUMANIZE_ERROR",
+                str(e),
+                suggestion="Check the human survey UUID, output path, and Expected Parrot API key.",
+                exit_code=EXIT_REMOTE,
+            )
+
+
+    @humanize.command("interactions")
+    @click.argument("human_survey_uuid")
+    @click.option("--after", default=None, help="Only rows after this one's id, e.g. the next_cursor from an earlier run.")
+    @click.option("--limit", default=100, type=int, help="Rows per request, at most 100.")
+    @click.option("--response", "response_uuid", default=None, help="Only this response's rows.")
+    @click.option("--all", "fetch_all", is_flag=True, default=False, help="Fetch every row, not one batch. Requires --output.")
+    @click.option("--output", "-o", "output_path", default=None, type=click.Path(dir_okay=False), help="Save rows to a .json or .jsonl file.")
+    @click.option("--count", "count_only", is_flag=True, default=False, help="Print how many rows there are, and fetch none.")
+    @click.option("--include-previews", is_flag=True, default=False, help="Also include rows from preview links, each marked is_preview.")
+    def humanize_interactions(human_survey_uuid, after, limit, response_uuid, fetch_all, output_path, count_only, include_previews):
+        """Get a survey's interaction trace, in the order rows were received: what
+        respondents did on a survey with the AI assistant on. Sort a response's rows
+        by session_started_at, then seq, for the order they happened.
+
+        Rows from preview links are left out unless --include-previews. Each result
+        carries next_cursor: pass it back as --after, with the same filters, to get
+        only newer rows.
+
+        \b
+        Examples:
+          ep humanize interactions <uuid>
+          ep humanize interactions <uuid> --all --output interactions.jsonl
+          ep humanize interactions <uuid> --response <response-uuid> --all -o one.json
+          ep humanize interactions <uuid> --count
+        """
+        if count_only and (fetch_all or output_path or after):
+            _humanize_usage_error("--count cannot be combined with --all, --after or --output.")
+        # Rows hold respondents' answers as they typed them, so a whole trace goes to
+        # a file rather than the terminal.
+        if fetch_all and not output_path:
+            _humanize_usage_error("--all requires --output.")
+        file_format = _events_file_format(output_path) if output_path else None
+        filters = {"response_uuid": response_uuid, "include_previews": include_previews}
+        try:
+            from edsl.coop import Coop
+
+            coop = Coop()
+            if count_only:
+                output({
+                    "human_survey_uuid": human_survey_uuid,
+                    "total": coop.count_human_survey_interactions(human_survey_uuid, **filters),
+                })
+                return
+            if fetch_all:
+                batches = coop._iter_human_survey_interaction_batches(
+                    human_survey_uuid, after=after, limit=limit, **filters
+                )
+            else:
+                batch = coop.get_human_survey_interactions(
+                    human_survey_uuid, after=after, limit=limit, **filters
+                )
+                if not output_path:
+                    output(jsonable(batch))
+                    return
+                batches = [batch]
+            row_count, last_batch = _stream_events_to_file(
+                batches, output_path, file_format, key="interactions"
+            )
+            output({
+                "human_survey_uuid": human_survey_uuid,
+                "saved_to": output_path,
+                "format": file_format,
+                "interaction_count": row_count,
+                "next_cursor": last_batch["next_cursor"] if last_batch else after,
+                "has_more": bool(last_batch and last_batch["has_more"]),
+            })
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "HUMANIZE_ERROR",
+                str(e),
+                suggestion="Check the human survey UUID, output path, and Expected Parrot API key.",
+                exit_code=EXIT_REMOTE,
+            )
+
+
+    @humanize.group("assistant", invoke_without_command=True)
+    @click.pass_context
+    def humanize_assistant(ctx):
+        """Get what a survey's AI assistant did: its conversations, turns and the
+        answers it filled.
+
+        \b
+        Examples:
+          ep humanize assistant conversations <uuid> --output conversations.jsonl
+          ep humanize assistant messages <uuid> --all --output messages.jsonl
+          ep humanize assistant turns <uuid> --all --output turns.jsonl
+          ep humanize assistant edits <uuid> --turn <turn-uuid>
+        """
+        if ctx.invoked_subcommand is None:
+            output({
+                "commands": ["summary", "conversations", "threads", "messages", "turns", "edits", "pages", "configs"],
+                "help": "Use 'ep humanize assistant <command> --help' for details.",
+            })
+
+    @humanize_assistant.command("threads")
+    @click.argument("human_survey_uuid")
+    @click.option("--after", default=None, help="Only threads after this one, e.g. the next_cursor from an earlier run.")
+    @click.option("--limit", default=100, type=int, help="Rows per request, at most 100.")
+    @click.option("--response", "response_uuid", default=None, help="Only this response's thread.")
+    @click.option("--all", "fetch_all", is_flag=True, default=False, help="Fetch every row, not one batch. Requires --output.")
+    @click.option("--output", "-o", "output_path", default=None, type=click.Path(dir_okay=False), help="Save rows to a .json or .jsonl file.")
+    @click.option("--include-previews", is_flag=True, default=False, help="Also include threads from preview links, each marked is_preview.")
+    def humanize_assistant_threads(human_survey_uuid, after, limit, response_uuid, fetch_all, output_path, include_previews):
+        """Get a survey's AI assistant threads, in the order they began: one per
+        response the assistant was offered to, whether or not the respondent
+        chatted, with its status, turn count, trace state and, for the survey's
+        owner, credits.
+
+        Rows from preview links are left out unless --include-previews. Each result
+        carries next_cursor: pass it back as --after, with the same filters, to get
+        only newer threads.
+
+        \b
+        Examples:
+          ep humanize assistant threads <uuid>
+          ep humanize assistant threads <uuid> --all --output threads.jsonl
+        """
+        _humanize_rows(
+            human_survey_uuid,
+            key="threads",
+            fetch_name="get_human_survey_assistant_threads",
+            iterate_name="_iter_human_survey_assistant_thread_batches",
+            after=after,
+            limit=limit,
+            fetch_all=fetch_all,
+            output_path=output_path,
+            filters={"response_uuid": response_uuid, "include_previews": include_previews},
+        )
+
+    @humanize_assistant.command("pages")
+    @click.argument("human_survey_uuid")
+    @click.option("--after", default=None, help="Only pages after this one, e.g. the next_cursor from an earlier run.")
+    @click.option("--limit", default=100, type=int, help="Rows per request, at most 100.")
+    @click.option("--response", "response_uuid", default=None, help="Only this response's pages.")
+    @click.option("--all", "fetch_all", is_flag=True, default=False, help="Fetch every row, not one batch. Requires --output.")
+    @click.option("--output", "-o", "output_path", default=None, type=click.Path(dir_okay=False), help="Save rows to a .json or .jsonl file.")
+    @click.option("--include-previews", is_flag=True, default=False, help="Also include preview links.")
+    def humanize_assistant_pages(human_survey_uuid, after, limit, response_uuid, fetch_all, output_path, include_previews):
+        """Get the pages a survey served with the AI assistant on, in the order
+        they were served: what each offered (whether the chat was shown, which
+        questions it could fill) and the config its turns ran on.
+
+        Rows from preview links are left out unless --include-previews. Each result
+        carries next_cursor: pass it back as --after, with the same filters, to get
+        only newer rows.
+
+        \b
+        Examples:
+          ep humanize assistant pages <uuid>
+          ep humanize assistant pages <uuid> --all --output pages.jsonl
+        """
+        _humanize_rows(
+            human_survey_uuid,
+            key="pages",
+            fetch_name="get_human_survey_assistant_pages",
+            iterate_name="_iter_human_survey_assistant_page_batches",
+            after=after,
+            limit=limit,
+            fetch_all=fetch_all,
+            output_path=output_path,
+            filters={"response_uuid": response_uuid, "include_previews": include_previews},
+        )
+
+    @humanize_assistant.command("configs")
+    @click.argument("human_survey_uuid")
+    @click.option("--after", default=None, help="Only configs after this one, e.g. the next_cursor from an earlier run.")
+    @click.option("--limit", default=20, type=int, help="Rows per request, at most 20.")
+    @click.option("--response", "response_uuid", default=None, help="Only the configs this response's pages ran on.")
+    @click.option("--all", "fetch_all", is_flag=True, default=False, help="Fetch every row, not one batch. Requires --output.")
+    @click.option("--output", "-o", "output_path", default=None, type=click.Path(dir_okay=False), help="Save rows to a .json or .jsonl file.")
+    @click.option("--include-previews", is_flag=True, default=False, help="Also include preview links.")
+    def humanize_assistant_configs(human_survey_uuid, after, limit, response_uuid, fetch_all, output_path, include_previews):
+        """Get the AI assistant configs a survey's pages were served with: the
+        settings with one page's question overrides, as served, and how many
+        pages ran on each. Question overrides make several configs even when
+        nothing changed during fielding.
+
+        Rows from preview links are left out unless --include-previews. Each result
+        carries next_cursor: pass it back as --after, with the same filters, to get
+        only newer rows.
+
+        \b
+        Examples:
+          ep humanize assistant configs <uuid>
+          ep humanize assistant configs <uuid> --all --output configs.jsonl
+        """
+        _humanize_rows(
+            human_survey_uuid,
+            key="configs",
+            fetch_name="get_human_survey_assistant_configs",
+            iterate_name="_iter_human_survey_assistant_config_batches",
+            after=after,
+            limit=limit,
+            fetch_all=fetch_all,
+            output_path=output_path,
+            filters={"response_uuid": response_uuid, "include_previews": include_previews},
+        )
+
+    @humanize_assistant.command("turns")
+    @click.argument("human_survey_uuid")
+    @click.option("--after", default=None, help="Only turns after this one, e.g. the next_cursor from an earlier run.")
+    @click.option("--limit", default=100, type=int, help="Rows per request, at most 100.")
+    @click.option("--response", "response_uuid", default=None, help="Only this response's turns.")
+    @click.option("--all", "fetch_all", is_flag=True, default=False, help="Fetch every row, not one batch. Requires --output.")
+    @click.option("--output", "-o", "output_path", default=None, type=click.Path(dir_okay=False), help="Save rows to a .json or .jsonl file.")
+    @click.option("--include-previews", is_flag=True, default=False, help="Also include turns from preview links, each marked is_preview.")
+    def humanize_assistant_turns(human_survey_uuid, after, limit, response_uuid, fetch_all, output_path, include_previews):
+        """Get a survey's AI assistant turns, in the order they ended: one per
+        respondent message it answered, with how it ended, timing, tokens, edit
+        counts, errors and, for the survey's owner, credits. No message text.
+
+        Rows from preview links are left out unless --include-previews. Each result
+        carries next_cursor: pass it back as --after, with the same filters, to get
+        only newer turns.
+
+        \b
+        Examples:
+          ep humanize assistant turns <uuid>
+          ep humanize assistant turns <uuid> --all --output turns.jsonl
+          ep humanize assistant turns <uuid> --response <response-uuid>
+        """
+        _humanize_rows(
+            human_survey_uuid,
+            key="turns",
+            fetch_name="get_human_survey_assistant_turns",
+            iterate_name="_iter_human_survey_assistant_turn_batches",
+            after=after,
+            limit=limit,
+            fetch_all=fetch_all,
+            output_path=output_path,
+            filters={"response_uuid": response_uuid, "include_previews": include_previews},
+        )
+
+    @humanize_assistant.command("edits")
+    @click.argument("human_survey_uuid")
+    @click.option("--after", default=None, help="Only edits after this one, e.g. the next_cursor from an earlier run.")
+    @click.option("--limit", default=100, type=int, help="Rows per request, at most 100.")
+    @click.option("--response", "response_uuid", default=None, help="Only this response's edits.")
+    @click.option("--turn", "turn", default=None, help="Only this turn's edits.")
+    @click.option("--all", "fetch_all", is_flag=True, default=False, help="Fetch every row, not one batch. Requires --output.")
+    @click.option("--output", "-o", "output_path", default=None, type=click.Path(dir_okay=False), help="Save rows to a .json or .jsonl file.")
+    @click.option("--include-previews", is_flag=True, default=False, help="Also include edits from preview links, each marked is_preview.")
+    def humanize_assistant_edits(human_survey_uuid, after, limit, response_uuid, turn, fetch_all, output_path, include_previews):
+        """Get the answers a survey's AI assistant asked to fill in, rejected ones
+        included, in the order their turns ended, with each one's latest outcome in
+        the form.
+
+        Rows from preview links are left out unless --include-previews. Each result
+        carries next_cursor: pass it back as --after, with the same filters, to get
+        only newer edits.
+
+        \b
+        Examples:
+          ep humanize assistant edits <uuid>
+          ep humanize assistant edits <uuid> --turn <turn-uuid>
+          ep humanize assistant edits <uuid> --all --output edits.jsonl
+        """
+        _humanize_rows(
+            human_survey_uuid,
+            key="edits",
+            fetch_name="get_human_survey_assistant_edits",
+            iterate_name="_iter_human_survey_assistant_edit_batches",
+            after=after,
+            limit=limit,
+            fetch_all=fetch_all,
+            output_path=output_path,
+            filters={
+                "response_uuid": response_uuid,
+                "turn": turn,
+                "include_previews": include_previews,
+            },
+        )
+
+    @humanize_assistant.command("messages")
+    @click.argument("human_survey_uuid")
+    @click.option("--after", default=None, help="Only turns after this one, e.g. the next_cursor from an earlier run.")
+    @click.option("--limit", default=100, type=int, help="Turns per request, at most 100.")
+    @click.option("--response", "response_uuid", default=None, help="Only this response's conversation.")
+    @click.option("--turn", "turn", default=None, help="Only this turn's rows.")
+    @click.option("--all", "fetch_all", is_flag=True, default=False, help="Fetch every row, not one batch. Requires --output.")
+    @click.option("--output", "-o", "output_path", default=None, type=click.Path(dir_okay=False), help="Save rows to a .json or .jsonl file.")
+    @click.option("--include-previews", is_flag=True, default=False, help="Also include rows from preview links, each marked is_preview.")
+    def humanize_assistant_messages(human_survey_uuid, after, limit, response_uuid, turn, fetch_all, output_path, include_previews):
+        """Get a survey's AI assistant conversations: one row per thing the chat
+        showed, each turn's rows together and in order.
+
+        Rows from preview links are left out unless --include-previews. Each result
+        carries next_cursor: pass it back as --after, with the same filters, to get
+        only newer turns.
+
+        \b
+        Examples:
+          ep humanize assistant messages <uuid> --all --output messages.jsonl
+          ep humanize assistant messages <uuid> --response <response-uuid>
+          ep humanize assistant messages <uuid> --turn <turn-uuid>
+        """
+        _humanize_rows(
+            human_survey_uuid,
+            key="messages",
+            fetch_name="get_human_survey_assistant_messages",
+            iterate_name="_iter_human_survey_assistant_message_batches",
+            after=after,
+            limit=limit,
+            fetch_all=fetch_all,
+            output_path=output_path,
+            filters={
+                "response_uuid": response_uuid,
+                "turn": turn,
+                "include_previews": include_previews,
+            },
+        )
+
+    @humanize_assistant.command("summary")
+    @click.argument("human_survey_uuid")
+    @click.option("--include-previews", is_flag=True, default=False, help="Also count preview links.")
+    def humanize_assistant_summary(human_survey_uuid, include_previews):
+        """Get a survey's AI assistant data in numbers: respondents offered and who
+        chatted, turns by status, the assistant's edits by outcome, the interaction
+        trace's size, settings versions and, for the survey's owner, credits.
+
+        Start here to decide what else to fetch.
+        """
+        try:
+            from edsl.coop import Coop
+
+            output(
+                Coop().get_human_survey_assistant_summary(
+                    human_survey_uuid, include_previews=include_previews
+                )
+            )
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "HUMANIZE_ERROR",
+                str(e),
+                suggestion="Check the human survey UUID and Expected Parrot API key.",
+                exit_code=EXIT_REMOTE,
+            )
+
+    @humanize_assistant.command("conversations")
+    @click.argument("human_survey_uuid")
+    @click.option("--response", "response_uuid", default=None, help="Only this response's rows.")
+    @click.option("--output", "-o", "output_path", default=None, type=click.Path(dir_okay=False), help="Save rows to a .json or .jsonl file. Required unless --response.")
+    @click.option("--include-previews", is_flag=True, default=False, help="Also include rows from preview links, each marked is_preview.")
+    def humanize_assistant_conversations(human_survey_uuid, response_uuid, output_path, include_previews):
+        """Get each respondent's survey with the AI assistant as the owner's page
+        shows it: the chat, the assistant's edits and everything the respondent
+        did, in one order, one row per thing that happened.
+
+        Rows are grouped by response, in position order; each row's kind decides
+        its fields. Rows from preview links are left out unless
+        --include-previews.
+
+        \b
+        Examples:
+          ep humanize assistant conversations <uuid> --output conversations.jsonl
+          ep humanize assistant conversations <uuid> --response <response-uuid>
+        """
+        # Rows hold what respondents wrote, so a whole survey goes to a file rather
+        # than the terminal.
+        if not response_uuid and not output_path:
+            _humanize_usage_error("--output is required unless --response is given.")
+        file_format = _events_file_format(output_path) if output_path else None
+        try:
+            from edsl.coop import Coop
+
+            rows = Coop().get_all_human_survey_assistant_conversations(
+                human_survey_uuid,
+                response_uuid=response_uuid,
+                include_previews=include_previews,
+            )
+            if not output_path:
+                output(jsonable({"conversations": rows}))
+                return
+            row_count, _ = _stream_events_to_file(
+                [{"conversations": rows}], output_path, file_format, key="conversations"
+            )
+            output({
+                "human_survey_uuid": human_survey_uuid,
+                "saved_to": output_path,
+                "format": file_format,
+                "row_count": row_count,
+            })
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "HUMANIZE_ERROR",
+                str(e),
+                suggestion="Check the human survey UUID, output path, and Expected Parrot API key.",
+                exit_code=EXIT_REMOTE,
+            )
+
+    def _humanize_rows(
+        human_survey_uuid, *, key, fetch_name, iterate_name, after, limit,
+        fetch_all, output_path, filters,
+    ):
+        """Print one batch of a collection, or save one batch or every batch to a
+        file: what each assistant data command does with its own Coop methods."""
+        # Rows can hold respondents' answers, so a whole collection goes to a file
+        # rather than the terminal.
+        if fetch_all and not output_path:
+            _humanize_usage_error("--all requires --output.")
+        file_format = _events_file_format(output_path) if output_path else None
+        try:
+            from edsl.coop import Coop
+
+            coop = Coop()
+            if fetch_all:
+                batches = getattr(coop, iterate_name)(
+                    human_survey_uuid, after=after, limit=limit, **filters
+                )
+            else:
+                batch = getattr(coop, fetch_name)(
+                    human_survey_uuid, after=after, limit=limit, **filters
+                )
+                if not output_path:
+                    output(jsonable(batch))
+                    return
+                batches = [batch]
+            row_count, last_batch = _stream_events_to_file(
+                batches, output_path, file_format, key=key
+            )
+            output({
+                "human_survey_uuid": human_survey_uuid,
+                "saved_to": output_path,
+                "format": file_format,
+                f"{key[:-1]}_count": row_count,
+                "next_cursor": last_batch["next_cursor"] if last_batch else after,
+                "has_more": bool(last_batch and last_batch["has_more"]),
+            })
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "HUMANIZE_ERROR",
+                str(e),
+                suggestion="Check the human survey UUID, output path, and Expected Parrot API key.",
+                exit_code=EXIT_REMOTE,
+            )
+
+    @humanize.group("background", invoke_without_command=True)
+    @click.pass_context
+    def humanize_background(ctx):
+        """Debug a survey's background questions (thinking and image generation
+        questions): how their runs went, and what the model was sent and returned.
+
+        \b
+        Examples:
+          ep humanize background summary <uuid>
+          ep humanize background runs <uuid> --failed
+          ep humanize background run <uuid> <run-uuid>
+        """
+        if ctx.invoked_subcommand is None:
+            output({
+                "commands": ["summary", "runs", "run"],
+                "help": "Use 'ep humanize background <command> --help' for details.",
+            })
+
+    @humanize_background.command("summary")
+    @click.argument("human_survey_uuid")
+    @click.option("--response", "response_uuid", default=None, help="Count only this response's runs.")
+    @click.option("--question", "question_name", default=None, help="Count only this question's runs.")
+    @click.option("--include-previews", is_flag=True, default=False, help="Also count runs from preview links.")
+    def humanize_background_summary(human_survey_uuid, response_uuid, question_name, include_previews):
+        """Get where a survey's background questions stand: runs by status,
+        failures by error kind, retries and the latest failure, overall and per
+        question.
+
+        Start here, then list the failing runs with 'runs --failed'.
+        """
+        try:
+            from edsl.coop import Coop
+
+            output(
+                Coop().get_human_survey_background_runs_summary(
+                    human_survey_uuid,
+                    response_uuid=response_uuid,
+                    question_name=question_name,
+                    include_previews=include_previews,
+                )
+            )
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "HUMANIZE_ERROR",
+                str(e),
+                suggestion="Check the human survey UUID and Expected Parrot API key.",
+                exit_code=EXIT_REMOTE,
+            )
+
+    @humanize_background.command("runs")
+    @click.argument("human_survey_uuid")
+    @click.option("--after", default=None, help="Only runs after this one, e.g. the next_cursor from an earlier run.")
+    @click.option("--limit", default=100, type=int, help="Rows per request, at most 200.")
+    @click.option("--response", "response_uuid", default=None, help="Only this response's runs.")
+    @click.option("--question", "question_name", default=None, help="Only this question's runs.")
+    @click.option("--status", "status", multiple=True, type=click.Choice(["queued", "running", "succeeded", "failed", "timed_out", "abandoned"]), help="Only runs with this status. Repeat for several.")
+    @click.option("--failed", "failed_only", is_flag=True, default=False, help="Only runs that ended without an answer (failed, timed_out, abandoned).")
+    @click.option("--all", "fetch_all", is_flag=True, default=False, help="Fetch every row, not one batch. Requires --output.")
+    @click.option("--output", "-o", "output_path", default=None, type=click.Path(dir_okay=False), help="Save rows to a .json or .jsonl file.")
+    @click.option("--include-previews", is_flag=True, default=False, help="Also include runs from preview links, each marked is_preview.")
+    def humanize_background_runs(human_survey_uuid, after, limit, response_uuid, question_name, status, failed_only, fetch_all, output_path, include_previews):
+        """Get a survey's background-question runs, oldest first, retries
+        included: the question, attempt, status, model, timing and, for a run that
+        failed, its error. For the survey's owner, credits. For the prompts and
+        the model's reply, use 'run'.
+
+        Rows from preview links are left out unless --include-previews. Each result
+        carries next_cursor: pass it back as --after, with the same filters, to get
+        only newer runs.
+
+        \b
+        Examples:
+          ep humanize background runs <uuid> --failed
+          ep humanize background runs <uuid> --question classify_feedback --status timed_out
+          ep humanize background runs <uuid> --all --output runs.jsonl
+        """
+        if failed_only and status:
+            _humanize_usage_error("Pass --failed or --status, not both.")
+        _humanize_rows(
+            human_survey_uuid,
+            key="runs",
+            fetch_name="get_human_survey_background_runs",
+            iterate_name="_iter_human_survey_background_run_batches",
+            after=after,
+            limit=limit,
+            fetch_all=fetch_all,
+            output_path=output_path,
+            filters={
+                "response_uuid": response_uuid,
+                "question_name": question_name,
+                "status": list(status) or None,
+                "failed_only": failed_only,
+                "include_previews": include_previews,
+            },
+        )
+
+    @humanize_background.command("run")
+    @click.argument("human_survey_uuid")
+    @click.argument("run_uuid")
+    def humanize_background_run(human_survey_uuid, run_uuid):
+        """Get one background-question run in full: the prompts as sent, after
+        piping, the files attached, the model and its parameters, the reply, the
+        answer recorded, token usage and, for a run that failed, its error.
+
+        \b
+        Examples:
+          ep humanize background run <uuid> <run-uuid>
+        """
+        try:
+            from edsl.coop import Coop
+
+            output(
+                jsonable(
+                    Coop().get_human_survey_background_run(human_survey_uuid, run_uuid)
+                )
+            )
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "HUMANIZE_ERROR",
+                str(e),
+                suggestion="Check the human survey UUID, the run UUID, and Expected Parrot API key.",
+                exit_code=EXIT_REMOTE,
+            )
+
+    @humanize.command("custom-js-access")
+    def humanize_custom_js_access():
+        """Check whether your account may use custom JavaScript in a humanize schema."""
+        try:
+            from edsl.coop import Coop
+
+            allowed = Coop().get_custom_js_access()
+            data = {"custom_js_allowed": allowed}
+            if not allowed:
+                data["next_step"] = (
+                    "Custom JavaScript is available on approved accounts only. "
+                    "Email info@expectedparrot.com to request access."
+                )
+            output(data)
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "HUMANIZE_ERROR",
+                str(e),
+                suggestion="Check your Expected Parrot API key with 'ep auth status'.",
+                exit_code=EXIT_REMOTE,
+            )
+
+
+    @humanize_schema.command("get")
+    @click.argument("human_survey_uuid")
+    @click.option("--out", "out_path", default=None, type=click.Path(), help="Write the schema to this file instead of stdout. Use a .json.gz suffix for gzip.")
+    def humanize_schema_get(human_survey_uuid, out_path):
+        """Get a deployed human survey's humanize schema."""
+        try:
+            from edsl.coop import Coop
+
+            schema = Coop().get_human_survey_humanize_schema(human_survey_uuid)
+            if out_path:
+                output({
+                    "human_survey_uuid": human_survey_uuid,
+                    "saved": _write_json_schema(schema, out_path),
+                })
+            else:
+                output(jsonable({"humanize_schema": schema}))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
 
 
     @humanize_schema.command("patch")
@@ -632,6 +1477,14 @@ def register(humanize: click.Group) -> None:
     @click.option("--checklist-hidden", "hidden_checklist_questions", multiple=True, help="Question whose checklist is hidden from participants.")
     @click.option("--checklist-visible", "visible_checklist_questions", multiple=True, help="Question whose checklist is visible to participants.")
     @click.option("--custom-css", "custom_css_path", default=None, type=click.Path(exists=True), help="CSS file to store in survey.custom_css.")
+    @click.option("--javascript", "javascript_specs", multiple=True, help="QUESTION:HOOK=FILE JavaScript file to run on a question hook, e.g. rating:question.ready=rating.js. Repeat for multiple questions or hooks.")
+    @click.option("--clear-javascript", "clear_javascript_questions", multiple=True, help="Question whose JavaScript to remove. Repeat for multiple questions.")
+    @click.option("--logo-asset", "logo_asset", default=None, help="Asset UUID to show as the survey's logo. Upload one with 'ep humanize assets upload'.")
+    @click.option("--logo-file", "logo_file", default=None, type=click.Path(exists=True), help="Image to upload and use as the logo, in one step.")
+    @click.option("--logo-alt", "logo_alt", default=None, help="Alt text naming the organization the logo identifies, e.g. \"Acme Research logo\".")
+    @click.option("--logo-decorative", "logo_decorative", is_flag=True, default=False, help="Mark the logo decorative, rendering it with an empty alt.")
+    @click.option("--logo-position", "logo_position", default=None, type=click.Choice(["left", "center", "right"]), help="Where the logo sits in the banner. Omit to leave it unchanged.")
+    @click.option("--clear-logo", "clear_logo", is_flag=True, default=False, help="Remove the survey's logo.")
     @click.option("--back-button", is_flag=True, default=False, help="Enable Back navigation for respondents.")
     @click.option("--no-back-past", "no_back_past_questions", multiple=True, help="Question that acts as a Back navigation boundary.")
     def humanize_schema_set(
@@ -655,6 +1508,14 @@ def register(humanize: click.Group) -> None:
         hidden_checklist_questions,
         visible_checklist_questions,
         custom_css_path,
+        javascript_specs,
+        clear_javascript_questions,
+        logo_asset,
+        logo_file,
+        logo_alt,
+        logo_decorative,
+        logo_position,
+        clear_logo,
         back_button,
         no_back_past_questions,
     ):
@@ -665,6 +1526,8 @@ def register(humanize: click.Group) -> None:
           ep humanize schema set <uuid> --schema humanize.json
           ep humanize schema set <uuid> --optional feedback --comment rating="Why?"
           ep humanize schema set <uuid> --survey survey.ep --format rating=dropdown
+          ep humanize schema set <uuid> --javascript rating:question.ready=rating.js
+          ep humanize schema set <uuid> --clear-javascript rating
         """
         if schema_path is None and not _has_humanize_schema_controls(
             optional_questions,
@@ -683,6 +1546,14 @@ def register(humanize: click.Group) -> None:
             hidden_checklist_questions,
             visible_checklist_questions,
             custom_css_path,
+            javascript_specs,
+            clear_javascript_questions,
+            logo_asset,
+            logo_file,
+            logo_alt,
+            logo_decorative,
+            logo_position,
+            clear_logo,
             back_button,
             no_back_past_questions,
         ):
@@ -691,8 +1562,22 @@ def register(humanize: click.Group) -> None:
                 "Provide --schema or at least one direct schema control.",
                 exit_code=EXIT_USAGE,
             )
+        _validate_logo_flags(
+            allow_logo_file=True,
+            logo_asset=logo_asset,
+            logo_file=logo_file,
+            logo_alt=logo_alt,
+            logo_decorative=logo_decorative,
+            logo_position=logo_position,
+            clear_logo=clear_logo,
+        )
         try:
             from edsl.coop import Coop
+
+            coop = Coop()
+            if logo_file:
+                _check_asset_file(logo_file)
+                logo_asset = _PENDING_LOGO_ASSET_UUID
 
             survey = _load_survey_object(survey_path) if survey_path else None
             schema = _build_humanize_schema_from_controls(
@@ -714,23 +1599,54 @@ def register(humanize: click.Group) -> None:
                 hidden_checklist_questions=hidden_checklist_questions,
                 visible_checklist_questions=visible_checklist_questions,
                 custom_css_path=custom_css_path,
+                javascript_specs=javascript_specs,
+                clear_javascript_questions=clear_javascript_questions,
+                logo_asset=logo_asset,
+                logo_alt=logo_alt,
+                logo_decorative=logo_decorative,
+                logo_position=logo_position,
+                clear_logo=clear_logo,
                 back_button=back_button,
                 no_back_past_questions=no_back_past_questions,
             )
             if survey is not None and validate_schema:
-                _validate_humanize_schema(survey, schema)
-            result = jsonable(Coop().patch_human_survey_humanize_schema(
-                human_survey_uuid,
-                schema,
-            ))
+                _validate_humanize_schema(survey, _schema_for_local_validation(schema))
+
+            uploaded_asset = None
+            if logo_file:
+                uploaded_asset = coop.upload_human_survey_asset(logo_file)
+                schema["survey"]["branding"]["logo"]["source"]["asset_uuid"] = (
+                    uploaded_asset["uuid"]
+                )
+            try:
+                result = jsonable(coop.patch_human_survey_humanize_schema(
+                    human_survey_uuid,
+                    schema,
+                ))
+            except Exception as e:
+                if uploaded_asset is None or uploaded_asset.get("deduplicated"):
+                    raise
+                _report_retained_logo(e, uploaded_asset["uuid"])
             if isinstance(result, dict):
-                result.setdefault("schema", schema)
+                result.setdefault(
+                    "schema",
+                    _apply_asset_substitutions(
+                        schema, result.get("asset_substitutions") or {}
+                    ),
+                )
                 result.setdefault("valid", bool(survey is not None and validate_schema))
-            output(result)
+                if uploaded_asset is not None:
+                    result.setdefault("uploaded_assets", [jsonable(uploaded_asset)])
+            output(result, _asset_substitution_warnings(result))
         except SystemExit:
             raise
         except Exception as e:
-            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
+            error(
+                "HUMANIZE_ERROR",
+                str(e),
+                suggestion=_asset_error_suggestion(str(e)),
+                exit_code=EXIT_REMOTE,
+            )
 
 
     @humanize_css.command("patch")
@@ -750,6 +1666,99 @@ def register(humanize: click.Group) -> None:
 
             css = None if clear else Path(css_path).read_text(encoding="utf-8")
             output(jsonable(Coop().patch_human_survey_css(human_survey_uuid, css)))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
+
+
+    @humanize_assets.command("upload")
+    @click.argument("path", type=click.Path(exists=True))
+    def humanize_assets_upload(path):
+        """Upload an image to your asset library.
+
+        The asset is listed under the file's own name.
+
+        \b
+        Examples:
+          ep humanize assets upload lab_logo.png
+        """
+        _check_asset_file(path)
+        try:
+            from edsl.coop import Coop
+
+            output(jsonable(Coop().upload_human_survey_asset(path)))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "HUMANIZE_ERROR",
+                str(e),
+                suggestion=_ASSET_FORMATS_SUGGESTION,
+                exit_code=EXIT_REMOTE,
+            )
+
+
+    @humanize_assets.command("list")
+    @click.option("--page", default=1, type=int, help="Page number.")
+    @click.option("--page_size", default=10, type=int, help="Results per page (max 100).")
+    def humanize_assets_list(page, page_size):
+        """List the images in your asset library, newest first."""
+        try:
+            from edsl.coop import Coop
+
+            result = Coop().list_human_survey_assets(page=page, page_size=page_size)
+            assets = result.get("assets", []) if isinstance(result, dict) else []
+            output({**jsonable(result), "returned_count": len(assets)})
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
+
+
+    @humanize_assets.command("get")
+    @click.argument("asset_uuid")
+    @click.option("--output", "-o", "output_path", default=None, type=click.Path(), help="Save the image to this path.")
+    def humanize_assets_get(asset_uuid, output_path):
+        """Get an asset's metadata and a signed download URL.
+
+        Works for your own assets, and for those used by a survey you can view.
+        """
+        try:
+            from edsl.coop import Coop
+
+            asset = Coop().get_human_survey_asset(asset_uuid)
+            data = jsonable(asset)
+            if output_path:
+                data["saved_to"] = asset.download(output_path)
+            else:
+                data["next_step"] = (
+                    f"Save the image with: ep humanize assets get {asset_uuid} -o logo.png"
+                )
+            output(data)
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "HUMANIZE_ERROR",
+                str(e),
+                suggestion=_asset_error_suggestion(str(e)),
+                exit_code=EXIT_REMOTE,
+            )
+
+
+    @humanize_assets.command("delete")
+    @click.argument("asset_uuid")
+    def humanize_assets_delete(asset_uuid):
+        """Remove an image from your library.
+
+        Surveys already using it keep showing it; used_by_human_surveys says how
+        many do.
+        """
+        try:
+            from edsl.coop import Coop
+
+            output(jsonable(Coop().delete_human_survey_asset(asset_uuid)))
         except SystemExit:
             raise
         except Exception as e:
@@ -793,6 +1802,126 @@ def register(humanize: click.Group) -> None:
                 anonymous=anonymous,
                 allow_resubmit=allow_resubmit,
             )))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
+
+
+    @humanize_agent_access.command("get")
+    @click.argument("human_survey_uuid")
+    def humanize_agent_access_get(human_survey_uuid):
+        """Get a human survey's agent-access config."""
+        try:
+            from edsl.coop import Coop
+
+            output(jsonable(Coop().get_human_survey_agent_access(human_survey_uuid)))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
+
+
+    @humanize_agent_access.command("patch")
+    @click.argument("human_survey_uuid")
+    @click.option("--config", "config_path", default=None, type=click.Path(exists=True), help="Partial agent-access config JSON. The options below are applied on top of it.")
+    @click.option("--enabled/--disabled", default=None, help="Whether the agent link accepts new attempts.")
+    @click.option(
+        "--participation_mode",
+        type=click.Choice(["human_assisted", "authorized_context", "autonomous"]),
+        default=None,
+        help="Who produces the answers.",
+    )
+    @click.option("--instructions", default=None, help="Guidance for agents on the whole survey (at most 4,000 characters).")
+    @click.option("--clear_instructions", is_flag=True, help="Remove the survey-wide instructions.")
+    @click.option("--question_instructions", "question_instruction_specs", multiple=True, help="QUESTION=TEXT instructions for one question. Repeat for more.")
+    @click.option("--clear_question", "cleared_questions", multiple=True, help="Remove one question's settings. Repeat for more.")
+    @click.option("--survey", "survey_path", default=None, type=click.Path(exists=True), help="Survey .ep, JSON, or package directory, to check question names against before sending.")
+    def humanize_agent_access_patch(
+        human_survey_uuid,
+        config_path,
+        enabled,
+        participation_mode,
+        instructions,
+        clear_instructions,
+        question_instruction_specs,
+        cleared_questions,
+        survey_path,
+    ):
+        """Patch a human survey's agent-access config.
+
+        The patch is deep-merged into the stored config: fields left out are
+        unchanged, and a question set to null in question_settings has its settings
+        removed. Build it from the options, from --config, or both. It's validated
+        before it's sent; with --survey, question names are checked too.
+        """
+        if instructions is not None and clear_instructions:
+            error(
+                "USAGE_ERROR",
+                "Use --instructions or --clear_instructions, not both.",
+                exit_code=EXIT_USAGE,
+            )
+        patch = _read_json_or_gzip(config_path) if config_path else {}
+        if not isinstance(patch, dict):
+            error("USAGE_ERROR", "--config must hold a JSON object.", exit_code=EXIT_USAGE)
+        if enabled is not None:
+            patch["enabled"] = enabled
+        if participation_mode is not None:
+            patch["participation_mode"] = participation_mode
+        if instructions is not None:
+            patch["instructions"] = instructions
+        if clear_instructions:
+            patch["instructions"] = None
+        # Merged into --config's question_settings only when a flag needs it; any
+        # other value is left for validation to reject, not coerced here.
+        if question_instruction_specs or cleared_questions:
+            existing = patch.get("question_settings")
+            if existing is not None and not isinstance(existing, dict):
+                error(
+                    "USAGE_ERROR",
+                    "question_settings in --config must be a JSON object to combine it "
+                    "with --question_instructions or --clear_question.",
+                    exit_code=EXIT_USAGE,
+                )
+            question_settings = dict(existing or {})
+            for spec in question_instruction_specs:
+                question_name, separator, text = spec.partition("=")
+                if not separator or not question_name or not text:
+                    error(
+                        "USAGE_ERROR",
+                        f"--question_instructions must look like QUESTION=TEXT, got {spec!r}.",
+                        exit_code=EXIT_USAGE,
+                    )
+                question_settings[question_name] = {"instructions": text}
+            for question_name in cleared_questions:
+                question_settings[question_name] = None
+            patch["question_settings"] = question_settings
+        if not patch:
+            error(
+                "USAGE_ERROR",
+                "Provide at least one change: --config, --enabled/--disabled, "
+                "--participation_mode, --instructions, --clear_instructions, "
+                "--question_instructions, or --clear_question.",
+                exit_code=EXIT_USAGE,
+            )
+        try:
+            from edsl.coop.coop_agent_access import validate_agent_access_patch
+
+            survey = _load_survey_object(survey_path) if survey_path else None
+            validate_agent_access_patch(patch, survey)
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "VALIDATION_ERROR",
+                str(e),
+                suggestion="Check the option values, and that each question name is in the survey.",
+                exit_code=EXIT_VALIDATION,
+            )
+        try:
+            from edsl.coop import Coop
+
+            output(jsonable(Coop().patch_human_survey_agent_access(human_survey_uuid, patch)))
         except SystemExit:
             raise
         except Exception as e:
@@ -1611,7 +2740,8 @@ def register(humanize: click.Group) -> None:
                 humanize_schema=humanize_schema_data,
                 delivery_map=delivery_map_data,
             )
-            output(jsonable(result))
+            data = jsonable(result)
+            output(data, _asset_substitution_warnings(data))
         except SystemExit:
             raise
         except Exception as e:
@@ -1648,8 +2778,15 @@ def register(humanize: click.Group) -> None:
         hidden_checklist_questions,
         visible_checklist_questions,
         custom_css_path,
-        back_button,
-        no_back_past_questions,
+        javascript_specs=(),
+        clear_javascript_questions=(),
+        logo_asset=None,
+        logo_alt=None,
+        logo_decorative=False,
+        logo_position=None,
+        clear_logo=False,
+        back_button=False,
+        no_back_past_questions=(),
     ) -> dict:
         schema = json.loads(json.dumps(base_schema or {}))
         questions = schema.setdefault("questions", {})
@@ -1670,6 +2807,13 @@ def register(humanize: click.Group) -> None:
             hidden_checklist_questions,
             visible_checklist_questions,
             custom_css_path,
+            javascript_specs,
+            clear_javascript_questions,
+            logo_asset,
+            logo_alt,
+            logo_decorative,
+            logo_position,
+            clear_logo,
             back_button,
             no_back_past_questions,
         ):
@@ -1767,6 +2911,33 @@ def register(humanize: click.Group) -> None:
         if custom_css_path:
             schema.setdefault("survey", {})["custom_css"] = Path(custom_css_path).read_text(encoding="utf-8")
 
+        scripted = set()
+        for question_name, hook, script_path in _parse_javascript_specs(javascript_specs):
+            # The hook is named even though "question.ready" is the only one today, so
+            # the flag does not change shape when a second one exists. Whether it is a
+            # known hook is left to schema validation, which has the list.
+            entry = _question_entry(questions, question_name)
+            if not isinstance(entry.get("javascript"), dict):
+                entry["javascript"] = {}
+            entry["javascript"].setdefault("hooks", {})[hook] = _read_javascript_file(
+                script_path
+            )
+            scripted.add(question_name)
+        for question_name in clear_javascript_questions:
+            if question_name in scripted:
+                _humanize_usage_error(
+                    f"--javascript and --clear-javascript both name {question_name!r}."
+                )
+            _question_entry(questions, question_name)["javascript"] = None
+
+        _apply_logo_controls(
+            schema,
+            logo_asset=logo_asset,
+            logo_alt=logo_alt,
+            logo_decorative=logo_decorative,
+            logo_position=logo_position,
+            clear_logo=clear_logo,
+        )
         if back_button:
             schema.setdefault("survey", {}).setdefault("navigation", {})[
                 "back_button"
@@ -1850,6 +3021,14 @@ def register(humanize: click.Group) -> None:
     def _write_json_schema(schema: dict, output_path: str) -> dict:
         path = Path(output_path)
         path.parent.mkdir(parents=True, exist_ok=True)
+        if path.name.endswith(".json.gz"):
+            with gzip.open(path, "wt", encoding="utf-8") as f:
+                json.dump(schema, f, indent=2, default=str)
+            return {
+                "path": str(path),
+                "format": "json.gz",
+                "object_type": "HumanizeSchema",
+            }
         path.write_text(json.dumps(schema, indent=2, default=str), encoding="utf-8")
         return {"path": str(path), "format": "json", "object_type": "HumanizeSchema"}
 
@@ -1964,6 +3143,251 @@ def register(humanize: click.Group) -> None:
 
     def _humanize_usage_error(message: str) -> None:
         error("USAGE_ERROR", message, exit_code=EXIT_USAGE)
+
+
+    def _parse_javascript_specs(specs) -> list[tuple[str, str, str]]:
+        parsed = []
+        for key, path in _parse_key_value_specs(specs, "--javascript"):
+            question_name, _, hook = key.partition(":")
+            question_name, hook = question_name.strip(), hook.strip()
+            if not question_name or not hook:
+                _humanize_usage_error(
+                    "--javascript must be formatted as QUESTION:HOOK=FILE, "
+                    "e.g. rating:question.ready=rating.js."
+                )
+            parsed.append((question_name, hook, path))
+        return parsed
+
+
+    def _read_javascript_file(path: str) -> str:
+        script = Path(path)
+        if not script.is_file():
+            _humanize_usage_error(f"--javascript file not found: {path}")
+        source = script.read_text(encoding="utf-8")
+        if not source.strip():
+            _humanize_usage_error(f"--javascript file is empty: {path}")
+        return source
+
+
+    def _events_file_format(path: str) -> str:
+        name = Path(path).name.lower()
+        if name.endswith(".jsonl"):
+            return "jsonl"
+        if name.endswith(".json"):
+            return "json"
+        _humanize_usage_error("--output must end in .json or .jsonl.")
+
+
+    def _stream_events_to_file(batches, path: str, file_format: str, key: str = "events"):
+        """Write event batches to ``path`` as they arrive, each batch's rows under
+        ``key``. Returns the number of rows written and the last batch, for its
+        cursor.
+
+        One batch is in memory at a time, however long the log. Through
+        ``private_output``, so a download that fails part way leaves no file that
+        looks complete, and payloads, which can be sensitive, are never readable by
+        other users.
+        """
+        count = 0
+        last_batch = None
+        with private_output(path) as temp, temp.open("w", encoding="utf-8") as f:
+            if file_format == "json":
+                f.write("[")
+            for batch in batches:
+                last_batch = batch
+                for event in batch[key]:
+                    text = json.dumps(event, ensure_ascii=False, default=str)
+                    if file_format == "jsonl":
+                        f.write(text + "\n")
+                    else:
+                        f.write(("," if count else "") + "\n  " + text)
+                    count += 1
+            if file_format == "json":
+                f.write("\n]\n" if count else "]\n")
+        return count, last_batch
+
+
+    def _check_asset_file(path: str) -> None:
+        """Reject a file the server would reject, before it is uploaded."""
+        from edsl.coop.coop_human_survey_assets import validate_asset_file
+        from edsl.coop.exceptions import CoopValueError
+
+        try:
+            validate_asset_file(Path(path))
+        except CoopValueError as e:
+            error(
+                "USAGE_ERROR",
+                str(e),
+                suggestion=_ASSET_FORMATS_SUGGESTION,
+                exit_code=EXIT_USAGE,
+            )
+
+
+    def _report_retained_logo(exc: Exception, asset_uuid: str) -> None:
+        """Fail a patch whose --logo-file upload was kept, naming the asset.
+
+        The upload is not deleted: a patch that errored on the way back may still
+        have been stored, and the survey would then be showing that logo.
+        """
+        suggestion = (
+            f"The logo was added to your asset library as {asset_uuid}. Retry with "
+            f"--logo-asset {asset_uuid}, or, if no survey uses it, remove it with "
+            f"'ep humanize assets delete {asset_uuid}'."
+        )
+        asset_suggestion = _asset_error_suggestion(str(exc))
+        if asset_suggestion:
+            suggestion = f"{asset_suggestion} {suggestion}"
+        error(
+            "HUMANIZE_ERROR",
+            str(exc),
+            suggestion=suggestion,
+            exit_code=EXIT_REMOTE,
+        )
+
+
+    def _asset_error_suggestion(message: str) -> str:
+        """A suggestion for an unusable asset uuid, or an empty string.
+
+        The server says "not found" both for an asset that does not exist and
+        for one the caller may not use, so the suggestion covers the common
+        case: a schema shared without the image it names.
+        """
+        if _ASSET_NOT_FOUND_PATTERN.search(message):
+            return _ASSET_NOT_FOUND_SUGGESTION
+        return ""
+
+
+    def _asset_substitution_warnings(result) -> list:
+        """Say so when the schema you sent is not the one now stored.
+
+        Naming an asset you do not own copies it into your library under a new
+        uuid, which a key in the response would not make obvious.
+        """
+        substitutions = (result or {}).get("asset_substitutions") or {}
+        if not substitutions:
+            return []
+        moved = ", ".join(f"{old} -> {new}" for old, new in sorted(substitutions.items()))
+        return [
+            "Assets named by the schema were copied into your library under new "
+            f"uuids, so the schema you sent is now out of date: {moved}"
+        ]
+
+
+    def _validate_logo_flags(
+        *,
+        allow_logo_file: bool,
+        logo_asset,
+        logo_file,
+        logo_alt,
+        logo_decorative,
+        logo_position,
+        clear_logo,
+    ) -> None:
+        """Check the logo flags against each other before any work is done."""
+        if clear_logo and any(
+            [logo_asset, logo_file, logo_alt is not None, logo_decorative, logo_position]
+        ):
+            _humanize_usage_error(
+                "--clear-logo removes the logo, so it cannot be combined with the "
+                "other logo flags."
+            )
+        if logo_asset and logo_file:
+            _humanize_usage_error(
+                "Provide either --logo-asset or --logo-file, not both."
+            )
+        if logo_file and not allow_logo_file:
+            error(
+                "USAGE_ERROR",
+                "schema create cannot upload a file, because it makes no server "
+                "calls.",
+                suggestion=(
+                    "Upload the image first with 'ep humanize assets upload "
+                    "PATH', then pass its uuid as --logo-asset."
+                ),
+                exit_code=EXIT_USAGE,
+            )
+        if logo_decorative and logo_alt is not None:
+            _humanize_usage_error(
+                "Provide either --logo-alt or --logo-decorative, not both."
+            )
+
+
+    def _apply_logo_controls(
+        schema: dict,
+        *,
+        logo_asset,
+        logo_alt,
+        logo_decorative,
+        logo_position,
+        clear_logo,
+    ) -> None:
+        """Write the logo flags into the schema's survey.branding.
+
+        Clearing the logo writes an explicit null.
+        """
+        if clear_logo:
+            schema.setdefault("survey", {})["branding"] = {"logo": None}
+            return
+        if not any(
+            [logo_asset, logo_alt is not None, logo_decorative, logo_position]
+        ):
+            return
+
+        survey = schema.setdefault("survey", {})
+        branding = survey.get("branding") or {}
+        logo = branding.get("logo") or {}
+
+        if logo_asset:
+            logo["source"] = {"type": "asset", "asset_uuid": logo_asset}
+        if logo_decorative:
+            logo["alt"] = ""
+        elif logo_alt is not None:
+            logo["alt"] = logo_alt
+        if logo_position:
+            logo["position"] = logo_position
+
+        if "source" in logo and "alt" not in logo:
+            _humanize_usage_error(
+                "A logo needs alt text. Add --logo-alt TEXT, or --logo-decorative "
+                "if the logo carries no information a respondent would miss."
+            )
+
+        branding["logo"] = logo
+        survey["branding"] = branding
+
+
+    def _apply_asset_substitutions(schema: dict, substitutions: dict) -> dict:
+        """Rewrite asset uuids the server replaced with copies in your library."""
+        if not substitutions:
+            return schema
+
+        def rewrite(node):
+            if isinstance(node, dict):
+                if node.get("type") == "asset" and node.get("asset_uuid") in substitutions:
+                    return {**node, "asset_uuid": substitutions[node["asset_uuid"]]}
+                return {key: rewrite(value) for key, value in node.items()}
+            if isinstance(node, list):
+                return [rewrite(item) for item in node]
+            return node
+
+        return rewrite(schema)
+
+
+    def _schema_for_local_validation(schema: dict) -> dict:
+        """A copy of the patch that is safe to validate as a whole schema.
+
+        A logo with no source — what --logo-position alone produces — is a
+        fragment the server merges into the stored logo. Validating it here
+        would reject it for the source and alt that the stored logo already
+        supplies, so it is left out of the copy.
+        """
+        branding = (schema.get("survey") or {}).get("branding") or {}
+        logo = branding.get("logo") or {}
+        if logo and "source" not in logo:
+            partial = json.loads(json.dumps(schema))
+            partial["survey"].pop("branding", None)
+            return partial
+        return schema
 
 
     def _save_edsl_object(obj, output_path: str) -> dict:

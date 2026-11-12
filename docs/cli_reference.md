@@ -33,6 +33,7 @@ Error:
 edsl run
 edsl validate
 edsl models
+edsl docs
 edsl search
 edsl clone
 edsl push
@@ -55,9 +56,30 @@ edsl schema
 edsl info
 ```
 
-There is no user-facing `edsl coop` command. Expected Parrot-backed operations are exposed directly through task-oriented commands such as `search`, `push`, `pull`, `jobs`, `humanize`, and `metadata`.
+There is no user-facing `edsl coop` command. Expected Parrot-backed operations are exposed directly through task-oriented commands such as `search`, `push`, `pull`, `jobs`, `humanize`, `research-agent`, and `metadata`.
 
 `edsl info` includes configuration diagnostics but redacts credential values such as API keys.
+
+## Documentation Search
+
+`ep docs` reads the currently published EDSL documentation from Mintlify. Public
+search and Markdown retrieval do not require Mintlify credentials. The default
+output is a JSON envelope; use `--human` to print Markdown or readable search
+results directly to the terminal. Search returns a compact list of pages with
+short excerpts; use `ep docs page` when you need the full content.
+
+```bash
+ep docs search "scenario list"
+ep docs search "scenario list" --limit 3 --human
+ep docs search "scenario list" --human
+ep docs index --human
+ep docs page scenarios --human
+```
+
+Use `ep docs index` to find page paths. For `ep docs page`, omit the `en/latest/`
+prefix from the index path; the `.md` suffix is optional. Documentation is
+fetched from the published site, so its content may be newer than the installed
+EDSL version.
 
 ## Local OpenAI-compatible Models
 
@@ -102,6 +124,13 @@ edsl delete shared_object.ep --yes
 
 `delete` requires `--yes`.
 
+Objects that have no `.ep` package format, such as prompts, are pushed from a `.json` or `.json.gz` file instead. Each push creates a new object:
+
+```bash
+edsl push prompt.json --alias research-brief --visibility private
+edsl inspect prompt.json
+```
+
 ## Remote Jobs
 
 ```bash
@@ -137,14 +166,33 @@ edsl humanize create --jobs jobs.ep --scenario_method randomize
 edsl humanize list --page 1 --page_size 20
 edsl humanize status <human_survey_uuid>
 edsl humanize responses <human_survey_uuid> --output responses.ep
+edsl humanize responses <human_survey_uuid> --include-partial --output responses.ep
 edsl humanize qr <human_survey_uuid> --output qr.png
 edsl humanize preview --survey survey.ep --schema humanize.json
 edsl humanize schema validate --survey survey.ep --schema humanize.json
 edsl humanize schema patch <human_survey_uuid> --schema schema_patch.json
 edsl humanize css patch <human_survey_uuid> --file style.css
+edsl humanize assets upload lab_logo.png
+edsl humanize assets list --page 1 --page_size 20
+edsl humanize assets get <asset_uuid> --output logo.png
+edsl humanize assets delete <asset_uuid>
+edsl humanize schema set <human_survey_uuid> --logo-asset <asset_uuid> --logo-alt "Acme Research logo"
+edsl humanize schema set <human_survey_uuid> --logo-file lab_logo.png --logo-alt "Acme Research logo"
+edsl humanize schema set <human_survey_uuid> --clear-logo
+edsl humanize schema set <human_survey_uuid> --javascript rating:question.ready=rating.js
+edsl humanize schema set <human_survey_uuid> --clear-javascript rating
+edsl humanize custom-js-access
 edsl humanize respondents <human_survey_uuid> --page 1 --page_size 50
+edsl humanize events <human_survey_uuid> --limit 50
+edsl humanize events <human_survey_uuid> --all --output events.jsonl
+edsl humanize events <human_survey_uuid> --all --after <next_cursor> --output new.jsonl
+edsl humanize events <human_survey_uuid> --count
 edsl humanize agent-list get <human_survey_uuid>
 edsl humanize agent-list patch <human_survey_uuid> --delivery_map delivery_map.json
+edsl humanize agent-access get <human_survey_uuid>
+edsl humanize agent-access patch <human_survey_uuid> --enabled --participation_mode autonomous --instructions "Keep free-text answers to one or two sentences, and use the comment box to flag any answer that's an estimate."
+edsl humanize agent-access patch <human_survey_uuid> --question_instructions "improvements=Name at least one specific change, not a general comment." --clear_question job
+edsl humanize agent-access patch <human_survey_uuid> --config agent_access.json
 edsl humanize deliveries create <human_survey_uuid> --name "Initial invite"
 edsl humanize deliveries create <human_survey_uuid> --name "Owner notice" --owner-email-template owner_response_received
 edsl humanize deliveries list <human_survey_uuid>
@@ -160,7 +208,30 @@ edsl humanize callbacks list <human_survey_uuid>
 
 `edsl humanize list` is paginated and echoes `page`, `page_size`, and `returned_count`.
 
+`edsl humanize assets` manages the image library a survey's logo is drawn from. Upload once and reference the asset uuid with `--logo-asset`, or pass `--logo-file` to `edsl humanize schema set` to upload and apply in one step. `edsl humanize schema create` accepts `--logo-asset` only, because it makes no server calls. Setting a new logo requires `--logo-alt` or `--logo-decorative`.
+
+`edsl humanize schema create` and `edsl humanize schema set` take `--javascript QUESTION:HOOK=FILE` to attach a JavaScript file to a question's hook, for example `--javascript rating:question.ready=rating.js`; `question.ready` is the only hook today. `edsl humanize schema set` also takes `--clear-javascript QUESTION` to remove a question's JavaScript. Custom JavaScript is available on approved accounts only; check with `edsl humanize custom-js-access`. `edsl humanize events` returns the events a survey's scripts logged, oldest first, one batch at a time (`--limit`, at most 200); `--all` fetches every batch and requires `--output` (`.json` or `.jsonl`), so a whole log is written to a file rather than printed. Every result carries `next_cursor`: pass it as `--after` to get only newer events. Fetching only new events can occasionally miss one that was still being saved, so use it to check a survey while it collects, and download the full log for analysis once fielding has ended, at least an hour after the last response. `--count` returns how many events the survey has without fetching any.
+
 Delivery, schedule, and callback commands accept optional `--routes` JSON files where supported. A route file may be a single route object or a list of route objects. Simple routes can also be created with helper flags such as `--owner-email-template owner_response_received` or `--respondent-email-template respondent_invitation`.
+
+## Research Agent sessions
+
+`research-agent` commands use the configured Expected Parrot API key and operate on sessions the authenticated account can read. They require API-key authentication for the corresponding Coopr session routes.
+
+```bash
+edsl research-agent sessions --filter all --page 1 --page-size 50
+edsl research-agent sessions --filter all --page 2 --page-size 50
+edsl research-agent session <session-uuid>
+edsl research-agent session <session-uuid> --section metadata
+edsl research-agent session <session-uuid> --section shares
+edsl research-agent session <session-uuid> --section files
+edsl research-agent files <session-uuid>
+edsl research-agent download <session-uuid> --file reports/summary.md --output summary.md
+edsl research-agent download <session-uuid> --zip --output session.zip
+edsl research-agent pull <session-uuid> --output ./session-copy
+```
+
+Session listing returns one page at a time (50 by default, up to 200). Its response includes has_next and next_page so callers can request another page. Use files to list a session's files, download to save one file or a ZIP, and pull to extract the complete session (including chat_history.md) into a new local directory. Pull destinations must not already exist; extracted files and directories are private to your user.
 
 ## Results
 

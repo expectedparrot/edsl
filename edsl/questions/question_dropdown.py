@@ -203,7 +203,6 @@ class QuestionDropdown(QuestionBase):
             question_text="Which city matches your travel preferences for cultural activities?",
             question_options=cities,
             sample_indices=[0, 10, 20, 30, 40],  # Show specific examples
-            max_options_shown=5
         )
         ```
 
@@ -241,7 +240,6 @@ class QuestionDropdown(QuestionBase):
         question_options: Union[list[str], list[list], list[float], list[int]],
         question_options_details: Optional[List[str]] = None,
         sample_indices: Optional[List[int]] = None,
-        max_options_shown: int = 5,
         top_k: int = 5,
         include_comment: bool = True,
         use_code: bool = False,
@@ -272,9 +270,6 @@ class QuestionDropdown(QuestionBase):
         sample_indices : Optional[List[int]], default=None
             List of indices specifying which options to show to the LLM as examples.
             If None, defaults to the first 10 options (or all if fewer than 10).
-
-        max_options_shown : int, default=5
-            Maximum number of top-ranked options to return after BM25 search.
 
         top_k : int, default=5
             Number of top-ranked options to return in the answer list after BM25 search.
@@ -315,7 +310,6 @@ class QuestionDropdown(QuestionBase):
                 )
             self.sample_indices = sample_indices
 
-        self.max_options_shown = max_options_shown
         self.top_k = top_k
 
         # Validate question_options_details if provided
@@ -690,7 +684,6 @@ class QuestionDropdown(QuestionBase):
             question_options_details=city_details,
             question_name="city_preference",
             sample_indices=[0, 5, 10, 15, 20, 25],  # Show specific examples
-            max_options_shown=4,
             top_k=3,
             include_comment=include_comment,
             use_code=use_code,

@@ -71,12 +71,14 @@ class ResultSerializer:
             d[key] = convert_value(value, add_edsl_version=add_edsl_version)
 
             if key == "prompt":
+                # Embedded prompts never carry version metadata: the Result
+                # already records it once, and it would change Result hashes.
                 new_prompt_dict = {}
                 for prompt_name, prompt_obj in value.items():
                     new_prompt_dict[prompt_name] = (
                         prompt_obj
                         if not hasattr(prompt_obj, "to_dict")
-                        else prompt_obj.to_dict()
+                        else prompt_obj.to_dict(add_edsl_version=False)
                     )
                 d[key] = new_prompt_dict
 

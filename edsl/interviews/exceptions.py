@@ -23,7 +23,7 @@ class InterviewError(BaseException):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/interviews"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/jobs#execute-and-inspect"
 
 
 class InterviewTaskError(InterviewError):
@@ -42,7 +42,7 @@ class InterviewTaskError(InterviewError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/interviews"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/jobs#execute-and-inspect"
 
 
 class InterviewStatusError(InterviewError):
@@ -61,7 +61,7 @@ class InterviewStatusError(InterviewError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/interviews"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/jobs#execute-and-inspect"
 
 
 class InterviewTokenError(InterviewError):

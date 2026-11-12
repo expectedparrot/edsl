@@ -1,0 +1,15 @@
+{{ question_text }}
+
+{% if resolved_bins %}
+Allocate probability mass over this numerical support, partitioned into these intervals:
+{% else %}
+Allocate probability over these mutually exclusive, collectively exhaustive outcomes:
+{% endif %}
+{% for key in answer_keys %}
+{{ key | tojson }}
+{% endfor %}
+{% if resolved_bins %}
+Each value is the probability inside the whole interval, not a density height.
+Square brackets include an endpoint; parentheses exclude it. Inf denotes an unbounded tail.
+All probability lies within the support covered by these intervals.
+{% endif %}

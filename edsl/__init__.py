@@ -68,6 +68,9 @@ _module_cache = {}
 _EXPORT_TO_MODULE = {
     # questions
     "QuestionFreeText": "questions",
+    "QuestionEdit": "questions",
+    "QuestionGroupDiscussion": "questions",
+    "QuestionURL": "questions",
     "QuestionMultipleChoice": "questions",
     "ProbabilisticResponse": "questions",
     "QuestionCheckBox": "questions",
@@ -77,7 +80,9 @@ _EXPORT_TO_MODULE = {
     "QuestionList": "questions",
     "QuestionRank": "questions",
     "QuestionBudget": "questions",
+    "QuestionDistribution": "questions",
     "QuestionExtract": "questions",
+    "QuestionEmail": "questions",
     "QuestionMatrix": "questions",
     "QuestionTopK": "questions",
     "QuestionFunctional": "questions",
@@ -119,6 +124,8 @@ _EXPORT_TO_MODULE = {
     "CacheEntry": "caching",
     # instructions
     "Instruction": "instructions",
+    # prompts
+    "Prompt": "prompts",
     # study
     "Study": "study",
     # notebooks

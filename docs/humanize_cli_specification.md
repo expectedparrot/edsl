@@ -39,7 +39,19 @@ Group discovery:
       "responses",
       "qr",
       "preview",
-      "schema"
+      "respondents",
+      "links",
+      "events",
+      "schedules",
+      "deliveries",
+      "callbacks",
+      "agent-list",
+      "agent-access",
+      "schema",
+      "css",
+      "custom-js-access",
+      "assets",
+      "prolific"
     ],
     "help": "Use 'edsl humanize <command> --help' for details."
   },
@@ -120,7 +132,8 @@ Output:
         "name": "Customer feedback",
         "visibility": "private",
         "created_ts": "2026-07-04T12:00:00Z",
-        "n_responses": 12
+        "n_complete": 12,
+        "n_in_progress": 3
       }
     ],
     "page": 1,
@@ -209,10 +222,12 @@ Output:
     "uuid": "human-survey-uuid",
     "admin_url": "https://www.expectedparrot.com/home/human-surveys/human-survey-uuid",
     "respondent_url": "https://www.expectedparrot.com/respond/human-surveys/human-survey-uuid",
-    "n_responses": 0,
+    "n_complete": 0,
+    "n_in_progress": 0,
     "survey_uuid": "survey-uuid",
     "agent_list_uuid": null,
-    "scenario_list_uuid": null
+    "scenario_list_uuid": null,
+    "asset_substitutions": {}
   },
   "warnings": []
 }
@@ -246,7 +261,8 @@ Output:
     "uuid": "human-survey-uuid",
     "admin_url": "https://www.expectedparrot.com/home/human-surveys/human-survey-uuid",
     "respondent_url": "https://www.expectedparrot.com/respond/human-surveys/human-survey-uuid",
-    "n_responses": 12,
+    "n_complete": 12,
+    "n_in_progress": 3,
     "survey_uuid": "survey-uuid",
     "agent_list_uuid": null,
     "scenario_list_uuid": null
@@ -262,7 +278,7 @@ Fetch human responses and optionally save them.
 Backs onto:
 
 ```python
-Coop.get_human_survey_responses(human_survey_uuid)
+Coop.get_human_survey_responses(human_survey_uuid, include_partial=...)
 ```
 
 Flags:
@@ -270,6 +286,7 @@ Flags:
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `--output`, `-o` | path | null | Save as `.ep`, `.json`, or `.json.gz` |
+| `--include-partial` | bool | false | Also fetch responses still in progress |
 
 Output without `--output`:
 
@@ -278,6 +295,7 @@ Output without `--output`:
   "status": "ok",
   "data": {
     "human_survey_uuid": "human-survey-uuid",
+    "include_partial": false,
     "object_type": "Results",
     "result_count": 12
   },
@@ -292,6 +310,7 @@ Output with `--output`:
   "status": "ok",
   "data": {
     "human_survey_uuid": "human-survey-uuid",
+    "include_partial": false,
     "object_type": "Results",
     "result_count": 12,
     "saved": {
@@ -308,6 +327,8 @@ Output with `--output`:
 Notes:
 
 - `get_human_survey_responses()` may return a `Results` object or `ScenarioList` fallback.
+- Without `--include-partial`, only completed responses are returned. With it, responses still in progress are included too, holding the answers submitted so far; unanswered questions read as `None`. Each result's `agent.response_status` is `complete` or `in_progress`, and `agent.last_activity_at` is when the respondent last moved the response forward. An in-progress response can come back later with more answers or as complete, so combine downloads by `agent.response_uuid`.
+- `n_complete` and `n_in_progress` (from `list` and `status`) count finished responses and responses still being taken.
 - The save helper must support both. Existing `_save_results()` supports Results only; implementation should add `_save_edsl_object(obj, output_path)` or branch for ScenarioList.
 
 ### `edsl humanize qr <human_survey_uuid>`
@@ -414,6 +435,451 @@ Failure:
 }
 ```
 
+### `edsl humanize assets`
+
+Manage the image library a survey's logo is drawn from. A humanize schema references an
+image by uuid under `survey.branding.logo.source`, so a schema never carries image bytes.
+
+Group discovery:
+
+```json
+{
+  "status": "ok",
+  "data": {
+    "commands": [
+      "upload",
+      "list",
+      "get",
+      "delete"
+    ],
+    "help": "Use 'edsl humanize assets <command> --help' for details."
+  },
+  "warnings": []
+}
+```
+
+#### `edsl humanize assets upload <path>`
+
+Backs onto:
+
+```python
+Coop.upload_human_survey_asset(file_path)
+```
+
+Takes no flags. The asset is listed under the file's own name, which is also the default
+filename when it is downloaded again.
+
+Accepted formats are PNG, JPEG, WebP, and static GIF, at most 2 MB and 4096 pixels on each
+side. The extension and size are checked locally before uploading; a file that fails those
+checks is a `USAGE_ERROR`. Uploading a file already in the library returns the existing
+asset rather than a second copy.
+
+Output:
+
+```json
+{
+  "status": "ok",
+  "data": {
+    "uuid": "asset-uuid",
+    "name": "lab_logo.png",
+    "mime_type": "image/png",
+    "width": 640,
+    "height": 160,
+    "size_bytes": 20480,
+    "source": "upload",
+    "deduplicated": false
+  },
+  "warnings": []
+}
+```
+
+#### `edsl humanize assets list`
+
+Backs onto:
+
+```python
+Coop.list_human_survey_assets(page, page_size)
+```
+
+Flags:
+
+| Flag | Type | Required | Description |
+|------|------|----------|-------------|
+| `--page` | int | no | Page number; default `1` |
+| `--page_size` | int | no | Results per page (max 100); default `10` |
+
+Lists your live assets, newest first, and echoes `returned_count`. Each row carries
+`source`, which is `"upload"` for one you uploaded and `"copy"` for one made when you
+reused another author's schema. Deleted assets are not listed.
+
+#### `edsl humanize assets get <asset_uuid>`
+
+Backs onto:
+
+```python
+Coop.get_human_survey_asset(asset_uuid)
+```
+
+Flags:
+
+| Flag | Type | Required | Description |
+|------|------|----------|-------------|
+| `--output` / `-o` | path | no | Save the image to this path |
+
+Returns the asset's metadata and a signed `url`. With `--output` the image is saved and
+the response adds `saved_to`; without it, the response adds a `next_step` hint. Allowed
+for your own assets and for those used by a survey you can view.
+
+#### `edsl humanize assets delete <asset_uuid>`
+
+Backs onto:
+
+```python
+Coop.delete_human_survey_asset(asset_uuid)
+```
+
+Takes no flags and prompts for no confirmation. Surveys already using the asset keep
+showing it.
+
+Output:
+
+```json
+{
+  "status": "ok",
+  "data": {
+    "uuid": "asset-uuid",
+    "deleted_ts": "2026-09-15T14:12:00+00:00",
+    "used_by_human_surveys": 2
+  },
+  "warnings": []
+}
+```
+
+### Logo flags on `schema create` and `schema set`
+
+| Flag | Effect |
+|------|--------|
+| `--logo-asset UUID` | Use this asset as the survey's logo |
+| `--logo-file PATH` | **`schema set` only.** Upload the image and use it, in one step |
+| `--logo-alt TEXT` | Alt text for screen readers, up to 200 characters |
+| `--logo-decorative` | Mark the logo decorative, rendering it with an empty alt |
+| `--logo-position` | `left`, `center`, or `right`; omit to leave it unchanged |
+| `--clear-logo` | **`schema set` only.** Remove the survey's logo |
+
+Validation:
+
+- `--logo-asset` and `--logo-file` are mutually exclusive.
+- `schema create` rejects `--logo-file` with a `USAGE_ERROR`, because it makes no server
+  calls; upload first and pass `--logo-asset`.
+- Setting a new logo requires `--logo-alt` or `--logo-decorative`, since alt text is
+  required. A base `--schema` whose logo already has alt satisfies this.
+- `--logo-alt`, `--logo-decorative` or `--logo-position` alone patches just that field of
+  an existing logo.
+- `--clear-logo` cannot be combined with the other logo flags.
+
+When applying a schema that names an asset belonging to another author, the asset is
+copied into your library and the uuid rewritten. The response carries
+`asset_substitutions`, and the echoed `schema` shows the new uuid. An asset you cannot
+reach at all fails with a `HUMANIZE_ERROR` whose suggestion is to obtain the image file
+and re-run with `--logo-file`.
+
+### JavaScript flags on `schema create` and `schema set`
+
+| Flag | Effect |
+|------|--------|
+| `--javascript QUESTION:HOOK=FILE` | Run the JavaScript in `FILE` on `QUESTION`'s `HOOK`, e.g. `rating:question.ready=rating.js`. Repeat for more questions or hooks |
+| `--clear-javascript QUESTION` | **`schema set` only.** Remove the question's JavaScript |
+
+`question.ready` is the only hook today. The hook is part of the flag so that it keeps
+its shape when more hooks exist.
+
+Validation:
+
+- `--javascript` without a question or a hook, or naming a missing or empty file, is a
+  `USAGE_ERROR`.
+- An unknown hook, or a script on a `compute` or `image_generation` question, fails
+  local validation (`VALIDATION_ERROR`) on `schema create`, and on `schema set` when
+  `--survey` is given.
+- Naming the same question in `--javascript` and `--clear-javascript` is a
+  `USAGE_ERROR`.
+
+Custom JavaScript is available on approved accounts only. Applying a schema with a
+script from an account that is not approved fails with a `HUMANIZE_ERROR`, and nothing
+in the schema is saved.
+
+### `edsl humanize custom-js-access`
+
+Report whether the authenticated account may use custom JavaScript.
+
+Backs onto:
+
+```python
+Coop().get_custom_js_access()
+```
+
+Output:
+
+```json
+{
+  "status": "ok",
+  "data": {
+    "custom_js_allowed": false,
+    "next_step": "Custom JavaScript is available on approved accounts only. Email info@expectedparrot.com to request access."
+  },
+  "warnings": []
+}
+```
+
+`next_step` is present only when `custom_js_allowed` is `false`.
+
+### `edsl humanize events <human_survey_uuid>`
+
+Get the events a survey's custom JavaScript logged with `ep.log`, oldest first. Events
+from preview links are left out unless `--include-previews`, and then marked
+`is_preview`.
+
+Backs onto:
+
+```python
+Coop().get_human_survey_events(human_survey_uuid, after=after, limit=limit, include_previews=include_previews)
+Coop()._iter_human_survey_event_batches(human_survey_uuid, after=after, limit=limit, include_previews=include_previews)  # --all
+Coop().count_human_survey_events(human_survey_uuid, include_previews=include_previews)  # --count
+```
+
+Flags:
+
+| Flag | Type | Required | Description |
+|------|------|----------|-------------|
+| `--after` | event id | no | Only events after this one, e.g. a `next_cursor` from an earlier run |
+| `--limit` | int | no | Events per request, default 200, at most 200 |
+| `--all` | flag | no | Fetch every batch. Requires `--output` |
+| `--output`, `-o` | path | no | Save events to `.json` (an array) or `.jsonl` (one event per line) |
+| `--count` | flag | no | Print `{"total"}` and fetch no events. Not combinable with `--all`, `--after` or `--output` |
+| `--include-previews` | flag | no | Also include events from preview links, each marked `is_preview`. Pass it with every `--after` of the same walk |
+
+Without `--output`, one batch is printed in the envelope:
+`{"events", "next_cursor", "has_more"}`. With `--output`, the events are written to the
+file and the envelope carries `saved_to`, `format`, `event_count`, `next_cursor` and
+`has_more` instead.
+
+`next_cursor` is the position to continue from, returned even when nothing more is
+waiting, so a later `--all --after <next_cursor>` fetches only events that arrived since.
+
+Incremental fetches with `--after` can occasionally miss an event that was still being saved
+when the cursor passed it. They are for checking a survey while it collects; for analysis,
+download the full log once fielding has ended, at least an hour after the last response.
+
+`--all` requires `--output` because payloads hold whatever an author's script logged,
+which can be sensitive; a whole log is written to a file rather than printed. Batches
+are written as they arrive, one in memory at a time, to a private temporary file beside
+the output that replaces it only once every batch has arrived. A download that fails
+part way leaves any existing file untouched and no partial one.
+
+### `edsl humanize interactions <human_survey_uuid>`
+
+Get a survey's interaction trace: one row per page shown or submitted, answer edited,
+message sent to the assistant, reply ended, assistant edit applied, undone or skipped,
+and event that could not be recorded. Recorded on surveys with the assistant on. Rows
+come in the order they were received; sort a response's rows by `session_started_at`,
+then `seq`, for the order they happened. Rows from preview links are left out unless
+`--include-previews`, and then marked `is_preview`.
+
+Backs onto:
+
+```python
+Coop().get_human_survey_interactions(human_survey_uuid, after=after, limit=limit, response_uuid=response_uuid, include_previews=include_previews)
+Coop()._iter_human_survey_interaction_batches(human_survey_uuid, after=after, limit=limit, response_uuid=response_uuid, include_previews=include_previews)  # --all
+Coop().count_human_survey_interactions(human_survey_uuid, response_uuid=response_uuid, include_previews=include_previews)  # --count
+```
+
+Flags:
+
+| Flag | Type | Required | Description |
+|------|------|----------|-------------|
+| `--after` | row id | no | Only rows after this one, e.g. a `next_cursor` from an earlier run |
+| `--limit` | int | no | Rows per request, default 100, at most 100 |
+| `--response` | response uuid | no | Only this response's rows |
+| `--all` | flag | no | Fetch every batch. Requires `--output` |
+| `--output`, `-o` | path | no | Save rows to `.json` (an array) or `.jsonl` (one row per line) |
+| `--count` | flag | no | Print `{"total"}` and fetch no rows. Not combinable with `--all`, `--after` or `--output` |
+| `--include-previews` | flag | no | Also include rows from preview links. Pass it, and `--response`, with every `--after` of the same walk |
+
+Without `--output`, one batch is printed in the envelope:
+`{"interactions", "next_cursor", "has_more"}`. With `--output`, the rows are written to
+the file and the envelope carries `saved_to`, `format`, `interaction_count`,
+`next_cursor` and `has_more` instead.
+
+`--all` requires `--output` because rows hold respondents' answers as they typed them.
+The file is written as `edsl humanize events` writes its file: a batch at a time, to a
+private temporary file that replaces the output only once every batch has arrived.
+
+### `edsl humanize assistant summary <human_survey_uuid>`
+
+Get a survey's assistant data in numbers: respondents (responses, offered the
+assistant, chatted), turns (listed, pending, by status, replies the respondent saw
+stopped, dropped or refused, respondents with a failed reply), the assistant's edits
+(sent, by outcome, rejected), the interaction trace's size (rows, sessions, truncated
+sessions), `settings_versions` (question overrides aside) and, for the survey's
+owner, `credits`; with `as_of` and `last_activity_at`. Previews are left out unless
+`--include-previews`.
+
+Backs onto:
+
+```python
+Coop().get_human_survey_assistant_summary(human_survey_uuid, include_previews=include_previews)
+```
+
+The summary is printed as the envelope's `data`.
+
+### `edsl humanize assistant threads <human_survey_uuid>`
+
+Get a survey's assistant threads, in the order they began: one per response the
+assistant was offered to, whether or not the respondent chatted, with
+`response_status`, `offered_at`, `last_activity_at`, `turns`, `trace_state` and, for
+the survey's owner, `credits`. Rows are as of the read.
+
+Backs onto `Coop().get_human_survey_assistant_threads(...)`, and
+`Coop()._iter_human_survey_assistant_thread_batches(...)` with `--all`.
+
+Flags: as `edsl humanize assistant turns`, with `--after` taking a thread id. The
+envelope is `{"threads", "next_cursor", "has_more"}`, or with `--output`, `saved_to`,
+`format`, `thread_count`, `next_cursor` and `has_more`.
+
+### `edsl humanize assistant pages <human_survey_uuid>`
+
+Get the pages a survey served with the assistant on, in the order they were served:
+`response_uuid` and `page_id` (together naming the page), `page_key`, `questions`,
+`status`, `served_at`, `closed_at`, `config`, `chat_shown`, `hidden_by`,
+`fillable_questions` and `not_fillable`. Rows are as of the read.
+
+Backs onto `Coop().get_human_survey_assistant_pages(...)`, and
+`Coop()._iter_human_survey_assistant_page_batches(...)` with `--all`.
+
+Flags: as `edsl humanize assistant turns`, with `--after` taking the last page's
+`response_uuid` and `page_id` joined by `:`, as `next_cursor` gives it. The envelope is
+`{"pages", "next_cursor", "has_more"}`, or with `--output`, `saved_to`, `format`,
+`page_count`, `next_cursor` and `has_more`.
+
+### `edsl humanize assistant configs <human_survey_uuid>`
+
+Get the assistant configs a survey's pages were served with, in the order first
+served: `config`, `first_served_at`, `pages` and `settings` (the survey's settings
+with one page's question overrides, defaults filled in). Question overrides make
+several configs even when nothing changed during fielding. Only configs with a page
+within the filters are listed.
+
+Backs onto `Coop().get_human_survey_assistant_configs(...)`, and
+`Coop()._iter_human_survey_assistant_config_batches(...)` with `--all`.
+
+Flags: as `edsl humanize assistant turns`, with `--after` taking a config id and
+`--limit` at most 20 (the default), as each config holds the whole system prompt. The
+envelope is `{"configs", "next_cursor", "has_more"}`, or with `--output`, `saved_to`,
+`format`, `config_count`, `next_cursor` and `has_more`.
+
+### `edsl humanize assistant conversations <human_survey_uuid>`
+
+Get each respondent's survey with the assistant as the owner's Assistant tab shows
+it: one row per thing that happened, the chat, the assistant's edits and the
+respondent's own steps together. Built from `edsl humanize interactions`, which gives
+the order (by `session_started_at`, then `seq`), with the text from `edsl humanize
+assistant messages` and the rejected and unreported edits from `edsl humanize
+assistant edits`; what the trace lacks is placed by its turn (`placed`). Responses
+come in the order their first session began, each one's rows by `position`. Rows from
+preview links are left out unless `--include-previews`.
+
+Backs onto:
+
+```python
+Coop().get_all_human_survey_assistant_conversations(human_survey_uuid, response_uuid=response_uuid, include_previews=include_previews)
+```
+
+Flags:
+
+- `--response <response_uuid>`: only this response's rows.
+- `--output`, `-o <path>`: write rows to a `.json` or `.jsonl` file. Required unless
+  `--response`, as rows hold what respondents wrote.
+- `--include-previews`: also include rows from preview links.
+
+No cursor: each run covers the whole survey, or the one response. The envelope is
+`{"conversations"}`, or with `--output`, `saved_to`, `format` and `row_count`.
+
+### `edsl humanize assistant messages <human_survey_uuid>`
+
+Get a survey's assistant conversations: one row per thing the chat showed, each turn's
+rows together and in order (`seq`). `kind` is `respondent_message`, `assistant_text`,
+`edit_receipt` or `notice` (a failed reply); every row has `turn_status`, how the turn
+ended. Turns come in the order they ended, a few
+seconds after they end; one response's turns are in the order they were sent. Rows
+from preview links are left out unless `--include-previews`.
+
+Backs onto:
+
+```python
+Coop().get_human_survey_assistant_messages(human_survey_uuid, after=after, limit=limit, response_uuid=response_uuid, turn=turn, include_previews=include_previews)
+Coop()._iter_human_survey_assistant_message_batches(human_survey_uuid, after=after, limit=limit, response_uuid=response_uuid, turn=turn, include_previews=include_previews)  # --all
+```
+
+Flags: as `edsl humanize assistant edits`, with `--after` taking a turn id and `--limit`
+counting turns (default 100, at most 100): a batch never splits a turn.
+
+The envelope is `{"messages", "next_cursor", "has_more"}`, or with `--output`,
+`saved_to`, `format`, `message_count`, `next_cursor` and `has_more`. `--all` requires
+`--output`, as rows hold what respondents wrote.
+
+### `edsl humanize assistant turns <human_survey_uuid>`
+
+Get a survey's assistant turns, in the order they ended: one row per respondent
+message the assistant answered, with how it ended, timing, tokens, edit counts, the
+error of a failed turn and, for the survey's owner, credits. No message text. A turn
+is listed a few seconds after it ends. Rows from preview links are left out unless
+`--include-previews`, and then marked `is_preview`.
+
+Backs onto:
+
+```python
+Coop().get_human_survey_assistant_turns(human_survey_uuid, after=after, limit=limit, response_uuid=response_uuid, include_previews=include_previews)
+Coop()._iter_human_survey_assistant_turn_batches(human_survey_uuid, after=after, limit=limit, response_uuid=response_uuid, include_previews=include_previews)  # --all
+```
+
+Flags:
+
+| Flag | Type | Required | Description |
+|------|------|----------|-------------|
+| `--after` | turn id | no | Only turns after this one, e.g. a `next_cursor` from an earlier run |
+| `--limit` | int | no | Rows per request, default 100, at most 100 |
+| `--response` | response uuid | no | Only this response's turns |
+| `--all` | flag | no | Fetch every batch. Requires `--output` |
+| `--output`, `-o` | path | no | Save rows to `.json` (an array) or `.jsonl` (one row per line) |
+| `--include-previews` | flag | no | Also include turns from preview links |
+
+Without `--output`, one batch is printed in the envelope:
+`{"turns", "next_cursor", "has_more"}`. With `--output`, the envelope carries
+`saved_to`, `format`, `turn_count`, `next_cursor` and `has_more` instead.
+
+### `edsl humanize assistant edits <human_survey_uuid>`
+
+Get the answers a survey's assistant asked to fill in, rejected ones included, in the
+order their turns ended, each with whether it was sent or rejected and its latest
+outcome in the form. Listed a few seconds after their turn ends. Rows from preview
+links are left out unless `--include-previews`.
+
+Backs onto:
+
+```python
+Coop().get_human_survey_assistant_edits(human_survey_uuid, after=after, limit=limit, response_uuid=response_uuid, turn=turn, include_previews=include_previews)
+Coop()._iter_human_survey_assistant_edit_batches(human_survey_uuid, after=after, limit=limit, response_uuid=response_uuid, turn=turn, include_previews=include_previews)  # --all
+```
+
+Flags: as `edsl humanize assistant turns`, with `--after` taking an edit id, plus:
+
+| Flag | Type | Required | Description |
+|------|------|----------|-------------|
+| `--turn` | turn id | no | Only this turn's edits |
+
+The envelope is `{"edits", "next_cursor", "has_more"}`, or with `--output`, `saved_to`,
+`format`, `edit_count`, `next_cursor` and `has_more`. `--all` requires `--output`, as
+edits hold the answers the assistant wrote.
+
 ## Deferred Command Groups
 
 These should not be part of the first implementation unless explicitly prioritized.
@@ -469,6 +935,7 @@ Should be a separate top-level group, not nested under `humanize`, because it ha
 ```text
 edsl prolific filters
 edsl prolific cost
+edsl prolific settings
 edsl prolific create
 edsl prolific update
 edsl prolific publish

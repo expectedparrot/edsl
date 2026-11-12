@@ -1,3 +1,4 @@
+from jinja2.exceptions import SecurityError
 from typing import Union, Literal
 
 import edsl.scenarios.scenario  # noqa: F401
@@ -141,6 +142,8 @@ class QuestionNumericalProcessor(QuestionAttributeProcessor):
             rendered = self._render_template_to_native_value(numerical_value)
             if isinstance(rendered, (int, float)):
                 return rendered
+        except SecurityError:
+            raise
         except Exception:
             pass
 
