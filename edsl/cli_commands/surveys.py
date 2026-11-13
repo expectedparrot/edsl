@@ -19,6 +19,48 @@ from edsl.cli_shared import (
 
 
 def register(surveys_group: click.Group) -> None:
+    @surveys_group.command("export-docx")
+    @click.argument("survey_path", type=click.Path(exists=True))
+    @click.option("--output", "output_path", required=True, type=click.Path(), help="Output .docx file.")
+    def export_docx(survey_path: str, output_path: str):
+        """Export a Survey package or JSON file as a vendor-ready DOCX."""
+        try:
+            survey = _load_survey(survey_path)
+            survey.to_docx(output_path)
+            output({"object_type": "Survey", "source": survey_path, "saved": {"path": output_path, "format": "docx"}})
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "SURVEYS_DOCX_EXPORT_ERROR",
+                str(e),
+                suggestion="Check that the input is a Survey and python-docx is installed.",
+                exit_code=EXIT_ERROR,
+            )
+
+    @surveys_group.command("import-docx")
+    @click.argument("docx_path", type=click.Path(exists=True))
+    @click.option("--output", "output_path", required=True, help="Output Survey .ep package, JSON file, or '-' for raw JSON stdout.")
+    def import_docx(docx_path: str, output_path: str):
+        """Import a vendor-ready DOCX as a Survey."""
+        try:
+            from edsl.surveys import Survey
+
+            survey = Survey.from_docx(docx_path)
+            saved = save_edsl_object(survey, output_path, object_type="Survey")
+            if raw_output_written(saved):
+                return
+            output(_survey_output(survey, saved))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "SURVEYS_DOCX_IMPORT_ERROR",
+                str(e),
+                suggestion="Check that the input is a supported Survey DOCX and the output path is writable.",
+                exit_code=EXIT_ERROR,
+            )
+
     @surveys_group.command("review")
     @click.argument("survey_path", type=click.Path(exists=True))
     @click.option("--host", default="127.0.0.1", show_default=True, help="Host for the local review server.")

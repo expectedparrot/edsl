@@ -82,6 +82,20 @@ class RawResponseHandler:
             # For non-reasoning models or reasoning models with different response formats,
             # try to extract text directly from common response formats
             if isinstance(raw_response, dict):
+                # Bedrock Converse can return reasoningContent before the final
+                # text block when model thinking is enabled.
+                output = raw_response.get("output")
+                message = output.get("message") if isinstance(output, dict) else None
+                content = message.get("content") if isinstance(message, dict) else None
+                if isinstance(content, list):
+                    text_parts = [
+                        block["text"]
+                        for block in content
+                        if isinstance(block, dict) and isinstance(block.get("text"), str)
+                    ]
+                    if text_parts:
+                        return "\n\n".join(text_parts)
+
                 # Responses API format — scan all output items for a message block
                 if "output" in raw_response and isinstance(
                     raw_response["output"], list
