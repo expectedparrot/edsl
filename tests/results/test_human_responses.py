@@ -151,10 +151,39 @@ def test_only_interviews_get_a_recordings_column():
     assert "name_voice_recordings" not in results[0]["raw_model_response"]
 
 
+def test_interview_voice_lands_in_raw_model_response():
+    entries = {"chat": {"answer": "transcript", "voice_option": "coral"}}
+    results = Results.from_human_responses(
+        make_interview_survey(), [make_row(entries=entries)]
+    )
+    assert results[0]["raw_model_response"]["chat_voice_option"] == "coral"
+    assert "raw_model_response.chat_voice_option" in results.columns
+
+
+def test_interview_without_voice_reads_none():
+    entries = {"chat": {"answer": "transcript"}}
+    results = Results.from_human_responses(
+        make_interview_survey(), [make_row(entries=entries)]
+    )
+    assert results[0]["raw_model_response"]["chat_voice_option"] is None
+
+
+def test_only_interviews_get_a_voice_column():
+    entries = {"name": {**ANSWERED["name"], "voice_option": "coral"}}
+    results = Results.from_human_responses(
+        make_interview_survey(), [make_row(entries=entries)]
+    )
+    assert "name_voice_option" not in results[0]["raw_model_response"]
+
+
 def test_by_question_data_keeps_human_fields():
     entries = {
         "name": ANSWERED["name"],
-        "chat": {"answer": "transcript", "voice_recordings": RECORDINGS},
+        "chat": {
+            "answer": "transcript",
+            "voice_recordings": RECORDINGS,
+            "voice_option": "coral",
+        },
     }
     results = Results.from_human_responses(
         make_interview_survey(), [make_row(entries=entries)]
@@ -165,6 +194,8 @@ def test_by_question_data_keeps_human_fields():
     assert question_data["name"]["question_presented"] is True
     assert "voice_recordings" not in question_data["name"]
     assert question_data["chat"]["voice_recordings"] == RECORDINGS
+    assert "voice_option" not in question_data["name"]
+    assert question_data["chat"]["voice_option"] == "coral"
 
 
 def test_by_question_data_question_named_after_a_field():
