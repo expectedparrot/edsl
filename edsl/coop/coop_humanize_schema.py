@@ -964,8 +964,8 @@ class VoiceInterviewConfig(HumanizeSchemaBase):
     # None/blank to the default, and rejects unsupported languages.
     language: str = DEFAULT_VOICE_INTERVIEW_LANGUAGE
     # Built-in voice used by the live voice interviewer. Omit to use the
-    # deployment default; OpenAI recommends marin or cedar for best quality.
-    voice: Optional[VoiceInterviewVoice] = None
+    # default voice; OpenAI recommends marin or cedar for best quality.
+    voice_option: Optional[VoiceInterviewVoice] = None
     # Always present rather than Optional: every voice call has a starting speed,
     # so None would only mean "use the default" anyway.
     turn_taking: TurnTakingConfig = Field(default_factory=TurnTakingConfig)
@@ -974,6 +974,16 @@ class VoiceInterviewConfig(HumanizeSchemaBase):
     @classmethod
     def _validate_language(cls, v: object) -> str:
         return normalize_voice_interview_language(v)
+
+    @field_validator("voice_option", mode="before")
+    @classmethod
+    def _normalize_voice_option(cls, v: object) -> object:
+        # Like the language: case and whitespace are normalized, and blank
+        # means unset. The Literal then rejects unsupported voices.
+        if isinstance(v, str):
+            v = v.strip().lower()
+            return v or None
+        return v
 
 
 class DefaultIntroScreen(HumanizeSchemaBase):

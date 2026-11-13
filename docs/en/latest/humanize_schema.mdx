@@ -284,8 +284,8 @@ In Humanize, `QuestionEdit` shows `text_to_edit` in an editable text box, with a
 
       **Supported languages:** `english`, `french`, `german`, `spanish`, `portuguese`, `chinese`, `japanese`, `hindi`, `italian`, `korean`, `dutch`, `polish`, `russian`, `swedish`, `turkish`, `tagalog`, `bulgarian`, `romanian`, `arabic`, `czech`, `greek`, `finnish`, `croatian`, `malay`, `slovak`, `danish`, `tamil`, `ukrainian`, `hungarian`, `norwegian`, `vietnamese`, `bangla`, `thai`, `hebrew`, `georgian`, `indonesian`, `telugu`, `gujarati`, `kannada`, `malayalam`, `marathi`, `punjabi`, `multilingual`.
     </ParamField>
-    <ParamField path="voice" type="string" required={false}>
-      The voice used by the live AI interviewer. Omit to use the deployment default (normally `marin`, configurable with `VOICE_AGENT_VOICE`). Supported values: `alloy`, `ash`, `ballad`, `coral`, `echo`, `sage`, `shimmer`, `verse`, `marin`, `cedar`. OpenAI recommends `marin` and `cedar` for best quality.
+    <ParamField path="voice_option" type="string" required={false}>
+      The voice used by the live AI interviewer. Case and surrounding whitespace are normalized; omit or set to `null` to use the default voice. An unsupported value raises a validation error. Supported values: `alloy`, `ash`, `ballad`, `coral`, `echo`, `sage`, `shimmer`, `verse`, `marin`, `cedar`. OpenAI recommends `marin` and `cedar` for best quality.
     </ParamField>
     <ParamField path="turn_taking" type="dict" required={false}>
       How the interviewer decides the respondent has finished speaking. Omit to use the default (`{"initial_speed": "default"}`).
