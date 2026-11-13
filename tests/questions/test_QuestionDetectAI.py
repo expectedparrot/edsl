@@ -195,6 +195,18 @@ def test_detect_sends_text_unrendered(pangram):
     assert pangram[1].predict.call_args.args == ("I wrote {{ this }} myself.",)
 
 
+def test_detect_sends_pangram_parameters(pangram):
+    q = DetectAI("detection", question_text="Passage", timeout=42, poll_interval=0.2)
+    q.detect("Passage")
+    kwargs = pangram[1].predict.call_args.kwargs
+    sent = {k: v for k, v in kwargs.items() if k not in ("timeout", "poll_interval")}
+    assert sent == q.pangram_parameters()
+    assert q.pangram_parameters() == {
+        "model": "default",
+        "public_dashboard_link": False,
+    }
+
+
 def test_detect_overrides_apply_to_one_call(pangram):
     q = DetectAI("detection", question_text="Passage", timeout=42, poll_interval=0.2)
     q.detect("Passage", api_key="caller-key", timeout=7, poll_interval=1)

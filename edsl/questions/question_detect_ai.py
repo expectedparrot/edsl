@@ -89,6 +89,15 @@ class QuestionDetectAI(QuestionBase):
     def poll_interval(self) -> float:
         return self._poll_interval
 
+    def pangram_parameters(self) -> dict[str, Any]:
+        """What ``detect`` sends to Pangram's ``predict()`` besides the text.
+
+        These go to Pangram with the request. ``timeout`` and ``poll_interval`` are not
+        included: they only control how long the SDK waits for the result and how
+        often it checks.
+        """
+        return {"model": "default", "public_dashboard_link": False}
+
     def detect(
         self,
         text: str,
@@ -142,8 +151,7 @@ class QuestionDetectAI(QuestionBase):
 
         result = Pangram(api_key=api_key).predict(
             text,
-            model="default",
-            public_dashboard_link=False,
+            **self.pangram_parameters(),
             timeout=timeout,
             poll_interval=poll_interval,
         )
