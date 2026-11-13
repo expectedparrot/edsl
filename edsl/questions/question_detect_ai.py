@@ -59,14 +59,8 @@ class QuestionDetectAI(QuestionBase):
         timeout: float = 300,
         poll_interval: float = 0.5,
     ):
-        for name, value in (("timeout", timeout), ("poll_interval", poll_interval)):
-            if (
-                isinstance(value, bool)
-                or not isinstance(value, (int, float))
-                or not math.isfinite(value)
-                or value <= 0
-            ):
-                raise ValueError(f"{name} must be a finite positive number.")
+        self._check_positive_number("timeout", timeout)
+        self._check_positive_number("poll_interval", poll_interval)
 
         self.question_name = question_name
         if not isinstance(question_text, str) or not question_text.strip():
@@ -77,6 +71,16 @@ class QuestionDetectAI(QuestionBase):
         self._timeout = timeout
         self._poll_interval = poll_interval
 
+    @staticmethod
+    def _check_positive_number(name: str, value: Any) -> None:
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(value)
+            or value <= 0
+        ):
+            raise ValueError(f"{name} must be a finite positive number.")
+
     @property
     def timeout(self) -> float:
         return self._timeout
@@ -85,16 +89,48 @@ class QuestionDetectAI(QuestionBase):
     def poll_interval(self) -> float:
         return self._poll_interval
 
-    def answer_question_directly(self, scenario, agent_traits=None):
-        """Render the input and return the completed Pangram result unchanged."""
-        context = scenario.data if hasattr(scenario, "data") else scenario
-        text = self.render(context, return_dict=True)["question_text"]
-        if not text.strip():
+    def detect(
+        self,
+        text: str,
+        *,
+        api_key: Optional[str] = None,
+        timeout: Optional[float] = None,
+        poll_interval: Optional[float] = None,
+    ) -> dict[str, Any]:
+        """Analyze ``text`` with Pangram and return the question's answer.
+
+        The result is ``{"answer": <Pangram's response, unchanged>, "comment":
+        None, "generated_tokens": None}``, the shape ``answer_question_directly``
+        returns.
+
+        ``text`` is sent as given: it is not rendered as a template. Use this when the
+        text is already rendered, so an answer that happens to contain ``{{ ... }}``
+        reaches Pangram as typed. ``answer_question_directly`` renders
+        ``question_text`` and then calls this.
+
+        ``api_key`` defaults to ``PANGRAM_API_KEY``. ``timeout`` and
+        ``poll_interval`` default to the question's own and apply to this call only.
+
+        Raises ``ValueError`` for blank text, a missing key, invalid timing or a
+        failed Pangram task, and ``ValidationError`` if the response is not a JSON
+        object.
+        """
+        if not isinstance(text, str) or not text.strip():
             raise ValueError("DetectAI requires non-empty text.")
 
-        api_key = os.environ.get("PANGRAM_API_KEY")
+        if api_key is None:
+            api_key = os.environ.get("PANGRAM_API_KEY")
         if not api_key or not api_key.strip():
-            raise ValueError("Set PANGRAM_API_KEY to run a DetectAI question.")
+            raise ValueError(
+                "DetectAI needs a Pangram API key: set PANGRAM_API_KEY or pass api_key."
+            )
+
+        if timeout is None:
+            timeout = self.timeout
+        if poll_interval is None:
+            poll_interval = self.poll_interval
+        self._check_positive_number("timeout", timeout)
+        self._check_positive_number("poll_interval", poll_interval)
 
         try:
             from pangram import Pangram
@@ -108,12 +144,18 @@ class QuestionDetectAI(QuestionBase):
             text,
             model="default",
             public_dashboard_link=False,
-            timeout=self.timeout,
-            poll_interval=self.poll_interval,
+            timeout=timeout,
+            poll_interval=poll_interval,
         )
         if isinstance(result, dict) and result.get("stage") == "STAGE_FAILED":
             raise ValueError("Pangram failed to analyze the text.")
         return self._response_model(answer=result).model_dump()
+
+    def answer_question_directly(self, scenario, agent_traits=None):
+        """Render the input and return the completed Pangram result unchanged."""
+        context = scenario.data if hasattr(scenario, "data") else scenario
+        text = self.render(context, return_dict=True)["question_text"]
+        return self.detect(text)
 
     async def async_answer_question_directly(self, scenario, agent_traits=None):
         """Keep Pangram's blocking polling off the survey's event loop."""

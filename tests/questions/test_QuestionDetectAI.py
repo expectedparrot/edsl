@@ -188,6 +188,57 @@ def test_non_object_response_rejected(pangram):
         DetectAI("detection", question_text="Passage").answer_question_directly({})
 
 
+def test_detect_sends_text_unrendered(pangram):
+    q = DetectAI("detection", question_text="{{ passage }}")
+    result = q.detect("I wrote {{ this }} myself.")
+    assert result == {"answer": pangram[2], "comment": None, "generated_tokens": None}
+    assert pangram[1].predict.call_args.args == ("I wrote {{ this }} myself.",)
+
+
+def test_detect_overrides_apply_to_one_call(pangram):
+    q = DetectAI("detection", question_text="Passage", timeout=42, poll_interval=0.2)
+    q.detect("Passage", api_key="caller-key", timeout=7, poll_interval=1)
+    pangram[0].assert_called_once_with(api_key="caller-key")
+    kwargs = pangram[1].predict.call_args.kwargs
+    assert (kwargs["timeout"], kwargs["poll_interval"]) == (7, 1)
+    assert (q.timeout, q.poll_interval) == (42, 0.2)
+
+
+def test_detect_defaults_to_question_settings_and_env_key(pangram):
+    DetectAI("detection", question_text="Passage", timeout=42).detect("Passage")
+    pangram[0].assert_called_once_with(api_key="test-key")
+    assert pangram[1].predict.call_args.kwargs["timeout"] == 42
+
+
+@pytest.mark.parametrize("text", ["", "   ", None])
+def test_detect_blank_text_never_calls_pangram(pangram, text):
+    with pytest.raises(ValueError, match="non-empty"):
+        DetectAI("detection", question_text="Passage").detect(text)
+    pangram[0].assert_not_called()
+
+
+def test_detect_blank_key_is_rejected(pangram):
+    with pytest.raises(ValueError, match="api_key"):
+        DetectAI("detection", question_text="Passage").detect("Passage", api_key=" ")
+    pangram[0].assert_not_called()
+
+
+@pytest.mark.parametrize("name", ["timeout", "poll_interval"])
+@pytest.mark.parametrize("value", [0, -1, float("inf"), True])
+def test_detect_invalid_timing(pangram, name, value):
+    with pytest.raises(ValueError, match=name):
+        DetectAI("detection", question_text="Passage").detect(
+            "Passage", **{name: value}
+        )
+    pangram[0].assert_not_called()
+
+
+def test_detect_rejects_non_object_response(pangram):
+    pangram[1].predict.return_value = "AI"
+    with pytest.raises(ValidationError):
+        DetectAI("detection", question_text="Passage").detect("Passage")
+
+
 @pytest.mark.asyncio
 async def test_async_execution_uses_worker_thread(pangram):
     thread_ids = []
