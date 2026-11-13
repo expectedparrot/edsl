@@ -68,6 +68,65 @@ def test_temperature_unsupported_for_fable_and_47_plus():
         assert not AnthropicService._temperature_unsupported(name), name
 
 
+def test_manual_thinking_uses_valid_temperature_and_fits_output_limit(monkeypatch):
+    captured_kwargs = {}
+
+    class DummyResponse:
+        def model_dump(self):
+            return {"content": [{"type": "text", "text": "ok"}]}
+
+    class DummyMessages:
+        async def create(self, **kwargs):
+            captured_kwargs.update(kwargs)
+            return DummyResponse()
+
+    class DummyAnthropicClient:
+        def __init__(self, api_key):
+            self.messages = DummyMessages()
+
+    monkeypatch.setattr(
+        "edsl.inference_services.services.anthropic_service.AsyncAnthropic",
+        DummyAnthropicClient,
+    )
+    model_class = AnthropicService.create_model("claude-3-7-sonnet-20250219")
+    model = model_class(max_tokens=5000, skip_api_key_check=True)
+    asyncio.run(model.async_execute_model_call("hello"))
+
+    assert captured_kwargs["temperature"] == 1.0
+    assert captured_kwargs["thinking"] == {
+        "type": "enabled",
+        "budget_tokens": 4999,
+    }
+
+
+def test_manual_thinking_is_disabled_when_output_limit_is_too_small(monkeypatch):
+    captured_kwargs = {}
+
+    class DummyResponse:
+        def model_dump(self):
+            return {"content": [{"type": "text", "text": "ok"}]}
+
+    class DummyMessages:
+        async def create(self, **kwargs):
+            captured_kwargs.update(kwargs)
+            return DummyResponse()
+
+    class DummyAnthropicClient:
+        def __init__(self, api_key):
+            self.messages = DummyMessages()
+
+    monkeypatch.setattr(
+        "edsl.inference_services.services.anthropic_service.AsyncAnthropic",
+        DummyAnthropicClient,
+    )
+    model_class = AnthropicService.create_model("claude-3-7-sonnet-20250219")
+    model = model_class(max_tokens=1024, skip_api_key_check=True)
+    asyncio.run(model.async_execute_model_call("hello"))
+
+    assert "thinking" not in captured_kwargs
+    assert captured_kwargs["max_tokens"] == 1024
+
+
 def test_anthropic_request_omits_temperature_for_fable(monkeypatch):
     captured_kwargs = {}
 
@@ -120,7 +179,7 @@ def test_anthropic_request_preserves_temperature_for_legacy_models(monkeypatch):
         DummyAnthropicClient,
     )
 
-    model_class = AnthropicService.create_model("claude-opus-4-5-20251124")
+    model_class = AnthropicService.create_model("claude-3-5-sonnet-20241022")
     model = model_class(temperature=0.2, skip_api_key_check=True)
 
     asyncio.run(model.async_execute_model_call("hello"))

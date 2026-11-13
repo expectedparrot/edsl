@@ -168,6 +168,43 @@ class AwsBedrockService(InferenceServiceABC):
         return mapping
 
     @classmethod
+    def _supports_adaptive_thinking(cls, model_id: str) -> bool:
+        import re
+
+        name = model_id.lower()
+        if re.search(r"claude-(?:fable|mythos)", name):
+            return True
+        match = re.search(r"claude-(?:opus|sonnet|haiku)-(\d+)-(\d+)", name)
+        if match:
+            return (int(match.group(1)), int(match.group(2))) >= (4, 6)
+        match = re.search(r"claude-(?:opus|sonnet|haiku)-(\d+)(?!-?\d)", name)
+        return bool(match and int(match.group(1)) >= 5)
+
+    @classmethod
+    def _supports_manual_thinking(cls, model_id: str) -> bool:
+        import re
+
+        name = model_id.lower()
+        return bool(
+            re.search(r"claude-3-7-sonnet", name)
+            or re.search(r"claude-(?:opus|sonnet|haiku)-4-(?:0|1|5)(?:[-:]|$)", name)
+            or re.search(r"claude-(?:opus|sonnet|haiku)-4-\d{8}(?:[-:]|$)", name)
+        )
+
+    @classmethod
+    def _thinking_request_fields(cls, model_id: str, max_tokens: int) -> dict:
+        if cls._supports_adaptive_thinking(model_id):
+            return {
+                "thinking": {"type": "adaptive"},
+                "output_config": {"effort": "high"},
+            }
+        if cls._supports_manual_thinking(model_id):
+            safe_budget = min(10000, max_tokens - 1)
+            if safe_budget >= 1024:
+                return {"thinking": {"type": "enabled", "budget_tokens": safe_budget}}
+        return {}
+
+    @classmethod
     def _build_inference_config(
         cls, model_id: str, max_tokens, temperature, top_p
     ) -> dict:
@@ -197,7 +234,9 @@ class AwsBedrockService(InferenceServiceABC):
         if is_thinking:
             return cfg
         if is_claude:
-            cfg["temperature"] = temperature
+            cfg["temperature"] = (
+                1.0 if cls._supports_manual_thinking(model_id) else temperature
+            )
             return cfg
         cfg["temperature"] = temperature
         cfg["topP"] = top_p
@@ -292,7 +331,12 @@ class AwsBedrockService(InferenceServiceABC):
             _model_ = model_name
             _parameters_ = {
                 "temperature": 0.5,
-                "max_tokens": 512,
+                "max_tokens": (
+                    16000
+                    if cls._supports_adaptive_thinking(model_name)
+                    or cls._supports_manual_thinking(model_name)
+                    else 512
+                ),
                 "top_p": 0.9,
             }
             input_token_name = cls.input_token_name
@@ -400,7 +444,9 @@ class AwsBedrockService(InferenceServiceABC):
                         self.temperature,
                         self.top_p,
                     ),
-                    "additionalModelRequestFields": {},
+                    "additionalModelRequestFields": cls._thinking_request_fields(
+                        effective_model_id, self.max_tokens
+                    ),
                 }
 
                 # Add system prompt if provided

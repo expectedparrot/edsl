@@ -22,3 +22,11 @@ class GroqService(OpenAIService):
     # _base_url_ = "https://api.deepinfra.com/v1/openai"
     _base_url_ = None
     _models_list_cache: List[str] = []
+
+    @classmethod
+    def _is_reasoning_model(cls, model_name: str) -> bool:
+        name = model_name.lower()
+        return any(
+            tag in name
+            for tag in ("gpt-oss", "qwen3", "qwen/qwq", "muse-spark", "minimax-m")
+        )
