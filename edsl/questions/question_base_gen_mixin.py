@@ -483,6 +483,28 @@ class QuestionBaseGenMixin:
             except Exception:
                 pass
 
+        original_prices = self.data.get("prices")
+        if isinstance(original_prices, str):
+            try:
+                native_prices = render_native(original_prices)
+                if isinstance(native_prices, tuple):
+                    native_prices = list(native_prices)
+                if isinstance(native_prices, list):
+                    try:
+                        rendered_dict["prices"] = [
+                            float(price) for price in native_prices
+                        ]
+                    except (TypeError, ValueError) as exc:
+                        from .exceptions import QuestionCreationValidationError
+
+                        raise QuestionCreationValidationError(
+                            "QuestionDemand prices must resolve to a list of numbers."
+                        ) from exc
+            except SecurityError:
+                raise
+            except Exception:
+                pass
+
         if return_dict:
             return rendered_dict
         else:

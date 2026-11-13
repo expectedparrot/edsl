@@ -4346,6 +4346,18 @@ class Survey(Base):
         """
         return self._exporter.docx(filename)
 
+    @classmethod
+    def from_docx(cls, source) -> "Survey":
+        """Rebuild a Survey from the visible fields in a programming DOCX.
+
+        ``source`` may be a path, file-like object, or FileStore. Question
+        wording, options, settings, and supported navigation rules are read
+        from the document body; no hidden copy of the original Survey is used.
+        """
+        from .survey_export import survey_from_docx
+
+        return survey_from_docx(source)
+
     def to_html(
         self,
         scenario: Optional[dict] = None,

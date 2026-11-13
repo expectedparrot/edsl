@@ -16,6 +16,8 @@ For data labeling, a question's answer becomes a label: “What topic does this 
 | Type | Use when you need | Answer shape and constraints |
 | --- | --- | --- |
 | `free_text` | An explanation or quotation | String; correctness still needs evaluation. |
+| `edit` | A respondent revises supplied text | Final revised text as a string; Humanize shows inserted and deleted spans. |
+| `email`, `url` | A contact email or web address | Validated email address or absolute URL. |
 | `multiple_choice`, `yes_no` | One category or decision | One permitted option. |
 | `checkbox`, `top_k` | Several categories | List of permitted options; set selection bounds. |
 | `linear_scale`, `likert_five` | An ordered rating | One configured scale value. |
@@ -28,6 +30,8 @@ For data labeling, a question's answer becomes a label: “What topic does this 
 | `interview` | A guided interview | Structured transcript; see [Human interviews](/en/latest/guides/human_interviews). |
 
 These are common choices. The [type details below](#question-type-details) explain their parameters and include examples. Use `ep schema list` and `ep schema show --question_type TYPE` to inspect required parameters.
+
+`QuestionEmail` accepts a valid address directly or recovers the first valid address embedded in a reply, such as `mailto:ann@example.com` or `You can reach me at ann@example.com.`. Validation follows `EmailStr` normalization: the domain is lowercased, and a display name such as `Ann <ann@example.com>` is not retained.
 
 ## Construct questions
 
@@ -104,6 +108,7 @@ Most types share `question_name` and `question_text`. The table lists additional
 | Type | Parameters to set | Response |
 | --- | --- | --- |
 | `free_text` | No additional required fields. | A string. |
+| `edit` | `text_to_edit`: the starting text (may use EDSL piping or scenario templates). | The revised text as a string. |
 | `multiple_choice` | `question_options`: allowed choices. | One choice. |
 | `yes_no` | Built-in Yes/No options. | One of the built-in choices. |
 | `checkbox` | `question_options`; optional `min_selections` and `max_selections`. | A list of choices within the bounds. |
@@ -225,7 +230,7 @@ Choose a specialized type for the behavior you need:
 | Type | Purpose and configuration |
 | --- | --- |
 | `multiple_choice_with_other`, `checkbox_with_other` | Allow supplied choices and custom Other responses. Set `question_options` and optionally `other_option_text`; the checkbox type also supports selection bounds. |
-| `dropdown` | Search a large option set. Supply `question_options`, optionally `question_options_details`, and `max_options_shown` / `top_k` to bound the displayed or retrieved choices. |
+| `dropdown` | Search a large option set. Supply `question_options`, optionally `question_options_details`, and `top_k` to bound the retrieved choices. |
 | `pydantic` | Validate a structured answer against a Pydantic class supplied as `pydantic_model`. |
 | `markdown`, `url` | Collect Markdown text or a valid absolute URL. URL validation does not establish whether the destination exists or supports a claim. |
 | `compute` | Render a template and record its value without an LLM call; useful for deterministic calculated fields. |
@@ -233,6 +238,7 @@ Choose a specialized type for the behavior you need:
 | `random` | Generate a pseudo-random number between 0 and 1 without asking a model. |
 | `thinking` | Send question text directly to a specified `model` and optional `system_prompt`, and record the response. |
 | `demand` | Collect quantities demanded at the supplied `prices`. |
+| `edit` | Ask a respondent or model to revise supplied `text_to_edit`; Humanize presents a direct editor with tracked changes. |
 | `edsl_object` | Collect an EDSL object representation with a specified `expected_object_type`, such as `"ScenarioList"`. Useful for workflows accepting EDSL objects as inputs. |
 | `file_upload` | Collect a respondent's file; see [file upload responses](/en/latest/humanize#working-with-file-upload-responses) for retrieving FileStore objects. |
 | `image_generation` | Return a generated image FileStore. Set its image `model`, `service_name`, and `generation_parameters`; these are separate from the language model used by other questions. See [image generation](/en/latest/filestore#generate-image-inputs). |
@@ -241,7 +247,23 @@ Choose a specialized type for the behavior you need:
 | `group_discussion` | Simulate discussion among configured `participants`, with `max_rounds`, `turn_order`, and optional decision settings. Several participant turns can incur model costs. |
 | `survey_message` | Display a routable message without asking for an answer; see [Survey messages](/en/latest/survey_messages). |
 
-For example, define a structured answer and a deterministic calculation:
+For example, define a text-edit question:
+
+```python
+from edsl import QuestionEdit
+
+question = QuestionEdit(
+    question_name="revise_copy",
+    question_text="Make this clearer while preserving its meaning.",
+    text_to_edit="The report was made by the team and it has many details.",
+)
+```
+
+The EDSL answer is the complete revised text. In Humanize, respondents edit the
+text directly; inserted and deleted spans appear as tracked changes in a live
+preview. Scenario templates and prior-answer piping can supply `text_to_edit`.
+
+You can also define structured answers and deterministic calculations:
 
 ```python
 from pydantic import BaseModel

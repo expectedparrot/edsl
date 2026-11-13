@@ -47,6 +47,9 @@ Previewing requires [Expected Parrot access](/en/latest/api_keys). Pass the same
     <ParamField path="survey.custom_css" type="string" required={false}>
       Optional custom CSS for the survey. Can be `null` or omitted. See [Custom CSS](/en/latest/custom_css) for the `edsl-*` CSS classes and HTML structure per question type.
     </ParamField>
+    <ParamField path="survey.login_required" type="boolean" default={false}>
+      Require respondents to sign in to an Expected Parrot account before taking the survey. Logged-out visitors are sent to sign in and returned to the survey afterward. When enabled, completed-response results include the account username as `agent.expectedparrot_username`. Use this only when account identification is appropriate for the study, and tell respondents how their username will be used. Prolific participants must sign in too. A survey that requires sign-in can't be taken by an AI agent through its agent link, and its preview links also need sign-in: any signed-in Expected Parrot account can open them.
+    </ParamField>
     <ParamField path="survey.progress" type="dict" default={{"type": "bar"}}>
       How the respondent is shown their position in the survey. Omit to keep the progress bar, which is what surveys render by default.
 
@@ -120,10 +123,22 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
 <ParamField path="optional" type="boolean" default={false}>
   Whether the question is optional. Default is `false` when omitted.
 
-  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `file_upload`, `interview`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
+  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `dropdown`, `edit`, `email`, `file_upload`, `interview`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `url`, `yes_no`.
 
   Note: `optional` currently has no effect for `interview` and `rank`.
 </ParamField>
+
+In Humanize, `QuestionDropdown` is a searchable combo box: respondents enter terms, choose from up to `top_k` ranked matches (5 by default), and the choice fills the input. Respondents must choose a listed option, and the answer is that option's text.
+
+In Humanize, `QuestionDemand` shows a demand curve: for each price, respondents set a quantity with a slider or by typing a number, and the curve redraws as they go. Quantities can't be negative, and the answer is one quantity per price, in price order. `demand` doesn't support `optional`.
+
+In Humanize, `QuestionDict` shows one field per key in `answer_keys`, labelled with the key and its value type, with its entry from `value_descriptions` underneath. `int` and `float` keys take a number, `bool` keys take Yes or No, list keys (`list`, `list[str]`, `list[int]`, `list[float]`, `list[bool]`) take one item per line, with `list[bool]` items written as `true` or `false`, and any other key takes text. The answer has exactly the question's keys. `dict` doesn't support `optional`.
+
+In Humanize, `QuestionURL` is a one-line text box. Respondents can leave off the scheme: `example.com` is accepted and recorded as `https://example.com`, so the answer is always an absolute URL, as EDSL requires.
+
+In Humanize, `QuestionEmail` is a one-line email box. Spaces around the address are dropped, and the answer must be a valid email address, as EDSL requires.
+
+In Humanize, `QuestionEdit` shows `text_to_edit` in an editable text box, with a tracked-changes preview underneath: deleted text is struck through in red and inserted text is green. The answer is the full revised text.
 
 <ParamField path="time_limit" type="dict" required={false}>
   A limit on how long the respondent may spend answering the question. Omit or set to `null` for no limit.
@@ -132,7 +147,7 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
 
   A time limit applies only while the question is alone on its page. When `survey.presentation` is `"group"`, every question's `time_limit` is ignored, including a question that is the only one in its group. The countdown runs in the respondent's browser, so reloading the page starts it again.
 
-  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `file_upload`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
+  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `demand`, `dict`, `dropdown`, `edit`, `email`, `file_upload`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `url`, `yes_no`.
 
   <Expandable title="properties">
     <ParamField path="duration" type="dict" required={true}>
@@ -148,7 +163,7 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
   - **Numerical** (`numerical`): `"input"` (number input field) or `"slider"` (range slider). Default is `"input"`. Use `{"type": "input"}` or `{"type": "slider", "min": 0, "max": 100, "step": 1}`. For slider, `min` must be less than `max`, `step` must be positive and not exceed `(max - min)`.
   - **Matrix** (`matrix`): `"table"` (the whole grid at once) or `"carousel"` (one item at a time). Default is `"table"`. Use `{"type": "table"}` or `{"type": "carousel"}`.
 
-  Other question types do not support `format`.
+  `dropdown` questions always use their searchable option picker and do not support `format`. Other question types do not support `format`.
 
   <Expandable title="matrix carousel properties">
     <ParamField path="advance_on_select" type="boolean" default={true}>
@@ -211,6 +226,8 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
 
 <ParamField path="initial_distribution" type="dict" default={{"type": "uniform"}}>
   **Distribution only** (`distribution`). What the chart shows before the respondent touches it. Respondents answer a distribution question by painting probability across its outcomes or bins; the percentages always add up to 100%.
+
+  In the live survey, respondents can also choose **Reset to spiked** to put all probability on the first outcome, or **Reset to uniform** to spread it equally across outcomes. **Reset to start** returns to the configured `initial_distribution`. These are respondent controls, not additional schema settings.
 
   <Expandable title="properties">
     <ParamField path="type" type="string" default="uniform">
@@ -380,7 +397,7 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
   Optional comment input shown with the question.
   Submitted comment text appears in survey results under `comment.{question_name}_comment`.
 
-  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
+  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `demand`, `dict`, `dropdown`, `edit`, `email`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `url`, `yes_no`.
 
   <Expandable title="properties">
     <ParamField path="label" type="string" required={true}>
@@ -392,7 +409,7 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
 <ParamField path="submitting_indicator" type="dict" required={false}>
   Optional indicator shown after the respondent clicks **Next**, while the following question runs. Omit or set to `null` for no indicator.
 
-  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `file_upload`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
+  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `demand`, `dict`, `dropdown`, `edit`, `email`, `file_upload`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `url`, `yes_no`.
 
   Note: not supported for `compute` or `image_generation` (both run in the background and auto-advance, so neither is ever the question a respondent submits), or for `interview`.
 
@@ -409,7 +426,7 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
 <ParamField path="javascript" type="dict" required={false}>
   Optional JavaScript that runs on the respondent's page for this question. Omit or set to `null` to run no script. See [Custom JavaScript](/en/latest/custom_javascript) for how to write a hook, what a script may do, and how to retrieve the events it logs.
 
-  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `distribution`, `file_upload`, `interview`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`, `survey_message`.
+  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `demand`, `dict`, `distribution`, `dropdown`, `edit`, `email`, `file_upload`, `interview`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `url`, `yes_no`, `survey_message`.
 
   Note: not supported for `compute` or `image_generation`. Both run in the background and are dropped from the page, so there is no rendered question for a script to attach to.
 
@@ -519,7 +536,7 @@ writes plain JSON. Both are readable by the commands that take `--schema`.
 If the schema is invalid, Expected Parrot raises `HumanizeSchemaValidationError`. Common causes:
 
 - A key in `questions` is not a question name in the survey, or is an instruction.
-- A question's type is not supported for humanize schema (e.g. `demand`, `dropdown`).
+- A question's type is not supported for humanize schema (e.g. `extract`).
 - A question's entry has the wrong shape for its type (e.g. wrong field types or extra fields that aren’t allowed).
 - A `time_limit` has `seconds` outside 30–7200, or a `duration` without its `"type": "fixed"`.
 - Top-level structure is invalid (e.g. `questions` not a dict, or an entry not a dict).

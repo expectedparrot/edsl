@@ -13,11 +13,16 @@ from edsl.questions import (
     QuestionCheckBox,
     QuestionCheckBoxWithOther,
     QuestionDemand,
+    QuestionDict,
     QuestionDistribution,
+    QuestionEdit,
+    QuestionEmail,
+    QuestionExtract,
     QuestionFreeText,
     QuestionInterview,
     QuestionMultipleChoice,
     QuestionNumerical,
+    QuestionURL,
     SurveyMessage,
 )
 from edsl.surveys import Survey
@@ -63,9 +68,7 @@ def test_distribution_initial_state_default_and_question_type():
             Survey([question]),
             {
                 "questions": {
-                    question.question_name: {
-                        "initial_distribution": {"type": "empty"}
-                    }
+                    question.question_name: {"initial_distribution": {"type": "empty"}}
                 }
             },
         )
@@ -76,7 +79,10 @@ def test_distribution_initial_state_default_and_question_type():
     [
         ({}, ["mean", "variance"]),
         ({"statistics": [{"type": "variance"}]}, ["variance"]),
-        ({"statistics": [{"type": "variance"}, {"type": "mean"}]}, ["variance", "mean"]),
+        (
+            {"statistics": [{"type": "variance"}, {"type": "mean"}]},
+            ["variance", "mean"],
+        ),
     ],
 )
 def test_distribution_summary(summary, expected):
@@ -215,7 +221,47 @@ class TestValidateHumanizeSchemaGeneral:
         assert "instruction" in str(exc_info.value).lower()
 
     def test_unsupported_question_type_raises(self):
-        """Humanize schema for an unsupported question type (e.g. demand) raises."""
+        """Humanize schema for an unsupported question type (e.g. extract) raises."""
+        survey = Survey(
+            [
+                QuestionExtract(
+                    question_name="extract_q",
+                    question_text="My name is Alex and I live in Boston.",
+                    answer_template={"name": "Jane", "city": "Paris"},
+                ),
+            ]
+        )
+        humanize_schema = {"questions": {"extract_q": {"optional": True}}}
+        with pytest.raises(HumanizeSchemaValidationError) as exc_info:
+            validate_humanize_schema(survey, humanize_schema)
+        assert "extract_q" in str(exc_info.value)
+        assert "not supported" in str(exc_info.value).lower()
+
+    def test_demand_accepts_its_settings(self):
+        """A demand question takes a comment, time limit, submitting indicator and
+        script."""
+        survey = Survey(
+            [
+                QuestionDemand(
+                    question_name="demand_q",
+                    question_text="How many would you buy at each price?",
+                    prices=[1.0, 2.0, 3.0],
+                ),
+            ]
+        )
+        humanize_schema = {
+            "questions": {
+                "demand_q": {
+                    "comment": {"label": "Anything to add?"},
+                    "time_limit": {"duration": {"type": "fixed", "seconds": 300}},
+                    "submitting_indicator": {"type": "callout"},
+                }
+            }
+        }
+        validate_humanize_schema(survey, humanize_schema)
+
+    def test_demand_rejects_optional(self):
+        """Demand has no `optional` field."""
         survey = Survey(
             [
                 QuestionDemand(
@@ -228,8 +274,118 @@ class TestValidateHumanizeSchemaGeneral:
         humanize_schema = {"questions": {"demand_q": {"optional": True}}}
         with pytest.raises(HumanizeSchemaValidationError) as exc_info:
             validate_humanize_schema(survey, humanize_schema)
-        assert "demand_q" in str(exc_info.value)
-        assert "not supported" in str(exc_info.value).lower()
+        assert "optional" in str(exc_info.value).lower()
+
+    def test_dict_accepts_its_settings(self):
+        """A dict question takes a comment, time limit, submitting indicator and
+        script."""
+        survey = Survey(
+            [
+                QuestionDict(
+                    question_name="dict_q",
+                    question_text="Tell us about yourself.",
+                    answer_keys=["name", "age"],
+                    value_types=["str", "int"],
+                ),
+            ]
+        )
+        humanize_schema = {
+            "questions": {
+                "dict_q": {
+                    "comment": {"label": "Anything to add?"},
+                    "time_limit": {"duration": {"type": "fixed", "seconds": 300}},
+                    "submitting_indicator": {"type": "callout"},
+                }
+            }
+        }
+        validate_humanize_schema(survey, humanize_schema)
+
+    def test_dict_rejects_optional(self):
+        """Dict has no `optional` field."""
+        survey = Survey(
+            [
+                QuestionDict(
+                    question_name="dict_q",
+                    question_text="Tell us about yourself.",
+                    answer_keys=["name", "age"],
+                    value_types=["str", "int"],
+                ),
+            ]
+        )
+        humanize_schema = {"questions": {"dict_q": {"optional": True}}}
+        with pytest.raises(HumanizeSchemaValidationError) as exc_info:
+            validate_humanize_schema(survey, humanize_schema)
+        assert "optional" in str(exc_info.value).lower()
+
+    def test_edit_accepts_its_settings(self):
+        """An edit question takes optional, a comment, time limit, submitting
+        indicator and script."""
+        survey = Survey(
+            [
+                QuestionEdit(
+                    question_name="edit_q",
+                    question_text="Tighten this sentence.",
+                    text_to_edit="The report was made by the team and it has many details.",
+                ),
+            ]
+        )
+        humanize_schema = {
+            "questions": {
+                "edit_q": {
+                    "optional": True,
+                    "comment": {"label": "Anything to add?"},
+                    "time_limit": {"duration": {"type": "fixed", "seconds": 300}},
+                    "submitting_indicator": {"type": "callout"},
+                }
+            }
+        }
+        validate_humanize_schema(survey, humanize_schema)
+
+    def test_email_accepts_its_settings(self):
+        """An email question takes optional, a comment, time limit, submitting
+        indicator and script."""
+        survey = Survey(
+            [
+                QuestionEmail(
+                    question_name="email_q",
+                    question_text="What's your email address?",
+                ),
+            ]
+        )
+        humanize_schema = {
+            "questions": {
+                "email_q": {
+                    "optional": True,
+                    "comment": {"label": "Anything to add?"},
+                    "time_limit": {"duration": {"type": "fixed", "seconds": 300}},
+                    "submitting_indicator": {"type": "callout"},
+                }
+            }
+        }
+        validate_humanize_schema(survey, humanize_schema)
+
+    def test_url_accepts_its_settings(self):
+        """A URL question takes optional, a comment, time limit, submitting
+        indicator and script."""
+        survey = Survey(
+            [
+                QuestionURL(
+                    question_name="url_q",
+                    question_text="What's your website?",
+                ),
+            ]
+        )
+        humanize_schema = {
+            "questions": {
+                "url_q": {
+                    "optional": True,
+                    "comment": {"label": "Anything to add?"},
+                    "time_limit": {"duration": {"type": "fixed", "seconds": 300}},
+                    "submitting_indicator": {"type": "callout"},
+                }
+            }
+        }
+        validate_humanize_schema(survey, humanize_schema)
 
     def test_survey_message_accepts_only_empty_display_configuration(self):
         survey = Survey(
@@ -529,8 +685,7 @@ class TestValidateHumanizeSchemaVoice:
             {"interview_mode": "voice", "voice_interview_config": {}}
         )
         assert (
-            parsed.voice_interview_config.language
-            == DEFAULT_VOICE_INTERVIEW_LANGUAGE
+            parsed.voice_interview_config.language == DEFAULT_VOICE_INTERVIEW_LANGUAGE
         )
 
     def test_voice_config_supported_language_passes(self):
@@ -565,8 +720,7 @@ class TestValidateHumanizeSchemaVoice:
             {"voice_interview_config": {"language": None}}
         )
         assert (
-            parsed.voice_interview_config.language
-            == DEFAULT_VOICE_INTERVIEW_LANGUAGE
+            parsed.voice_interview_config.language == DEFAULT_VOICE_INTERVIEW_LANGUAGE
         )
 
     def test_voice_config_unsupported_language_raises(self):
@@ -760,6 +914,11 @@ class TestValidateHumanizeSchemaTimeLimit:
         "budget",
         "checkbox",
         "checkbox_with_other",
+        "demand",
+        "dict",
+        "dropdown",
+        "edit",
+        "email",
         "file_upload",
         "likert_five",
         "linear_scale",
@@ -770,6 +929,7 @@ class TestValidateHumanizeSchemaTimeLimit:
         "numerical",
         "rank",
         "top_k",
+        "url",
         "yes_no",
     ]
 

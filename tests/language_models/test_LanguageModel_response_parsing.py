@@ -80,7 +80,6 @@ class TestSplitAnswerAndComment:
         answer, comment = RawResponseHandler._split_answer_and_comment(text)
         assert answer == "No"
         assert comment == "The policy does not apply here."
-
     def test_comment_delimiter_multiline_answer(self):
         """Answer spans multiple lines; COMMENT: follows."""
         text = "Line 1\nLine 2\nLine 3\nCOMMENT: This is the real comment."
@@ -150,6 +149,24 @@ class TestSplitAnswerAndComment:
         assert comment == "These are my choices."
 
 
+def test_bedrock_reasoning_content_does_not_hide_answer_text():
+    handler = RawResponseHandler(
+        ["output", "message", "content", 0, "text"],
+        inference_service="bedrock",
+    )
+    response = {
+        "output": {
+            "message": {
+                "content": [
+                    {"reasoningContent": {"reasoningText": {"text": "thinking"}}},
+                    {"text": "the answer"},
+                ]
+            }
+        }
+    }
+    assert handler.get_generated_token_string(response) == "the answer"
+
+
 def test_parse_response_with_comment_delimiter():
     """Integration test: full parse_response flow with COMMENT: delimiter."""
     m = LanguageModel.example(
@@ -203,3 +220,37 @@ def test_parse_response_free_text_does_not_json_coerce():
     assert model_response.answer == expected_text
     assert model_response.generated_tokens == expected_text
     assert model_response.comment is None
+
+
+def test_get_response_edit_preserves_multiline_revision():
+    from edsl import Cache
+
+    revision = "First revised paragraph.\n\nSecond revised paragraph."
+    model = LanguageModel.example(test_model=True, canned_response=revision)
+
+    response = model.get_response(
+        user_prompt="Revise the text.",
+        system_prompt="",
+        cache=Cache(),
+        question_type="edit",
+    )
+
+    assert response.edsl_dict.answer == revision
+    assert response.edsl_dict.comment is None
+
+
+def test_get_response_edit_does_not_json_coerce_revision():
+    from edsl import Cache
+
+    revision = '{"title": "Revised",\n"body": "Keep these braces as text."}'
+    model = LanguageModel.example(test_model=True, canned_response=revision)
+
+    response = model.get_response(
+        user_prompt="Revise the text.",
+        system_prompt="",
+        cache=Cache(),
+        question_type="edit",
+    )
+
+    assert response.edsl_dict.answer == revision
+    assert isinstance(response.edsl_dict.answer, str)

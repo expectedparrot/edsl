@@ -1605,6 +1605,89 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         return cls([Scenario(s) for s in scenario_dicts_list])
 
+    def save_hf(
+        self,
+        path: str | Path,
+        *,
+        config_name: str | None = None,
+        coerce: Literal["error", "string", "json"] = "error",
+        max_file_bytes: int = 50_000_000,
+    ) -> Path:
+        """Save a Hugging Face Parquet config locally. Requires edsl[hf].
+
+        Preserves existing configs and card prose. Mixed scalar types raise
+        HFSchemaError unless coerce is 'string' or 'json'. FileStore bytes
+        are embedded, with a per-attachment size limit.
+        """
+        from edsl.hf.io import save_hf
+
+        return save_hf(
+            self,
+            path,
+            config_name=config_name,
+            coerce=coerce,
+            max_file_bytes=max_file_bytes,
+        )
+
+    @classmethod
+    def load_hf(
+        cls, path: str | Path, *, config_name: str | None = None
+    ) -> ScenarioList:
+        """Rebuild this list from a local HF folder without executing stored code."""
+        from edsl.hf.io import load_hf
+
+        return load_hf(cls, path, config_name=config_name)
+
+    def to_hf(
+        self,
+        repo_id: str,
+        *,
+        config_name: str | None = None,
+        private: bool = True,
+        token: str | None = None,
+        commit_message: str | None = None,
+        coerce: Literal["error", "string", "json"] = "error",
+        max_file_bytes: int = 50_000_000,
+    ) -> str:
+        """Publish a Parquet config to the HF Hub and return its dataset URL.
+
+        Repositories are created private by default. Updating a config preserves
+        other configs and existing dataset-card prose. An existing repository's
+        visibility is unchanged.
+        """
+        from edsl.hf.io import to_hf
+
+        return to_hf(
+            self,
+            repo_id,
+            config_name=config_name,
+            private=private,
+            token=token,
+            commit_message=commit_message,
+            coerce=coerce,
+            max_file_bytes=max_file_bytes,
+        )
+
+    @classmethod
+    def from_hf(
+        cls,
+        repo_id: str,
+        *,
+        config_name: str | None = None,
+        revision: str | None = None,
+        token: str | None = None,
+    ) -> ScenarioList:
+        """Load a Hub config, optionally pinned to a revision.
+
+        For datasets without EDSL metadata, every train row becomes an item
+        and every column becomes a trait or scenario field.
+        """
+        from edsl.hf.io import from_hf
+
+        return from_hf(
+            cls, repo_id, config_name=config_name, revision=revision, token=token
+        )
+
     def to_jsonl(self, filename=None, blob_writer=None, offload_filestores=False):
         """Export the ScenarioList as JSONL.
 

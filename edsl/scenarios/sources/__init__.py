@@ -23,6 +23,7 @@ from .google_sources import GoogleDocSource, GoogleSheetSource
 from .wikipedia_source import WikipediaSource
 from .stata_source import StataSource
 from .parquet_source import ParquetSource
+from .huggingface_source import HuggingFaceSource
 from .pdf_sources import PDFSource, PDFImageSource
 
 __all__ = [
@@ -46,6 +47,7 @@ __all__ = [
     "WikipediaSource",
     "StataSource",
     "ParquetSource",
+    "HuggingFaceSource",
     "PDFSource",
     "PDFImageSource",
 ]

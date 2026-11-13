@@ -345,7 +345,8 @@ def humanize(ctx):
         _output({
             "commands": [
                 "list", "create", "status", "responses", "qr", "preview",
-                "respondents", "links", "events", "schedules", "deliveries", "callbacks",
+                "respondents", "links", "events", "interactions", "assistant",
+                "background", "schedules", "deliveries", "callbacks",
                 "agent-list", "agent-access", "schema", "css", "custom-js-access",
                 "assets", "prolific",
             ],
