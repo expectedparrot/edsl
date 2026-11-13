@@ -13,7 +13,7 @@ from pydantic import (
 )
 from typing import List, Literal, Annotated, Union
 
-from .exceptions import QuestionAnswerValidationError
+from .exceptions import QuestionAnswerValidationError, QuestionValueError
 from ..scenarios import Scenario
 
 from .question_base import QuestionBase
@@ -85,6 +85,7 @@ def create_checkbox_response_model(
     min_selections: Optional[int] = None,
     max_selections: Optional[int] = None,
     permissive: bool = False,
+    exclusive_choices: Optional[list] = None,
 ):
     """
     Dynamically create a CheckboxResponse model with a predefined list of choices.
@@ -147,6 +148,8 @@ def create_checkbox_response_model(
         >>> len(response.answer)
         3
     """
+    exclusive_choices = exclusive_choices or []
+
     # Convert the choices list to a tuple for use with Literal
     choice_tuple = tuple(choices)
 
@@ -183,6 +186,11 @@ def create_checkbox_response_model(
                             model=self.__class__,
                             pydantic_error=validation_error,
                         )
+                if any(choice in exclusive_choices for choice in self.answer):
+                    if len(self.answer) != 1:
+                        raise ValueError(
+                            "Exclusive options must be selected by themselves"
+                        )
                 return self
 
         return PermissiveCheckboxResponse
@@ -199,7 +207,19 @@ def create_checkbox_response_model(
             @model_validator(mode="after")
             def validate_selection_count(self):
                 """Validate that the number of selections meets constraints."""
-                if min_selections is not None and len(self.answer) < min_selections:
+                has_exclusive_choice = any(
+                    choice in exclusive_choices for choice in self.answer
+                )
+                if has_exclusive_choice:
+                    if len(self.answer) != 1:
+                        raise ValueError(
+                            "Exclusive options must be selected by themselves"
+                        )
+                if (
+                    not has_exclusive_choice
+                    and min_selections is not None
+                    and len(self.answer) < min_selections
+                ):
                     validation_error = ValidationError.from_exception_data(
                         title="CheckboxResponse",
                         line_errors=[
@@ -317,6 +337,7 @@ class CheckBoxResponseValidator(ResponseValidatorABC):
         "permissive",
         "probabilistic_response",
         "probabilistic_seed_context",
+        "exclusive_options",
     ]
 
     def _post_process(self, edsl_answer_dict):
@@ -361,18 +382,30 @@ class CheckBoxResponseValidator(ResponseValidatorABC):
         return edsl_answer_dict
 
     valid_examples = [
-        ({"answer": [1, 2]}, {"question_options": ["Good", "Great", "OK", "Bad"]})
+        (
+            {"answer": [1, 2]},
+            {
+                "question_options": ["Good", "Great", "OK", "Bad"],
+                "exclusive_options": [],
+            },
+        )
     ]
 
     invalid_examples = [
         (
             {"answer": [-1]},
-            {"question_options": ["Good", "Great", "OK", "Bad"]},
+            {
+                "question_options": ["Good", "Great", "OK", "Bad"],
+                "exclusive_options": [],
+            },
             "Invalid choice",
         ),
         (
             {"answer": 1},
-            {"question_options": ["Good", "Great", "OK", "Bad"]},
+            {
+                "question_options": ["Good", "Great", "OK", "Bad"],
+                "exclusive_options": [],
+            },
             "value is not a valid list",
         ),
         (
@@ -381,6 +414,7 @@ class CheckBoxResponseValidator(ResponseValidatorABC):
                 "question_options": ["Good", "Great", "OK", "Bad"],
                 "min_selections": 1,
                 "max_selections": 2,
+                "exclusive_options": [],
             },
             "Must select at most 2",
         ),
@@ -411,6 +445,17 @@ class CheckBoxResponseValidator(ResponseValidatorABC):
         """
         if verbose:
             print("Invalid response of QuestionCheckBox was: ", response)
+
+        # Do not silently discard selections to make an answer containing an
+        # exclusive option validate. This is especially important for
+        # checkbox-with-other, where generic option extraction cannot preserve
+        # custom responses such as "Other: Sushi".
+        original_exception = getattr(self, "original_exception", None)
+        original_message = getattr(original_exception, "message", "")
+        if "Exclusive options must be selected by themselves" in str(
+            original_message
+        ):
+            return response
 
         # Check if answer exists and is a comma-separated string (common LLM output format)
         if (
@@ -677,6 +722,18 @@ class QuestionCheckBox(QuestionBase):
     _response_model = None
     response_validator_class = CheckBoxResponseValidator
 
+    @property
+    def exclusive_options(self) -> list[str]:
+        """Options that are valid only when selected by themselves."""
+        return list(getattr(self, "_exclusive_options", []))
+
+    @exclusive_options.setter
+    def exclusive_options(self, value: Optional[list[str]]) -> None:
+        if not value:
+            self.__dict__.pop("_exclusive_options", None)
+        else:
+            self._exclusive_options = list(value)
+
     def __init__(
         self,
         question_name: str,
@@ -690,6 +747,7 @@ class QuestionCheckBox(QuestionBase):
         answering_instructions: Optional[str] = None,
         permissive: bool = False,
         probabilistic_response: ProbabilisticResponse | dict | None = None,
+        exclusive_options: Optional[list[str]] = None,
     ):
         """
         Initialize a new checkbox question.
@@ -743,6 +801,20 @@ class QuestionCheckBox(QuestionBase):
         self.min_selections = min_selections
         self.max_selections = max_selections
         self.question_options = question_options
+        exclusive_options = list(exclusive_options or [])
+        if len(exclusive_options) != len(set(exclusive_options)):
+            raise QuestionValueError("exclusive_options must not contain duplicates")
+        unknown_exclusive_options = (
+            [option for option in exclusive_options if option not in question_options]
+            if isinstance(question_options, list)
+            else []
+        )
+        if unknown_exclusive_options:
+            raise QuestionValueError(
+                "exclusive_options must exactly match question_options; unknown: "
+                f"{unknown_exclusive_options}"
+            )
+        self.exclusive_options = exclusive_options
 
         self._include_comment = include_comment
         self._use_code = use_code
@@ -751,10 +823,11 @@ class QuestionCheckBox(QuestionBase):
             probabilistic_response
         )
         if self._probabilistic_response is not None:
-            if (
-                self._probabilistic_response.representation
-                != "inclusion_probabilities"
-            ):
+            if self.exclusive_options:
+                raise QuestionValueError(
+                    "exclusive_options cannot be combined with probabilistic_response"
+                )
+            if self._probabilistic_response.representation != "inclusion_probabilities":
                 raise ValueError(
                     "Checkbox probabilistic responses require "
                     "representation='inclusion_probabilities'."
@@ -794,6 +867,7 @@ class QuestionCheckBox(QuestionBase):
                 min_selections=self.min_selections,
                 max_selections=self.max_selections,
                 permissive=self.permissive,
+                exclusive_choices=self.exclusive_options,
             )
         else:
             # Use option indices (0, 1, 2...) as valid choices
@@ -802,6 +876,10 @@ class QuestionCheckBox(QuestionBase):
                 min_selections=self.min_selections,
                 max_selections=self.max_selections,
                 permissive=self.permissive,
+                exclusive_choices=[
+                    self.question_options.index(option)
+                    for option in self.exclusive_options
+                ],
             )
 
     @property
@@ -879,31 +957,50 @@ class QuestionCheckBox(QuestionBase):
         """
         from edsl.utilities.utilities import random_string
 
-        min_sel = self.min_selections or 1
-        max_sel = self.max_selections or len(self.question_options)
-        # Ensure we don't try to select more options than available
-        max_sel = min(max_sel, len(self.question_options))
-        min_sel = min(min_sel, max_sel)
+        options = list(self.question_options)
+        exclusive_options = [
+            option for option in options if option in self.exclusive_options
+        ]
+        regular_options = [
+            option for option in options if option not in self.exclusive_options
+        ]
+        minimum = self.min_selections if self.min_selections is not None else 1
+        maximum = (
+            self.max_selections
+            if self.max_selections is not None
+            else len(options)
+        )
+        maximum = min(maximum, len(options))
 
-        num_selections = random.randint(min_sel, max_sel)
+        can_choose_exclusive = bool(exclusive_options) and maximum >= 1
+        regular_minimum = minimum
+        if regular_minimum > len(regular_options):
+            if not can_choose_exclusive:
+                raise ValueError("No valid checkbox answer can be simulated")
+            regular_minimum = maximum + 1
+
+        choices = []
+        if can_choose_exclusive:
+            choices.append([random.choice(exclusive_options)])
+        if regular_minimum <= min(maximum, len(regular_options)):
+            count = random.randint(
+                regular_minimum, min(maximum, len(regular_options))
+            )
+            choices.append(random.sample(regular_options, count))
+        if not choices:
+            if minimum == 0 and maximum == 0:
+                selected_options = []
+            else:
+                raise ValueError("No valid checkbox answer can be simulated")
+        else:
+            selected_options = random.choice(choices)
 
         if human_readable:
-            # Select a random number of options from self.question_options
-            selected_options = random.sample(self.question_options, num_selections)
-            answer = {
-                "answer": selected_options,
-                "comment": random_string(),
-            }
+            selected_answer = selected_options
         else:
-            # Select a random number of indices from the range of self.question_options
-            selected_indices = random.sample(
-                range(len(self.question_options)), num_selections
-            )
-            answer = {
-                "answer": selected_indices,
-                "comment": random_string(),
-            }
-        return answer
+            option_indices = {option: index for index, option in enumerate(options)}
+            selected_answer = [option_indices[option] for option in selected_options]
+        return {"answer": selected_answer, "comment": random_string()}
 
     @property
     def question_html_content(self) -> str:
