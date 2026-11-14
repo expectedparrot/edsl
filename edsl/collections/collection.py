@@ -27,7 +27,6 @@ class CollectionItem:
     object_type: str
     object_uuid: str
     added_at: Optional[str] = None
-    version_at_add: Optional[str] = None
 
     def __post_init__(self) -> None:
         if self.object_type not in SUPPORTED_OBJECT_TYPES:
@@ -41,15 +40,12 @@ class CollectionItem:
             object.__setattr__(self, "added_at", datetime.now(timezone.utc).isoformat())
         elif not isinstance(self.added_at, str) or not self.added_at:
             raise ValueError("added_at must be a non-empty ISO timestamp string")
-        if self.version_at_add is not None and not isinstance(self.version_at_add, str):
-            raise TypeError("version_at_add must be a string or None")
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "object_type": self.object_type,
             "object_uuid": self.object_uuid,
             "added_at": self.added_at,
-            "version_at_add": self.version_at_add,
         }
 
     @classmethod
@@ -106,11 +102,10 @@ class Collection(Base):
         object_type: str,
         object_uuid: str,
         *,
-        version_at_add: Optional[str] = None,
         added_at: Optional[str] = None,
     ) -> "Collection":
         self._append_item(
-            CollectionItem(object_type, object_uuid, added_at, version_at_add)
+            CollectionItem(object_type, object_uuid, added_at)
         )
         return self
 

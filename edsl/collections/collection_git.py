@@ -63,7 +63,6 @@ class CollectionGitPackage(gitpkg.GitPackage):
                 item.get("object_type", ""),
                 item.get("object_uuid", ""),
                 item.get("added_at", ""),
-                item.get("version_at_add", "") or "",
             )
             rows.append(
                 "<tr>" + "".join(f"<td>{html.escape(str(cell))}</td>" for cell in cells) + "</tr>"
@@ -75,7 +74,7 @@ class CollectionGitPackage(gitpkg.GitPackage):
             "<!doctype html><html><head><meta charset='utf-8'>"
             f"<title>{title}</title></head><body><h1>{title}</h1>"
             f"<p>{purpose}</p><p>{tags}</p><table><thead><tr>"
-            "<th>#</th><th>Type</th><th>UUID</th><th>Added</th><th>Version at add</th>"
+            "<th>#</th><th>Type</th><th>UUID</th><th>Added</th>"
             "</tr></thead><tbody>" + "".join(rows) + "</tbody></table></body></html>"
         )
         if filename is not None:

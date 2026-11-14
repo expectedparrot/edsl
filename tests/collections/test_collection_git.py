@@ -9,7 +9,7 @@ from edsl.collections.collection_git import _validate_package
 
 def test_collection_git_round_trip_preserves_order_and_metadata(tmp_path):
     collection = Collection("Research", purpose="Explore", tags=["study"], metadata={"owner": "team"})
-    collection.add("survey", str(uuid4()), added_at="2026-01-01T00:00:00Z", version_at_add="v1")
+    collection.add("survey", str(uuid4()), added_at="2026-01-01T00:00:00Z")
     collection.add("question", str(uuid4()), added_at="2026-01-02T00:00:00Z")
     path = tmp_path / "research.ep"
 
@@ -17,7 +17,7 @@ def test_collection_git_round_trip_preserves_order_and_metadata(tmp_path):
     loaded = Collection.git.load(path)
 
     assert [item.object_type for item in loaded.items] == ["survey", "question"]
-    assert loaded.items[0].version_at_add == "v1"
+    assert loaded.items[0].added_at == "2026-01-01T00:00:00Z"
     assert loaded.tags == ["study"]
     assert loaded.metadata == {"owner": "team"}
 

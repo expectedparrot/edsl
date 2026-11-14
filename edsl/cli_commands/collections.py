@@ -85,7 +85,6 @@ def register(collections_group: click.Group) -> None:
                 collection.add(
                     object_type=data["object_type"],
                     object_uuid=data["uuid"],
-                    version_at_add=str(data["version"]) if data.get("version") is not None else None,
                 )
 
             saved = _save_collection(collection, output_path, "Create Collection from Coop search")
@@ -125,12 +124,11 @@ def register(collections_group: click.Group) -> None:
     @click.argument("collection_path", type=click.Path(exists=True))
     @click.argument("object_uuid")
     @click.option("--type", "object_type", required=True, help="Coop object type, such as prompt or survey.")
-    @click.option("--version-at-add", default=None, help="Version string to record with this reference.")
-    def add_item(collection_path: str, object_uuid: str, object_type: str, version_at_add: str | None) -> None:
+    def add_item(collection_path: str, object_uuid: str, object_type: str) -> None:
         """Add a typed Coop UUID reference to a local Collection."""
         try:
             collection = _load_collection(collection_path)
-            collection.add(object_type, object_uuid, version_at_add=version_at_add)
+            collection.add(object_type, object_uuid)
             saved = _save_collection(collection, collection_path, f"Add {object_type} to Collection")
             output({"name": collection.name, "item_count": len(collection), "added": {"object_type": object_type, "object_uuid": object_uuid}, "saved": saved})
         except SystemExit:
