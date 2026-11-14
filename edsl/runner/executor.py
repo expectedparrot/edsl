@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 from .coordinator import ExecutionCoordinator, WorkAssignment, WorkCompletion
 from .service import JobService
 from .models import TaskStatus, generate_id
+from .question_resolution import resolve_question_for_validation
 
 # EDSL imports - relative since this module lives inside edsl package
 from ..caching import Cache
@@ -593,70 +594,10 @@ class ExecutionWorker:
     def _resolve_question_templates(
         self, question_data: dict, job_id: str, interview_id: str
     ) -> dict:
-        """Resolve all template strings ({{ ... }}) in question data.
-
-        Handles question_options, min_value, max_value, and any other
-        string fields that reference prior answers or scenario variables.
-        """
-        # Validate and translate codes against the same order shown in the prompt,
-        # including static options that need no template resolution.
-        interview_def = self._job_service._interviews.get_definition(
-            job_id, interview_id
+        """Resolve question data as its prompt was resolved; see question_resolution."""
+        return resolve_question_for_validation(
+            self._job_service, job_id, interview_id, question_data
         )
-        if interview_def:
-            permutations = interview_def.question_option_permutations
-            question_name = question_data.get("question_name")
-            if question_name in permutations:
-                question_data = {
-                    **question_data,
-                    "question_options": permutations[question_name],
-                }
-
-        # Check if any values need resolution
-        has_templates = False
-        for key, value in question_data.items():
-            if isinstance(value, str) and "{{" in value:
-                has_templates = True
-                break
-            if isinstance(value, list) and any(
-                isinstance(item, str) and "{{" in item for item in value
-            ):
-                has_templates = True
-                break
-            if (
-                isinstance(value, dict)
-                and key == "question_options"
-                and "from" in value
-            ):
-                has_templates = True
-                break
-
-        if not has_templates:
-            return question_data
-
-        answer_dict = self._get_interview_answers(job_id, interview_id)
-        scenario = None
-        if interview_def:
-            scenario = self._job_service._jobs.get_scenario(
-                job_id, interview_def.scenario_id
-            )
-
-        resolved_data = question_data.copy()
-        for key, value in question_data.items():
-            if key == "question_options":
-                resolved = JobService._resolve_question_options(
-                    value, answer_dict, scenario
-                )
-                if resolved != value:
-                    resolved_data[key] = resolved
-            elif isinstance(value, str) and "{{" in value:
-                resolved = JobService._resolve_template_string(
-                    value, answer_dict, scenario
-                )
-                if resolved != value:
-                    resolved_data[key] = resolved
-
-        return resolved_data
 
     def _classify_error(self, error: Exception) -> str:
         """Classify an error into a type."""
