@@ -46,6 +46,7 @@ _LAZY_MODULES = {
     "questions",
     "image_generation",
     "scenarios",
+    "collections",
     "language_models",
     "embeddings",
     "results",
@@ -98,6 +99,8 @@ _EXPORT_TO_MODULE = {
     # scenarios
     "Scenario": "scenarios",
     "ScenarioList": "scenarios",
+    "Collection": "collections",
+    "CollectionItem": "collections",
     "FileStore": "scenarios",
     # language_models
     "Model": "language_models",
