@@ -41,8 +41,13 @@ class CollectionItem:
         elif not isinstance(self.added_at, str) or not self.added_at:
             raise ValueError("added_at must be a non-empty ISO timestamp string")
         else:
+            # Python 3.10's fromisoformat rejects a trailing "Z", which later versions
+            # accept. Parse a copy with "+00:00" instead; added_at keeps what was written.
+            value = self.added_at
+            if value.endswith(("Z", "z")):
+                value = value[:-1] + "+00:00"
             try:
-                datetime.fromisoformat(self.added_at)
+                datetime.fromisoformat(value)
             except ValueError as exc:
                 raise ValueError(
                     f"added_at must be an ISO 8601 timestamp, such as "

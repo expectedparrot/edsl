@@ -60,7 +60,14 @@ def test_collection_rejects_non_iso_added_at(added_at):
 
 
 @pytest.mark.parametrize(
-    "added_at", ["2026-11-13T19:00:00+00:00", "2026-11-13T19:00:00-05:00", "2026-11-13"]
+    "added_at",
+    [
+        "2026-11-13T19:00:00+00:00",
+        "2026-11-13T19:00:00Z",
+        "2026-11-13T19:00:00.123456Z",
+        "2026-11-13T19:00:00-05:00",
+        "2026-11-13",
+    ],
 )
 def test_collection_accepts_iso_added_at(added_at):
     collection = Collection("Dates").add("survey", str(uuid4()), added_at=added_at)
