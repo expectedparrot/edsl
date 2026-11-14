@@ -48,6 +48,8 @@ class HumanResponseEntry(BaseModel):
     question_options: Optional[list[JsonValue]] = None
     # References to the stored call audio, one per track. Interview questions only.
     voice_recordings: Optional[list[JsonValue]] = None
+    # The voice the interviewer spoke with, such as "marin". Voice interviews only.
+    voice_option: Optional[str] = None
 
 
 ENTRIES = TypeAdapter(dict[str, HumanResponseEntry])
@@ -145,11 +147,13 @@ class HumanResponsesBuilder:
                 comments[f"{qn}_comment"] = entry.comment
                 for field in RAW_MODEL_RESPONSE_FIELDS:
                     raw_model_response[f"{qn}_{field}"] = getattr(entry, field)
-                # Only interviews can carry recordings, so other questions get no column.
+                # Only interviews can carry recordings or a voice, so other questions
+                # get no columns.
                 if question_attributes[qn].get("question_type") == "interview":
                     raw_model_response[f"{qn}_voice_recordings"] = (
                         entry.voice_recordings
                     )
+                    raw_model_response[f"{qn}_voice_option"] = entry.voice_option
                 attributes[qn] = dict(question_attributes[qn])
                 if entry.question_options is not None:
                     attributes[qn]["question_options"] = entry.question_options

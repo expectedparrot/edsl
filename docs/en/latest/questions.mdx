@@ -31,6 +31,8 @@ For data labeling, a question's answer becomes a label: “What topic does this 
 
 These are common choices. The [type details below](#question-type-details) explain their parameters and include examples. Use `ep schema list` and `ep schema show --question_type TYPE` to inspect required parameters.
 
+`QuestionEmail` accepts a valid address directly or recovers the first valid address embedded in a reply, such as `mailto:ann@example.com` or `You can reach me at ann@example.com.`. Validation follows `EmailStr` normalization: the domain is lowercased, and a display name such as `Ann <ann@example.com>` is not retained.
+
 ## Construct questions
 
 The example asks for three complementary measures of a message: a clarity category, an explanation, and a numerical score. It constructs the questions and survey without generating answers. A scenario supplies the message text when the survey runs.

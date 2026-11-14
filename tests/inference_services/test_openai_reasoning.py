@@ -110,16 +110,14 @@ def test_unspecified_effort_and_defaults(monkeypatch, service, name, options):
     create = mock_create(monkeypatch, model)
     asyncio.run(model.async_execute_model_call("Return ok."))
     params = create.call_args.kwargs
-    known_reasoning = name not in {"gpt-4o", "gpt-7"}
+    known_reasoning = name != "gpt-4o"
     if service is OpenAIService:
-        assert request_effort(service, params) == (
-            "medium" if known_reasoning else None
-        )
-        assert params["max_completion_tokens"] == (5000 if known_reasoning else 1000)
+        assert request_effort(service, params) == ("high" if known_reasoning else None)
+        assert params["max_completion_tokens"] == (16000 if known_reasoning else 1000)
     else:
-        assert request_effort(service, params) is None
+        assert request_effort(service, params) == ("high" if known_reasoning else None)
         assert params.get("reasoning") == (
-            {"summary": "auto"} if known_reasoning else None
+            {"summary": "auto", "effort": "high"} if known_reasoning else None
         )
         assert params["max_output_tokens"] == (16000 if known_reasoning else 2000)
     if not known_reasoning:
@@ -146,6 +144,10 @@ def test_unspecified_effort_and_defaults(monkeypatch, service, name, options):
             {"reasoning": {"effort": "high"}, "reasoning_effort": None},
             {"effort": "high"},
         ),
+        (
+            {"reasoning": {"effort": "low"}, "reasoning_effort": None},
+            {"effort": "low"},
+        ),
         ({"reasoning": {}}, {}),
     ],
 )
@@ -158,6 +160,8 @@ def test_responses_dictionary_precedence_after_serialization(
     create = mock_create(monkeypatch, restored)
     asyncio.run(restored.async_execute_model_call("Return ok."))
     defaults = {"summary": "auto"} if name == "gpt-6-astra" else {}
+    if name == "gpt-6-astra" and not expected:
+        expected = {"effort": "high"}
     assert create.call_args.kwargs["reasoning"] == {**defaults, **expected}
     assert model.reasoning == original_options["reasoning"]
     assert options == original_options
@@ -200,8 +204,10 @@ def test_invalid_reasoning_dictionary_fails_visibly(monkeypatch, reasoning):
 
 def test_builder_defaults_do_not_raise_explicit_token_limits():
     assert (
-        OpenAIParameterBuilder.build_params("gpt-6-astra", [])["max_completion_tokens"]
-        == 5000
+        OpenAIParameterBuilder.build_params("gpt-6-astra", [])[
+            "max_completion_tokens"
+        ]
+        == 16000
     )
     params = OpenAIParameterBuilder.build_params("gpt-6-astra", [], max_tokens=64)
     assert params["max_completion_tokens"] == 64
