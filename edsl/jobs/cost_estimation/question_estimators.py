@@ -417,6 +417,8 @@ def _build_default_registry(chars_per_token: int) -> dict[str, object]:
         # zero cost
         "compute": ZeroCostEstimator(chars_per_token=c),
         "functional": ZeroCostEstimator(chars_per_token=c),
+        # No LLM tokens are billed; Pangram's separate API charges are not estimated.
+        "detect_ai": ZeroCostEstimator(chars_per_token=c),
         # free-form output — output length is unknown; TokenRatio(1.0) (output ≈ input) is an
         # honest conservative default. interview is the exception: format is fixed by the template.
         "free_text": FreeTextStyleEstimator(output=TokenRatio(1.0), chars_per_token=c),
