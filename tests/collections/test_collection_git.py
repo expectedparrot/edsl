@@ -94,3 +94,52 @@ def test_collection_package_validation_rejects_non_object_manifest(tmp_path, man
     errors = _validate_package(tmp_path)
 
     assert errors == ["invalid manifest.json: expected a JSON object"]
+
+
+def _saved_json_collection(tmp_path):
+    collection = Collection("Saved", tags=["json"])
+    collection.add("survey", str(uuid4()), added_at="2026-01-01T00:00:00Z")
+    path = tmp_path / "collection.json"
+    collection.save(str(path))
+    return collection, path
+
+
+def test_saved_json_collection_loads_in_the_cli(tmp_path):
+    from edsl.cli_shared import load_openable_json
+
+    collection, path = _saved_json_collection(tmp_path)
+
+    loaded = load_openable_json(path)
+
+    assert type(loaded) is Collection
+    assert loaded.to_dict(add_edsl_version=False) == collection.to_dict(add_edsl_version=False)
+
+
+def test_ep_inspect_reads_a_saved_json_collection(tmp_path):
+    from click.testing import CliRunner
+
+    import edsl.__main__ as cli_module
+
+    _, path = _saved_json_collection(tmp_path)
+
+    result = CliRunner().invoke(cli_module.app, ["inspect", str(path)])
+
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)["data"]
+    assert data["object_type"] == "Collection"
+    assert data["length"] == 1
+
+
+def test_ep_push_asks_for_a_package_for_a_json_collection(tmp_path):
+    from click.testing import CliRunner
+
+    import edsl.__main__ as cli_module
+
+    _, path = _saved_json_collection(tmp_path)
+
+    result = CliRunner().invoke(cli_module.app, ["push", str(path)])
+
+    assert result.exit_code == cli_module.EXIT_USAGE
+    error = json.loads(result.output)["error"]
+    assert error["code"] == "USAGE_ERROR"
+    assert ".ep package" in error["message"]

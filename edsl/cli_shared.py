@@ -238,6 +238,10 @@ def load_openable_json(path: Path):
         from edsl.language_models import ModelList
 
         return ModelList.from_dict(data)
+    if class_name == "Collection":
+        from edsl.collections import Collection
+
+        return Collection.from_dict(data)
     if is_serialized_prompt(data):
         from edsl.prompts import Prompt
 
@@ -245,7 +249,7 @@ def load_openable_json(path: Path):
     error(
         "UNSUPPORTED_OBJECT",
         f"Unsupported or missing edsl_class_name in JSON: {class_name or 'unknown'}",
-        suggestion="Expected a serialized Survey, AgentList, Jobs, Results, ScenarioList, ModelList, or Prompt.",
+        suggestion="Expected a serialized Survey, AgentList, Jobs, Results, ScenarioList, ModelList, Collection, or Prompt.",
         exit_code=EXIT_USAGE,
     )
 

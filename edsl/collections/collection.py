@@ -219,6 +219,3 @@ class Collection(Base):
 
     def _summary_repr(self) -> str:
         return f"Collection({self.name!r}, {len(self.items)} items)"
-
-    def __repr__(self) -> str:
-        return self._summary_repr()
