@@ -44,6 +44,30 @@ def test_collection_rejects_duplicate_members():
         collection.add("survey", object_uuid)
 
 
+@pytest.mark.parametrize("added_at", ["yesterday", "11/13/2026", "2026-11-13T19:00:00 UTC"])
+def test_collection_rejects_non_iso_added_at(added_at):
+    with pytest.raises(ValueError, match="ISO 8601"):
+        Collection("Dates").add("survey", str(uuid4()), added_at=added_at)
+    with pytest.raises(ValueError, match="ISO 8601"):
+        Collection.from_dict(
+            {
+                "name": "Dates",
+                "items": [
+                    {"object_type": "survey", "object_uuid": str(uuid4()), "added_at": added_at}
+                ],
+            }
+        )
+
+
+@pytest.mark.parametrize(
+    "added_at", ["2026-11-13T19:00:00+00:00", "2026-11-13T19:00:00-05:00", "2026-11-13"]
+)
+def test_collection_accepts_iso_added_at(added_at):
+    collection = Collection("Dates").add("survey", str(uuid4()), added_at=added_at)
+
+    assert collection.items[0].added_at == added_at
+
+
 def test_collection_fetch_metadata_rejects_type_mismatch(monkeypatch):
     from edsl.coop.coop import Coop
 

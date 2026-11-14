@@ -40,6 +40,14 @@ class CollectionItem:
             object.__setattr__(self, "added_at", datetime.now(timezone.utc).isoformat())
         elif not isinstance(self.added_at, str) or not self.added_at:
             raise ValueError("added_at must be a non-empty ISO timestamp string")
+        else:
+            try:
+                datetime.fromisoformat(self.added_at)
+            except ValueError as exc:
+                raise ValueError(
+                    f"added_at must be an ISO 8601 timestamp, such as "
+                    f"'2026-01-01T00:00:00+00:00': {self.added_at!r}"
+                ) from exc
 
     def to_dict(self) -> dict[str, Any]:
         return {
