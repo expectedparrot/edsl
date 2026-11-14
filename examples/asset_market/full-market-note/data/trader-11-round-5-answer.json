@@ -1,0 +1,12 @@
+{
+  "decision": {
+    "forecast_0": 33.5,
+    "forecast_2": 34.5,
+    "forecast_5": 32.0,
+    "forecast_10": 28.0,
+    "side": "buy",
+    "price": 33.0,
+    "quantity": 3,
+    "rationale": "Fundamentals: remaining dividends \u2248 26 * $0.7 = $18.2 plus $14 redemption \u2192 fair value \u2248 $32.2. As an overconfident contrarian I believe the market still undervalues the asset and I will continue my precommitted accumulation plan. I submit a limit buy for 3 shares at $33 (uses $99 of my $130.97 cash). I will track this $33 purchase price, avoid realizing losses (buy more on dips), and plan to trim / take profits only if price rallies into the mid-to-high $30s (rough target exit zone ~$37\u2013$40). Forecasts reflect my optimistic resale view (near-term bounce to ~$34.5) with gradual drift as dividends run off."
+  }
+}

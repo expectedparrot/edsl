@@ -43,9 +43,7 @@ class JobsFlowVisualization:
 
         return graph.show(filename=filename)
 
-    def _add_job_subgraph(
-        self, job: "Jobs", graph, visited: Dict[int, str]
-    ) -> str:
+    def _add_job_subgraph(self, job: "Jobs", graph, visited: Dict[int, str]) -> str:
         """Recursively add *job* and its dependencies to *graph*.
 
         Returns the node name corresponding to *job*.
@@ -67,9 +65,13 @@ class JobsFlowVisualization:
         # Handle post-run methods
         prev = node_name
         for idx, method_info in enumerate(getattr(job, "_post_run_methods", [])):
-            method_name = method_info if isinstance(method_info, str) else method_info[0]
+            method_name = (
+                method_info if isinstance(method_info, str) else method_info[0]
+            )
             meth_node_name = f"{node_name}_meth_{idx}"
-            graph.add_node(meth_node_name, label=method_name, shape="ellipse", fill_color="khaki")
+            graph.add_node(
+                meth_node_name, label=method_name, shape="ellipse", fill_color="khaki"
+            )
             graph.add_edge(prev, meth_node_name, style="dashed")
             prev = meth_node_name
 

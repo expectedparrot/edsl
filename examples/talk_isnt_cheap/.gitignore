@@ -1,0 +1,2 @@
+# Local execution artifacts. The report contains the summarized pilot evidence.
+runs/*/*.sqlite

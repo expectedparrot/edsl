@@ -1,0 +1,11 @@
+{
+  "examples/asset_market/typed_market_experiment.py": "0aa6217c08e1c67de649154a221a274127a8cf39890fcaff6c3a738d96676757",
+  "edsl/sharedstate/call_market.py": "6c7b847c17d3ba1c2abdd2f5e6ce188bd2287dd714f3fb9b90507a2ca094f4f6",
+  "edsl/sharedstate/market_rules.py": "918eaef152caf67e860c9623aa1482f3a64301b16a6bd4ffa9915bfa0cd3acfc",
+  "edsl/sharedstate/market_records.py": "0e6e85e1c3d38b694dbce91c89fe8269b55200fd613a7aab7d5e874061c83f0d",
+  "edsl/workflows/experiment.py": "b6063e85ba8fa1f85baff83d00ffa39f8f59db4d02abdfca31a1846728336fd9",
+  "edsl/workflows/coordinator.py": "168a8c0ada07bb09ba283e9f7c36cd553f37913e1121b6b9822534ca27c674d0",
+  "edsl/jobs/assignment_plan.py": "ce428316522187ad28f21364f00f01f24d6c39b495ef783a85f0f7d3ebb7cde7",
+  "edsl/jobs/jobs.py": "619ffdfcd01e65f27d8b3a532dbeeecdd66900ef402679ac7708a74964ee70ec",
+  "edsl/runner/service.py": "f16a0bae07f2b2e805d8ab40d40e392ee93daa26c90d24f124afd56dd5ef0745"
+}

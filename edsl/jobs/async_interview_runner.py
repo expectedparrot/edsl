@@ -109,9 +109,9 @@ class AsyncInterviewRunner:
 
         try:
 
-            async def process_batches() -> (
-                AsyncGenerator[tuple["Result", "Interview", int], None]
-            ):
+            async def process_batches() -> AsyncGenerator[
+                tuple["Result", "Interview", int], None
+            ]:
                 import time
 
                 batch_count = 0
@@ -134,7 +134,7 @@ class AsyncInterviewRunner:
                     batch_time = time.time() - batch_start
                     self._logger.info(
                         f"Batch {batch_count} completed in {batch_time:.3f}s "
-                        f"({batch_time/len(chunk):.3f}s per interview)"
+                        f"({batch_time / len(chunk):.3f}s per interview)"
                     )
 
                     # Clean up chunk to help with garbage collection
@@ -308,7 +308,7 @@ class AsyncInterviewRunner:
                     elapsed = time.time() - runner_start
                     self._logger.info(
                         f"Processed {results_count} interviews in {elapsed:.3f}s "
-                        f"(avg: {elapsed/results_count:.3f}s per interview)"
+                        f"(avg: {elapsed / results_count:.3f}s per interview)"
                     )
 
                 # Yield a new tuple to break reference to the original tuple
@@ -320,7 +320,7 @@ class AsyncInterviewRunner:
         total_time = time.time() - runner_start
         self._logger.info(
             f"Async interview runner completed: {results_count} interviews "
-            f"in {total_time:.3f}s (avg: {total_time/results_count:.3f}s per interview)"
+            f"in {total_time:.3f}s (avg: {total_time / results_count:.3f}s per interview)"
             if results_count > 0
             else f"in {total_time:.3f}s"
         )

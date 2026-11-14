@@ -36,6 +36,7 @@ __all__ = [
     "__version__",
     "modify_settings",
     "show_settings",
+    "InterviewSchedule",
 ]
 
 # Define modules for lazy loading
@@ -58,6 +59,8 @@ _LAZY_MODULES = {
     "extensions",
     "macros",
     "study",
+    "causal",
+    "conversations",
 }
 
 # Cache for lazy-loaded modules
@@ -84,6 +87,7 @@ _EXPORT_TO_MODULE = {
     "QuestionExtract": "questions",
     "QuestionEmail": "questions",
     "QuestionMatrix": "questions",
+    "QuestionMatrixWithText": "questions",
     "QuestionTopK": "questions",
     "QuestionFunctional": "questions",
     "QuestionBase": "questions",
@@ -119,6 +123,7 @@ _EXPORT_TO_MODULE = {
     "Coop": "coop",
     # jobs
     "Jobs": "jobs",
+    "InterviewSchedule": "jobs",
     # caching
     "Cache": "caching",
     "CacheEntry": "caching",

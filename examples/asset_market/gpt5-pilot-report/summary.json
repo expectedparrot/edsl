@@ -1,0 +1,46 @@
+{
+  "audit": {
+    "checks_passed": true,
+    "observed_periods": 17,
+    "economic_horizon": 30,
+    "accepted_decisions": 204,
+    "model_calls": 204,
+    "commands": {
+      "submit": 204,
+      "settle": 17
+    },
+    "attempt_status": {
+      "succeeded": 221
+    },
+    "no_early_redemption": true,
+    "all_private_views_and_prompts_verified": true
+  },
+  "diagnostics": {
+    "peak_price": 17.67,
+    "peak_period": 17,
+    "periods_at_or_above_17_50": [
+      16,
+      17
+    ],
+    "longest_consecutive_high_periods": 2,
+    "post_peak_drawdown": null,
+    "excursion": true,
+    "sustained_excursion": true,
+    "excursion_then_20pct_fall": false
+  },
+  "metrics": {
+    "periods": 17,
+    "trading_periods": 2,
+    "no_trade_periods": 15,
+    "volume": 21,
+    "peak_price": 17.67,
+    "peak_period": 17,
+    "peak_fraction": 1.0,
+    "RAD_traded_periods": 0.25714285714285723,
+    "RD_traded_periods": 0.25714285714285723,
+    "above_1_25F": true,
+    "post_peak_drawdown": 0.0
+  },
+  "stop_reason": "two_consecutive_trades_at_or_above_17_50",
+  "recorded_cost": 0.5740825000000005
+}
