@@ -737,6 +737,51 @@ class TestValidateHumanizeSchemaVoice:
             validate_humanize_schema(self._survey(), humanize_schema)
         assert "klingon" in str(exc_info.value).lower()
 
+    def test_voice_config_supported_voice_passes(self):
+        """A supported built-in voice validates through the public schema."""
+        humanize_schema = {
+            "questions": {
+                "q1": {
+                    "interview_mode": "voice",
+                    "voice_interview_config": {"voice_option": "marin"},
+                }
+            }
+        }
+        validate_humanize_schema(self._survey(), humanize_schema)
+
+    def test_voice_config_voice_option_is_normalized(self):
+        """Case and surrounding whitespace are normalized."""
+        from edsl.coop.coop_humanize_schema import InterviewHumanizeSchema
+
+        parsed = InterviewHumanizeSchema.model_validate(
+            {"voice_interview_config": {"voice_option": "  Cedar "}}
+        )
+        assert parsed.voice_interview_config.voice_option == "cedar"
+
+    def test_voice_config_unsupported_voice_raises(self):
+        """A voice outside the built-in choices is rejected."""
+        humanize_schema = {
+            "questions": {
+                "q1": {
+                    "interview_mode": "voice",
+                    "voice_interview_config": {"voice_option": "not-a-voice"},
+                }
+            }
+        }
+        with pytest.raises(HumanizeSchemaValidationError) as exc_info:
+            validate_humanize_schema(self._survey(), humanize_schema)
+        assert "not-a-voice" in str(exc_info.value).lower()
+
+    def test_voice_config_voice_omitted_or_none_uses_default(self):
+        """Omitting the voice, or setting it to null or blank, keeps the default."""
+        from edsl.coop.coop_humanize_schema import InterviewHumanizeSchema
+
+        for config in ({}, {"voice_option": None}, {"voice_option": "  "}):
+            parsed = InterviewHumanizeSchema.model_validate(
+                {"voice_interview_config": config}
+            )
+            assert parsed.voice_interview_config.voice_option is None
+
 
 class TestValidateHumanizeSchemaComments:
     """Comment-related validate_humanize_schema behavior."""
