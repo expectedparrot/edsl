@@ -9,6 +9,10 @@ A `Results` object contains interview records and associated study information. 
 
 One result record holds all answers from one interview, together with its scenario, agent, and model. A survey with five questions therefore normally produces five answer columns per interview, rather than five rows. This is the object returned by `job.run()`; the same selection and export methods also work with retrieved human responses.
 
+## Attach result metadata
+
+Pass a JSON-compatible `metadata` dictionary when constructing a `Result` to attach collection details or navigation history to an interview. Query these values with `results.select("metadata.*")`. See [Result metadata](/en/latest/result_metadata) for examples and serialization behavior.
+
 ## Inspect and compare data
 
 The example below creates four fabricated records so the analysis can run without credentials or model costs. It is a demonstration of data operations, not a research finding.

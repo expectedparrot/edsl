@@ -160,6 +160,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         "resolution_draw",
         "resolution_seed",
         "resolution_method",
+        "metadata",
     ]
 
     def __init__(

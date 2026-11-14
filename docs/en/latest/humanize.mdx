@@ -160,6 +160,9 @@ ep humanize schema set <human-survey-uuid> --logo-file lab_logo.png --logo-alt "
 ```
 
 See [Humanize schema](/en/latest/humanize_schema) for the `branding` fields, and [Custom CSS](/en/latest/custom_css) for resizing the logo or putting it on a colored banner.
+## Back navigation
+
+Use `humanize_schema={"survey": {"navigation": {"back_button": True}}}` to request Back navigation. Question-level `navigation.allow_back_past` controls boundaries. See [Back navigation](/en/latest/humanize_navigation) for a complete example, CLI controls, local sessions, and availability requirements.
 
 ---
 
