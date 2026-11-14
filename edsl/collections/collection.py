@@ -133,7 +133,7 @@ class Collection(Base):
 
         coop = Coop(url=expected_parrot_url)
         return [
-            coop.get(item.object_uuid, expected_object_type=item.object_type)
+            coop.pull(item.object_uuid, expected_object_type=item.object_type)
             for item in self.items
         ]
 
