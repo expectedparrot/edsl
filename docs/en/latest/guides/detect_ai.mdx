@@ -122,6 +122,31 @@ converts it to the template form with a warning. The threshold is an example
 routing choice. For more branching
 patterns, see [Survey logic and piping](/en/latest/guides/survey_logic).
 
+## Use DetectAI in a human survey
+
+In a [human survey](/en/latest/humanize), a DetectAI question is answered
+automatically when a respondent reaches it. Respondents never see it, and you
+don't need a Pangram key: the analysis is charged to your credits at $0.05 per
+100 words, rounded up per analysis. The question's `timeout` and
+`poll_interval` don't apply; each analysis is given up to four minutes.
+
+If the text to analyze is blank, for example because the respondent left the
+source question empty or skipped it, the respondent can't continue the survey.
+To avoid this, add a skip rule on the source answer:
+
+```python
+survey.add_skip_rule(
+    "detection",
+    "{{ essay.answer }} is None or {{ essay.answer }}.split() == []",
+)
+```
+
+The rule skips `detection` when `essay` was skipped, or its answer is empty or
+only whitespace. `is None` comes first so a skipped answer is never split.
+
+Later questions that read `detection`, in templates or rules, should allow for it
+having been skipped.
+
 ## Work with the returned JSON
 
 EDSL preserves the response dictionary, including nested window data and any

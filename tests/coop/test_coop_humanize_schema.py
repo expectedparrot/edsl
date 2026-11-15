@@ -1460,7 +1460,9 @@ class TestQuestionJavaScript:
                 self.schema({"question.ready": "x" * (MAX_TOTAL_HOOK_CHARS + 1)}),
             )
 
-    @pytest.mark.parametrize("question_type", ["compute", "image_generation"])
+    @pytest.mark.parametrize(
+        "question_type", ["compute", "detect_ai", "image_generation"]
+    )
     def test_background_question_types_reject_javascript(self, question_type):
         """They never reach the page, so there is nothing for a hook to run on."""
         model = QUESTION_TYPE_TO_HUMANIZE_CLASS[question_type]
