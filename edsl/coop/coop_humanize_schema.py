@@ -16,7 +16,12 @@ from pydantic import (
     model_validator,
 )
 
-from ..questions import QuestionBase, QuestionCompute, QuestionImageGeneration
+from ..questions import (
+    QuestionBase,
+    QuestionCompute,
+    QuestionDetectAI,
+    QuestionImageGeneration,
+)
 
 from .exceptions import HumanizeSchemaValidationError
 from .voice_interview_languages import (
@@ -1398,13 +1403,15 @@ def _validate_preselection_targets(
 def _is_background_question(question: Any) -> bool:
     """Whether a question is answered by the server rather than the respondent.
 
-    Thinking, compute and image generation questions all run without the
-    respondent and are never rendered to one, so a group made up entirely of them
-    is never shown as a page.
+    Thinking, compute, image generation and detect AI questions all run without
+    the respondent and are never rendered to one, so a group made up entirely of
+    them is never shown as a page.
     """
     return isinstance(question, QuestionBase) and (
         getattr(question, "_is_thinking_question", False)
-        or isinstance(question, (QuestionCompute, QuestionImageGeneration))
+        or isinstance(
+            question, (QuestionCompute, QuestionDetectAI, QuestionImageGeneration)
+        )
     )
 
 

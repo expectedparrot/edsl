@@ -1271,15 +1271,22 @@ class TestValidateGroupPresentation:
         survey.question_groups = {"g0": (0, 0), "g1": (1, 1)}
         validate_humanize_schema(survey, self.GROUP)
 
-    def test_instruction_on_a_background_only_group_raises(self):
+    @pytest.mark.parametrize("background_type", ["compute", "detect_ai"])
+    def test_instruction_on_a_background_only_group_raises(self, background_type):
         """That group is run and passed over, taking the instruction with it."""
-        from edsl.questions import QuestionCompute
+        from edsl.questions import QuestionCompute, QuestionDetectAI
 
+        background = {
+            "compute": QuestionCompute(question_name="c0", question_text="{{ 1 + 1 }}"),
+            "detect_ai": QuestionDetectAI(
+                question_name="c0", question_text="{{ a.answer }}"
+            ),
+        }[background_type]
         survey = Survey(
             [
                 QuestionFreeText(question_name="a", question_text="a"),
                 Instruction(name="mid", text="Part two"),
-                QuestionCompute(question_name="c0", question_text="{{ 1 + 1 }}"),
+                background,
                 QuestionFreeText(question_name="b", question_text="b"),
             ]
         )
