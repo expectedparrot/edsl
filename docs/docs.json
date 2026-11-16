@@ -44,6 +44,7 @@
           "en/latest/jobs",
           "en/latest/prompts",
           "en/latest/results",
+          "en/latest/result_metadata",
           "en/latest/dataset",
           "en/latest/filestore",
           "en/latest/survey_messages",
@@ -75,6 +76,7 @@
         "pages": [
           "en/latest/guides/human_studies",
           "en/latest/humanize",
+          "en/latest/humanize_navigation",
           "en/latest/guides/human_interviews",
           "en/latest/prolific",
           "en/latest/humanize_groups",

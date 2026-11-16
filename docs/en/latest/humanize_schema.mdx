@@ -43,6 +43,8 @@ Previewing requires [Expected Parrot access](/en/latest/api_keys). Pass the same
   <Expandable title="properties">
     <ParamField path="survey.presentation" type="string" default="question">
       `"question"` requests question-by-question presentation (the default); `"group"` requests one question group per page. Define groups on the survey with `add_question_group()` and include every question you want displayed. See [Grouped surveys](/en/latest/humanize_groups) for setup and branching between pages. Question time limits (`time_limit`) are ignored under `"group"`.
+    <ParamField path="survey.navigation" type="dict" required={false}>
+      Navigation controls introduced in PR #2577. `back_button` is a strict boolean, defaulting to `false`. Set it to `true` to enable Back. See [Back navigation](/en/latest/humanize_navigation) for setup and hosted availability requirements.
     </ParamField>
     <ParamField path="survey.custom_css" type="string" required={false}>
       Optional custom CSS for the survey. Can be `null` or omitted. See [Custom CSS](/en/latest/custom_css) for the `edsl-*` CSS classes and HTML structure per question type.
@@ -119,6 +121,10 @@ Previewing requires [Expected Parrot access](/en/latest/api_keys). Pass the same
 ## HumanizeQuestionSchema (per question)
 
 Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
+
+<ParamField path="navigation" type="dict" required={false}>
+  Navigation controls shared by supported humanize question schemas. `allow_back_past` is a strict boolean, defaulting to `true`. Set it to `false` to prevent moving back from this question to earlier items. Respondents can still return to and revise this question. This setting does not enable Back by itself. See [Back navigation](/en/latest/humanize_navigation).
+</ParamField>
 
 <ParamField path="optional" type="boolean" default={false}>
   Whether the question is optional. Default is `false` when omitted.
