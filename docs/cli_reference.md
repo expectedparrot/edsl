@@ -34,6 +34,7 @@ edsl run
 edsl validate
 edsl models
 edsl docs
+edsl skills
 edsl search
 edsl clone
 edsl push
@@ -59,6 +60,31 @@ edsl info
 There is no user-facing `edsl coop` command. Expected Parrot-backed operations are exposed directly through task-oriented commands such as `search`, `push`, `pull`, `jobs`, `humanize`, `research-agent`, and `metadata`.
 
 `edsl info` includes configuration diagnostics but redacts credential values such as API keys.
+
+## Bundled Skills
+
+EDSL ships version-matched implementation guidance that can be listed, searched,
+displayed with its linked references, or copied to a harness directory:
+
+```bash
+ep skills list
+ep skills list --routing --human
+ep skills search survey
+ep skills search loop_over --snippets --human
+ep skills show edsl-surveys
+ep skills show edsl-human-survey --reference references/humanize-schema.md
+ep skills show <skill-name> --script scripts/<script-file>
+ep skills show edsl-surveys --html
+ep skills install --target ./skills
+```
+
+`ep skills show --html` uses Pandoc to render the skill and its linked local
+references into one temporary page, then opens that page in the default browser.
+`ep skills list --routing` returns each skill's name, description, tags, linked
+reference paths, bundled script paths, and exact commands to fetch them. Skill
+search also searches bundled script text. Use
+`ep skills show <name> --script <path>` to retrieve script source through the
+CLI. `ep skills install` copies the complete bundle; it does not run scripts.
 
 ## Documentation Search
 
@@ -202,6 +228,13 @@ edsl humanize schedules create-one-time <human_survey_uuid> --name "Invite" --ru
 edsl humanize schedules create-cron <human_survey_uuid> --name "Weekly" --cron_expression "0 9 * * MON" --timezone America/New_York --max_jobs 4
 edsl humanize callbacks create <human_survey_uuid> --name "Transcript" --type human_survey_respondent.completed
 edsl humanize callbacks list <human_survey_uuid>
+edsl humanize prolific list <human_survey_uuid>
+edsl humanize prolific get <human_survey_uuid> <study_id>
+edsl humanize prolific update <human_survey_uuid> <study_id> --config study-patch.json
+edsl humanize prolific pause <human_survey_uuid> <study_id>
+edsl humanize prolific resume <human_survey_uuid> <study_id>
+edsl humanize prolific stop <human_survey_uuid> <study_id> --yes
+edsl humanize prolific delete <human_survey_uuid> <draft_study_id> --yes
 ```
 
 `edsl humanize create` accepts either `--survey` or `--jobs`. Use `--survey survey.ep` when starting from a survey package. Use `--jobs jobs.ep` when the package already includes agents or scenarios; jobs used for humanize must not include models. Jobs with scenarios require `--scenario_method`.
@@ -213,6 +246,8 @@ edsl humanize callbacks list <human_survey_uuid>
 `edsl humanize schema create` and `edsl humanize schema set` take `--javascript QUESTION:HOOK=FILE` to attach a JavaScript file to a question's hook, for example `--javascript rating:question.ready=rating.js`; `question.ready` is the only hook today. `edsl humanize schema set` also takes `--clear-javascript QUESTION` to remove a question's JavaScript. Custom JavaScript is available on approved accounts only; check with `edsl humanize custom-js-access`. `edsl humanize events` returns the events a survey's scripts logged, oldest first, one batch at a time (`--limit`, at most 200); `--all` fetches every batch and requires `--output` (`.json` or `.jsonl`), so a whole log is written to a file rather than printed. Every result carries `next_cursor`: pass it as `--after` to get only newer events. Fetching only new events can occasionally miss one that was still being saved, so use it to check a survey while it collects, and download the full log for analysis once fielding has ended, at least an hour after the last response. `--count` returns how many events the survey has without fetching any.
 
 Delivery, schedule, and callback commands accept optional `--routes` JSON files where supported. A route file may be a single route object or a list of route objects. Simple routes can also be created with helper flags such as `--owner-email-template owner_response_received` or `--respondent-email-template respondent_invitation`.
+
+`edsl humanize prolific update --config` takes a JSON object containing only the fields to change. `stop` permanently ends a study and requires `--yes`; `delete` is limited to unpublished draft studies and also requires `--yes`.
 
 ## Research Agent sessions
 
