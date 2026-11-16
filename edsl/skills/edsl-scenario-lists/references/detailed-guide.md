@@ -2,9 +2,9 @@
 
 > **GOTCHAS -- read before writing any ScenarioList code**
 >
-> - **`.append()` is a no-op.** `ScenarioList.append()` silently does nothing. Always build a plain Python list first, then wrap: `ScenarioList(python_list)`.
+> - **Build scenarios in a plain list or append to a `ScenarioList`.** Both patterns work; `ScenarioList.append()` mutates the sequence.
 > - **Every scenario field must appear in `question_text`.** Use `{{ scenario.field }}` in the question text itself. Putting a scenario reference only in an `Instruction` will raise `JobsCompatibilityError`.
-> - **Use `Scenario.from_image()` for images.** Never manually construct `FileStore` objects in scenario dicts -- they serialize as dict reprs instead of rendering as images.
+> - **`Scenario.from_image()` is a convenience for image scenarios.** A `Scenario` can also contain a `FileStore` constructed directly.
 > - **Image scenarios require `{{ scenario.image_field }}` in EVERY question.** LLMs have no cross-question memory by default in EDSL. If you pass an image via a scenario in Q1, the image is NOT automatically available in Q2, Q3, etc. You must include `{{ scenario.image_field }}` in the `question_text` of every question that needs to see the image. This is the same as any scenario field — it only exists in the context where you explicitly reference it. Using memory modes to work around this is unnecessary and introduces token cost and carry-over bias.
 > - **Guard empty ScenarioList before `.by()`.** Calling `.by()` with an empty `ScenarioList` raises `IndexError`. Check `len(scenario_list) > 0` first.
 > - **`from_source()` auto-snakifies keys.** By default `ScenarioList.from_source()` converts column names to snake_case. Pass `snakify=False` to preserve originals.

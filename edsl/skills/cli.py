@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import posixpath
 import re
 import shutil
 import subprocess
 import tempfile
 import webbrowser
 from pathlib import Path
+from urllib.parse import unquote
 
 import click
 
@@ -111,6 +113,18 @@ def _find_snippet(skill: dict, query: str, context_lines: int = 1, max_chars: in
     return None
 
 
+def _anchor_slug(value: str) -> str:
+    """Normalize Markdown headings and link fragments to the same HTML slug."""
+    value = unquote(value)
+    value = re.sub(r"\[([^]]+)\]\([^)]+\)", r"\1", value)
+    value = re.sub(r"[`*_~]", "", value).casefold()
+    return re.sub(r"[^a-z0-9]+", "-", value).strip("-")
+
+
+def _file_anchor(relative_path: str) -> str:
+    return "skill-ref-" + _anchor_slug(relative_path)
+
+
 def _render_html(name: str, description: str, files: list[dict]) -> Path:
     """Render skill Markdown and linked references to an opened temporary HTML file."""
     if shutil.which("pandoc") is None:
@@ -119,20 +133,24 @@ def _render_html(name: str, description: str, files: list[dict]) -> Path:
     chunks = [f"# {name}\n\n{description}\n"]
     for item in files:
         relative = item["path"]
-        basename = re.sub(r"[^a-zA-Z0-9-]+", "-", Path(relative).name).strip("-").lower()
-        anchor = "skill-ref-" + basename
+        anchor = _file_anchor(relative)
         body = item["content"]
 
         def local_link(match: re.Match) -> str:
             label, target = match.group(1), match.group(2)
-            if target.startswith(("http://", "https://", "mailto:", "#")):
+            if target.startswith(("http://", "https://", "mailto:")):
                 return match.group(0)
             target_path, _, fragment = target.partition("#")
-            target_basename = re.sub(r"[^a-zA-Z0-9-]+", "-", Path(target_path).name).strip("-").lower()
-            target_anchor = "skill-ref-" + target_basename
+            if target_path:
+                target_relative = posixpath.normpath(
+                    posixpath.join(posixpath.dirname(relative), target_path)
+                )
+                target_anchor = _file_anchor(target_relative)
+            else:
+                target_anchor = anchor
             href = f"#{target_anchor}"
             if fragment:
-                href += "-" + re.sub(r"[^a-zA-Z0-9-]+", "-", fragment).strip("-").lower()
+                href += "-" + _anchor_slug(fragment)
             return f"[{label}]({href})"
 
         body = _LABELED_LINK.sub(local_link, body)
@@ -140,13 +158,17 @@ def _render_html(name: str, description: str, files: list[dict]) -> Path:
         # a Markdown heading fragment can target it within the combined page.
         rendered_lines = []
         in_fence = False
+        used_heading_slugs: dict[str, int] = {}
         for line in body.splitlines():
             if line.lstrip().startswith("```"):
                 in_fence = not in_fence
             heading = None if in_fence else re.match(r"^(#{1,6})\s+(.+?)\s*#*\s*$", line)
             if heading:
-                heading_text = re.sub(r"[`*_]", "", heading.group(2))
-                slug = re.sub(r"[^a-zA-Z0-9 -]", "", heading_text).strip().lower().replace(" ", "-")
+                slug = _anchor_slug(heading.group(2))
+                count = used_heading_slugs.get(slug, 0)
+                used_heading_slugs[slug] = count + 1
+                if count:
+                    slug = f"{slug}-{count}"
                 rendered_lines.append(f'<a id="{anchor}-{slug}"></a>')
             rendered_lines.append(line)
         body = "\n".join(rendered_lines)

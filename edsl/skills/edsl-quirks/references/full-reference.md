@@ -147,34 +147,12 @@ Checkbox answers are stored as Python lists — `['Civil War', 'World War II']` 
 
 Two names worth keeping straight: `scenario_list_method="loop"` in `humanize()` repeats the whole survey per scenario, and `Question.loop(scenario_list)` expands a design-time list — neither is `Survey.loop_over`. For `loop_over` itself — `None`-padded columns, silent `max_items` truncation, which fields get `{{ item }}` substituted — see **edsl:edsl-surveys** (`references/survey-reference.md`, "Constraints and gotchas"), which owns that list.
 
-## ScenarioList.append() Is a No-Op
-
-`ScenarioList.append()` does **not** modify the list in place. It silently does nothing. Always build a plain Python list first, then pass it to the constructor:
-
-| Wrong | Right | Notes |
-|-------|-------|-------|
-| `sl = ScenarioList(); sl.append(Scenario({...}))` | `sl = ScenarioList([Scenario({...})])` | `.append()` is a no-op |
-
-```python
-# Wrong — scenarios will be empty
-scenarios = ScenarioList()
-for item in data:
-    scenarios.append(Scenario({"field": item}))  # does nothing!
-
-# Right — build a list, then wrap
-scenario_list = []
-for item in data:
-    scenario_list.append(Scenario({"field": item}))
-scenarios = ScenarioList(scenario_list)
-```
-
 ## FileStore Images in Scenarios
 
-When using `FileStore` to pass images to multimodal models, use `Scenario.from_image()` to create the scenario. Do **not** manually construct `FileStore` objects and put them in scenario dicts — this can cause the image to be serialized as a dict repr instead of being rendered as actual image content.
-
-| Wrong | Right | Notes |
-|-------|-------|-------|
-| `Scenario({"img": FileStore(path="photo.png")})` | `Scenario.from_image("photo.png")` | Manual FileStore may serialize as dict |
+`Scenario.from_image()` is a convenience that creates an image `FileStore` field
+for you. Directly constructed `FileStore` values are also supported in
+`Scenario` objects; use that when building a scenario with a chosen image field
+name or alongside other values.
 
 To add extra fields alongside the image:
 
@@ -255,9 +233,11 @@ After a run, get actual cost:
 ep results cost data/results.ep
 ```
 
-## Model Construction Requires `service_name`
+## Model Provider Selection
 
-When creating a `Model`, always specify `service_name` so EDSL knows which provider to query. Without it, EDSL searches only cached/test models and will fail to find real models.
+For a named model, EDSL looks up its preferred provider from the model registry
+when `service_name` is omitted. Specify `service_name` when you need a particular
+provider or when the model name is not available through automatic lookup.
 
 ```python
 from edsl import Model, ModelList
@@ -266,16 +246,16 @@ from edsl import Model, ModelList
 # `ep models` — see ep-agent:workflow-model-selection.
 OPENAI_MODEL, ANTHROPIC_MODEL = "<openai-model>", "<anthropic-model>"
 
-# WRONG — will fail with "Model not found in any service"
+# EDSL resolves the preferred provider for a registered model name
 model = Model(OPENAI_MODEL)
 
-# RIGHT — specify the provider
-model = Model(OPENAI_MODEL, service_name="openai")
+# Specify the provider when you want to select it explicitly
+openai_model = Model(OPENAI_MODEL, service_name="openai")
 
 # Building a ModelList
 model_list = ModelList([
-    Model(OPENAI_MODEL, service_name="openai"),
-    Model(ANTHROPIC_MODEL, service_name="anthropic"),
+    Model(OPENAI_MODEL),
+    Model(ANTHROPIC_MODEL),
 ])
 ```
 
@@ -342,11 +322,13 @@ ep jobs errors <job-uuid> --output error_report.md
 `ep run` accepts `--n` to run the same job multiple times independently. Each run is a fresh API call with its own sampling — useful for measuring empirical response frequencies or estimating variance.
 
 ```bash
-# Run each (model, agent, scenario, question) combination 50 times
+# Run each (agent, scenario, model) interview combination 50 times
 ep run edsl_jobs/job_a/jobs.ep --n 50 --output data/results.ep
 ```
 
-The returned `Results` object contains all `n` runs. For a job with 8 questions and 2 models, `n=50` produces `8 × 2 × 50 = 800` result rows.
+The returned `Results` object has one row per agent × scenario × model ×
+iteration. With one agent, one scenario, two models, and `n=50`, it contains
+`1 × 1 × 2 × 50 = 100` rows. Each row contains answers for all eight questions.
 
 **Cost estimation with `n`**: `estimate_remote_job_cost()` estimates the cost for a single run. Multiply by `n` to get the total:
 
