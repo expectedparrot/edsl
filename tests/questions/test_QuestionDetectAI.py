@@ -291,6 +291,12 @@ async def test_invigilator_pipes_prior_answers_and_awaits_detection(pangram):
     assert thread_ids[0] != threading.get_ident()
 
 
+def test_prompt_preview_shows_the_text_sent_to_pangram():
+    question = DetectAI("detection", question_text="Passage to analyze")
+
+    assert str(question.prompt_preview()).strip() == "Passage to analyze"
+
+
 def test_no_llm_cost_estimate():
     from edsl.jobs.cost_estimation.question_estimators import _build_default_registry
 
