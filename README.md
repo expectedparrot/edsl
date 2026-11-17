@@ -36,10 +36,14 @@ Set up the installed Python package and CLI, then show me the basic workflow:
    `tmpdir=$(mktemp -d)`
    `ep surveys create --question-type free_text --question-name q0 --question-text "What do you think?" --output "$tmpdir/survey.ep"`
    `ep validate --file "$tmpdir/survey.ep"`
+   `ep open "$tmpdir/survey.ep" --no-browser --output "$tmpdir/survey.html"`
    `ep run --question "Return the word ok." --model test --output "$tmpdir/results.ep"`
    `ep results select --file "$tmpdir/results.ep" --column "answer.*"`
    Use exactly the `test` model for this local check; do not substitute a
-   remote model.
+   remote model. `ep open` creates a self-contained HTML inspection view of
+   the `.ep` object's definition; it is not a fillable respondent survey. Say
+   the page was generated, but do not claim to have visually reviewed it
+   unless you actually opened or inspected it.
 6. For CLI commands, treat stdout as one JSON document, parse it, check
    `status`, and read `warnings`. Use `ep <command> --help` when flags are
    unclear. Before any remote model run that may use credits, publishing or
