@@ -86,6 +86,38 @@ search also searches bundled script text. Use
 `ep skills show <name> --script <path>` to retrieve script source through the
 CLI. `ep skills install` copies the complete bundle; it does not run scripts.
 
+## Playbooks
+
+Playbooks are reusable EDSL `Prompt` objects stored on Expected Parrot. The
+CLI caches catalog metadata locally for five minutes; `--refresh` forces a
+fresh catalog fetch. Prompt bodies are fetched only when selected. A routing
+view returns compact metadata and a ready-to-run fetch command:
+
+```bash
+ep playbooks list
+ep playbooks list --routing
+ep playbooks list --namespace ep --routing --refresh
+ep playbooks search "customer interview" --namespace ep --page-size 5
+ep playbooks search "interview-guide" --namespace johnjhorton
+ep playbooks show alice/interview-guide
+ep playbooks show alice/interview-guide --output - > interview-guide.md
+ep playbooks show alice/interview-guide --output interview-guide.json
+ep playbooks push interview-guide.md --alias interview-guide --description "Interview guide"
+ep playbooks update alice/interview-guide interview-guide.md
+```
+
+`--namespace mine` searches playbooks owned by or shared with the current
+account. `--namespace ep` searches the public EP catalog. A username such as
+`--namespace johnjhorton` searches that owner's accessible playbooks.
+
+Search checks aliases, owner names, and descriptions locally and marks the
+matched field. JSON snapshots include the versioned Prompt and Coop metadata;
+they can be reviewed locally, then passed to `push` to create or `update` to
+replace an existing playbook's content. `push` creates by default; `--force`
+explicitly overwrites an existing playbook with the same alias. `show --output
+-` emits only raw prompt text for piping. Without `--output`, `show` returns
+prompt text and metadata in the JSON envelope.
+
 ## Documentation Search
 
 `ep docs` reads the currently published EDSL documentation from Mintlify. Public
