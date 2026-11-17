@@ -6,46 +6,51 @@
 
 EDSL makes it easy to conduct computational social science and market research with AI. Use it to design and run surveys and experiments with many AI agents and large language models at once, or to perform complex data labeling and other research tasks. Results are formatted as specified datasets that can be replicated at no cost, and come with built-in methods for analysis, visualization and collaboration. 
 
-## For coding agents
+## Use EDSL with Codex
 
-Paste this prompt into Codex when you want it to work with this EDSL checkout:
+Copy this prompt into Codex to set up EDSL in the current project and get a
+local example running. It does not assume you have cloned the EDSL repository.
 
 ````text
-You are working in the Expected Parrot EDSL repository. Prepare the package
-and orient yourself before starting my task:
+I want to use EDSL (Expected Parrot Domain-Specific Language) in this project.
+Set up the installed Python package and CLI, then show me the basic workflow:
 
-1. Read `AGENTS.md` and follow its EDSL CLI guidance.
-2. Install this checkout into the active Python environment with
-   `python -m pip install -e .`. Confirm the CLI with `ep --help` and `ep info`.
-3. Check authentication with `ep auth status`. If it is not configured and
-   `EXPECTED_PARROT_API_KEY` is available in the environment, run
-   `ep auth login --api_key "$EXPECTED_PARROT_API_KEY"`. This stores the key
-   in the ignored, working-directory `.env` file. Never print or commit it.
-   If no key is available, continue with local work and ask me before a remote
-   operation that needs authentication.
-4. Discover EDSL guidance with `ep skills list --routing`. Search with
-   `ep skills search <query> --snippets` and fetch only relevant skills with
-   `ep skills show <name>`. Check object shapes with `ep schema show` and use
-   `ep docs search` when the installed guidance is insufficient.
-5. Demonstrate the local CLI workflow in a temporary directory. Run:
-   `tmpdir=$(mktemp -d)`, then
-   `ep surveys create --question-type free_text --question-name q0 --question-text "What do you think?" --output "$tmpdir/survey.ep"`,
-   `ep validate --file "$tmpdir/survey.ep"`,
-   `ep run --question "Return the word ok." --model test --output "$tmpdir/results.ep"`,
-   and `ep results select --file "$tmpdir/results.ep" --column "answer.*"`.
-   The `test` model is a local smoke test; do not substitute a remote model.
-6. Treat CLI stdout as one JSON document: parse it, check `status`, and read
-   `warnings`. Use `ep <command> --help` when flags are unclear. Before any
-   remote model run that may use credits, publishing or deleting a remote
-   object, or launching an external study, get my approval.
+1. Inspect this project's Python environment and dependency files first. If
+   EDSL is already installed and its version satisfies the project, keep it.
+   Otherwise install EDSL into the active environment with
+   `python -m pip install edsl`. Do not clone or modify the EDSL source repo.
+2. Discover the CLI with `ep --help` and `ep info`.
+3. Check `ep auth status`. Local survey construction and the `test` model do
+   not need authentication. If a remote operation later needs authentication,
+   check for `EXPECTED_PARROT_API_KEY` in the environment. If it is available,
+   configure it with `ep auth login --api_key "$EXPECTED_PARROT_API_KEY"`
+   only after confirming the current project's `.env` is ignored by Git. Never
+   print, expose, or commit the key. If no key is available, ask me before
+   proceeding with that remote operation.
+4. Discover relevant version-matched guidance with `ep skills list --routing`.
+   Search using `ep skills search <query> --snippets`, then fetch only the
+   relevant skill with `ep skills show <name>`. Use `ep schema show` for
+   object shapes and `ep docs search` if the installed guidance is insufficient.
+5. Run this local smoke test in a temporary directory, checking each JSON
+   response's `status` and `warnings`:
+   `tmpdir=$(mktemp -d)`
+   `ep surveys create --question-type free_text --question-name q0 --question-text "What do you think?" --output "$tmpdir/survey.ep"`
+   `ep validate --file "$tmpdir/survey.ep"`
+   `ep run --question "Return the word ok." --model test --output "$tmpdir/results.ep"`
+   `ep results select --file "$tmpdir/results.ep" --column "answer.*"`
+   Use exactly the `test` model for this local check; do not substitute a
+   remote model.
+6. For CLI commands, treat stdout as one JSON document, parse it, check
+   `status`, and read `warnings`. Use `ep <command> --help` when flags are
+   unclear. Before any remote model run that may use credits, publishing or
+   deleting a remote object, or launching an external study, get my approval.
 
-Summarize the environment and smoke-test results, then ask what I want to do
-with EDSL.
+Summarize what you installed and the smoke-test result, then ask what I want
+to do with EDSL.
 ````
 
-EDSL's CLI is JSON-first, and its bundled skills provide version-matched API
-and workflow guidance. The prompt above sets up the local checkout and gives
-Codex a safe starting point before project work.
+EDSL's CLI is JSON-first, and its installed skill bundles provide
+version-matched API and workflow guidance.
 
 ## Getting started
 
