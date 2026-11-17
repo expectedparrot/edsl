@@ -49,6 +49,7 @@ _LAZY_MODULES = {
     "collections",
     "language_models",
     "embeddings",
+    "evaluations",
     "results",
     "caching",
     "notebooks",
@@ -67,6 +68,9 @@ _module_cache = {}
 # Direct mapping of common exports to their module — avoids importing
 # every module in random set order just to find one class.
 _EXPORT_TO_MODULE = {
+    "JudgmentModel": "evaluations",
+    "Evaluation": "evaluations",
+    "EvaluationPlan": "evaluations",
     # questions
     "QuestionFreeText": "questions",
     "QuestionEdit": "questions",
