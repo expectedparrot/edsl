@@ -8,58 +8,44 @@ EDSL makes it easy to conduct computational social science and market research w
 
 ## For coding agents
 
-EDSL includes a JSON-first `ep` CLI, version-matched implementation skills, and
-schema and documentation commands. From the repository root, install this
-checkout in the active Python environment and check the CLI:
+Paste this prompt into Codex when you want it to work with this EDSL checkout:
 
-```bash
-python -m pip install -e .
-ep --help
-ep info
-```
+````text
+You are working in the Expected Parrot EDSL repository. Prepare the package
+and orient yourself before starting my task:
 
-Expected Parrot authentication is optional for local construction and smoke
-tests. If `EXPECTED_PARROT_API_KEY` is available in the environment, the
-following stores it in the ignored, working-directory `.env` file. Otherwise,
-`ep auth status` reports whether a key is already configured. To configure one,
-export the variable first, then run `ep auth login --api_key "$EXPECTED_PARROT_API_KEY"`.
-Do not put the key in source files or commit `.env`.
+1. Read `AGENTS.md` and follow its EDSL CLI guidance.
+2. Install this checkout into the active Python environment with
+   `python -m pip install -e .`. Confirm the CLI with `ep --help` and `ep info`.
+3. Check authentication with `ep auth status`. If it is not configured and
+   `EXPECTED_PARROT_API_KEY` is available in the environment, run
+   `ep auth login --api_key "$EXPECTED_PARROT_API_KEY"`. This stores the key
+   in the ignored, working-directory `.env` file. Never print or commit it.
+   If no key is available, continue with local work and ask me before a remote
+   operation that needs authentication.
+4. Discover EDSL guidance with `ep skills list --routing`. Search with
+   `ep skills search <query> --snippets` and fetch only relevant skills with
+   `ep skills show <name>`. Check object shapes with `ep schema show` and use
+   `ep docs search` when the installed guidance is insufficient.
+5. Demonstrate the local CLI workflow in a temporary directory. Run:
+   `tmpdir=$(mktemp -d)`, then
+   `ep surveys create --question-type free_text --question-name q0 --question-text "What do you think?" --output "$tmpdir/survey.ep"`,
+   `ep validate --file "$tmpdir/survey.ep"`,
+   `ep run --question "Return the word ok." --model test --output "$tmpdir/results.ep"`,
+   and `ep results select --file "$tmpdir/results.ep" --column "answer.*"`.
+   The `test` model is a local smoke test; do not substitute a remote model.
+6. Treat CLI stdout as one JSON document: parse it, check `status`, and read
+   `warnings`. Use `ep <command> --help` when flags are unclear. Before any
+   remote model run that may use credits, publishing or deleting a remote
+   object, or launching an external study, get my approval.
 
-```bash
-if [ -n "${EXPECTED_PARROT_API_KEY:-}" ]; then
-  ep auth login --api_key "$EXPECTED_PARROT_API_KEY"
-fi
-ep auth status
-```
+Summarize the environment and smoke-test results, then ask what I want to do
+with EDSL.
+````
 
-Start by finding the relevant skill and checking the installed EDSL schema.
-Fetch a skill only when it applies to the task:
-
-```bash
-ep skills list --routing
-ep skills search survey --snippets
-ep skills show edsl-surveys
-ep schema show --class Survey
-```
-
-Local quick-start: create and validate a survey, then run the CLI's canned
-smoke-test model and inspect its saved results:
-
-```bash
-ep surveys create \
-  --question-type free_text \
-  --question-name q0 \
-  --question-text "What is one thing you like about this example?" \
-  --output survey.ep
-ep validate --file survey.ep
-ep run --question "Return the word ok." --model test --output smoke-results.ep
-ep results select --file smoke-results.ep --column "answer.*"
-```
-
-CLI stdout is a single JSON document; parse it and check `status`, and read
-`warnings`. Use `ep <command> --help` for exact options. Remote model runs may
-use credits; publishing, deleting, or launching external studies affects
-remote services, so confirm those actions with the user first.
+EDSL's CLI is JSON-first, and its bundled skills provide version-matched API
+and workflow guidance. The prompt above sets up the local checkout and gives
+Codex a safe starting point before project work.
 
 ## Getting started
 
