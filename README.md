@@ -6,6 +6,61 @@
 
 EDSL makes it easy to conduct computational social science and market research with AI. Use it to design and run surveys and experiments with many AI agents and large language models at once, or to perform complex data labeling and other research tasks. Results are formatted as specified datasets that can be replicated at no cost, and come with built-in methods for analysis, visualization and collaboration. 
 
+## For coding agents
+
+EDSL includes a JSON-first `ep` CLI, version-matched implementation skills, and
+schema and documentation commands. From the repository root, install this
+checkout in the active Python environment and check the CLI:
+
+```bash
+python -m pip install -e .
+ep --help
+ep info
+```
+
+Expected Parrot authentication is optional for local construction and smoke
+tests. If `EXPECTED_PARROT_API_KEY` is available in the environment, the
+following stores it in the ignored, working-directory `.env` file. Otherwise,
+`ep auth status` reports whether a key is already configured. To configure one,
+export the variable first, then run `ep auth login --api_key "$EXPECTED_PARROT_API_KEY"`.
+Do not put the key in source files or commit `.env`.
+
+```bash
+if [ -n "${EXPECTED_PARROT_API_KEY:-}" ]; then
+  ep auth login --api_key "$EXPECTED_PARROT_API_KEY"
+fi
+ep auth status
+```
+
+Start by finding the relevant skill and checking the installed EDSL schema.
+Fetch a skill only when it applies to the task:
+
+```bash
+ep skills list --routing
+ep skills search survey --snippets
+ep skills show edsl-surveys
+ep schema show --class Survey
+```
+
+Local quick-start: create and validate a survey, then run the CLI's canned
+smoke-test model and inspect its saved results:
+
+```bash
+ep surveys create \
+  --question-type free_text \
+  --question-name q0 \
+  --question-text "What is one thing you like about this example?" \
+  --output survey.ep
+ep validate --file survey.ep
+ep run --question "Return the word ok." --model test --output smoke-results.ep
+ep results select --file smoke-results.ep --column "answer.*"
+```
+
+CLI stdout is a single JSON document; parse it and check `status`, and read
+`warnings`. Use `ep <command> --help` for exact options. Remote model runs may
+use credits; publishing, deleting, or launching external studies affects
+remote services, so confirm those actions with the user first.
+
 ## Getting started
 
 1. Run `pip install edsl` to install the package. See the <a href="https://docs.expectedparrot.com/en/latest/installation" target="_blank" rel="noopener noreferrer">installation guide</a>.
@@ -24,7 +79,7 @@ EDSL makes it easy to conduct computational social science and market research w
 - <a href="https://docs.expectedparrot.com" target="_blank" rel="noopener noreferrer">Documentation</a>
 
 ## Requirements
-- Python 3.9 - 3.13
+- Python 3.10 - 3.13
 - API keys for language models. You can use your own keys or an Expected Parrot key that provides access to all available models.
 See instructions on <a href="https://docs.expectedparrot.com/en/latest/api_keys" target="_blank" rel="noopener noreferrer">managing keys</a> and <a href="https://www.expectedparrot.com/models" target="_blank" rel="noopener noreferrer">model pricing and performance</a> information.
 
