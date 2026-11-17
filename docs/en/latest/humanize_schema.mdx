@@ -411,7 +411,7 @@ In Humanize, `QuestionEdit` shows `text_to_edit` in an editable text box, with a
 
   **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `demand`, `dict`, `dropdown`, `edit`, `email`, `file_upload`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `url`, `yes_no`.
 
-  Note: not supported for `compute` or `image_generation` (both run in the background and auto-advance, so neither is ever the question a respondent submits), or for `interview`.
+  Note: not supported for `compute`, `detect_ai` or `image_generation` (all run in the background and auto-advance, so none is ever the question a respondent submits), or for `interview`.
 
   <Expandable title="properties">
     <ParamField path="type" type="string" default="callout">
@@ -428,7 +428,7 @@ In Humanize, `QuestionEdit` shows `text_to_edit` in an editable text box, with a
 
   **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `demand`, `dict`, `distribution`, `dropdown`, `edit`, `email`, `file_upload`, `interview`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `url`, `yes_no`, `survey_message`.
 
-  Note: not supported for `compute` or `image_generation`. Both run in the background and are dropped from the page, so there is no rendered question for a script to attach to.
+  Note: not supported for `compute`, `detect_ai` or `image_generation`. All three run in the background and are dropped from the page, so there is no rendered question for a script to attach to.
 
   This feature is available on approved accounts only. Write to [info@expectedparrot.com](mailto:info@expectedparrot.com) to request approval; until your account is approved, a schema carrying a hook is rejected when you push it.
 

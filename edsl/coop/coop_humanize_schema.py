@@ -16,7 +16,12 @@ from pydantic import (
     model_validator,
 )
 
-from ..questions import QuestionBase, QuestionCompute, QuestionImageGeneration
+from ..questions import (
+    QuestionBase,
+    QuestionCompute,
+    QuestionDetectAI,
+    QuestionImageGeneration,
+)
 
 from .exceptions import HumanizeSchemaValidationError
 from .voice_interview_languages import (
@@ -735,6 +740,17 @@ class ImageGenerationHumanizeSchema(HumanizeSchemaBase):
     pass
 
 
+class DetectAIHumanizeSchema(HumanizeSchemaBase):
+    """Humanize options for the detect AI question type (none).
+
+    Like compute and image generation, it is answered in the background (by
+    Pangram) and never shown to the respondent, so there are no per-question
+    humanize options and no ``submitting_indicator``.
+    """
+
+    pass
+
+
 class FileUploadHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the file upload question type."""
 
@@ -1288,6 +1304,7 @@ HumanizeQuestionSchema = Union[
     CheckboxWithOtherHumanizeSchema,
     ComputeHumanizeSchema,
     DemandHumanizeSchema,
+    DetectAIHumanizeSchema,
     DictHumanizeSchema,
     EditHumanizeSchema,
     EmailHumanizeSchema,
@@ -1328,6 +1345,7 @@ QUESTION_TYPE_TO_HUMANIZE_CLASS: Dict[str, Type[BaseModel]] = {
     "checkbox_with_other": CheckboxWithOtherHumanizeSchema,
     "compute": ComputeHumanizeSchema,
     "demand": DemandHumanizeSchema,
+    "detect_ai": DetectAIHumanizeSchema,
     "dict": DictHumanizeSchema,
     "edit": EditHumanizeSchema,
     "email": EmailHumanizeSchema,
@@ -1385,13 +1403,15 @@ def _validate_preselection_targets(
 def _is_background_question(question: Any) -> bool:
     """Whether a question is answered by the server rather than the respondent.
 
-    Thinking, compute and image generation questions all run without the
-    respondent and are never rendered to one, so a group made up entirely of them
-    is never shown as a page.
+    Thinking, compute, image generation and detect AI questions all run without
+    the respondent and are never rendered to one, so a group made up entirely of
+    them is never shown as a page.
     """
     return isinstance(question, QuestionBase) and (
         getattr(question, "_is_thinking_question", False)
-        or isinstance(question, (QuestionCompute, QuestionImageGeneration))
+        or isinstance(
+            question, (QuestionCompute, QuestionDetectAI, QuestionImageGeneration)
+        )
     )
 
 

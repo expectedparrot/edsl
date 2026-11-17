@@ -124,6 +124,7 @@ from .question_url import QuestionURL
 from .question_markdown import QuestionMarkdown
 from .question_functional import QuestionFunctional
 from .question_compute import QuestionCompute
+from .question_detect_ai import QuestionDetectAI, DetectAI
 from .question_list import QuestionList
 from .question_matrix import QuestionMatrix
 from .question_dict import QuestionDict
@@ -190,6 +191,8 @@ __all__ = [
     "QuestionEmail",
     "QuestionFunctional",
     "QuestionCompute",
+    "QuestionDetectAI",
+    "DetectAI",
     "QuestionList",
     "QuestionMatrix",
     "QuestionNumerical",
