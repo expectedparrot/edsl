@@ -428,9 +428,16 @@ class QuestionBaseGenMixin:
         # This allows both {{ scenario.x }} and {{ scenario }} to work
         # {{ scenario.x }} accesses keys, {{ scenario }} converts to string
         # Filter out keys starting with underscore (private/internal keys)
+        # Prompt construction supplies an explicit scenario namespace. Preserve
+        # it when question fields (such as prices) share scenario variable names.
+        from collections.abc import Mapping
+
+        scenario_values = replacement_dict.get("scenario")
+        if not isinstance(scenario_values, Mapping):
+            scenario_values = strings_only_replacement_dict
         scenario_dict_for_template = {
             k: v
-            for k, v in strings_only_replacement_dict.items()
+            for k, v in scenario_values.items()
             if not k.startswith("_")
         }
         strings_only_replacement_dict["scenario"] = scenario_dict_for_template

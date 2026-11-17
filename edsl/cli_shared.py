@@ -177,6 +177,10 @@ def load_git_object(path: Path):
         from edsl.results import Results
 
         return Results.git.load(path)
+    if class_name == "Collection":
+        from edsl.collections import Collection
+
+        return Collection.git.load(path)
     if class_name == "ScenarioList":
         from edsl.scenarios import ScenarioList
 
@@ -188,7 +192,7 @@ def load_git_object(path: Path):
     error(
         "UNSUPPORTED_OBJECT",
         f"Object package type does not support push: {class_name or 'unknown'}",
-        suggestion="Currently supported package types: Survey, AgentList, Jobs, Results, ScenarioList, ModelList. Prompts use JSON files instead.",
+        suggestion="Currently supported package types: Survey, AgentList, Jobs, Results, ScenarioList, ModelList, Collection. Prompts use JSON files instead.",
         exit_code=EXIT_USAGE,
     )
 
@@ -234,6 +238,10 @@ def load_openable_json(path: Path):
         from edsl.language_models import ModelList
 
         return ModelList.from_dict(data)
+    if class_name == "Collection":
+        from edsl.collections import Collection
+
+        return Collection.from_dict(data)
     if is_serialized_prompt(data):
         from edsl.prompts import Prompt
 
@@ -241,7 +249,7 @@ def load_openable_json(path: Path):
     error(
         "UNSUPPORTED_OBJECT",
         f"Unsupported or missing edsl_class_name in JSON: {class_name or 'unknown'}",
-        suggestion="Expected a serialized Survey, AgentList, Jobs, Results, ScenarioList, ModelList, or Prompt.",
+        suggestion="Expected a serialized Survey, AgentList, Jobs, Results, ScenarioList, ModelList, Collection, or Prompt.",
         exit_code=EXIT_USAGE,
     )
 

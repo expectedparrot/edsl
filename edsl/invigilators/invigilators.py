@@ -687,7 +687,13 @@ class InvigilatorFunctional(InvigilatorBase):
         enriched_scenario = (
             self.scenario | prior_answers_dict | {"agent": self.agent.traits}
         )
-        answer = func(scenario=enriched_scenario, agent_traits=self.agent.traits)
+        async_func = getattr(self.question, "async_answer_question_directly", None)
+        if async_func is not None:
+            answer = await async_func(
+                scenario=enriched_scenario, agent_traits=self.agent.traits
+            )
+        else:
+            answer = func(scenario=enriched_scenario, agent_traits=self.agent.traits)
         answer_value = answer["answer"]
         audit_fields = {}
         contract = getattr(self.question, "probabilistic_response", None)
