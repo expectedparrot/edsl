@@ -25,9 +25,16 @@ ep run --help
 ep jobs --help
 ep results --help
 ep schema list
+ep state --help
 ```
 
 Use the installed CLI's help to check flags before constructing a command. `ep info` reports configuration diagnostics and redacts credentials. See [Installation](/en/latest/installation) for environment setup.
+
+For shared-state machines, `ep state validate`, `ep state inspect`, and
+`ep state simulate` work with serialized Machine JSON. After a run, use
+`ep results state --file results.ep` to inspect persisted state bindings and
+snapshots. See [Testing and serialization](/en/latest/shared-state/testing-and-serialization#using-the-ep-cli)
+for the input format and examples.
 
 ## Try a local example
 

@@ -100,3 +100,43 @@ collapsing a symbolic condition to `True` or `False`.
 
 `Machine` and `SharedStateMap` currently serialize as version 1. Unsupported
 versions fail explicitly rather than being interpreted as the current language.
+
+## Using the `ep` CLI
+
+Write a serialized machine to a JSON file, then validate and inspect it without
+loading the authoring code:
+
+```python
+from pathlib import Path
+
+Path("machine.json").write_text(activity_poll.to_json())
+```
+
+```bash
+ep state validate --file machine.json
+ep state inspect --file machine.json
+```
+
+To exercise a sequence locally, put transitions in a JSON file. Each transition
+names a command and supplies its inputs:
+
+```json
+[
+  {"command": "vote", "inputs": {"voter": "Amina", "activity": "hike"}},
+  {"command": "vote", "inputs": {"voter": "Boris", "activity": "sailing"}}
+]
+```
+
+```bash
+ep state simulate --file machine.json --transitions transitions.json
+```
+
+The output includes each event, resulting state, rendered view, and completion
+status. This is a local dry run of the definition; it does not write to a
+shared-state backend. For a completed job, inspect the persisted bindings and
+snapshots with:
+
+```bash
+ep results state --file results.ep
+ep results state --file results.ep --binding 0
+```
