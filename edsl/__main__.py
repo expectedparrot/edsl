@@ -35,6 +35,7 @@ from edsl.cli_commands import state as state_commands
 from edsl.cli_commands import surveys as surveys_commands
 from edsl.cli_commands import study as study_commands
 from edsl.cli_commands import validate as validate_commands
+from edsl.skills.cli import skills as skills_commands
 from ep_workflow import cli as workflow_commands
 from edsl.cli_shared import (
     EXIT_AUTH,
@@ -102,6 +103,7 @@ def app(ctx):
                 "present",
                 "report",
                 "study",
+                "skills",
             ],
             "help": "Use 'ep <command> --help' for details on each command.",
             "pipe_contract": {
@@ -423,6 +425,7 @@ scenarios_commands.register(scenarios)
 collections_commands.register(collections)
 surveys_commands.register(surveys)
 study_commands.register(app)
+app.add_command(skills_commands)
 validate_commands.register(app)
 workflow_commands.register(workflow, gate)
 

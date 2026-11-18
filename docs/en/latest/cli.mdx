@@ -27,6 +27,7 @@ ep results --help
 ep schema list
 ep state --help
 ep orchestration --help
+ep skills list
 ```
 
 Use the installed CLI's help to check flags before constructing a command. `ep info` reports configuration diagnostics and redacts credentials. See [Installation](/en/latest/installation) for environment setup.
@@ -36,6 +37,14 @@ For shared-state machines, `ep state validate`, `ep state inspect`, and
 `ep results state --file results.ep` to inspect persisted state bindings and
 snapshots. See [Testing and serialization](/en/latest/shared-state/testing-and-serialization#using-the-ep-cli)
 for the input format and examples.
+
+The installed EDSL distribution also includes version-matched skill bundles.
+Use `ep skills list --routing` to see their routing descriptions and available
+references, `ep skills search <query>` to find guidance, and `ep skills show
+<name>` to retrieve a skill with its linked references. Use
+`ep skills install --target <path>` to copy the bundles into a harness's skill
+directory. The bundled `edsl-shared-state` and `edsl-orchestration` skills
+describe the two features below.
 
 `ep workflow` manages research-task gates. Portable respondent workflows have a
 separate namespace: `ep orchestration validate`, `inspect`, and `run` operate on
