@@ -38,6 +38,54 @@ here are the current implementation, not a promise of permanent compatibility.
 The detailed recovery, visibility, and migration guarantees are documented in
 [Workflow and shared-state execution contracts](/en/latest/coordinated-research/execution-contracts).
 
+## CLI commands
+
+The `ep workflow` namespace manages research-task gates. The respondent
+orchestration API described here has its own `ep orchestration` namespace. It
+accepts a portable `WorkflowExperiment` JSON file. Create the bundle in Python
+and save it with `experiment.save("experiment.json")`:
+
+```python
+experiment.save("experiment.json")
+```
+
+```bash
+ep orchestration validate --file experiment.json
+ep orchestration inspect --file experiment.json
+ep orchestration run --file experiment.json --output run/
+ep orchestration run --file experiment.json --output run/ --resume
+```
+
+`validate` checks the workflow, participants, state maps, and executor bindings.
+`inspect` reports participants, steps, question names, dependencies, assignments,
+state-map IDs, and executor routing. Both commands return the standard JSON
+envelope and make no model calls.
+
+`run` requires an output directory. It writes the pinned `experiment.json`,
+`workflow.sqlite`, one SQLite file per state map, and `completion.json` when the
+run reaches a declared pause or completion. Start with a new output directory.
+For recovery, use the same experiment, output directory, and `--instance-id`
+with `--resume`; the default instance ID is `experiment`. The pinned definition
+must match the original run.
+
+Without `--responses`, configured LLM executors may call model providers. To
+replay answers without model calls, pass a JSON array like this (or wrap it in
+`{"responses": [...]}`):
+
+```json
+[
+  {"step": "propose", "participant": "Amina", "answers": {"activity": "A hike"}},
+  {"step": "approve", "participant": "Boris", "answers": {"approved": "Yes"}}
+]
+```
+
+Replay rows identify the workflow step and participant and provide that step's
+answer object. Each assigned LLM or human task needs a matching row; scripted
+executors use the answers configured in the experiment. Human executors need
+replay rows because the CLI does not configure a Humanize delivery adapter.
+`--instance-id` selects the durable workflow instance, and `--resume` recovers
+an existing one. `ep orchestration run --help` lists every option.
+
 ## The central idea
 
 A workflow turns a declarative graph into durable, respondent-specific work:

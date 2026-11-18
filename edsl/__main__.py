@@ -20,6 +20,7 @@ from edsl.cli_commands import jobs as jobs_commands
 from edsl.cli_commands import models as models_commands
 from edsl.cli_commands import objects as objects_commands
 from edsl.cli_commands import open as open_commands
+from edsl.cli_commands import orchestration as orchestration_commands
 from edsl.cli_commands import packages as package_commands
 from edsl.cli_commands import profiles as profiles_commands
 from edsl.cli_commands import research_agent as research_agent_commands
@@ -88,6 +89,7 @@ def app(ctx):
                 "research-agent",
                 "schema",
                 "state",
+                "orchestration",
                 "agents",
                 "scenarios",
                 "auth",
@@ -413,6 +415,7 @@ present_commands.register(app)
 report_commands.register(report)
 results_commands.register(results)
 state_commands.register(app, results)
+orchestration_commands.register(app)
 run_commands.register(app)
 run_manifest_commands.register(app)
 schema_commands.register(schema)
