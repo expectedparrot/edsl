@@ -15,7 +15,6 @@ ObjectStore              — Top-level API: save/load/list/delete/push/pull by U
     SQLiteMetadataIndex  — SQLite at <root>/index.db (default, local)
     PostgreSQLMetadataIndex — PostgreSQL (lazy-loaded, requires psycopg2, used server-side)
   StoreDescriptor        — Python descriptor (edsl/base/store_accessor.py) exposing .store
-  StreamingCASWriter     — Incremental writer for building CAS objects row-by-row
 ```
 
 ## File Inventory
@@ -34,7 +33,6 @@ ObjectStore              — Top-level API: save/load/list/delete/push/pull by U
 | `pg_metadata_index.py` | `PostgreSQLMetadataIndex` | PostgreSQL implementation. Same schema as SQLite. Uses `psycopg2.pool.ThreadedConnectionPool`. Identical MetadataIndex interface. Used by the remote CAS server. |
 | `exceptions.py` | `AmbiguousUUIDError`, `StaleBranchError` | Both extend `BaseException`. `StaleBranchError` includes a user-friendly recovery message. |
 | `store_info.py` | `StoreSaveInfo`, `StoreListInfo`, `StoreLogInfo`, `StoreDiffInfo` | Thin wrappers for operation results. Each subclasses a built-in (`dict`, `list`, `str`) so programmatic access works unchanged while adding `__repr__`, `_repr_html_`, and `_mime_` (Marimo) display methods. |
-| `streaming_writer.py` | `StreamingCASWriter` | Incrementally builds a CAS object by appending JSONL rows. Each `append_result()` creates a new commit whose tree contains all rows so far. Caches row content in memory to avoid re-reading blobs. Used for streaming job results. |
 
 ## CAS Repository Layout (per object UUID)
 
@@ -199,28 +197,6 @@ Writes are buffered in three dicts (`_pending_blobs`, `_pending_trees`, `_pendin
   "meta": {"type": "AgentList", "description": "...", ...}
 }
 ```
-
-## StreamingCASWriter
-
-For building CAS objects incrementally (used during job execution to stream results):
-
-```python
-writer = StreamingCASWriter(backend, branch="main")
-
-# Write header/manifest rows (initial commit)
-writer.write_preamble(["header_json", "manifest_json", "survey_json"])
-
-# Append results one at a time (each creates a new commit)
-writer.append_result('{"answer": "hello"}')
-
-# Or in batches (single commit per batch)
-writer.append_results_batch(['{"answer": "a"}', '{"answer": "b"}'])
-
-writer.n_results  # count of result rows
-writer.tip        # current commit hash
-```
-
-Every intermediate commit is valid and loadable. Row content is cached in memory (`_row_cache`) so `current.jsonl` can be rebuilt without re-reading blobs from the backend.
 
 ## Display Types (store_info.py)
 
