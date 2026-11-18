@@ -6,7 +6,7 @@ import pytest
 from edsl import Agent, InterviewSchedule, QuestionMultipleChoice, Survey
 from edsl.jobs import Jobs
 from edsl.sharedstate import SharedState, SharedStateMap, StateCondition, current, field
-from examples.shared_state_dsl.shared_voting_game import SPEC
+from edsl.examples.shared_state.dsl.shared_voting_game import SPEC
 
 
 def voting_job():

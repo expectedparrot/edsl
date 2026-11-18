@@ -22,10 +22,10 @@ from edsl.sharedstate import (
 )
 from edsl.sharedstate.dsl_runtime import Runtime
 from edsl.sharedstate.steps import StepContext
-from examples.machine_primitives import appointment_booking as booking
-from examples.machine_primitives import price_elicitation as pricing
-from examples.machine_primitives import balanced_assignment as balance
-from examples.machine_primitives import team_formation as teams
+from edsl.examples.shared_state.machine_primitives import appointment_booking as booking
+from edsl.examples.shared_state.machine_primitives import price_elicitation as pricing
+from edsl.examples.shared_state.machine_primitives import balanced_assignment as balance
+from edsl.examples.shared_state.machine_primitives import team_formation as teams
 
 NAMES = (
     "appointment_booking",
@@ -243,7 +243,7 @@ def test_team_profiles_membership_and_role_specific_availability():
 def test_sqlite_reopen_duplicate_delivery_scope_isolation_and_fresh_process(
     name, tmp_path
 ):
-    module = importlib.import_module("examples.machine_primitives." + name)
+    module = importlib.import_module("edsl.examples.shared_state.machine_primitives." + name)
     m, r, expected = restored(module)
     spaces = SharedStateMap(SharedState(app=m))
     target = spaces.by("study").app
@@ -286,7 +286,7 @@ print(json.dumps(s))
 
 @pytest.mark.parametrize("name", NAMES)
 def test_concurrent_writes_obey_live_constraints(name, tmp_path):
-    module = importlib.import_module("examples.machine_primitives." + name)
+    module = importlib.import_module("edsl.examples.shared_state.machine_primitives." + name)
     machine = module.build_machine()
     spaces = SharedStateMap(SharedState(app=machine))
     backend = SQLiteStateBackend(spaces, tmp_path / "races.sqlite", runtime=Runtime())
@@ -338,7 +338,7 @@ def test_concurrent_writes_obey_live_constraints(name, tmp_path):
 
 @pytest.mark.parametrize("name", NAMES)
 def test_survey_transport_actual_choices_and_results_serialization(name):
-    module = importlib.import_module("examples." + name)
+    module = importlib.import_module("edsl.examples.shared_state." + name)
     survey, _, schedule = module.build_survey()
     survey = Survey.from_dict(json.loads(json.dumps(survey.to_dict())))
     if not isinstance(schedule, str):
@@ -401,7 +401,7 @@ def test_survey_transport_actual_choices_and_results_serialization(name):
 
 @pytest.mark.parametrize("name", NAMES)
 def test_documented_local_demo(name):
-    assert importlib.import_module("examples." + name).run_demo()
+    assert importlib.import_module("edsl.examples.shared_state." + name).run_demo()
 
 
 @pytest.mark.parametrize(
@@ -438,7 +438,7 @@ def run_survey(survey, schedule, agents, model=None):
 
 
 def test_booking_resumes_a_held_reservation_then_completed_retry_stays_terminal():
-    from examples.appointment_booking import build_survey, demo_agents
+    from edsl.examples.shared_state.appointment_booking import build_survey, demo_agents
 
     full, _, schedule = build_survey()
     agent = demo_agents()[1]  # Confirms, after the interruption below.
@@ -457,7 +457,7 @@ def test_booking_resumes_a_held_reservation_then_completed_retry_stays_terminal(
 
 
 def test_price_partial_resume_skips_old_slots_and_keeps_the_original_history():
-    from examples.price_elicitation import build_survey, demo_agents
+    from edsl.examples.shared_state.price_elicitation import build_survey, demo_agents
 
     full, _, schedule = build_survey()
     agents = demo_agents([37])
@@ -497,7 +497,7 @@ def test_price_partial_resume_skips_old_slots_and_keeps_the_original_history():
 def test_changed_self_report_cannot_use_a_prior_profile_silently(
     name, trait, replacement, downstream
 ):
-    module = importlib.import_module("examples." + name)
+    module = importlib.import_module("edsl.examples.shared_state." + name)
     survey, _, schedule = module.build_survey()
     agents = AgentList([module.demo_agents()[0]])
     first = run_survey(survey, schedule, agents)
@@ -513,7 +513,7 @@ def test_changed_self_report_cannot_use_a_prior_profile_silently(
 
 
 def test_price_model_prompts_use_each_adaptive_quote():
-    from examples.price_elicitation import build_survey, demo_agents
+    from edsl.examples.shared_state.price_elicitation import build_survey, demo_agents
 
     survey, _, schedule = build_survey()
     agents = demo_agents([100])

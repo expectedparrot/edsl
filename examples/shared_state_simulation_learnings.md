@@ -462,7 +462,7 @@ Suggested refactors:
 
 ## Ultimatum games across parallel pairs
 
-Run: `examples/economic_game_ultimatum.py` with Gemini 2.5 Flash, three isolated
+Run: `edsl/examples/shared_state/economic_game_ultimatum.py` with Gemini 2.5 Flash, three isolated
 pairs executing concurrently, and proposer→responder ordering within each pair.
 
 Observed result:

@@ -45,14 +45,14 @@ CASES = (
 def build_case(name):
     state_id = f"acceptance-{name}-{uuid4()}"
     if name == "activity_poll":
-        from examples import shared_state_activity_poll as example
+        from edsl.examples.shared_state import shared_state_activity_poll as example
 
         survey = example.build_survey(state_id)
         agents = example.participants(n=8)
         schedule = InterviewSchedule.grouped_round_robin("family_id", "turn")
         answers = {"activity": "{{ agent.preferred_activity }}"}
     elif name == "ultimatum":
-        from examples import economic_game_ultimatum as example
+        from edsl.examples.shared_state import economic_game_ultimatum as example
 
         survey, complete = example.build_survey(state_id)
         agents = example.players(count=4)
@@ -64,7 +64,7 @@ def build_case(name):
             "decision": "{{ 'accept' if shared_state.game.offer >= 30 else 'reject' }}",
         }
     else:
-        example = import_module(f"examples.{name}")
+        example = import_module(f"edsl.examples.shared_state.{name}")
         built = example.build_survey(state_id=state_id)
         survey = built[0]
         schedule = built[2] if len(built) == 3 else "serial"
@@ -192,7 +192,7 @@ def check_live(name, results):
         assert len(states) == 1, "Expected one shared study/market scope"
         return check_application(name, results, states[0]["state"])
     if name == "activity_poll":
-        from examples.shared_state_activity_poll import ACTIVITIES
+        from edsl.examples.shared_state.shared_state_activity_poll import ACTIVITIES
 
         assert len(results) == 8
         votes = {row.agent.name: row.answer["activity"] for row in results}

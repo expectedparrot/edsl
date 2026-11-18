@@ -20,12 +20,12 @@ from edsl.sharedstate import (
 )
 from edsl.sharedstate.dsl_runtime import DSLValidationError, Runtime
 from edsl.sharedstate.steps import StepContext
-from examples.machine_primitives.question_coverage import (
+from edsl.examples.shared_state.machine_primitives.question_coverage import (
     DEFAULT_QUESTIONS,
     DEMO,
     build_machine,
 )
-from examples.question_coverage import build_survey, demo_agents, run_demo
+from edsl.examples.shared_state.question_coverage import build_survey, demo_agents, run_demo
 
 
 def assign(runtime, machine, state, respondent):

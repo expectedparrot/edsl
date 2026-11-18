@@ -15,7 +15,7 @@ from edsl.sharedstate import (
     UnsupportedCapabilityError,
 )
 from edsl.sharedstate.dsl_runtime import Runtime
-from examples.question_coverage import build_survey, demo_agents
+from edsl.examples.shared_state.question_coverage import build_survey, demo_agents
 
 
 def payload():

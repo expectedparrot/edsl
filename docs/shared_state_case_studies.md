@@ -10,7 +10,7 @@ round barriers; and terminal mechanisms used typed completion and finalization.
 These are case studies, not estimates of average model behavior. Each run is one
 realization intended to test whether the example is understandable, executable,
 and analytically useful. The runnable source is
-`examples/shared_state_gemini_game_smoke.py`. Results come from
+`edsl/examples/shared_state/shared_state_gemini_game_smoke.py`. Results come from
 `examples/shared_state_gemini_complete_audit.json`, with simplified reruns for four
 slow cases in `examples/shared_state_gemini_case_study_reruns.json`.
 

@@ -275,7 +275,7 @@ def _at(value, path):
 @pytest.mark.parametrize("module_name", sorted(VECTORS))
 def test_machine_executes_through_transactional_backend(module_name, tmp_path):
     machine = import_module(
-        f"examples.shared_state_dsl.{module_name}"
+        f"edsl.examples.shared_state.dsl.{module_name}"
     ).SPEC
     machine.validate()
     spaces = SharedStateMap(
@@ -320,7 +320,7 @@ def test_vector_inventory_exactly_matches_retained_machine_files():
 
     modules = {
         path.stem
-        for path in Path("examples/shared_state_dsl").glob("shared_*.py")
+        for path in Path("edsl/examples/shared_state/dsl").glob("shared_*.py")
     }
     assert set(VECTORS) == modules
     assert set(EXPECTED_PATHS) == modules
@@ -328,7 +328,7 @@ def test_vector_inventory_exactly_matches_retained_machine_files():
 
 def test_delphi_does_not_converge_on_a_partial_round(tmp_path):
     machine = import_module(
-        "examples.shared_state_dsl.shared_delphi_panel"
+        "edsl.examples.shared_state.dsl.shared_delphi_panel"
     ).SPEC
     spaces = SharedStateMap(SharedState(panel=machine), state_id="partial-delphi")
     panel = spaces.by("scope").panel

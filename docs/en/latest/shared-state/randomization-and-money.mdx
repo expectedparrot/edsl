@@ -161,12 +161,12 @@ LMSR expressions exact.
 
 ## Executable examples and compatibility
 
-The [seeded allocation example](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/machine_primitives/seeded_allocation.py)
+The [seeded allocation example](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/edsl/examples/shared_state/machine_primitives/seeded_allocation.py)
 collects participant IDs, rejects empty/duplicate IDs, allocates two seats by
 seeded priority, and makes a separately keyed participation-bonus draw. Its tests
 permute arrival order and interleave unrelated draws.
 
-The [monetary settlement example](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/machine_primitives/monetary_settlement.py)
+The [monetary settlement example](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/edsl/examples/shared_state/machine_primitives/monetary_settlement.py)
 rounds submitted decimal amounts half-up to cents and a 25-basis-point fee
 half-even. It rejects nonpositive rounded payments and insufficient funds;
 malformed decimal text is an execution failure. It uses one fixed payer, payee,

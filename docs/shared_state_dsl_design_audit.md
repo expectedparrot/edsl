@@ -25,7 +25,7 @@ The recommended design is:
 
 ## What was audited
 
-The implementation under `examples/shared_state_dsl/` contains:
+The implementation under `edsl/examples/shared_state/dsl/` contains:
 
 - 36 independently serializable `Machine` recipes;
 - a 263-line syntax and serialization kernel;

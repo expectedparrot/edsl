@@ -169,8 +169,16 @@ def pytest_addoption(parser):
     """
     Adds custom CLI options to pytest.
     """
-    parser.addoption("--nocoop", action="store_true", help="Do not run coop tests")
-    parser.addoption("--coop", action="store_true", help="Run only coop tests")
+    parser.addoption(
+        "--nocoop",
+        action="store_true",
+        help="Do not run Coop integration tests (the default)",
+    )
+    parser.addoption(
+        "--coop",
+        action="store_true",
+        help="Run only Coop integration tests; requires a reachable Coop server",
+    )
     parser.addoption("--windows", action="store_true", help="Run only windows tests")
     parser.addoption(
         "--token-bucket", action="store_true", help="Run using remote token bucket"
@@ -198,17 +206,22 @@ def pytest_collection_modifyitems(config, items):
     """
     Tells pytest which tests to run based on pytest markers and CLI options.
     """
-    if config.getoption("--nocoop"):
-        skip_coop = pytest.mark.skip(reason="Skipping coop tests")
-        for item in items:
-            if "coop" in item.keywords:
-                item.add_marker(skip_coop)
-
     if config.getoption("--coop"):
         skip_notcoop = pytest.mark.skip(reason="Skipping non-coop tests")
         for item in items:
             if "coop" not in item.keywords:
                 item.add_marker(skip_notcoop)
+    else:
+        # Coop tests mutate server-side state and make real HTTP requests. Keep
+        # ordinary local test runs offline; the dedicated --coop option is the
+        # explicit opt-in for that integration suite. --nocoop remains accepted
+        # for compatibility with existing Makefile and CI commands.
+        skip_coop = pytest.mark.skip(
+            reason="Skipping Coop integration tests; run pytest --coop to opt in"
+        )
+        for item in items:
+            if "coop" in item.keywords:
+                item.add_marker(skip_coop)
 
     if config.getoption("--windows"):
         skip_notwindows = pytest.mark.skip(reason="Skipping non-windows tests")

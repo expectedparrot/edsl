@@ -19,12 +19,12 @@ from edsl.sharedstate import (
 )
 from edsl.sharedstate.dsl_runtime import Runtime
 from edsl.sharedstate.steps import StepContext
-from examples.machine_primitives.reason_discovery import (
+from edsl.examples.shared_state.machine_primitives.reason_discovery import (
     DEFAULT_SEEDS,
     DEMO,
     build_machine,
 )
-from examples.reason_discovery import (
+from edsl.examples.shared_state.reason_discovery import (
     ALL_REASONS,
     build_survey,
     demo_agents,

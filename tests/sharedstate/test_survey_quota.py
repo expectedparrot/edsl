@@ -21,8 +21,8 @@ from edsl.sharedstate import (
 )
 from edsl.sharedstate.dsl_runtime import Runtime
 from edsl.sharedstate.steps import StepContext
-from examples.machine_primitives.survey_quota import build_machine, DEMO
-from examples.survey_quota import build_survey, demo_agents, demo_answer
+from edsl.examples.shared_state.machine_primitives.survey_quota import build_machine, DEMO
+from edsl.examples.shared_state.survey_quota import build_survey, demo_agents, demo_answer
 
 
 def screen(runtime, machine, state, respondent, group):
@@ -317,8 +317,8 @@ def test_abandoned_admission_is_not_reclaimed(tmp_path):
 
 
 def test_profiler_measures_replayed_work_without_changing_semantics():
-    from examples.machine_primitives.profile_corpus import profile
-    from examples.machine_primitives.__main__ import run_example
+    from edsl.examples.shared_state.machine_primitives.profile_corpus import profile
+    from edsl.examples.shared_state.machine_primitives.__main__ import run_example
 
     report = profile("survey_quota")
     replay = run_example("survey_quota")

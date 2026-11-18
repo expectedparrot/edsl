@@ -8,7 +8,7 @@ from pathlib import Path
 
 from edsl import Model, Results
 
-from examples.shared_state_gemini_game_smoke import GAMES
+from edsl.examples.shared_state.shared_state_gemini_game_smoke import GAMES
 
 
 HERE = Path(__file__).resolve().parent

@@ -31,3 +31,9 @@ experiment definition, output directory, and instance ID when resuming. Use the
 same replay answer file on every replay-driven resume. Read
 [workflow authoring and execution](references/authoring-and-execution.md) for
 the object model and durable-run invariants.
+
+Fetch complete, version-matched workflow examples through the CLI with
+`ep skills show edsl-orchestration --example <path>`. Use
+`ep skills list --routing` to find available examples, or see the
+[example guide](references/examples.md). The Humanize delivery example requires
+two explicit email addresses before it can create a run or send invitations.

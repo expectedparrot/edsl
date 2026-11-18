@@ -249,7 +249,7 @@ def test_runner_records_visibility_and_state_continues_across_results():
     from uuid import uuid4
 
     from edsl import Agent, AgentList, InterviewSchedule, Model
-    from examples.shared_state_activity_poll import build_survey
+    from edsl.examples.shared_state.shared_state_activity_poll import build_survey
 
     state_id = f"runner-contract-{uuid4()}"
 
@@ -312,7 +312,7 @@ def test_snapshot_round_gives_every_agent_the_same_committed_view():
     from uuid import uuid4
 
     from edsl import Agent, AgentList, InterviewSchedule, Model
-    from examples.shared_state_activity_poll import build_survey
+    from edsl.examples.shared_state.shared_state_activity_poll import build_survey
 
     people = []
     for index in range(4):

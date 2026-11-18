@@ -1,4 +1,4 @@
-from examples.workflow_weekend_activity_revision import run
+from edsl.examples.workflows.workflow_weekend_activity_revision import run
 from edsl.workflows import WorkflowDAGVisualization
 
 

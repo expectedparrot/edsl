@@ -8,7 +8,7 @@ decision, private information where appropriate, and the visibility schedule
 required by the mechanism. The complete run used `gemini-2.5-flash`, local EDSL
 execution, fresh model calls, and a 45-second per-game limit.
 
-The executable suite is `examples/shared_state_gemini_game_smoke.py`; its complete
+The executable suite is `edsl/examples/shared_state/shared_state_gemini_game_smoke.py`; its complete
 machine-readable output is `examples/shared_state_gemini_complete_audit.json`.
 
 ## Coverage and reliability

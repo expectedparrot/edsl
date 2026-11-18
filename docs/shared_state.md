@@ -272,10 +272,10 @@ versioned capability names.
 
 ## Complete examples
 
-- `examples/shared_state_activity_poll.py` demonstrates scoped live voting.
-- `examples/shared_state_activity_poll_repeated.py` demonstrates repeated paths.
-- `examples/economic_game_ultimatum.py` demonstrates typed completion and
+- `edsl/examples/shared_state/shared_state_activity_poll.py` demonstrates scoped live voting.
+- `edsl/examples/shared_state/shared_state_activity_poll_repeated.py` demonstrates repeated paths.
+- `edsl/examples/shared_state/economic_game_ultimatum.py` demonstrates typed completion and
   finalization.
-- `examples/shared_state_dsl/` contains one machine definition per state pattern.
+- `edsl/examples/shared_state/dsl/` contains one machine definition per state pattern.
 - `docs/shared_state_execution_matrix.md` records executable coverage of every
   retained machine.

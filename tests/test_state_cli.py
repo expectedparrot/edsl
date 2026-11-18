@@ -6,7 +6,7 @@ from click.testing import CliRunner
 
 from edsl import Results, Survey
 from edsl.__main__ import app
-from examples.machine_primitives.reason_discovery import build_machine
+from edsl.examples.shared_state.machine_primitives.reason_discovery import build_machine
 
 
 def test_state_validate_inspect_and_simulate_json_files(tmp_path):

@@ -10,16 +10,16 @@ text. New reasons become choices for subsequent agents. Discovery stops after
 **10 consecutive distinct agents provide valid responses without adding a reason**.
 
 This is an adaptive survey driven by a serialized Machine. The
-[primitive definition](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/machine_primitives/reason_discovery.py)
+[primitive definition](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/edsl/examples/shared_state/machine_primitives/reason_discovery.py)
 uses existing fields, maps, conditions, assertions, and effects with an empty
-algorithm registry. The [survey and runnable simulation](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/reason_discovery.py)
+algorithm registry. The [survey and runnable simulation](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/edsl/examples/shared_state/reason_discovery.py)
 provide dynamic multiple-choice options, conditional free text, and a sequential
 interview schedule.
 
 ## Run the example
 
 ```bash
-python -m examples.reason_discovery
+python -m edsl.examples.shared_state.reason_discovery
 ```
 
 The local simulation creates 100 agents, assigning each one of five reasons
@@ -56,7 +56,7 @@ survey plumbing, not an LLM's ability to paraphrase or categorize reasons.
 Construct the Machine with two seed labels and a patience threshold:
 
 ```python
-from examples.machine_primitives.reason_discovery import build_machine
+from edsl.examples.shared_state.machine_primitives.reason_discovery import build_machine
 
 machine = build_machine(
     seed_reasons=["Lower price", "Better quality"],
@@ -126,7 +126,7 @@ believe the reason was already known.
 The complete adapter is available as:
 
 ```python
-from examples.reason_discovery import build_survey
+from edsl.examples.shared_state.reason_discovery import build_survey
 
 survey, states, schedule = build_survey(patience=10)
 ```
@@ -188,7 +188,7 @@ local Runner:
 ```python
 from edsl import Model
 from edsl.runner import Runner
-from examples.reason_discovery import demo_agents
+from edsl.examples.shared_state.reason_discovery import demo_agents
 
 results = (
     Runner(interview_schedule=schedule)
@@ -245,7 +245,7 @@ generic-reducer policy.
 The current primitive definition is **12,924 JSON bytes**, with **184 expression
 occurrences and 41 distinct trees**. Its checked-in Machine demo uses at most
 **4,078 host budget steps per transition**. Reproduce those measurements with
-`python -m examples.machine_primitives.profile_corpus`. The two command bodies
+`python -m edsl.examples.shared_state.machine_primitives.profile_corpus`. The two command bodies
 share a Python authoring helper, but that helper expands into repeated serialized
 expressions. Reusable serialized computation remains a useful design target.
 

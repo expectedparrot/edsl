@@ -24,7 +24,7 @@ NAMES = ("second_price_auction", "uniform_price_auction", "posted_price_market")
 
 
 def restored_machine(name, **kwargs):
-    module = importlib.import_module("examples.machine_primitives." + name)
+    module = importlib.import_module("edsl.examples.shared_state.machine_primitives." + name)
     m = Machine.from_json(module.build_machine(**kwargs).to_json())
     r = Runtime()
     return m, r, r.initial_state(m)
@@ -199,7 +199,7 @@ def test_posted_rejections_are_atomic(quantity, reason):
 
 @pytest.mark.parametrize("name", NAMES)
 def test_restart_replay_scope_and_fresh_interpreter(name, tmp_path):
-    module = importlib.import_module("examples.machine_primitives." + name)
+    module = importlib.import_module("edsl.examples.shared_state.machine_primitives." + name)
     m, r, expected = restored_machine(name)
     spaces = SharedStateMap(SharedState(app=m))
     target = spaces.by("market").app
@@ -225,7 +225,7 @@ from edsl.sharedstate import Machine
 from edsl.sharedstate.dsl_runtime import Runtime
 p=json.load(sys.stdin); m=Machine.from_dict(p['machine']); r=Runtime(); s=r.initial_state(m)
 for c,i in p['commands']: s=r.execute(m,s,c,i).state
-assert not any(n.startswith('examples.') for n in sys.modules)
+assert not any(n.startswith(('examples.', 'edsl.examples.')) for n in sys.modules)
 print(json.dumps(s))"""
     out = subprocess.run(
         [sys.executable, "-c", code],
@@ -279,7 +279,7 @@ def test_concurrent_settlement_or_purchase(name, tmp_path):
 
 @pytest.mark.parametrize("name", NAMES)
 def test_survey_transport_schedule_choices_receipts_and_results(name):
-    module = importlib.import_module("examples." + name)
+    module = importlib.import_module("edsl.examples.shared_state." + name)
     survey, _, schedule = module.build_survey()
     survey = Survey.from_dict(json.loads(json.dumps(survey.to_dict())))
     results = (
@@ -332,7 +332,7 @@ def test_invalid_configuration(name, kwargs):
 
 
 def test_posted_model_prompts_contain_the_actual_quote():
-    from examples.posted_price_market import build_survey, demo_agents
+    from edsl.examples.shared_state.posted_price_market import build_survey, demo_agents
 
     survey, _, schedule = build_survey()
     agents = demo_agents()

@@ -34,7 +34,7 @@ from edsl.sharedstate.dsl import Effect
 from edsl.sharedstate.dsl_runtime import DSLValidationError, Runtime, default_runtime
 from edsl.sharedstate.steps import StepContext
 from edsl.sharedstate.exceptions import SharedStateRuntimeError
-from examples.machine_primitives.double_auction import build_machine
+from edsl.examples.shared_state.machine_primitives.double_auction import build_machine
 
 
 def spec(effects=None):

@@ -1,6 +1,6 @@
 # Gemini shared-state behavioral test findings
 
-`examples/shared_state_gemini_game_smoke.py` runs small real-model interviews
+`edsl/examples/shared_state/shared_state_gemini_game_smoke.py` runs small real-model interviews
 against the experimental shared-state implementation. The suite currently covers
 22 mechanisms and deliberately includes serial, simultaneous, repeated-round,
 early-stop, explicit-close, and algorithm-backed state machines.

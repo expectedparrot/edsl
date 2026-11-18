@@ -1,4 +1,4 @@
-from examples.workflow_stress_gallery import CASE_NARRATIVES, cases, highlight_python
+from edsl.examples.workflows.workflow_stress_gallery import CASE_NARRATIVES, cases, highlight_python
 from edsl.sharedstate import SQLiteStateBackend
 from edsl.workflows import HumanWorkflow, SQLiteWorkflowStore, WorkflowCoordinator
 

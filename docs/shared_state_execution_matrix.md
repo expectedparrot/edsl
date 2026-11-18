@@ -29,12 +29,12 @@ algorithms used by the examples.
 | Basic shared structures | register, log, counter map, document, message board, work pool |
 | Deliberation and allocation | agenda, budget pool, coalition pool, resource board, Delphi panel, forecast, signal schedule |
 | Matching | match pool, deferred acceptance |
-| Markets and auctions | ascending auction, sealed auction, double auction, binary market |
+| Markets and auctions | auction register, ascending auction, sealed auction, double auction, binary market |
 | Canonical economic games | ultimatum, dictator, trust, centipede, matrix, repeated matrix, Nash demand, money request, beauty contest, market entry, common pool |
-| Information and contracts | cheap talk, signaling, principal-agent, bilateral trade, negotiation |
+| Information and contracts | cheap talk, signaling, principal-agent, bilateral trade, negotiation, review screening |
 | Social choice | voting game |
 
-There are 36 machine modules in `examples/shared_state_dsl/`, and all 36 have a
+There are 38 machine modules in `edsl/examples/shared_state/dsl/`, and all 38 have a
 meaningful transition vector and semantic outcome oracle.
 
 ## End-to-end Runner coverage

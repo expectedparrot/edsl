@@ -1,7 +1,9 @@
 # Run shared-state examples through local coopr
 
-The [2026-09-29 hosted smoke report](../artifacts/shared-state-acceptance/2026-09-29-hosted/report.md)
-records a separate test against the actual chick environment using normal CLI
+Historical acceptance reports are local outputs under
+`artifacts/shared-state-acceptance/` and are not archived in Git. This runbook
+records the outcomes and commands used to reproduce them. The 2026-09-29 hosted
+smoke run against the actual chick environment used normal CLI
 submission and persisted Results downloads: sequential poll, dynamic-price market,
 and three snapshot rounds all passed (18 final result rows). It found two client
 transport gaps: `.ep` persistence dropped state definitions/schedules, and `run()`
@@ -124,15 +126,15 @@ are on [Google’s pricing page](https://ai.google.dev/gemini-api/docs/pricing).
 The hosted `ep jobs cost` endpoint returned `JOBS_ERROR` during setup; catalog or
 provider estimates must not be described as confirmed billing.
 
-The successful [live report](../artifacts/shared-state-acceptance/2026-09-28-live-openai/report.md)
-and [walkthrough](../artifacts/shared-state-acceptance/2026-09-28-live-openai/walkthrough.md)
+The successful live report (local output, not archived)
+and walkthrough (local output, not archived)
 contain 12 uncached answers. The poll ended with seven beach-day votes and one hike
 vote. The two ultimatum pairs offered $83 (rejected) and $54 (accepted). Inspection
 of every recorded prompt confirmed the prior votes or partner's offer were visible.
 The rejection explanation misinterpreted who received the larger share; the
 walkthrough preserves that model behavior for follow-up prompt experiments.
 
-The [complete live acceptance report](../artifacts/shared-state-acceptance/2026-09-28-live-all.md)
+The complete live acceptance report (local output, not archived)
 now records successful runs for all eight examples: 66 participants and 113
 uncached model answers. The expanded run exposed a coopr transport defect:
 resolved question definitions and historical choices were dropped between prompt
@@ -155,7 +157,7 @@ On 2026-09-28 all eight scripted cases passed, totaling 66 result rows in each
 execution environment. The pass found and fixed two defects: missing first-question
 agent/prior-answer context in portable compute tasks, and missing DAG dependencies
 for answer references nested in state command inputs. Regression tests cover both.
-The saved [acceptance report](../artifacts/shared-state-acceptance/2026-09-28-scripted/report.md)
+The saved acceptance report (local output, not archived)
 and its per-example packages are local artifacts, excluded from Git. Running the
 suite creates the same report structure in your chosen output directory.
 
@@ -201,7 +203,7 @@ Verification writes `verification.json` and `verification.md`, preserving the
 original run summary. It can regenerate transcripts even when report generation
 failed after the remote job completed. It does not resume a failed remote job.
 
-All six have passed; the [advanced results](../artifacts/shared-state-acceptance/2026-09-28-live-advanced-all.md)
+All six have passed; the advanced results (local output, not archived)
 link to each transcript. The price persona now explicitly defines its `value` as
 maximum willingness to pay. The rerun elicited 0, 37, 65, and 100, matching the four
 personas. The verifier checks state transitions against actual choices; it does
@@ -241,9 +243,9 @@ separate failure scenarios.
 All three live restart cases passed on 2026-09-28, with 18 uncached recorded model
 answers and no duplicate committed decisions. The worker-interruption case finished
 in about 75 seconds, including the wait for takeover after interruption. The
-[restart report](../artifacts/shared-state-acceptance/2026-09-28-live-restarts/report.md)
+restart report (local output, not archived)
 links to per-service progress and transcripts; the
-[Docker regression results](../artifacts/shared-state-acceptance/2026-09-28-restart-tests.xml)
+Docker regression results (local output, not archived)
 record the three corresponding mock-model tests.
 
 ## Backend submission and streamed results
@@ -267,7 +269,7 @@ real credentials or signed cloud URLs.
 A separate recheck streamed all six saved advanced live jobs through the updated
 backend Redis reader and EDSL client: 34 rows and 64 captured question presentations
 matched the original results, and every example's semantic checks passed. It made
-no new model calls. See the local [backend acceptance report](../artifacts/shared-state-acceptance/2026-09-29-backend-acceptance.md).
+no new model calls. See the local backend acceptance report (local output, not archived).
 
 Real hosted authentication, GCS permissions, and the complete deployed lifecycle
 remain to be tested together. Native Humanize state execution also remains open.

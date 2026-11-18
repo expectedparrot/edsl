@@ -24,12 +24,12 @@ from edsl.sharedstate import (
 )
 from edsl.sharedstate.dsl_runtime import DSLValidationError, Runtime
 from edsl.sharedstate.steps import StepContext
-from examples.machine_primitives.pairwise_comparisons import (
+from edsl.examples.shared_state.machine_primitives.pairwise_comparisons import (
     DEFAULT_ITEMS,
     DEMO,
     build_machine,
 )
-from examples.pairwise_comparisons import build_survey, demo_agents, run_demo
+from edsl.examples.shared_state.pairwise_comparisons import build_survey, demo_agents, run_demo
 
 
 def assign(runtime, spec, state, rid):
@@ -271,7 +271,7 @@ r=Runtime()
 s=r.initial_state(m)
 for command,inputs in p["commands"]:
     s=r.execute(m,s,command,inputs).state
-assert "examples.machine_primitives.pairwise_comparisons" not in sys.modules
+assert "edsl.examples.shared_state.machine_primitives.pairwise_comparisons" not in sys.modules
 print(json.dumps(s))
 """
     result = subprocess.run(

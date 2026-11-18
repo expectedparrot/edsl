@@ -34,8 +34,8 @@ from edsl.sharedstate import (
 )
 from edsl.sharedstate.dsl_runtime import DSLValidationError, Runtime
 from edsl.sharedstate.steps import StepContext
-from examples.machine_primitives import monetary_settlement, seeded_allocation
-from examples.machine_primitives.__main__ import run_example
+from edsl.examples.shared_state.machine_primitives import monetary_settlement, seeded_allocation
+from edsl.examples.shared_state.machine_primitives.__main__ import run_example
 
 
 def evaluate(expression):

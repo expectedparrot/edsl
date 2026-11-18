@@ -9,16 +9,16 @@ interview starts, a Machine assigns the questions with the fewest recorded
 answers. Later agents see a different subset as coverage changes. Once all
 questions reach their targets, the study stops.
 
-The [primitive Machine](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/machine_primitives/question_coverage.py)
+The [primitive Machine](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/edsl/examples/shared_state/machine_primitives/question_coverage.py)
 uses existing map/filter, sorting, assertions, and atomic effects. The
-[survey adapter](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/question_coverage.py)
+[survey adapter](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/edsl/examples/shared_state/question_coverage.py)
 generates the skip rules and runs interviews sequentially. No new interpreter
 operation or registered algorithm is needed.
 
 ## Run the example
 
 ```bash
-python -m examples.question_coverage
+python -m edsl.examples.shared_state.question_coverage
 ```
 
 The local simulation creates 100 scripted agents and uses a test model, making
@@ -46,7 +46,7 @@ changing the survey's navigation or the Machine's execution checks.
 ## Assignments and answer counts
 
 ```python
-from examples.machine_primitives.question_coverage import build_machine
+from edsl.examples.shared_state.machine_primitives.question_coverage import build_machine
 
 machine = build_machine(
     question_ids=["q01", "q02", "q03", "q04", "q05"],
@@ -92,7 +92,7 @@ scope are host responsibilities.
 ## Generate the survey routing
 
 ```python
-from examples.question_coverage import build_survey
+from edsl.examples.shared_state.question_coverage import build_survey
 
 survey, states, schedule = build_survey(target=10, per_agent=3)
 ```
@@ -143,7 +143,7 @@ returned schedule runs whole interviews one at a time within each study:
 ```python
 from edsl import Model
 from edsl.runner import Runner
-from examples.question_coverage import demo_agents
+from edsl.examples.shared_state.question_coverage import demo_agents
 
 results = (
     Runner(interview_schedule=schedule)
@@ -189,7 +189,7 @@ Three limitations are especially useful for future designs:
 The Machine definition is **12,831 JSON bytes**, with **159 expression
 occurrences and 62 distinct trees**. Its short corpus replay uses at most
 **12,514 host budget steps per transition**. Reproduce these measurements with
-`python -m examples.machine_primitives.profile_corpus`. They describe that replay,
+`python -m edsl.examples.shared_state.machine_primitives.profile_corpus`. They describe that replay,
 not the larger completed survey, and are not portable runtime-cost guarantees.
 
 Local tests do not establish deployment support in a hosted human-survey
@@ -215,8 +215,8 @@ Use the reproducible local probe to compare cached execution with the previous
 per-use decoding path:
 
 ```bash
-python -m examples.machine_primitives.profile_survey_runner --agents 5 --uncached
-python -m examples.machine_primitives.profile_survey_runner --agents 5
+python -m edsl.examples.shared_state.machine_primitives.profile_survey_runner --agents 5 --uncached
+python -m edsl.examples.shared_state.machine_primitives.profile_survey_runner --agents 5
 ```
 
 In the measured five-agent run, elapsed time fell from **34.8 seconds to 4.8

@@ -12,7 +12,7 @@ from edsl.runner.models import Answer
 from edsl.runner.presentation import capture_presentation
 from edsl.runner.service import JobService
 from edsl.runner.storage import InMemoryStorage
-from examples.pairwise_comparisons import build_survey, demo_agents
+from edsl.examples.shared_state.pairwise_comparisons import build_survey, demo_agents
 
 
 def presentation(row, name="preference"):

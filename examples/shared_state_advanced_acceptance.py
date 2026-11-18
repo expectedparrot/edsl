@@ -33,7 +33,7 @@ CASES = (
 
 def build_case(name, model):
     if name in ("message_board", "repeated_matrix", "work_pool"):
-        from examples.shared_state_gemini_game_smoke import GAMES
+        from edsl.examples.shared_state.shared_state_gemini_game_smoke import GAMES
 
         survey, agents, schedule = GAMES[name]()
         if name == "message_board":
@@ -45,7 +45,7 @@ def build_case(name, model):
                 order_by="turn",
             )
     else:
-        module = import_module(f"examples.{name}")
+        module = import_module(f"edsl.examples.shared_state.{name}")
         options = (
             {"budget": 6, "explore_every": 2, "items": module.DEFAULT_ITEMS[:3]}
             if name == "pairwise_comparisons"

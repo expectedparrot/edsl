@@ -181,7 +181,7 @@ def test_state_command_inputs_create_task_dependencies(
     from importlib import import_module
     from edsl.runner.models import TaskStatus
 
-    example = import_module(f"examples.{module}")
+    example = import_module(f"edsl.examples.shared_state.{module}")
     survey = example.build_survey()[0]
     if roundtrip:
         survey = Survey.from_dict(survey.to_dict())

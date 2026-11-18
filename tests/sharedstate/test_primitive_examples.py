@@ -7,14 +7,14 @@ import pytest
 
 from edsl.sharedstate import Machine
 from edsl.sharedstate.dsl_runtime import Runtime, default_runtime
-from examples.machine_primitives import (
+from edsl.examples.shared_state.machine_primitives import (
     serial_dictatorship,
     deferred_acceptance,
     double_auction,
     binary_market,
     batch_auction,
 )
-from examples.machine_primitives.__main__ import EXAMPLES, run_example
+from edsl.examples.shared_state.machine_primitives.__main__ import EXAMPLES, run_example
 
 
 def execute(machine, commands):

@@ -8,9 +8,9 @@ The survey asks each respondent their type. Admission reserves a place immediate
 completion does not increment the count again. Other types and eligible types
 whose quota is full are screened out before the main questions.
 
-The [Machine definition](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/machine_primitives/survey_quota.py)
+The [Machine definition](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/edsl/examples/shared_state/machine_primitives/survey_quota.py)
 uses existing general primitives and an empty algorithm registry. The
-[survey adapter and local demo](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/survey_quota.py)
+[survey adapter and local demo](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/edsl/examples/shared_state/survey_quota.py)
 connect that definition to a multiple-choice screener and ordinary survey stop
 rules. No new language operation or registered quota callback is needed.
 
@@ -45,7 +45,7 @@ atomic admission can still refuse the now-full quota.
 From the repository root, with the development package installed:
 
 ```bash
-python -m examples.survey_quota
+python -m edsl.examples.shared_state.survey_quota
 ```
 
 This runs actual survey branching with 27 local scripted respondents: 12 A,
@@ -65,7 +65,7 @@ Construct or transport the survey:
 
 ```python
 from edsl import Survey
-from examples.survey_quota import build_survey
+from edsl.examples.shared_state.survey_quota import build_survey
 
 survey, states = build_survey(quota_a=10, quota_b=10)
 restored_survey = Survey.from_dict(survey.to_dict())
@@ -255,7 +255,7 @@ choice between shared expressions and explicitly maintained aggregates.
 Reproduce measurements for all corpus examples:
 
 ```bash
-python -m examples.machine_primitives.profile_corpus
+python -m edsl.examples.shared_state.machine_primitives.profile_corpus
 ```
 
 The development profiler reports definition size, repeated expression trees, and

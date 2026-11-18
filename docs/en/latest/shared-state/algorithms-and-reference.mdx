@@ -7,7 +7,7 @@ The goal is to express a mechanism's behavior in its serialized `Machine`
 definition. A helper may construct that definition, but executing it should not
 require a mechanism-specific Python callback.
 
-The [primitive example corpus](https://github.com/expectedparrot/edsl/tree/feature/shared-state-v0/examples/machine_primitives)
+The [primitive example corpus](https://github.com/expectedparrot/edsl/tree/feature/shared-state-v0/edsl/examples/shared_state/machine_primitives)
 is a set of worked examples for researchers and coding agents. It deliberately
 includes increasingly demanding constructions, so missing abstractions become
 visible. Each example runs after JSON transport under `Runtime()` with an empty
@@ -19,14 +19,14 @@ counting values.
 
 | Example | Construction to reuse | What it does not cover |
 | --- | --- | --- |
-| [Running ledger](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/machine_primitives/running_ledger.py) | Fold a sequence into a balance and history | Account authorization |
-| [Serial dictatorship](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/machine_primitives/serial_dictatorship.py) | Priority ordering and allocation with decreasing capacities | Multiple assignments per claimant |
-| [Deferred acceptance](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/machine_primitives/deferred_acceptance.py) | Bounded proposal queue and tentative matching | Tied applicant rankings |
-| [Continuous double auction](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/machine_primitives/double_auction.py) | Filter/sort orders and update accounts atomically | Multi-unit orders and collateral reservations |
-| [Binary LMSR](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/machine_primitives/binary_market.py) | Stable numerical formulas and portfolio transformations | Credit limits, short sales, or general contracts |
-| [Batch auction](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/machine_primitives/batch_auction.py) | Uniform-price clearing with deterministic ties | Full asset-market settlement, interest, dividends, or randomized priority |
-| [Seeded allocation](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/machine_primitives/seeded_allocation.py) | Stable-ID lottery priority and a separately keyed draw | Secret randomness or participant-chosen IDs |
-| [Monetary settlement](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/machine_primitives/monetary_settlement.py) | Exact decimal input, integer balances, explicit fee rounding | Currency conversion or account authorization |
+| [Running ledger](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/edsl/examples/shared_state/machine_primitives/running_ledger.py) | Fold a sequence into a balance and history | Account authorization |
+| [Serial dictatorship](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/edsl/examples/shared_state/machine_primitives/serial_dictatorship.py) | Priority ordering and allocation with decreasing capacities | Multiple assignments per claimant |
+| [Deferred acceptance](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/edsl/examples/shared_state/machine_primitives/deferred_acceptance.py) | Bounded proposal queue and tentative matching | Tied applicant rankings |
+| [Continuous double auction](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/edsl/examples/shared_state/machine_primitives/double_auction.py) | Filter/sort orders and update accounts atomically | Multi-unit orders and collateral reservations |
+| [Binary LMSR](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/edsl/examples/shared_state/machine_primitives/binary_market.py) | Stable numerical formulas and portfolio transformations | Credit limits, short sales, or general contracts |
+| [Batch auction](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/edsl/examples/shared_state/machine_primitives/batch_auction.py) | Uniform-price clearing with deterministic ties | Full asset-market settlement, interest, dividends, or randomized priority |
+| [Seeded allocation](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/edsl/examples/shared_state/machine_primitives/seeded_allocation.py) | Stable-ID lottery priority and a separately keyed draw | Secret randomness or participant-chosen IDs |
+| [Monetary settlement](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/edsl/examples/shared_state/machine_primitives/monetary_settlement.py) | Exact decimal input, integer balances, explicit fee rounding | Currency conversion or account authorization |
 | [Survey quotas](/en/latest/shared-state/survey-quotas) | Atomic admission, durable personal eligibility, and actual survey stop rules | Completion quotas, abandonment reclamation, or hosted deployment |
 | [Adaptive reason discovery](/en/latest/shared-state/reason-discovery) | Growing choices, conditional Other text, and sequential saturation stopping | Semantic paraphrase merging or proof of complete discovery |
 | [Adaptive question coverage](/en/latest/shared-state/question-coverage) | Fixed question subsets, generated skip rules, and answer-based coverage targets | Concurrent capacity reservations or abandonment leases |
@@ -49,8 +49,8 @@ available as comparison implementations.
 From the repository root, with the development package installed:
 
 ```bash
-python -m examples.machine_primitives
-python -m examples.machine_primitives --output /tmp/machine-primitives
+python -m edsl.examples.shared_state.machine_primitives
+python -m edsl.examples.shared_state.machine_primitives --output /tmp/machine-primitives
 ```
 
 No model or remote calls are made. The runner transports each definition through
@@ -194,7 +194,7 @@ repeated evaluation within each expression, but does not provide reusable named
 serialized functions. These local profiler observations strengthen the existing
 composition checklist; they are not portable cost guarantees. Reproduce them with
 the optional repository maintainer command
-`python -m examples.machine_primitives.profile_corpus`.
+`python -m edsl.examples.shared_state.machine_primitives.profile_corpus`.
 
 ## Constructors and registered algorithms
 
@@ -240,7 +240,7 @@ The ordered implementation checklist and progress are tracked in
 
 ## Measure composition costs
 
-`python -m examples.machine_primitives.profile_corpus` reports serialized size,
+`python -m edsl.examples.shared_state.machine_primitives.profile_corpus` reports serialized size,
 repeated expression trees, and existing host budget charges for each replayed
 transition. See the [survey quota walkthrough](/en/latest/shared-state/survey-quotas#what-this-application-reveals-about-composition)
 for a measured example and the accounting limits. These are development probes,
