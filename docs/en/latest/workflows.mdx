@@ -53,7 +53,7 @@ experiment.save("experiment.json")
 ep orchestration validate --file experiment.json
 ep orchestration inspect --file experiment.json
 ep orchestration run --file experiment.json --output run/
-ep orchestration run --file experiment.json --output run/ --resume
+ep orchestration run --file experiment.json --output run/ --responses responses.json --resume
 ```
 
 `validate` checks the workflow, participants, state maps, and executor bindings.
@@ -66,7 +66,9 @@ envelope and make no model calls.
 run reaches a declared pause or completion. Start with a new output directory.
 For recovery, use the same experiment, output directory, and `--instance-id`
 with `--resume`; the default instance ID is `experiment`. The pinned definition
-must match the original run.
+must match the original run. Repeat `--responses` when resuming a replay-driven
+run. Omitting it on resume switches back to the configured executors and can
+make provider calls or leave human work without an answer source.
 
 Without `--responses`, configured LLM executors may call model providers. To
 replay answers without model calls, pass a JSON array like this (or wrap it in
@@ -85,6 +87,23 @@ executors use the answers configured in the experiment. Human executors need
 replay rows because the CLI does not configure a Humanize delivery adapter.
 `--instance-id` selects the durable workflow instance, and `--resume` recovers
 an existing one. `ep orchestration run --help` lists every option.
+
+For real human participants, use `start` and `sync`. This mode currently
+requires every participant to resolve to the `human` executor and to have a
+non-empty `email` trait. `start` initializes a fresh run but sends no invites;
+`sync` dispatches ready Humanize surveys, imports completed responses, then
+dispatches any newly unlocked work:
+
+```bash
+ep orchestration start --file experiment.json --output human-run/
+ep orchestration status --output human-run/
+ep orchestration sync --output human-run/
+```
+
+Run `sync` again to collect later responses and send newly ready tasks. Configure
+Expected Parrot authentication before syncing. `status` reports item IDs,
+participants, step names, item states, and the event count. `start` requires a
+new or empty output directory and records a pinned experiment plus run manifest.
 
 ## The central idea
 
