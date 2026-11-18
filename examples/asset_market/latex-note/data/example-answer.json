@@ -1,0 +1,12 @@
+{
+  "decision": {
+    "forecast_0": 15.0,
+    "forecast_2": 16.5,
+    "forecast_5": 18.0,
+    "forecast_10": 19.0,
+    "side": "buy",
+    "price": 15.0,
+    "quantity": 1,
+    "rationale": "No price history yet but fundamental PV is about $14; as a momentum chaser I'm optimistic early and willing to take a small position so I don't miss a rally. I place a small aggressive buy (1 share at $15) to get exposure. I expect a modest near-term uptick if speculative interest builds, hence forecasts of $15 now, $16.50 in 2 periods, $18 in 5, and $19 in 10. Exit/management plan: if price falls (especially below my purchase price / about $14) I will sell rather than wait; if price rises I'll be willing to raise my bid and add shares incrementally (e.g., add more at ~$16+), riding the trend. I keep position sizing conservative early (1 share) to limit downside while preserving upside to chase momentum if the market moves up."
+  }
+}

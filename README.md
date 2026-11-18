@@ -16,7 +16,7 @@ EDSL makes it easy to conduct computational social science and market research w
 
 4. Follow <a href="https://docs.expectedparrot.com/en/latest/starter_tutorial" target="_blank" rel="noopener noreferrer">Run your first survey</a>, then explore the <a href="https://docs.expectedparrot.com/en/latest/index#explore-the-docs" target="_blank" rel="noopener noreferrer">how-to guides and research examples</a>, including <a href="https://docs.expectedparrot.com/en/latest/guides/data_labeling" target="_blank" rel="noopener noreferrer">labeling data with survey questions</a>.
 
-5. Share workflows and survey results at <a href="https://www.expectedparrot.com/login" target="_blank" rel="noopener noreferrer">Coop</a>: a free platform for creating and sharing AI research. 
+5. Share workflows and survey results at <a href="https://www.expectedparrot.com/login" target="_blank" rel="noopener noreferrer">Coop</a>: a free platform for creating and sharing AI research.
 
 ## Code & Docs
 - <a href="https://github.com/expectedparrot/edsl" target="_blank" rel="noopener noreferrer">GitHub</a>
