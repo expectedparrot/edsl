@@ -704,6 +704,15 @@ def write_manifest_dict(path: Path, manifest: dict) -> None:
     )
 
 
+def has_commits(path: Path) -> bool:
+    result = subprocess.run(
+        ["git", "-C", str(path), "rev-parse", "--verify", "--quiet", "HEAD"],
+        text=True,
+        capture_output=True,
+    )
+    return result.returncode == 0
+
+
 def has_staged_changes(path: Path) -> bool:
     result = subprocess.run(
         ["git", "-C", str(path), "diff", "--cached", "--quiet"],
@@ -964,16 +973,20 @@ def clone_package(
     package_suffix: str,
     token: Optional[str] = None,
     error_cls: Type[Exception] = GitPackageError,
-) -> Path:
+) -> Optional[Path]:
     """``git clone`` a repo into a package at ``destination``, adding no commit,
-    and return its worktree. A ``user:key@`` in the URL is used for the clone
-    only; ``origin`` keeps the URL without it."""
+    and return its worktree; None, writing nothing, when the repo has no
+    commits. A ``user:key@`` in the URL is used for the clone only; ``origin``
+    keeps the URL without it."""
     worktree_path = new_package_worktree(destination)
     run_git(
         ["git", "clone", "-o", REMOTE_NAME, url, str(worktree_path)],
         error_cls=error_cls,
         env=http_auth_git_env(url, token),
     )
+    if not has_commits(worktree_path):
+        shutil.rmtree(worktree_path, ignore_errors=True)
+        return None
     if without_credentials(url) != url:
         git(
             worktree_path,

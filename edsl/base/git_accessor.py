@@ -122,13 +122,18 @@ class GitBackedClassAccessor:
                 ["git", "clone", url, str(destination)],
                 stderr=f"Destination path already exists: {destination}",
             )
-        gitpkg.clone_package(
+        worktree_path = gitpkg.clone_package(
             url,
             destination,
             package_suffix=self._spec.package_suffix,
             token=token,
             error_cls=self._spec.error_cls,
         )
+        if worktree_path is None:
+            raise self._spec.error_cls(
+                ["git", "clone", gitpkg.without_credentials(url), str(destination)],
+                stderr="The repo has no commits yet.",
+            )
         loaded = self.load(destination.resolve(), ref=ref, sync_coop=False)
         return self._spec.clone_return(loaded) if self._spec.clone_return else loaded
 

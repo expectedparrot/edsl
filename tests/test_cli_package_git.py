@@ -71,6 +71,9 @@ def coop(monkeypatch, git_host):
                 metadata["last_updated_ts"] = calls["last_updated_ts"]
             return metadata
 
+        def get(self, url_or_uuid):
+            return Survey.example()
+
         def patch(self, url_or_uuid, **kwargs):
             return {"uuid": str(url_or_uuid), **remote(url_or_uuid)}
 
@@ -168,6 +171,39 @@ def test_clone_a_uuid_uses_your_repo(tmp_path, coop, git_host):
     assert code == 0, out
     assert out["data"]["operation"] == "git"
     assert out["data"]["commit"] == _head(repo)
+
+
+def _pushed_with_an_empty_repo(tmp_path, coop, git_host):
+    """An object on Coop whose git push failed, leaving its repo empty."""
+    coop["make_repo"] = False
+    _ep("push", _saved_package(tmp_path))
+    object_uuid = coop["push"][-1]
+    repo = _repo(git_host, object_uuid)
+    repo.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "init", "-q", "--bare", str(repo)], check=True)
+    coop["repos"].append({"uuid": object_uuid, "remote_url": f"file://{repo}"})
+    return object_uuid, repo
+
+
+def test_clone_a_uuid_whose_repo_is_empty_fetches_from_coop(tmp_path, coop, git_host):
+    object_uuid, _ = _pushed_with_an_empty_repo(tmp_path, coop, git_host)
+
+    code, out = _ep("clone", object_uuid, "--path", tmp_path / "copy.ep")
+
+    assert code == 0, out
+    assert out["data"]["operation"] == "coop"
+    assert Survey.git.load(tmp_path / "copy.ep") == Survey.example()
+
+
+def test_clone_an_empty_repo_url_writes_nothing(tmp_path, coop, git_host):
+    object_uuid, repo = _pushed_with_an_empty_repo(tmp_path, coop, git_host)
+
+    code, out = _ep("clone", f"file://{repo}", "--path", tmp_path / "copy.ep")
+
+    assert code == cli_module.EXIT_NOT_FOUND
+    assert out["error"]["code"] == "EMPTY_REPO"
+    assert object_uuid in out["error"]["suggestion"]
+    assert not (tmp_path / "copy.ep").exists()
 
 
 def test_pull_fast_forwards_from_origin(tmp_path, coop, git_host):

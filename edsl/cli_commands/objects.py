@@ -7,6 +7,7 @@ from pathlib import Path
 import click
 
 from edsl.cli_shared import (
+    EXIT_NOT_FOUND,
     EXIT_REMOTE,
     EXIT_USAGE,
     EXIT_VALIDATION,
@@ -35,8 +36,15 @@ def register(app: click.Group) -> None:
             from edsl.config import CONFIG
             from edsl.coop import Coop
 
-            if gitpkg.uuid_from_remote_url(identifier):
-                _git_clone(identifier, output_path, source=identifier)
+            url_uuid = gitpkg.uuid_from_remote_url(identifier)
+            if url_uuid:
+                if not _git_clone(identifier, output_path, source=identifier):
+                    error(
+                        "EMPTY_REPO",
+                        f"{gitpkg.without_credentials(identifier)} has no commits yet.",
+                        suggestion=f"Clone its uuid to fetch the object from Coop: ep clone {url_uuid}",
+                        exit_code=EXIT_NOT_FOUND,
+                    )
                 return
 
             coop_identifier = _coop_content_identifier(identifier, CONFIG.EXPECTED_PARROT_URL)
@@ -46,9 +54,8 @@ def register(app: click.Group) -> None:
             )
             object_uuid = identifier if coop_info is None else coop_info.get("uuid")
             remote_url = _own_repo_url(coop_client, object_uuid)
-            if remote_url:
-                alias = coop_info and coop_info.get("alias")
-                _git_clone(remote_url, output_path, source=identifier, alias=alias)
+            alias = coop_info and coop_info.get("alias")
+            if remote_url and _git_clone(remote_url, output_path, source=identifier, alias=alias):
                 return
 
             obj = coop_client.get(coop_identifier)
@@ -94,7 +101,9 @@ def register(app: click.Group) -> None:
             )
 
 
-    def _git_clone(remote_url: str, output_path, *, source: str, alias=None) -> None:
+    def _git_clone(remote_url: str, output_path, *, source: str, alias=None) -> bool:
+        """Clone ``remote_url`` into a package and output it; False, writing
+        nothing, when the repo has no commits."""
         import shutil
 
         from edsl.base import git_package as gitpkg
@@ -110,13 +119,18 @@ def register(app: click.Group) -> None:
                 exit_code=EXIT_USAGE,
             )
         worktree_path = gitpkg.clone_package(remote_url, destination, package_suffix=".ep")
+        if worktree_path is None:
+            return False
         try:
             commit = gitpkg.head_commit(worktree_path)
             branch = gitpkg.current_branch(worktree_path)
             origin = gitpkg.remote_url(worktree_path, gitpkg.REMOTE_NAME)
+            obj = load_git_object(destination, sync_coop=False)
+        except BaseException:
+            destination.unlink(missing_ok=True)
+            raise
         finally:
             shutil.rmtree(worktree_path, ignore_errors=True)
-        obj = load_git_object(destination, sync_coop=False)
         output(
             {
                 "object_type": type(obj).__name__,
@@ -130,6 +144,7 @@ def register(app: click.Group) -> None:
                 "branch": branch,
             }
         )
+        return True
 
 
     def _is_uuid(value: str) -> bool:
