@@ -869,7 +869,7 @@ def carry_package_metadata(existing_manifest: dict, manifest: dict) -> None:
         manifest["remotes"] = existing_remotes
     if "primary_remote" in existing_manifest:
         manifest["primary_remote"] = existing_manifest["primary_remote"]
-    elif "remote" in existing_manifest and existing_manifest["remote"].get("name"):
+    elif isinstance(existing_manifest.get("remote"), dict) and existing_manifest["remote"].get("name"):
         manifest["primary_remote"] = existing_manifest["remote"]["name"]
     for key in ("object_uuid", "remote_url"):
         if existing_manifest.get(key):
