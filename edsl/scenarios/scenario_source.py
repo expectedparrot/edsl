@@ -74,7 +74,7 @@ class ScenarioSource:
                          Valid values include: 'urls', 'directory', 'list', 'list_of_tuples',
                          'sqlite', 'latex', 'google_doc', 'pandas', 'dta', 'wikipedia',
                          'excel', 'google_sheet', 'delimited_file', 'csv', 'tsv', 'dict',
-                         'nested_dict', 'parquet', 'pdf', 'pdf_to_image'.
+                         'nested_dict', 'parquet', 'huggingface', 'pdf', 'pdf_to_image'.
             *args: Positional arguments to pass to the source-specific method.
             **kwargs: Keyword arguments to pass to the source-specific method.
 
@@ -86,8 +86,6 @@ class ScenarioSource:
         """
         try:
             source_class = Source.get_source_class(source_type)
-            source_instance = source_class(*args, **kwargs)
-            return source_instance.to_scenario_list()
         except ValueError:
             # For backward compatibility, try the old method if the source_type isn't in the registry
             method_name = f"_from_{source_type}"
@@ -99,6 +97,8 @@ class ScenarioSource:
                     f"Unsupported source type: {source_type}. "
                     f"Valid source types: {Source.get_registered_types()}"
                 )
+        source_instance = source_class(*args, **kwargs)
+        return source_instance.to_scenario_list()
 
     @staticmethod
     def _from_urls(

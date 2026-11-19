@@ -16,7 +16,12 @@ from pydantic import (
     model_validator,
 )
 
-from ..questions import QuestionBase, QuestionCompute, QuestionImageGeneration
+from ..questions import (
+    QuestionBase,
+    QuestionCompute,
+    QuestionDetectAI,
+    QuestionImageGeneration,
+)
 
 from .exceptions import HumanizeSchemaValidationError
 from .voice_interview_languages import (
@@ -364,6 +369,8 @@ class SurveyHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the survey (e.g. custom styling)."""
 
     custom_css: Optional[str] = None
+    # Require an Expected Parrot account for browser respondents.
+    login_required: bool = False
     presentation: Literal["question", "group"] = "question"
     # How the respondent is shown their position in the survey. Defaults to the
     # bar that shipped before this field existed, so stored configs render
@@ -486,6 +493,54 @@ class QuestionJavaScript(HumanizeSchemaBase):
 
 class FreeTextHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the free text question type."""
+
+    optional: bool = False
+    time_limit: Optional[TimeLimit] = None
+    comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
+
+
+class DropdownHumanizeSchema(HumanizeSchemaBase):
+    """Humanize options for searchable EDSL dropdown questions."""
+
+    optional: bool = False
+    time_limit: Optional[TimeLimit] = None
+    comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
+
+
+class DemandHumanizeSchema(HumanizeSchemaBase):
+    """Humanize options for the demand question type (no optionality)."""
+
+    time_limit: Optional[TimeLimit] = None
+    comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
+
+
+class DictHumanizeSchema(HumanizeSchemaBase):
+    """Humanize options for the dict question type (no optionality)."""
+
+    time_limit: Optional[TimeLimit] = None
+    comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
+
+
+class EditHumanizeSchema(HumanizeSchemaBase):
+    """Humanize options for the edit question type."""
+
+    optional: bool = False
+    time_limit: Optional[TimeLimit] = None
+    comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
+
+
+class EmailHumanizeSchema(HumanizeSchemaBase):
+    """Humanize options for the email question type."""
 
     optional: bool = False
     time_limit: Optional[TimeLimit] = None
@@ -680,6 +735,17 @@ class ImageGenerationHumanizeSchema(HumanizeSchemaBase):
     Like compute, image generation is a background/auto-advanced question the
     respondent never submits, so there are no per-question humanize options and
     no ``submitting_indicator``. Empty schema kept for parity/registration.
+    """
+
+    pass
+
+
+class DetectAIHumanizeSchema(HumanizeSchemaBase):
+    """Humanize options for the detect AI question type (none).
+
+    Like compute and image generation, it is answered in the background (by
+    Pangram) and never shown to the respondent, so there are no per-question
+    humanize options and no ``submitting_indicator``.
     """
 
     pass
@@ -882,6 +948,18 @@ class TextInterviewConfig(HumanizeSchemaBase):
 # How long the voice interviewer waits after the respondent pauses before it
 # speaks, from "fastest" (jumps in almost at once) to "slowest" (waits a long time).
 VoiceTurnSpeed = Literal["fastest", "faster", "default", "slower", "slowest"]
+VoiceInterviewVoice = Literal[
+    "alloy",
+    "ash",
+    "ballad",
+    "coral",
+    "echo",
+    "sage",
+    "shimmer",
+    "verse",
+    "marin",
+    "cedar",
+]
 
 
 class TurnTakingConfig(HumanizeSchemaBase):
@@ -901,6 +979,9 @@ class VoiceInterviewConfig(HumanizeSchemaBase):
     # (e.g. "english"); the before-validator normalizes case/whitespace, maps
     # None/blank to the default, and rejects unsupported languages.
     language: str = DEFAULT_VOICE_INTERVIEW_LANGUAGE
+    # Built-in voice used by the live voice interviewer. Omit to use the
+    # default voice; OpenAI recommends marin or cedar for best quality.
+    voice_option: Optional[VoiceInterviewVoice] = None
     # Always present rather than Optional: every voice call has a starting speed,
     # so None would only mean "use the default" anyway.
     turn_taking: TurnTakingConfig = Field(default_factory=TurnTakingConfig)
@@ -909,6 +990,16 @@ class VoiceInterviewConfig(HumanizeSchemaBase):
     @classmethod
     def _validate_language(cls, v: object) -> str:
         return normalize_voice_interview_language(v)
+
+    @field_validator("voice_option", mode="before")
+    @classmethod
+    def _normalize_voice_option(cls, v: object) -> object:
+        # Like the language: case and whitespace are normalized, and blank
+        # means unset. The Literal then rejects unsupported voices.
+        if isinstance(v, str):
+            v = v.strip().lower()
+            return v or None
+        return v
 
 
 class DefaultIntroScreen(HumanizeSchemaBase):
@@ -1169,6 +1260,16 @@ class TopKHumanizeSchema(HumanizeSchemaBase):
     javascript: Optional[QuestionJavaScript] = None
 
 
+class URLHumanizeSchema(HumanizeSchemaBase):
+    """Humanize options for the URL question type."""
+
+    optional: bool = False
+    time_limit: Optional[TimeLimit] = None
+    comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
+
+
 class YesNoHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the yes/no question type."""
 
@@ -1198,9 +1299,15 @@ HumanizeQuestionSchema = Union[
     FreeTextHumanizeSchema,
     BudgetHumanizeSchema,
     DistributionHumanizeSchema,
+    DropdownHumanizeSchema,
     CheckboxHumanizeSchema,
     CheckboxWithOtherHumanizeSchema,
     ComputeHumanizeSchema,
+    DemandHumanizeSchema,
+    DetectAIHumanizeSchema,
+    DictHumanizeSchema,
+    EditHumanizeSchema,
+    EmailHumanizeSchema,
     FileUploadHumanizeSchema,
     ImageGenerationHumanizeSchema,
     InterviewHumanizeSchema,
@@ -1213,6 +1320,7 @@ HumanizeQuestionSchema = Union[
     NumericalHumanizeSchema,
     RankHumanizeSchema,
     TopKHumanizeSchema,
+    URLHumanizeSchema,
     YesNoHumanizeSchema,
     SurveyMessageHumanizeSchema,
 ]
@@ -1232,9 +1340,15 @@ QUESTION_TYPE_TO_HUMANIZE_CLASS: Dict[str, Type[BaseModel]] = {
     "free_text": FreeTextHumanizeSchema,
     "budget": BudgetHumanizeSchema,
     "distribution": DistributionHumanizeSchema,
+    "dropdown": DropdownHumanizeSchema,
     "checkbox": CheckboxHumanizeSchema,
     "checkbox_with_other": CheckboxWithOtherHumanizeSchema,
     "compute": ComputeHumanizeSchema,
+    "demand": DemandHumanizeSchema,
+    "detect_ai": DetectAIHumanizeSchema,
+    "dict": DictHumanizeSchema,
+    "edit": EditHumanizeSchema,
+    "email": EmailHumanizeSchema,
     "file_upload": FileUploadHumanizeSchema,
     "image_generation": ImageGenerationHumanizeSchema,
     "interview": InterviewHumanizeSchema,
@@ -1247,6 +1361,7 @@ QUESTION_TYPE_TO_HUMANIZE_CLASS: Dict[str, Type[BaseModel]] = {
     "numerical": NumericalHumanizeSchema,
     "rank": RankHumanizeSchema,
     "top_k": TopKHumanizeSchema,
+    "url": URLHumanizeSchema,
     "yes_no": YesNoHumanizeSchema,
     "survey_message": SurveyMessageHumanizeSchema,
 }
@@ -1288,13 +1403,15 @@ def _validate_preselection_targets(
 def _is_background_question(question: Any) -> bool:
     """Whether a question is answered by the server rather than the respondent.
 
-    Thinking, compute and image generation questions all run without the
-    respondent and are never rendered to one, so a group made up entirely of them
-    is never shown as a page.
+    Thinking, compute, image generation and detect AI questions all run without
+    the respondent and are never rendered to one, so a group made up entirely of
+    them is never shown as a page.
     """
     return isinstance(question, QuestionBase) and (
         getattr(question, "_is_thinking_question", False)
-        or isinstance(question, (QuestionCompute, QuestionImageGeneration))
+        or isinstance(
+            question, (QuestionCompute, QuestionDetectAI, QuestionImageGeneration)
+        )
     )
 
 

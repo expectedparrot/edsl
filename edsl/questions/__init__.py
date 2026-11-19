@@ -117,11 +117,14 @@ from .question_registry import Question
 # Core Questions
 from .question_check_box import QuestionCheckBox
 from .question_extract import QuestionExtract
+from .question_email import QuestionEmail
 from .question_free_text import QuestionFreeText
+from .question_edit import QuestionEdit
 from .question_url import QuestionURL
 from .question_markdown import QuestionMarkdown
 from .question_functional import QuestionFunctional
 from .question_compute import QuestionCompute
+from .question_detect_ai import QuestionDetectAI, DetectAI
 from .question_list import QuestionList
 from .question_matrix import QuestionMatrix
 from .question_dict import QuestionDict
@@ -178,14 +181,18 @@ __all__ = [
     "Question",
     # Core question types
     "QuestionFreeText",
+    "QuestionEdit",
     "QuestionURL",
     "QuestionMarkdown",
     "QuestionMultipleChoice",
     "QuestionCheckBox",
     "QuestionDict",
     "QuestionExtract",
+    "QuestionEmail",
     "QuestionFunctional",
     "QuestionCompute",
+    "QuestionDetectAI",
+    "DetectAI",
     "QuestionList",
     "QuestionMatrix",
     "QuestionNumerical",

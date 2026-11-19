@@ -31,7 +31,7 @@ def preflight(coop, human_survey_uuid, study_id, *, required_questions=None,
     survey_uuid = human_survey.get("survey_uuid")
     if not survey_uuid:
         raise CoopValueError("The deployed human survey has no linked survey UUID.")
-    survey = coop.get(survey_uuid, expected_object_type="survey")
+    survey = coop.pull(survey_uuid, expected_object_type="survey")
     if not isinstance(survey, Survey):
         raise CoopValueError("The deployed object is not a Survey.")
     names = [question.question_name for question in survey.questions]

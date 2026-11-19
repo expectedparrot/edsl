@@ -1,0 +1,207 @@
+---
+title: "Meta-surveys"
+description: "Transform an EDSL Survey into structured questions that ask a language model to estimate how a described population would respond."
+---
+
+A **meta-survey** converts an existing EDSL `Survey` into a new `Survey` that asks a language model to estimate response distributions for a target population. The source survey supplies the question wording, answer choices, and skip logic. Describe the target population on an [`Agent`](/en/latest/agents), then run the converted survey with one or more models.
+
+These are model estimates, not responses from a real sample or measurements from a representative poll. Use them for structured exploration, and compare them with real survey data before relying on them.
+
+## Basic conversion
+
+Create a regular survey as usual, then call `to_meta_survey()`:
+
+```python
+from edsl import Agent, Model, QuestionMultipleChoice, Survey
+from edsl.jobs import Jobs
+
+source_survey = Survey([
+    QuestionMultipleChoice(
+        question_name="likely_vote",
+        question_text=(
+            "How likely are you to vote in the 2026 U.S. midterm elections?"
+        ),
+        question_options=["Likely", "Unlikely"],
+    ),
+    QuestionMultipleChoice(
+        question_name="vote_choice",
+        question_text=(
+            "If you vote in the 2026 U.S. midterm elections, which party "
+            "would you be most likely to vote for?"
+        ),
+        question_options=["Republican", "Democrat", "Other/Independent"],
+    ),
+])
+
+source_survey.add_skip_rule(
+    "vote_choice",
+    "{{ likely_vote.answer }} == 'Unlikely'",
+)
+
+meta_survey = source_survey.to_meta_survey(sample_size=100)
+
+population = Agent(
+    name="all_americans_18_plus",
+    traits={
+        "target_population": (
+            "All people living in the United States who are age 18 or older."
+        )
+    },
+    instructions=(
+        "Estimate neutral population-level distributions for this described "
+        "population. Treat outputs as model estimates, not observed polling data."
+    ),
+)
+
+results = Jobs(
+    survey=meta_survey,
+    agents=[population],
+    models=[Model("gpt-6-astra", temperature=0)],
+).run()
+```
+
+The population description belongs on the Agent so the same source survey can be reused for different populations. `sample_size=100` asks the model to report approximate counts as well as probabilities. It does not create 100 simulated respondents or force percentages to exact whole numbers.
+
+## What gets generated
+
+The conversion is based on each source question's type and fixed response space:
+
+| Source question | Generated meta-survey question(s) | Interpretation |
+| --- | --- | --- |
+| Multiple choice, yes/no, or linear scale | One `QuestionDistribution` | Probability for each original answer option |
+| Checkbox | One `QuestionDistribution` per option | Probability of selecting or not selecting that option; these are separate marginals |
+| Rank | One `QuestionDistribution` per rank position | Probability that an option occupies that position; complete rankings are not jointly constrained |
+| Free text, no supplied themes | One `QuestionDict` | Model-generated theme labels and proportions, plus a separate skipped share |
+| Free text, supplied themes | One `QuestionDistribution` | Probability for each fixed theme, plus a skipped outcome when skip logic applies |
+
+Generated names use the source question index and name, for example `meta_0_likely_vote` and `meta_1_vote_choice`. Dynamic response options and unsupported question types currently raise `ValueError`; they are not silently converted.
+
+## Free-text questions: propose a codebook, then estimate it
+
+When every model generates its own theme labels, its distributions are difficult to compare. Use a two-step workflow when you want a common theme distribution:
+
+1. Generate a candidate codebook once with `to_meta_theme_survey()`.
+2. Review and edit the labels.
+3. Pass the same approved labels to `to_meta_survey()` for every model and run you want to compare.
+
+The theme-proposal method creates one `QuestionList` per source free-text question. It constrains each list to exactly `num_themes` labels. The Agent used for this auxiliary run may include the target population description when the proposed categories should reflect that population.
+
+```python
+theme_survey = source_survey.to_meta_theme_survey(num_themes=7)
+theme_results = Jobs(
+    survey=theme_survey,
+    agents=[population],
+    models=[Model("gpt-6-astra", temperature=0)],
+).run()
+
+# Review the returned list, then edit it into the final codebook.
+```
+
+For example, the voting survey's “why not vote?” question can use this reviewed codebook:
+
+```python
+themes_by_question = {
+    "why_not_vote": [
+        "Not eligible to vote or unable to register",
+        "Practical barriers (time, work, health, transportation, or access)",
+        "Low interest in politics or midterm elections",
+        "Believe voting will not make a difference",
+        "Distrust of election fairness or vote counting",
+        "Dissatisfaction with candidates, parties, or their policies",
+        "Other reason or no clear reason given",
+    ]
+}
+
+meta_survey = source_survey.to_meta_survey(
+    sample_size=100,
+    themes_by_question=themes_by_question,
+)
+```
+
+The mapping key must be the name of a free-text question in the source survey. Each codebook must contain at least two non-empty, unique labels. The converter uses the supplied labels as fixed `QuestionDistribution` outcomes; if that source question has a skip condition, it adds `Skipped by survey logic` as another outcome. A question without a supplied codebook continues to use the generated-theme `QuestionDict` format.
+
+### Interpreting the denominator
+
+The distribution for a fixed-codebook free-text question includes all members of the target population, including those skipped under survey logic. If `k` is the probability of a theme and `r` is the non-skipped share, the theme's share among respondents who reached the question is `k / r`.
+
+For the example above, the “why not vote?” question is asked only of people whose source answer is `Unlikely`. The generated distribution contains all seven theme shares and the share skipped because the respondent answered `Likely`. To compare reasons among non-voters, divide each theme probability by the sum of the seven theme probabilities (equivalently, by one minus the skipped share). EDSL returns the full-population distribution; it does not automatically renormalize it for analysis.
+
+Themes for a “main reason” question should be mutually exclusive and collectively exhaustive, with an “Other” category when appropriate. For questions where multiple themes can apply to a response, use a multi-label design rather than interpreting a single-choice distribution as joint selections.
+
+## How skip logic is represented
+
+If an earlier source question determines whether a later question is asked, the generated survey estimates the earlier distribution first and pipes it into the follow-up prompt. In the example, `vote_choice` includes a skipped outcome for respondents estimated as “Unlikely.” The free-text reason question, if added, would instead be skipped for respondents estimated as “Likely.”
+
+Skip handling is currently prompt-guided. The model is instructed to use the piped distribution and return the corresponding skipped share, but the program does not yet compute that share or enforce cross-question consistency in Python. A response can pass its own distribution validation and still disagree with an earlier answer. Check the skipped outcomes against the source distributions before interpreting branch estimates.
+
+## Customize the framing
+
+`question_framing` changes the lead-in used on generated estimate questions. It defaults to `"For the population described by you"`:
+
+```python
+meta_survey = source_survey.to_meta_survey(
+    question_framing="Among registered voters in the target population"
+)
+```
+
+The question-type-specific task wording and answer structure remain generated by the conversion method. Keep the framing neutral and put detailed population attributes on the Agent.
+
+## Supported arguments
+
+```python
+Survey.to_meta_survey(
+    sample_size=None,
+    question_framing="For the population described by you",
+    themes_by_question=None,
+)
+```
+
+- `sample_size`: `None` or a positive integer. When set, the prompt requests approximate respondent counts in addition to proportions.
+- `question_framing`: Non-empty lead-in text included in each estimate question.
+- `themes_by_question`: Optional mapping from source free-text question names to lists of fixed theme labels.
+
+The auxiliary method is:
+
+```python
+Survey.to_meta_theme_survey(num_themes=6)
+```
+
+It requires at least one free-text source question. `num_themes` must be an integer of at least 2; it is the exact number of labels requested per question.
+
+## Inspecting results
+
+Read the generated answer columns to see the distributions and validation flags:
+
+```python
+results.select(
+    "answer.meta_0_likely_vote",
+    "answer.meta_1_vote_choice",
+).print()
+```
+
+You can also save a Results package and inspect it with the CLI:
+
+```python
+results.save("midterm-meta-results.ep")
+```
+
+```bash
+ep results columns --file midterm-meta-results.ep
+ep results select \
+  --file midterm-meta-results.ep \
+  --column answer.meta_0_likely_vote \
+  --column answer.meta_1_vote_choice \
+  --column validated.meta_0_likely_vote_validated \
+  --column validated.meta_1_vote_choice_validated
+```
+
+EDSL validates the shape and probability totals for [`QuestionDistribution`](/en/latest/questions#questiondistribution-class) answers. Validation does not establish that an estimate is accurate, representative, or consistent with external evidence.
+
+## Limitations
+
+- Cross-tab generation is not part of `to_meta_survey()`.
+- Checkbox options and rank positions are estimated as separate marginals, not coherent joint response patterns.
+- Uncoded free-text questions ask the model to invent labels; `QuestionDict` checks required fields and types but not list-length equality or probability arithmetic.
+- Piped/dynamic response options cannot be converted mechanically because the complete outcome space is not statically available.
+- Skip shares are requested in prompts but not calculated or enforced across questions.
+- The method currently supports multiple choice, yes/no, linear scale, checkbox, rank, and free-text questions.

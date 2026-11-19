@@ -46,6 +46,7 @@ _LAZY_MODULES = {
     "questions",
     "image_generation",
     "scenarios",
+    "collections",
     "language_models",
     "embeddings",
     "results",
@@ -68,6 +69,7 @@ _module_cache = {}
 _EXPORT_TO_MODULE = {
     # questions
     "QuestionFreeText": "questions",
+    "QuestionEdit": "questions",
     "QuestionGroupDiscussion": "questions",
     "QuestionURL": "questions",
     "QuestionMultipleChoice": "questions",
@@ -81,9 +83,12 @@ _EXPORT_TO_MODULE = {
     "QuestionBudget": "questions",
     "QuestionDistribution": "questions",
     "QuestionExtract": "questions",
+    "QuestionEmail": "questions",
     "QuestionMatrix": "questions",
     "QuestionTopK": "questions",
     "QuestionFunctional": "questions",
+    "QuestionDetectAI": "questions",
+    "DetectAI": "questions",
     "QuestionBase": "questions",
     "QuestionDiagram": "questions",
     "QuestionImageGeneration": "questions",
@@ -96,6 +101,8 @@ _EXPORT_TO_MODULE = {
     # scenarios
     "Scenario": "scenarios",
     "ScenarioList": "scenarios",
+    "Collection": "collections",
+    "CollectionItem": "collections",
     "FileStore": "scenarios",
     # language_models
     "Model": "language_models",

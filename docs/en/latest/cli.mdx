@@ -234,6 +234,8 @@ ep results columns --file human-results.ep
 ep results select --file human-results.ep --column "answer.*" --limit 5
 ```
 
+`humanize responses` saves completed responses. Add `--include-partial` to also save responses that are still being taken; `agent.response_status` tells them apart.
+
 You can also publish from a Jobs package with `--jobs`. Jobs used for human surveys must not include models. If they contain scenarios, supply `--scenario_method`; use `ep humanize create --help` to see the available assignment methods.
 
 See [Humanize](/en/latest/humanize) for survey configuration and [Prolific studies](/en/latest/prolific) for participant recruitment.

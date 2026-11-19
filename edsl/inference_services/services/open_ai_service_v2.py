@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 from ..inference_service_abc import InferenceServiceABC
 from ..decorators import report_errors_async
-from .service_enums import OPENAI_REASONING_MODELS, openai_requires_temperature_one
+from .service_enums import is_openai_reasoning_model, openai_requires_temperature_one
 
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
@@ -160,7 +160,7 @@ class OpenAIServiceV2(InferenceServiceABC):
             thinking_token_sequence = cls.thinking_token_sequence
             _inference_service_ = cls._inference_service_
             _model_ = model_name
-            _is_reasoning = any(tag in model_name for tag in OPENAI_REASONING_MODELS)
+            _is_reasoning = is_openai_reasoning_model(model_name)
             _parameters_ = {
                 "temperature": 0.5,
                 "max_tokens": 16000 if _is_reasoning else 2000,
@@ -322,9 +322,7 @@ class OpenAIServiceV2(InferenceServiceABC):
                 }
 
                 # Recognition controls defaults, not whether explicit settings survive.
-                is_reasoning_model = any(
-                    tag in self.model for tag in OPENAI_REASONING_MODELS
-                )
+                is_reasoning_model = is_openai_reasoning_model(self.model)
 
                 if self.reasoning is not None and not isinstance(self.reasoning, dict):
                     raise ValueError("reasoning must be a dictionary or None")
@@ -341,6 +339,8 @@ class OpenAIServiceV2(InferenceServiceABC):
                     # explicit values unchanged for provider-side validation.
                     if effort is not None:
                         reasoning_params["effort"] = effort
+                    elif is_reasoning_model and "effort" not in reasoning_params:
+                        reasoning_params["effort"] = "high"
                     params["reasoning"] = reasoning_params
 
                 # For all models using the responses API, use max_output_tokens

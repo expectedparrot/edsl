@@ -37,6 +37,7 @@ def _parse_type_string(type_str: str) -> Any:
       - "int"   -> int
       - "float" -> float
       - "str"   -> str
+      - "bool"  -> bool
       - "list[str]" -> List[str]
       - ...
     Expand this as needed for more advanced usage.
@@ -48,6 +49,8 @@ def _parse_type_string(type_str: str) -> Any:
         return float
     elif type_str == "str":
         return str
+    elif type_str == "bool":
+        return bool
     elif type_str == "list":
         return List[Any]
     elif type_str.startswith("list["):
@@ -419,6 +422,8 @@ class DictResponseValidator(ResponseValidatorABC):
                                     fixed_answer[key] = 0
                                 elif type_str == "float":
                                     fixed_answer[key] = 0.0
+                                elif type_str == "bool":
+                                    fixed_answer[key] = False
                                 elif type_str.startswith("list") or type_str == "list":
                                     fixed_answer[key] = []
                                 else:
@@ -526,6 +531,8 @@ class DictResponseValidator(ResponseValidatorABC):
                             fixed_answer[key] = 0
                         elif type_str == "float":
                             fixed_answer[key] = 0.0
+                        elif type_str == "bool":
+                            fixed_answer[key] = False
                         elif type_str.startswith("list") or type_str == "list":
                             fixed_answer[key] = []
                         else:
@@ -689,6 +696,8 @@ class QuestionDict(QuestionBase):
                     answer[key] = [1]
                 elif inner == "float":
                     answer[key] = [1.0]
+                elif inner == "bool":
+                    answer[key] = [True]
                 else:
                     answer[key] = []
             elif t_str == "str":
@@ -697,6 +706,8 @@ class QuestionDict(QuestionBase):
                 answer[key] = 1
             elif t_str == "float":
                 answer[key] = 1.0
+            elif t_str == "bool":
+                answer[key] = True
             elif t_str == "list":
                 answer[key] = []
             else:

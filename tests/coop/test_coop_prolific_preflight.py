@@ -20,7 +20,7 @@ def coop():
         "key_source": "ep",
     })
     client.get_human_survey = Mock(return_value={"survey_uuid": "deployed-survey"})
-    client.get = Mock(return_value=survey)
+    client.pull = Mock(return_value=survey)
     client.calculate_prolific_study_cost = Mock(return_value={"cost_credits": 3000, "is_underpayment": False})
     client.get_balance = Mock(return_value={"credits": 5000})
     client._send_server_request = Mock(return_value=Mock(json=lambda: {"status": "ACTIVE"}))
@@ -30,20 +30,20 @@ def coop():
 
 def test_preflight_reads_deployed_content_without_publishing(coop):
     check = coop.preflight_prolific_study("human", "study", required_questions=["prolific_id"],
-                                         expected_survey=coop.get.return_value, required_credits=4000)
+                                         expected_survey=coop.pull.return_value, required_credits=4000)
     assert check["ready"]
     assert check["cost_scope"] == "caller_supplied_total"
-    coop.get.assert_called_once_with("deployed-survey", expected_object_type="survey")
+    coop.pull.assert_called_once_with("deployed-survey", expected_object_type="survey")
     coop._send_server_request.assert_not_called()
 
 
 @pytest.mark.parametrize("problem", ["missing_id", "changed_wording", "low_balance", "underquote", "underpayment", "active", "no_survey", "bad_balance"])
 def test_failed_publication_never_sends_publish(coop, problem):
-    expected = Survey.from_dict(coop.get.return_value.to_dict())
+    expected = Survey.from_dict(coop.pull.return_value.to_dict())
     if problem == "missing_id":
-        coop.get.return_value = Survey([])
+        coop.pull.return_value = Survey([])
     elif problem == "changed_wording":
-        coop.get.return_value.questions[0].question_text = "Different wording"
+        coop.pull.return_value.questions[0].question_text = "Different wording"
     elif problem == "low_balance":
         coop.get_balance.return_value = {"credits": 2999}
     elif problem == "underquote":
@@ -121,12 +121,12 @@ def test_cli_preflight_and_publish_preserve_question_contract(coop, monkeypatch,
 
     monkeypatch.setattr(edsl.coop, "Coop", lambda: coop)
     path = tmp_path / "survey.ep"
-    coop.get.return_value.git.save(str(path))
+    coop.pull.return_value.git.save(str(path))
     flags = ["--survey", str(path), "--require-question", "prolific_id", "--required-credits", "4000"]
     runner = CliRunner()
     good = runner.invoke(app, ["humanize", "prolific", "preflight", "human", "study", *flags])
     assert good.exit_code == 0, good.output
-    coop.get.return_value = Survey([])
+    coop.pull.return_value = Survey([])
     blocked = runner.invoke(app, ["humanize", "prolific", "preflight", "human", "study", *flags])
     assert blocked.exit_code != 0
     assert "prolific_id" in blocked.output

@@ -2365,6 +2365,107 @@ class TestAuthBalance:
         assert out["error"]["code"] == "AUTH_REQUIRED"
 
 
+class TestBalanceAlert:
+    ALERT = {
+        "enabled": True,
+        "threshold_usd": 10.0,
+        "threshold_credits": 1000.0,
+        "credits_per_usd": 100.0,
+    }
+
+    def _fake_coop(self, monkeypatch, calls):
+        import edsl.coop
+
+        alert = self.ALERT
+
+        class FakeCoop:
+            def __init__(self, api_key=None):
+                assert api_key == "ep_test_key"
+
+            def get_balance(self):
+                calls.append(("get_balance",))
+                return {"credits": 99}
+
+            def get_low_balance_alert(self):
+                calls.append(("get",))
+                return alert
+
+            def update_low_balance_alert(self, enabled=None, threshold_usd=None):
+                calls.append(("update", enabled, threshold_usd))
+                return {**alert, "enabled": enabled, "threshold_usd": threshold_usd}
+
+        monkeypatch.setenv("EXPECTED_PARROT_API_KEY", "ep_test_key")
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+    def test_without_options_shows_the_setting(self, monkeypatch):
+        calls = []
+        self._fake_coop(monkeypatch, calls)
+
+        result = CliRunner().invoke(cli_module.app, ["balance", "alert"])
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["status"] == "ok"
+        assert out["data"] == self.ALERT
+        # The balance group doesn't also print the balance.
+        assert calls == [("get",)]
+
+    def test_options_update_the_setting(self, monkeypatch):
+        calls = []
+        self._fake_coop(monkeypatch, calls)
+
+        result = CliRunner().invoke(
+            cli_module.app, ["balance", "alert", "--off", "--threshold", "25.5"]
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["data"]["enabled"] is False
+        assert out["data"]["threshold_usd"] == 25.5
+        assert calls == [("update", False, 25.5)]
+
+    def test_threshold_alone_leaves_enabled_unset(self, monkeypatch):
+        calls = []
+        self._fake_coop(monkeypatch, calls)
+
+        result = CliRunner().invoke(
+            cli_module.app, ["balance", "alert", "--threshold", "25"]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert calls == [("update", None, 25.0)]
+
+    def test_server_error_is_reported(self, monkeypatch):
+        import edsl.coop
+
+        class FailingCoop:
+            def __init__(self, api_key=None):
+                pass
+
+            def update_low_balance_alert(self, enabled=None, threshold_usd=None):
+                raise RuntimeError("Input should be greater than or equal to 1")
+
+        monkeypatch.setenv("EXPECTED_PARROT_API_KEY", "ep_test_key")
+        monkeypatch.setattr(edsl.coop, "Coop", FailingCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app, ["balance", "alert", "--threshold", "0.5"]
+        )
+
+        assert result.exit_code == cli_module.EXIT_REMOTE
+        out = json.loads(result.output)
+        assert out["error"]["code"] == "BALANCE_ALERT_ERROR"
+
+    def test_requires_api_key(self, monkeypatch):
+        monkeypatch.delenv("EXPECTED_PARROT_API_KEY", raising=False)
+
+        result = CliRunner().invoke(cli_module.app, ["balance", "alert"])
+
+        assert result.exit_code == cli_module.EXIT_AUTH
+        out = json.loads(result.output)
+        assert out["error"]["code"] == "AUTH_REQUIRED"
+
+
 class TestCredits:
     def test_credits_returns_url_without_browser(self):
         result = CliRunner().invoke(cli_module.app, ["credits", "--no-browser"])
@@ -3052,6 +3153,9 @@ class TestHumanizeCli:
             "respondents",
             "links",
             "events",
+            "interactions",
+            "assistant",
+            "background",
             "schedules",
             "deliveries",
             "callbacks",
@@ -4474,8 +4578,9 @@ class TestHumanizeCli:
         output_path = tmp_path / "responses.ep"
 
         class FakeCoop:
-            def get_human_survey_responses(self, human_survey_uuid):
+            def get_human_survey_responses(self, human_survey_uuid, include_partial=False):
                 assert human_survey_uuid == "human-survey-uuid"
+                assert include_partial is False
                 return Results.example()
 
         monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
@@ -4503,8 +4608,9 @@ class TestHumanizeCli:
         import edsl.coop
 
         class FakeCoop:
-            def get_human_survey_responses(self, human_survey_uuid):
+            def get_human_survey_responses(self, human_survey_uuid, include_partial=False):
                 assert human_survey_uuid == "human-survey-uuid"
+                assert include_partial is False
                 return Results.example()
 
         monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
@@ -4517,6 +4623,34 @@ class TestHumanizeCli:
         assert result.exit_code == 0, result.output
         out = json.loads(result.output)
         assert "--output responses.ep" in out["data"]["next_step"]
+
+    def test_humanize_responses_include_partial(self, monkeypatch):
+        from edsl.results import Results
+        import edsl.coop
+
+        calls = []
+
+        class FakeCoop:
+            def get_human_survey_responses(self, human_survey_uuid, include_partial=False):
+                calls.append(include_partial)
+                return Results.example()
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "responses", "human-survey-uuid", "--include-partial"],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert calls == [True]
+        assert out["data"]["include_partial"] is True
+        # The save hint asks for the same responses.
+        assert (
+            "ep humanize responses human-survey-uuid --include-partial --output responses.ep"
+            in out["data"]["next_step"]
+        )
 
     def test_humanize_qr_saves_file(self, tmp_path, monkeypatch):
         import edsl.coop
@@ -7472,15 +7606,12 @@ class TestSurveys:
                     "Chicago",
                     "--option",
                     "Denver",
-                    "--max-options-shown",
-                    "2",
                     "--top-k",
                     "2",
                 ],
                 "checks": {
                     "question_type": "dropdown",
                     "question_options": ["Boston", "Chicago", "Denver"],
-                    "max_options_shown": 2,
                     "top_k": 2,
                 },
             },
