@@ -116,7 +116,7 @@ def register(app: click.Group) -> None:
             origin = gitpkg.remote_url(worktree_path, gitpkg.REMOTE_NAME)
         finally:
             shutil.rmtree(worktree_path, ignore_errors=True)
-        obj = load_git_object(destination)
+        obj = load_git_object(destination, sync_coop=False)
         output(
             {
                 "object_type": type(obj).__name__,
@@ -395,7 +395,7 @@ def register(app: click.Group) -> None:
                     exit_code=EXIT_USAGE,
                 )
 
-            obj = load_git_object(source_path)
+            obj = load_git_object(source_path, sync_coop=False)
             has_origin = gitpkg.REMOTE_NAME in obj.git.remotes()
             if not has_origin and not _object_has_coop_info(obj):
                 error(

@@ -40,8 +40,12 @@ def _repo(git_host: Path, object_uuid: str) -> Path:
 @pytest.fixture
 def coop(monkeypatch, git_host):
     """Coop as the CLI sees it. It picks a new uuid per object, whose repo
-    exists unless ``make_repo`` is off; ``calls`` records what it was asked."""
-    calls = {"push": [], "requests": [], "deleted": [], "make_repo": True}
+    exists unless ``make_repo`` is off; its metadata reports ``last_updated_ts``
+    once set; ``calls`` records what it was asked."""
+    calls = {
+        "push": [], "requests": [], "deleted": [], "make_repo": True,
+        "last_updated_ts": None,
+    }
     repos = []
 
     def remote(object_uuid):
@@ -62,7 +66,10 @@ def coop(monkeypatch, git_host):
             pass
 
         def get_metadata(self, url_or_uuid):
-            return {"uuid": str(url_or_uuid), "owner_username": "tester"}
+            metadata = {"uuid": str(url_or_uuid), "owner_username": "tester"}
+            if calls["last_updated_ts"]:
+                metadata["last_updated_ts"] = calls["last_updated_ts"]
+            return metadata
 
         def patch(self, url_or_uuid, **kwargs):
             return {"uuid": str(url_or_uuid), **remote(url_or_uuid)}
@@ -176,6 +183,44 @@ def test_pull_fast_forwards_from_origin(tmp_path, coop, git_host):
     assert code == 0, out
     assert out["data"]["operation"] == "updated"
     assert out["data"]["commit"] == _head(repo)
+
+
+def _coop_has_a_newer_version(monkeypatch, coop, survey):
+    coop["last_updated_ts"] = "2026-11-19T12:00:00+00:00"
+    monkeypatch.setattr(
+        Survey, "pull", classmethod(lambda cls, url_or_uuid, expected_parrot_url=None: survey)
+    )
+
+
+def test_clone_adds_no_commit_when_coop_is_newer(tmp_path, coop, git_host, monkeypatch):
+    _, _, repo = _pushed_package(tmp_path, coop, git_host)
+    renamed = Survey.example()
+    renamed.name = "renamed on coop"
+    _coop_has_a_newer_version(monkeypatch, coop, renamed)
+
+    code, out = _ep("clone", f"file://{repo}", "--path", tmp_path / "copy.ep")
+
+    assert code == 0, out
+    worktree = gitpkg.unpack_package_archive(tmp_path / "copy.ep", package_suffix=".ep")
+    assert gitpkg.head_commit(worktree) == _head(repo)
+
+
+def test_pull_fast_forwards_before_syncing_a_newer_coop_version(
+    tmp_path, coop, git_host, monkeypatch
+):
+    package_path, _, repo = _pushed_package(tmp_path, coop, git_host)
+    _ep("clone", f"file://{repo}", "--path", tmp_path / "copy.ep")
+    survey = Survey.git.load(package_path)
+    survey.name = "renamed"
+    survey.git.save(message="rename")
+    _ep("push", package_path)
+    _coop_has_a_newer_version(monkeypatch, coop, survey)
+
+    code, out = _ep("pull", tmp_path / "copy.ep")
+
+    assert code == 0, out
+    assert out["data"]["git"]["commit"] == _head(repo)
+    assert out["data"]["result"] is not None
 
 
 def test_log(tmp_path, coop, git_host):

@@ -158,33 +158,25 @@ def read_serialized_object(path: Path) -> dict:
     return read_json_file(str(path))
 
 
-def load_git_object(path: Path):
+GIT_OBJECT_MODULES = {
+    "Survey": "edsl.surveys",
+    "AgentList": "edsl.agents",
+    "Jobs": "edsl.jobs",
+    "Results": "edsl.results",
+    "ScenarioList": "edsl.scenarios",
+    "ModelList": "edsl.language_models",
+}
+
+
+def load_git_object(path: Path, *, sync_coop: bool = True):
+    import importlib
+
     manifest = read_package_manifest(path)
     class_name = manifest.get("edsl_class_name") or manifest.get("object_type")
-    if class_name == "Survey":
-        from edsl.surveys import Survey
-
-        return Survey.git.load(path)
-    if class_name == "AgentList":
-        from edsl.agents import AgentList
-
-        return AgentList.git.load(path)
-    if class_name == "Jobs":
-        from edsl.jobs import Jobs
-
-        return Jobs.git.load(path)
-    if class_name == "Results":
-        from edsl.results import Results
-
-        return Results.git.load(path)
-    if class_name == "ScenarioList":
-        from edsl.scenarios import ScenarioList
-
-        return ScenarioList.git.load(path)
-    if class_name == "ModelList":
-        from edsl.language_models import ModelList
-
-        return ModelList.git.load(path)
+    module_name = GIT_OBJECT_MODULES.get(class_name)
+    if module_name:
+        object_class = getattr(importlib.import_module(module_name), class_name)
+        return object_class.git.load(path, sync_coop=sync_coop)
     error(
         "UNSUPPORTED_OBJECT",
         f"Object package type does not support push: {class_name or 'unknown'}",

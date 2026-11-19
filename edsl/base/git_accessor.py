@@ -73,7 +73,10 @@ class GitBackedClassAccessor:
         self._spec = spec
         self._objtype = objtype
 
-    def load(self, path, ref: str = "HEAD"):
+    def load(self, path, ref: str = "HEAD", sync_coop: bool = True):
+        """Load a package at ``ref``. At HEAD with ``sync_coop``, a newer Coop
+        version is fetched and committed; git pull and clone must load without
+        that commit, or the local history would no longer fast-forward."""
         path = self._spec.normalize_path(path, for_load=True)
         gitpkg.ensure_git_available()
         worktree_path = gitpkg.unpack_package_archive(
@@ -92,7 +95,7 @@ class GitBackedClassAccessor:
         )
         if hasattr(obj.git, "_after_load"):
             obj.git._after_load(obj)
-        if ref == "HEAD":
+        if sync_coop and ref == "HEAD":
             obj.git._coop_pull_if_remote_updated(
                 message=f"Coop sync {self._spec.object_type}"
             )
@@ -126,7 +129,7 @@ class GitBackedClassAccessor:
             token=token,
             error_cls=self._spec.error_cls,
         )
-        loaded = self.load(destination.resolve(), ref=ref)
+        loaded = self.load(destination.resolve(), ref=ref, sync_coop=False)
         return self._spec.clone_return(loaded) if self._spec.clone_return else loaded
 
     def coop_clone(
