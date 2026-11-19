@@ -134,6 +134,28 @@ def test_the_default_key_never_goes_to_another_host(trusted_git_host, url):
     assert gitpkg.http_auth_git_env(url) == {}
 
 
+def test_coop_git_host_keeps_coop_notices_off_stdout(monkeypatch, capsys):
+    class FakeResponse:
+        def json(self):
+            return {"server_url": "https://git.example.test/edsl"}
+
+    class FakeCoop:
+        def _send_server_request(self, uri, method, **kwargs):
+            return FakeResponse()
+
+        def _resolve_server_response(self, response):
+            print("EDSL Update Available!")
+
+    import edsl.coop as coop_module
+
+    monkeypatch.setattr(coop_module, "Coop", FakeCoop)
+
+    assert gitpkg.coop_git_host() == "https://git.example.test"
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "EDSL Update Available!" in captured.err
+
+
 def test_the_default_key_stays_home_when_coop_reports_no_git_host(monkeypatch):
     monkeypatch.setattr(gitpkg, "coop_git_host", lambda: None)
     monkeypatch.setattr(gitpkg, "expected_parrot_api_key", lambda: "the-key")

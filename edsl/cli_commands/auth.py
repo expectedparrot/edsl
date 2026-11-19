@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import sys
 import webbrowser
 
@@ -156,8 +157,15 @@ def register(app: click.Group, auth: click.Group) -> None:
         coop_client = Coop()
         if not coop_client.api_key:
             return
+        # git reads this helper's stdout as the credential, so Coop's notices go
+        # to stderr, and an invalid key fails here instead of starting a login.
         try:
-            username = coop_client.get_profile().get("username")
+            with contextlib.redirect_stdout(sys.stderr):
+                response = coop_client._send_server_request(
+                    uri="api/v0/users/profile", method="GET"
+                )
+                coop_client._resolve_server_response(response, check_api_key=False)
+            username = response.json().get("username")
         except Exception:
             username = None
         # The git host requires a Basic username to be the key owner's; without

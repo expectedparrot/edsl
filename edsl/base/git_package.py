@@ -639,12 +639,16 @@ def git_url_host(url: str) -> str:
 def coop_git_host() -> Optional[str]:
     """``scheme://host[:port]`` of Expected Parrot's git host, as Coop reports it;
     None when Coop can't be asked or reports none."""
+    import contextlib
+    import sys
+
     from edsl.coop import Coop
 
     try:
-        coop_client = Coop()
-        response = coop_client._send_server_request(uri="api/v0/git-repos", method="GET")
-        coop_client._resolve_server_response(response)
+        with contextlib.redirect_stdout(sys.stderr):
+            coop_client = Coop()
+            response = coop_client._send_server_request(uri="api/v0/git-repos", method="GET")
+            coop_client._resolve_server_response(response)
         return git_url_host(response.json()["server_url"])
     except Exception:
         return None

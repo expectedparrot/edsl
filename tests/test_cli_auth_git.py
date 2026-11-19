@@ -27,32 +27,40 @@ def git_home(tmp_path, monkeypatch):
 
 
 class FakeResponse:
+    def __init__(self, body):
+        self._body = body
+
     def json(self):
-        return {"server_url": f"{HOST}/edsl", "objects": []}
+        return self._body
 
 
 @pytest.fixture
 def coop(monkeypatch):
-    """Coop whose git host is HOST, for a user named alice."""
-    profile = {"username": "alice"}
+    """Coop whose git host is HOST, for a user named alice. With ``notice`` on,
+    it prints an update notice, as Coop does for an outdated edsl;
+    ``check_api_key`` records how the profile response was checked."""
+    state = {"username": "alice", "notice": False, "check_api_key": []}
 
     class FakeCoop:
         api_key = "the-key"
 
-        def get_profile(self):
-            return profile
-
         def _send_server_request(self, uri, method, **kwargs):
-            assert (method, uri) == ("GET", "api/v0/git-repos")
-            return FakeResponse()
+            assert method == "GET"
+            if uri == "api/v0/users/profile":
+                return FakeResponse({"username": state["username"]})
+            assert uri == "api/v0/git-repos"
+            return FakeResponse({"server_url": f"{HOST}/edsl", "objects": []})
 
-        def _resolve_server_response(self, response):
-            pass
+        def _resolve_server_response(self, response, check_api_key=True):
+            if "username" in response.json():
+                state["check_api_key"].append(check_api_key)
+            if state["notice"]:
+                print("\n" + "=" * 60 + "\nEDSL Update Available!")
 
     import edsl.coop as coop_module
 
     monkeypatch.setattr(coop_module, "Coop", FakeCoop)
-    return profile
+    return state
 
 
 def _helpers(host=HOST) -> list[str]:
@@ -117,6 +125,19 @@ def test_git_credential_without_a_username_sends_the_key_alone(git_home, coop):
     )
 
     assert answer.output == "username=the-key\npassword=\n"
+
+
+def test_git_credential_keeps_coop_notices_off_stdout_and_never_logs_in(git_home, coop):
+    coop["notice"] = True
+
+    answer = _ep(
+        "auth", "git-credential", "get", "--hostname", HOST,
+        stdin="protocol=https\nhost=git.example.test\n\n",
+    )
+
+    assert answer.stdout == "username=alice\npassword=the-key\n"
+    assert "EDSL Update Available!" in answer.stderr
+    assert coop["check_api_key"] == [False]
 
 
 def test_git_runs_the_installed_helper(git_home, monkeypatch):
