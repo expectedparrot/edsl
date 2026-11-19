@@ -107,3 +107,34 @@ def test_a_url_with_credentials_sends_no_bearer_header():
     url = "https://alice:key@git.example.test/edsl/alice/obj-x.git"
     assert gitpkg.without_credentials(url) == "https://git.example.test/edsl/alice/obj-x.git"
     assert gitpkg.http_auth_git_env(url) == {}
+
+
+@pytest.fixture
+def trusted_git_host(monkeypatch):
+    monkeypatch.setattr(gitpkg, "coop_git_host", lambda: "https://git.example.test")
+    monkeypatch.setattr(gitpkg, "expected_parrot_api_key", lambda: "the-key")
+
+
+def test_the_default_key_goes_to_coops_git_host(trusted_git_host):
+    env = gitpkg.http_auth_git_env(f"https://git.example.test/edsl/alice/obj-{COOP_UUID}.git")
+    assert "the-key" in Path(env["EDSL_GIT_AUTH_CONFIG"]).read_text()
+    Path(env["EDSL_GIT_AUTH_CONFIG"]).unlink()
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        f"https://attacker.example/obj-{COOP_UUID}.git",
+        f"http://git.example.test/edsl/alice/obj-{COOP_UUID}.git",
+        f"https://git.example.test:8443/edsl/alice/obj-{COOP_UUID}.git",
+        f"https://git.example.test.attacker.example/obj-{COOP_UUID}.git",
+    ],
+)
+def test_the_default_key_never_goes_to_another_host(trusted_git_host, url):
+    assert gitpkg.http_auth_git_env(url) == {}
+
+
+def test_the_default_key_stays_home_when_coop_reports_no_git_host(monkeypatch):
+    monkeypatch.setattr(gitpkg, "coop_git_host", lambda: None)
+    monkeypatch.setattr(gitpkg, "expected_parrot_api_key", lambda: "the-key")
+    assert gitpkg.http_auth_git_env(f"https://git.example.test/obj-{COOP_UUID}.git") == {}

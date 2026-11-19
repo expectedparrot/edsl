@@ -110,8 +110,17 @@ def register(app: click.Group, auth: click.Group) -> None:
         import shlex
         import subprocess
 
+        from edsl.base import git_package as gitpkg
+
         try:
-            host = _git_credential_host(hostname or _coop_git_host())
+            host = gitpkg.git_url_host(hostname) if hostname else gitpkg.coop_git_host()
+            if host is None:
+                error(
+                    "SETUP_GIT_ERROR",
+                    "Coop reported no git host.",
+                    suggestion="Check your API key with 'ep auth status', or pass --hostname.",
+                    exit_code=EXIT_REMOTE,
+                )
             key = f"credential.{host}.helper"
             if unset:
                 subprocess.run(["git", "config", "--global", "--unset-all", key], check=False)
@@ -134,7 +143,9 @@ def register(app: click.Group, auth: click.Group) -> None:
         """git credential helper: answers 'get' for the git host only."""
         if operation != "get" or not hostname:
             return
-        host = _git_credential_host(hostname)
+        from edsl.base import git_package as gitpkg
+
+        host = gitpkg.git_url_host(hostname)
         request = dict(
             line.split("=", 1) for line in sys.stdin.read().splitlines() if "=" in line
         )
@@ -190,24 +201,6 @@ def register(app: click.Group, auth: click.Group) -> None:
                     exit_code=EXIT_REMOTE,
                 )
         output({"credits_url": CREDITS_URL, "opened": opened})
-
-
-    def _git_credential_host(url: str) -> str:
-        """``scheme://host[:port]`` of a git host URL or bare host name."""
-        from urllib.parse import urlparse
-
-        parsed = urlparse(url if "://" in url else f"https://{url}")
-        return f"{parsed.scheme}://{parsed.netloc.rsplit('@', 1)[-1]}"
-
-
-    def _coop_git_host() -> str:
-        """Expected Parrot's git host, as Coop reports it."""
-        from edsl.coop import Coop
-
-        coop_client = Coop()
-        response = coop_client._send_server_request(uri="api/v0/git-repos", method="GET")
-        coop_client._resolve_server_response(response)
-        return response.json()["server_url"]
 
 
     def _ep_executable() -> str:

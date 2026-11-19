@@ -630,12 +630,36 @@ def remote_url(
     ).strip()
 
 
+def git_url_host(url: str) -> str:
+    """``scheme://host[:port]`` of a git URL or bare host name, without credentials."""
+    parsed = urlparse(url if "://" in url else f"https://{url}")
+    return f"{parsed.scheme}://{parsed.netloc.rsplit('@', 1)[-1]}"
+
+
+def coop_git_host() -> Optional[str]:
+    """``scheme://host[:port]`` of Expected Parrot's git host, as Coop reports it;
+    None when Coop can't be asked or reports none."""
+    from edsl.coop import Coop
+
+    try:
+        coop_client = Coop()
+        response = coop_client._send_server_request(uri="api/v0/git-repos", method="GET")
+        coop_client._resolve_server_response(response)
+        return git_url_host(response.json()["server_url"])
+    except Exception:
+        return None
+
+
 def http_auth_git_env(url: str, token: Optional[str] = None) -> dict[str, str]:
-    """Send the Expected Parrot key as a Bearer header, unless the URL has its own
-    ``user:key@`` credentials, which git then uses instead."""
+    """Send a key as a Bearer header, unless the URL has its own ``user:key@``
+    credentials, which git then uses instead. Without an explicit ``token``, the
+    Expected Parrot key goes only to Coop's git host; any other host gets none."""
     if not url.startswith(("http://", "https://")) or url != without_credentials(url):
         return {}
-    token = token or expected_parrot_api_key()
+    if not token:
+        if git_url_host(url) != coop_git_host():
+            return {}
+        token = expected_parrot_api_key()
     if token is None:
         raise ValueError(
             "HTTP git remote requires EXPECTED_PARROT_API_KEY for bearer auth."
