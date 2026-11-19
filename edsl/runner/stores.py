@@ -6,7 +6,9 @@ abstracting the storage protocol details.
 """
 
 import logging
+import threading
 import time
+from collections import OrderedDict
 from datetime import datetime
 
 from .storage import StorageProtocol
@@ -1005,8 +1007,15 @@ class TaskStore:
 class AnswerStore:
     """Handles reading/writing answers - write-only, dual storage."""
 
+    # Jobs whose question names are remembered. A job's survey never changes,
+    # so the names are read once per job; the bound keeps a long-lived worker
+    # from growing without limit.
+    _QUESTION_NAMES_CACHE_SIZE = 256
+
     def __init__(self, storage: StorageProtocol):
         self._storage = storage
+        self._question_names: OrderedDict[str, list[str]] = OrderedDict()
+        self._question_names_lock = threading.Lock()
 
     # Write operations
 
@@ -1101,13 +1110,67 @@ class AnswerStore:
         return results
 
     def get_all_for_interview(self, job_id: str, interview_id: str) -> list[Answer]:
-        """Get all answers for an interview - used for Result assembly."""
-        pattern = f"job:{job_id}:interview:{interview_id}:answer:*"
+        """Get all answers an interview has so far.
 
-        # Scan volatile keys first
+        Answer keys are built from the job's question names and read in one
+        batch. A pattern scan would walk the whole keyspace on every call, and
+        this runs for every task the worker renders and validates.
+        """
+        question_names = self._get_question_names(job_id)
+        if question_names is None:
+            return self._get_all_for_interview_by_scan(job_id, interview_id)
+        if not question_names:
+            return []
+
+        keys = [
+            f"job:{job_id}:interview:{interview_id}:answer:{qn}"
+            for qn in question_names
+        ]
+        # Volatile only, like the scan this replaces: answers are always
+        # written there, and unanswered questions are expected to be missing.
+        values = self._storage.batch_read_volatile(keys)
+        return [
+            Answer.from_dict(job_id, interview_id, qn, values[key])
+            for qn, key in zip(question_names, keys)
+            if values.get(key) is not None
+        ]
+
+    def _get_question_names(self, job_id: str) -> list[str] | None:
+        """The job's question names, or None when the job definition is missing."""
+        with self._question_names_lock:
+            names = self._question_names.get(job_id)
+            if names is not None:
+                self._question_names.move_to_end(job_id)
+                return names
+
+        meta = self._storage.read_persistent(f"job:{job_id}:meta")
+        if meta is None:
+            return None
+        question_ids = meta.get("question_ids") or []
+        keys = [f"job:{job_id}:question:{qid}" for qid in question_ids]
+        questions = self._storage.batch_read_persistent(keys) if keys else {}
+        names = []
+        for key in keys:
+            question = questions.get(key)
+            if question is None:
+                # Incomplete job data: don't cache, use the scan this time.
+                return None
+            names.append(question["question_name"])
+
+        with self._question_names_lock:
+            self._question_names[job_id] = names
+            self._question_names.move_to_end(job_id)
+            while len(self._question_names) > self._QUESTION_NAMES_CACHE_SIZE:
+                self._question_names.popitem(last=False)
+        return names
+
+    def _get_all_for_interview_by_scan(
+        self, job_id: str, interview_id: str
+    ) -> list[Answer]:
+        """Fallback when the job's questions can't be read."""
+        pattern = f"job:{job_id}:interview:{interview_id}:answer:*"
         keys = self._storage.scan_keys_volatile(pattern)
 
-        # Extract question names from keys
         # Key format: job:{job_id}:interview:{interview_id}:answer:{question_name}
         question_names = []
         for key in keys:
@@ -1118,7 +1181,6 @@ class AnswerStore:
         if not question_names:
             return []
 
-        # Use batch read instead of N individual gets
         answers_dict = self.get_for_interview(job_id, interview_id, question_names)
         return list(answers_dict.values())
 
