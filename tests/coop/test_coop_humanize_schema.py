@@ -749,6 +749,18 @@ class TestValidateHumanizeSchemaVoice:
         }
         validate_humanize_schema(self._survey(), humanize_schema)
 
+    def test_voice_config_gpt_live_voice_passes(self):
+        """A GPT-Live only voice validates too."""
+        humanize_schema = {
+            "questions": {
+                "q1": {
+                    "interview_mode": "voice",
+                    "voice_interview_config": {"voice_option": "Quartz"},
+                }
+            }
+        }
+        validate_humanize_schema(self._survey(), humanize_schema)
+
     def test_voice_config_voice_option_is_normalized(self):
         """Case and surrounding whitespace are normalized."""
         from edsl.coop.coop_humanize_schema import InterviewHumanizeSchema
