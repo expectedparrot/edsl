@@ -948,6 +948,8 @@ class TextInterviewConfig(HumanizeSchemaBase):
 # How long the voice interviewer waits after the respondent pauses before it
 # speaks, from "fastest" (jumps in almost at once) to "slowest" (waits a long time).
 VoiceTurnSpeed = Literal["fastest", "faster", "default", "slower", "slowest"]
+# The first ten work in every voice interview. The rest are GPT-Live only:
+# spoken in Voice only interviews; Voice + live transcript uses the default voice.
 VoiceInterviewVoice = Literal[
     "alloy",
     "ash",
@@ -959,6 +961,27 @@ VoiceInterviewVoice = Literal[
     "verse",
     "marin",
     "cedar",
+    "beacon",
+    "bossa",
+    "brise",
+    "cinder",
+    "delta",
+    "flitz",
+    "gleam",
+    "harema",
+    "juni",
+    "meridian",
+    "nira",
+    "noeul",
+    "nuri",
+    "quartz",
+    "ripple",
+    "shida",
+    "sillage",
+    "stone",
+    "tempo",
+    "vesper",
+    "willow",
 ]
 
 

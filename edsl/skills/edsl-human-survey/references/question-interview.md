@@ -63,6 +63,8 @@ When talking to the researcher, ask which **voice** or how the interviewer shoul
 
 Allowed `voice_option` ids: `alloy`, `ash`, `ballad`, `cedar`, `coral`, `echo`, `marin`, `sage`, `shimmer`, `verse`. Unknown ids are rejected.
 
+GPT-Live only ids: `beacon`, `bossa`, `brise`, `cinder`, `delta`, `flitz`, `gleam`, `harema`, `juni`, `meridian`, `nira`, `noeul`, `nuri`, `quartz`, `ripple`, `shida`, `sillage`, `stone`, `tempo`, `vesper`, `willow`. These are spoken only in Voice only interviews, which run on GPT-Live; a Voice + live transcript interview uses the default voice instead. If the researcher picks one, tell them that in plain words.
+
 Full supported language list and multilingual guidance → `references/interview-languages.md` (shared with text mode). If a **prior question** selects the interview language, fork one `QuestionInterview` per language and skip-route — do not try to Jinja the language field (see that reference).
 
 Patch language or voice on a live survey via `Coop().patch_human_survey_humanize_schema()` (see "Updating the schema on a live survey" above).
