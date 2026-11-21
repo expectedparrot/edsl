@@ -6173,6 +6173,45 @@ class TestHumanizeCli:
         assert outputs[4]["saved"]["format"] == "ep"
         assert output_path.exists()
 
+    @pytest.mark.parametrize(
+        ("action", "method_name"),
+        [("stop", "stop_prolific_study"), ("delete", "delete_prolific_study")],
+    )
+    def test_humanize_prolific_irreversible_actions_require_confirmation(
+        self, action, method_name, monkeypatch
+    ):
+        import edsl.coop
+
+        calls = []
+
+        class FakeCoop:
+            def stop_prolific_study(self, human_survey_uuid, study_id):
+                calls.append(("stop_prolific_study", human_survey_uuid, study_id))
+                return {"study_id": study_id, "status": "STOPPED"}
+
+            def delete_prolific_study(self, human_survey_uuid, study_id):
+                calls.append(("delete_prolific_study", human_survey_uuid, study_id))
+                return {"study_id": study_id, "deleted": True}
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        runner = CliRunner()
+        command = [
+            "humanize",
+            "prolific",
+            action,
+            "human-survey-uuid",
+            "study-id",
+        ]
+
+        refused = runner.invoke(cli_module.app, command)
+        assert refused.exit_code == 2
+        assert json.loads(refused.output)["error"]["code"] == "CONFIRMATION_REQUIRED"
+        assert calls == []
+
+        confirmed = runner.invoke(cli_module.app, [*command, "--yes"])
+        assert confirmed.exit_code == 0, confirmed.output
+        assert calls == [(method_name, "human-survey-uuid", "study-id")]
+
     def test_humanize_delivery_create_route_helper(self, monkeypatch):
         import edsl.coop
 
