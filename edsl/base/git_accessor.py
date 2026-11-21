@@ -41,6 +41,15 @@ class GitObjectSpec:
         return path.stem
 
 
+class GitPushError(RuntimeError):
+    """Coop has the object, but the git push after it failed. ``result`` is what
+    ``coop_push`` returns on success, without ``git``; running it again is safe."""
+
+    def __init__(self, result: dict, error: Exception) -> None:
+        super().__init__(f"Pushed to Coop, but the git push failed: {error}")
+        self.result = result
+
+
 class GitBackedDescriptor:
     def __init__(self, spec_factory: Callable[[], GitObjectSpec]) -> None:
         self._spec_factory = spec_factory
@@ -64,7 +73,10 @@ class GitBackedClassAccessor:
         self._spec = spec
         self._objtype = objtype
 
-    def load(self, path, ref: str = "HEAD"):
+    def load(self, path, ref: str = "HEAD", sync_coop: bool = True):
+        """Load a package at ``ref``. At HEAD with ``sync_coop``, a newer Coop
+        version is fetched and committed; git pull and clone must load without
+        that commit, or the local history would no longer fast-forward."""
         path = self._spec.normalize_path(path, for_load=True)
         gitpkg.ensure_git_available()
         worktree_path = gitpkg.unpack_package_archive(
@@ -83,7 +95,7 @@ class GitBackedClassAccessor:
         )
         if hasattr(obj.git, "_after_load"):
             obj.git._after_load(obj)
-        if ref == "HEAD":
+        if sync_coop and ref == "HEAD":
             obj.git._coop_pull_if_remote_updated(
                 message=f"Coop sync {self._spec.object_type}"
             )
@@ -110,30 +122,20 @@ class GitBackedClassAccessor:
                 ["git", "clone", url, str(destination)],
                 stderr=f"Destination path already exists: {destination}",
             )
-        worktree_path = gitpkg.new_package_worktree(destination)
-        gitpkg.run_git(
-            ["git", "clone", url, str(worktree_path)],
-            error_cls=self._spec.error_cls,
-            env=gitpkg.http_auth_git_env(url, token),
-        )
-        gitpkg.pack_package_archive(
-            worktree_path, destination, package_suffix=self._spec.package_suffix
-        )
-        loaded = self.load(destination.resolve(), ref=ref)
-        return self._spec.clone_return(loaded) if self._spec.clone_return else loaded
-
-    def objects(
-        self,
-        token: Optional[str] = None,
-        server_url: Optional[str] = None,
-        object_type: Optional[str] = None,
-    ) -> dict:
-        return gitpkg.server_objects(
+        worktree_path = gitpkg.clone_package(
+            url,
+            destination,
+            package_suffix=self._spec.package_suffix,
             token=token,
-            server_url=server_url,
-            object_type=object_type or self._spec.object_type,
             error_cls=self._spec.error_cls,
         )
+        if worktree_path is None:
+            raise self._spec.error_cls(
+                ["git", "clone", gitpkg.without_credentials(url), str(destination)],
+                stderr="The repo has no commits yet.",
+            )
+        loaded = self.load(destination.resolve(), ref=ref, sync_coop=False)
+        return self._spec.clone_return(loaded) if self._spec.clone_return else loaded
 
     def coop_clone(
         self,
@@ -421,6 +423,9 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
         token: Optional[str] = None,
         path=None,
     ) -> dict:
+        """Push the package's history. With no remote, that is its ``obj-<uuid>``
+        repo on the Expected Parrot git host, which needs the package's Coop
+        object first (see ``coop_push``)."""
         if self.path is None:
             self.save(path or self._spec.default_path())
         info = self._bound_package().push(remote=remote, branch=branch, token=token)
@@ -442,10 +447,21 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
         path=None,
         message: str = "",
     ) -> dict:
+        """Push to Coop, then the package's history to its ``obj-<uuid>`` repo.
+
+        The push or patch says the object is an ``.ep`` package (``git_repo``),
+        so Coop returns the repo's ``git_remote_url``, creating the repo the
+        first time. Coop picks the object's uuid on the first push; the package
+        records it as ``object_uuid``. Coop info, the uuid and the repo's
+        ``remote_url`` go in one commit, which the git push carries. When Coop
+        returns no repo URL (no git host), only Coop is pushed. Raises
+        ``GitPushError`` if Coop took the object but the git push failed.
+        """
         if self.path is None:
             self.save(path or self._spec.default_path())
         else:
             self.save(message=message or self._spec.default_commit_message)
+        worktree_path = self._bound_worktree_path()
 
         coop_info = self._read_coop_info()
         if coop_info is None:
@@ -455,6 +471,7 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
                 visibility="private" if visibility is None else visibility,
                 expected_parrot_url=expected_parrot_url,
                 force=force,
+                git_repo=True,
             )
             coop_info = _plain_dict(info)
             coop_info.update(
@@ -470,17 +487,38 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
                 alias=alias,
                 value=self._instance,
                 visibility=visibility,
+                git_repo=True,
             )
             coop_info.update(_plain_dict(patch_info))
             coop_info.update(
                 self._remote_coop_info(expected_parrot_url, coop_info=coop_info)
             )
 
-        commit_info = self._write_coop_info_and_commit(
-            coop_info,
-            message=message or f"Update Coop info for {self._spec.object_type}",
+        self._write_coop_info(coop_info)
+        push_git = False
+        git_error = None
+        if gitpkg.record_object_uuid(worktree_path) is not None:
+            try:
+                push_git = (
+                    gitpkg.record_object_remote(
+                        worktree_path, error_cls=self._spec.error_cls
+                    )
+                    is not None
+                )
+            except Exception as exc:
+                git_error = exc
+        commit_info = self._commit_package_changes(
+            message or f"Update Coop info for {self._spec.object_type}"
         )
-        return {"status": "ok", "coop_info": coop_info, **commit_info}
+        result = {"status": "ok", "coop_info": coop_info, **commit_info}
+        if push_git and git_error is None:
+            try:
+                result["git"] = self.push(remote=gitpkg.REMOTE_NAME)
+            except Exception as exc:
+                git_error = exc
+        if git_error is not None:
+            raise GitPushError(result, git_error) from git_error
+        return result
 
     def coop_pull(
         self,
@@ -667,11 +705,12 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
         gitpkg.init_package(worktree_path, error_cls=self._spec.error_cls)
         extra_info = self._spec.write(worktree_path, self._instance)
         self.path = path
+        if coop_info is not None:
+            self._write_coop_info(coop_info)
+        gitpkg.record_object_uuid(worktree_path)
         for key, value in extra_info.items():
             if key.isidentifier():
                 setattr(self, key, value)
-        if coop_info is not None:
-            self._write_coop_info(coop_info)
         return {**self._commit_package_changes(message), **extra_info}
 
     def _commit_package_changes(self, message: str) -> dict:

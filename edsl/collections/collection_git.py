@@ -138,13 +138,7 @@ def _write_collection(path: Path, collection: "Collection", **_kwargs) -> dict:
         "name": collection.name,
         "n_items": len(collection),
     }
-    remotes = gitpkg.manifest_remotes(existing)
-    if remotes:
-        manifest["remotes"] = remotes
-    if "primary_remote" in existing:
-        manifest["primary_remote"] = existing["primary_remote"]
-    elif isinstance(existing.get("remote"), dict) and existing["remote"].get("name"):
-        manifest["primary_remote"] = existing["remote"]["name"]
+    gitpkg.carry_package_metadata(existing, manifest)
     from edsl import __version__
 
     manifest["edsl_version"] = __version__
