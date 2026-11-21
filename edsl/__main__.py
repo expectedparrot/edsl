@@ -21,6 +21,7 @@ from edsl.cli_commands import models as models_commands
 from edsl.cli_commands import objects as objects_commands
 from edsl.cli_commands import open as open_commands
 from edsl.cli_commands import packages as package_commands
+from edsl.cli_commands import playbooks as playbooks_commands
 from edsl.cli_commands import profiles as profiles_commands
 from edsl.cli_commands import research_agent as research_agent_commands
 from edsl.cli_commands import present as present_commands
@@ -32,6 +33,7 @@ from edsl.cli_commands import schema as schema_commands
 from edsl.cli_commands import scenarios as scenarios_commands
 from edsl.cli_commands import surveys as surveys_commands
 from edsl.cli_commands import study as study_commands
+from edsl.skills.cli import skills as skills_commands
 from edsl.cli_commands import validate as validate_commands
 from ep_workflow import cli as workflow_commands
 from edsl.cli_shared import (
@@ -99,6 +101,8 @@ def app(ctx):
                 "present",
                 "report",
                 "study",
+                "skills",
+                "playbooks",
             ],
             "help": "Use 'ep <command> --help' for details on each command.",
             "pipe_contract": {
@@ -420,6 +424,8 @@ scenarios_commands.register(scenarios)
 collections_commands.register(collections)
 surveys_commands.register(surveys)
 study_commands.register(app)
+playbooks_commands.register(app)
+app.add_command(skills_commands)
 validate_commands.register(app)
 workflow_commands.register(workflow, gate)
 
