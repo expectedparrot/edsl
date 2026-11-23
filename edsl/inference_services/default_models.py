@@ -332,6 +332,7 @@ data = {
         "sonar-reasoning",
         "sonar-reasoning-pro",
     ],
+    "persimmon": ["persimmon-v0.1"],
     "together": [
         "BAAI/bge-base-en-v1.5",
         "BAAI/bge-large-en-v1.5",

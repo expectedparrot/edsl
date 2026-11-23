@@ -38,6 +38,16 @@ class InvigilatorInterview(InvigilatorBase):
     def get_prompts(self) -> Dict[str, "Prompt"]:
         from ..prompts import Prompt
 
+        if getattr(self.model, "_inference_service_", None) == "persimmon":
+            return {
+                "user_prompt": Prompt(
+                    "Persimmon conversation with simulated interviewer and respondent."
+                ),
+                "system_prompt": Prompt(
+                    "Interviewer and respondent personas are configured as Persimmon participants."
+                ),
+            }
+
         return {
             "user_prompt": Prompt(
                 "Turn-based interview simulation managed internally by InvigilatorInterview."
@@ -205,6 +215,162 @@ class InvigilatorInterview(InvigilatorBase):
         )
         return "\n\n".join(pieces)
 
+    async def _async_answer_question_persimmon(self) -> EDSLResultObjectInput:
+        """Run the interviewer and respondent as participants in Persimmon."""
+        import httpx
+
+        rendered_question = self._rendered_question()
+        interviewer_name = "Interviewer"
+        respondent_name = "Respondent"
+        respondent_description = "\n\n".join(
+            part
+            for part in (
+                self.prompt_constructor.agent_instructions_prompt.text,
+                self.prompt_constructor.agent_persona_prompt.text,
+            )
+            if part
+        )
+        interviewer_description = (
+            "You are a skilled qualitative interviewer. Conduct a natural, "
+            "neutral interview. Follow the goal and guide in the conversation "
+            "setting, ask one focused open-ended question per turn, and do not "
+            "answer for the respondent.\n\n"
+            f"Interview goal: {rendered_question.question_text}\n\n"
+            f"Interview guide: {rendered_question.interview_guide}"
+        )
+        setting = (
+            f"Qualitative interview.\n\nGoal: {rendered_question.question_text}"
+            f"\n\nGuide: {rendered_question.interview_guide}"
+        )
+        headers = {
+            "Authorization": f"Bearer {self.model.api_token}",
+            "Content-Type": "application/json",
+        }
+        base_url = "https://api.persimmon.humansand.ai/v1"
+        transcript: List[dict[str, Any]] = []
+        raw_responses: List[dict[str, Any]] = []
+        input_tokens: List[int] = []
+        output_tokens: List[int] = []
+        exception_occurred = None
+        validated = False
+
+        try:
+            async with httpx.AsyncClient(timeout=180) as client:
+                response = await client.post(
+                    f"{base_url}/conversations",
+                    headers=headers,
+                    json={
+                        "model": self.model.model,
+                        "setting": setting,
+                        "participants": [
+                            {
+                                "name": interviewer_name,
+                                "description": interviewer_description[:32000],
+                            },
+                            {
+                                "name": respondent_name,
+                                "description": respondent_description[:32000],
+                            },
+                        ],
+                    },
+                )
+                response.raise_for_status()
+                conversation_id = response.json()["id"]
+                history: List[dict[str, str]] = []
+                turns = []
+                tier = self.model.parameters.get("tier", "standard")
+                max_tokens = self.model.parameters.get("max_tokens", 256)
+
+                for _ in range(rendered_question.max_turns):
+                    for speaker in (interviewer_name, respondent_name):
+                        response = await client.post(
+                            f"{base_url}/conversations/{conversation_id}/turns",
+                            headers=headers,
+                            json={
+                                "turns": history,
+                                "speaker": speaker,
+                                "tier": tier,
+                                "max_tokens": max_tokens,
+                            },
+                        )
+                        response.raise_for_status()
+                        turn = response.json()
+                        raw_responses.append(turn)
+                        usage = turn.get("usage", {})
+                        if isinstance(usage.get("prompt_tokens"), int):
+                            input_tokens.append(usage["prompt_tokens"])
+                        if isinstance(usage.get("completion_tokens"), int):
+                            output_tokens.append(usage["completion_tokens"])
+
+                        text = turn.get("content")
+                        if not isinstance(text, str) or not text.strip():
+                            raise ValueError(
+                                f"Persimmon returned no content for {speaker}."
+                            )
+                        text = text.strip()
+                        history.append({"name": turn["name"], "content": text})
+                        transcript.append(
+                            {
+                                "role": (
+                                    "interviewer"
+                                    if speaker == interviewer_name
+                                    else "respondent"
+                                ),
+                                "content": [{"type": "text", "text": text}],
+                            }
+                        )
+                        turns.append(
+                            {
+                                "role": speaker.lower(),
+                                "generated_text": text,
+                                "model_response": turn,
+                            }
+                        )
+
+            generated_tokens = json.dumps(
+                {
+                    "conversation_id": conversation_id,
+                    "transcript": transcript,
+                    "turns": turns,
+                }
+            )
+            validated_answer = rendered_question._validate_answer(
+                {"answer": transcript, "generated_tokens": generated_tokens}
+            )
+            answer = validated_answer["answer"]
+            comment = validated_answer.get("comment", "") or ""
+            validated = True
+        except Exception as e:
+            exception_occurred = e
+            answer = None
+            comment = "The Persimmon interview could not be completed."
+            generated_tokens = json.dumps(
+                {
+                    "transcript": transcript,
+                    "turns": raw_responses,
+                }
+            )
+
+        self.generated_tokens = generated_tokens
+        self.raw_model_response = raw_responses
+        return EDSLResultObjectInput(
+            answer=answer,
+            comment=comment,
+            generated_tokens=generated_tokens,
+            question_name=self.question.question_name,
+            prompts=self.get_prompts(),
+            cached_response=None,
+            raw_model_response=raw_responses,
+            cache_used=False,
+            cache_key=None,
+            validated=validated,
+            exception_occurred=exception_occurred,
+            input_tokens=sum(input_tokens) if input_tokens else None,
+            output_tokens=sum(output_tokens) if output_tokens else None,
+            thinking_tokens=None,
+            total_cost=None,
+        )
+
     @staticmethod
     def _trace_to_dict(trace: InterviewTurnTrace) -> dict[str, Any]:
         return {
@@ -227,6 +393,9 @@ class InvigilatorInterview(InvigilatorBase):
         return sum(numeric_values) if numeric_values else None
 
     async def async_answer_question(self) -> EDSLResultObjectInput:
+        if getattr(self.model, "_inference_service_", None) == "persimmon":
+            return await self._async_answer_question_persimmon()
+
         rendered_question = self._rendered_question()
         transcript: List[dict[str, Any]] = []
         traces: List[InterviewTurnTrace] = []

@@ -35,6 +35,44 @@ OpenAI adapters accept reasoning settings, with request formatting depending on 
 
 See [Provider configuration](/en/latest/guides/providers) for selecting services and inspecting parameters, and the [adapter source](https://github.com/expectedparrot/edsl/tree/main/edsl/inference_services) for implementation details. Record effective settings with results and check provider documentation before adopting a model-specific option.
 
+## Persimmon interviews
+
+Persimmon is a conversation model. For a standard question, EDSL sends the question as the opening turn and returns the simulated respondent's next turn as the answer. For `QuestionInterview`, Persimmon generates turns for both the interviewer and respondent; the EDSL `Agent` description supplies the respondent persona. Set `PERSIMMON_API_KEY` in the environment or in `.env`.
+
+```python
+from edsl import Agent, Model, QuestionFreeText, QuestionInterview, Survey
+
+model = Model("persimmon-v0.1", service_name="persimmon")
+respondent = Agent(
+    traits={"life_stage": "busy parent", "shopping_habit": "uses grocery delivery occasionally"},
+    instruction="Answer in character with specific everyday details.",
+)
+
+question = QuestionFreeText(
+    question_name="grocery_habits",
+    question_text="How do you usually decide whether to order groceries for delivery?",
+)
+results = Survey([question]).by(respondent).by(model).run()
+results.select("answer.grocery_habits")
+```
+
+Use the same model and agent with an interview question when you want a longer exchange:
+
+```python
+from edsl import QuestionInterview, Survey
+
+question = QuestionInterview(
+    question_name="experience",
+    question_text="Understand how people choose a grocery delivery service.",
+    interview_guide="Ask about their most recent order, what went well, and what they would change.",
+    max_turns=2,
+)
+results = Survey([question]).by(respondent).by(model).run()
+results.select("answer.experience")
+```
+
+Each interview creates a Persimmon conversation and generates one interviewer turn followed by one respondent turn for each `max_turns` iteration. Each standard question creates a short conversation with one questioner turn and one respondent turn.
+
 <span id="local-models-and-execution" />
 
 ## Connect to your own model server
