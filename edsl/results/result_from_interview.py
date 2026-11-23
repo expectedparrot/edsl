@@ -127,6 +127,30 @@ class ResultFromInterview:
             answer_key_names, question_results, "resolution_method"
         )
 
+        randomization = {}
+        treatment_assignment = getattr(
+            self.interview, "treatment_assignment", None
+        )
+        if treatment_assignment is not None:
+            treatment_assignment = dict(treatment_assignment)
+            exposure_questions = list(
+                treatment_assignment.get("exposure_questions", [])
+            )
+            exposed_questions = [
+                name for name in exposure_questions if name in question_results
+            ]
+            treatment_exposed = (
+                None if not exposure_questions else bool(exposed_questions)
+            )
+            randomization = {
+                "treatment_assignment": treatment_assignment,
+                "treatment_exposure": {
+                    "questions": exposure_questions,
+                    "exposed_questions": exposed_questions,
+                    "exposed": treatment_exposed,
+                },
+            }
+
         # Build question_to_attributes from the actual question instances
         # These have been updated by the invigilator (e.g., resolved dict-based options)
         question_to_attributes = self._build_question_to_attributes(survey_copy)
@@ -156,6 +180,7 @@ class ResultFromInterview:
             resolution_draw=resolution_draw_dict,
             resolution_seed=resolution_seed_dict,
             resolution_method=resolution_method_dict,
+            randomization=randomization,
         )
 
         # Store only the hash, not the interview

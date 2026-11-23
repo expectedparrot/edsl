@@ -156,6 +156,37 @@ ep inspect survey.ep
 
 `add-question` updates the survey package in place. A job built earlier retains its saved survey, so rebuild the job to include the new question. Use `ep agents create --help` and `ep scenarios create --help` for creating respondent profiles and scenario data from files.
 
+### Assign treatment conditions
+
+Use an explicit schedule to assign each respondent/model/iteration unit to one scenario condition. Condition values are scenario indices in the Jobs package. Save a policy JSON file with `conditions`, `schedule`, `unit`, and optionally `unit_id_field`, `exposure_questions`, `balance`, and `planned_iterations`:
+
+```json
+{
+  "version": 1,
+  "conditions": {"control": 0, "treatment": 1},
+  "schedule": {"agent:r1": "control", "agent:r2": "treatment"},
+  "unit": "agent",
+  "unit_id_field": "respondent_id",
+  "exposure_questions": ["outcome"],
+  "balance": "exact",
+  "planned_iterations": 1
+}
+```
+
+Apply and validate the policy, then inspect realized assignment and exposure in results:
+
+```bash
+ep jobs set-treatment-assignment jobs.ep --policy treatment-policy.json
+ep validate --file jobs.ep
+ep run jobs.ep --local --output results.ep
+ep results select --file results.ep \
+  --column randomization.treatment_assignment.condition \
+  --column randomization.treatment_assignment.assignment_id \
+  --column randomization.treatment_exposure.exposed
+```
+
+Unit keys start with `agent:<id>`; `agent_model` appends `|model:<index>`, `agent_iteration` appends `|iteration:<index>`, and `agent_model_iteration` appends both. `balance: "exact"` requires equal counts for all conditions. Iteration-specific units require `planned_iterations` to match the run's `n`. Use `ep jobs set-treatment-assignment jobs.ep --clear` to remove a schedule. This version accepts explicit schedules on the default Cartesian assignment plan; it rejects probability-based assignment, stratification, custom Jobs assignment plans, and Humanize.
+
 If validation fails, correct the reported problem before running the object.
 
 ## Run with language models

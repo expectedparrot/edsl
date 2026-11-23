@@ -33,6 +33,46 @@ A stop rule is evaluated after its question. A skip rule can bypass an individua
 
 See [Survey logic and piping](/en/latest/guides/survey_logic) for testing routes and [Survey messages](/en/latest/survey_messages) for instructions shown between questions.
 
+## Assign treatment conditions
+
+A Jobs object can attach an explicit schedule that maps each assignment unit to one of its scenario rows. The schedule is saved with the Jobs package and reused across retries and resumed execution. Its assignment unit controls whether conditions are shared across models and iterations:
+
+- `agent`: one condition per respondent, shared across models and iterations.
+- `agent_model`: one condition per respondent and model, shared across iterations.
+- `agent_iteration`: one condition per respondent and iteration, shared across models.
+- `agent_model_iteration`: one condition for each respondent, model, and iteration.
+
+Use `unit_id_field` to key the schedule by a unique agent trait such as `respondent_id`; otherwise keys use the saved agent positions (`agent:0`, `agent:1`, ...). Condition values point to scenario indices in the saved Jobs object. An `exact` balance promise is checked against the full schedule and rejected unless each condition has the same count.
+
+```json
+{
+  "version": 1,
+  "conditions": {"control": 0, "treatment": 1},
+  "schedule": {"agent:r1": "control", "agent:r2": "treatment"},
+  "unit": "agent",
+  "unit_id_field": "respondent_id",
+  "exposure_questions": ["outcome"],
+  "balance": "exact",
+  "planned_iterations": 1
+}
+```
+
+The `exposure_questions` list identifies survey questions whose presentation indicates that the assigned condition was encountered. Results record the assigned condition and its stable assignment ID separately from whether those questions were presented. Without exposure questions, exposure remains unknown. This first version supports explicit schedules on the default Cartesian Jobs plan; probability-based allocation, stratification, and Humanize schedules are unsupported and fail validation.
+
+Configure a saved Jobs package with `ep jobs set-treatment-assignment`, validate it, and inspect realized assignments in Results:
+
+```bash
+ep jobs set-treatment-assignment jobs.ep --policy treatment-policy.json
+ep validate --file jobs.ep
+ep run jobs.ep --local --output results.ep
+ep results select --file results.ep \
+  --column randomization.treatment_assignment.condition \
+  --column randomization.treatment_assignment.assignment_id \
+  --column randomization.treatment_exposure.exposed
+```
+
+If an assignment unit includes iterations, `planned_iterations` must match the requested run count. Use `--clear` to remove the schedule. See the [CLI Guide](/en/latest/cli#create-and-validate-study-objects) for policy and key examples.
+
 ## Prepare a run
 
 Combine a survey with scenarios, agents, and models using `by()` to construct a [Jobs](/en/latest/jobs) object. For example, `survey.by(messages).by(model)` prepares one interview per message scenario; calling `.run()` collects the answers. Use `survey.run()` when you want to ask it once with the default model and no custom profiles or scenarios. See [Model access](/en/latest/api_keys) for connecting a model.

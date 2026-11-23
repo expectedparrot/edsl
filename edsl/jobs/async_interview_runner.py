@@ -248,15 +248,35 @@ class AsyncInterviewRunner:
             2
 
         """
+        treatment_policy = getattr(self.jobs, "treatment_assignment", None)
+        if treatment_policy is not None:
+            treatment_policy.validate_for_job(
+                self.jobs, iterations=self.run_config.parameters.n
+            )
+
         for interview in self.jobs.generate_interviews():
             for iteration in range(self.run_config.parameters.n):
                 if iteration > 0:
-                    yield interview.duplicate(
+                    realized_interview = interview.duplicate(
                         iteration=iteration, cache=self.run_config.environment.cache
                     )
                 else:
                     interview.cache = self.run_config.environment.cache
-                    yield interview
+                    realized_interview = interview
+
+                if treatment_policy is not None:
+                    indices = realized_interview.indices or {}
+                    realization = treatment_policy.realize(
+                        indices["agent"],
+                        realized_interview.agent,
+                        indices["model"],
+                        iteration,
+                    )
+                    if indices["scenario"] != realization.scenario_index:
+                        continue
+                    realized_interview.treatment_assignment = realization.to_dict()
+
+                yield realized_interview
 
     def _get_next_chunk(
         self, gen: Generator["Interview", None, None]

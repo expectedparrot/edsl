@@ -275,6 +275,7 @@ class InterviewDefinition:
     # Only populated for questions in survey.questions_to_randomize
     question_option_permutations: dict[str, list] = field(default_factory=dict)
     question_item_randomization_seeds: dict[str, int] = field(default_factory=dict)
+    treatment_assignment: dict | None = None
     indices: dict[str, int] | None = None
 
     def storage_key(self) -> str:
@@ -290,6 +291,7 @@ class InterviewDefinition:
             "iteration": self.iteration,
             "question_option_permutations": self.question_option_permutations,
             "question_item_randomization_seeds": self.question_item_randomization_seeds,
+            "treatment_assignment": self.treatment_assignment,
             "indices": self.indices,
         }
 
@@ -310,6 +312,7 @@ class InterviewDefinition:
             question_item_randomization_seeds=data.get(
                 "question_item_randomization_seeds", {}
             ),
+            treatment_assignment=data.get("treatment_assignment"),
             indices=data.get("indices"),
         )
 
