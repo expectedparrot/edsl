@@ -162,8 +162,11 @@ def test_caching():
     #     "raw_model_response.how_are_you_raw_model_response"
     # ).first()
     results2 = QuestionFreeText.example().by(m).run(cache = c, disable_remote_inference = True)
-    print(results1)
-    print("####")
-    print(results2)
-    assert results1 == results2
+    assert [result.answer for result in results1] == [
+        result.answer for result in results2
+    ]
+    assert all(result["cache_used_dict"]["how_are_you"] for result in results2)
+    assert [result["cache_keys"] for result in results1] == [
+        result["cache_keys"] for result in results2
+    ]
     # assert results.select("raw_model_response.how_are_you_raw_model_response").first()
