@@ -46,7 +46,7 @@ survey.sample_questions(
 )
 ```
 
-The sample size must be at least one and no larger than the eligible pool; required questions must fit within it. Sampling keeps declared question order among selected questions. A sampled question cannot depend on another eligible question unless that prerequisite is required. Custom skip/stop/jump rules and display groups that overlap the eligible pool are rejected. The realized sample and seed are stored with each assignment, reused on retry/resume, and recorded in `randomization.sampled_questions` and `randomization.unselected_questions`. The latter identifies planned omissions separately from unanswered questions. Humanize does not yet support this policy and rejects it before publishing.
+The sample size must be at least one and no larger than the eligible pool; required questions must fit within it. Sampling keeps declared question order among selected questions. A sampled question cannot depend on another eligible question unless that prerequisite is required. Custom skip/stop/jump rules and display groups that overlap the eligible pool are rejected. By default, each agent/scenario/iteration gets one sample shared across its model variants. The realized sample and seed are stored with each assignment, reused on retry/resume, and recorded in `randomization.sampled_questions` and `randomization.unselected_questions`. The latter identifies planned omissions separately from unanswered questions. Humanize does not yet support this policy and rejects it before publishing.
 
 Use `ep surveys set-question-sampling` to configure the policy in a saved package and `ep surveys show` to inspect it. The [CLI Guide](/en/latest/cli#create-and-validate-study-objects) has an example.
 

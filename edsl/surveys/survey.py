@@ -2220,7 +2220,11 @@ class Survey(Base):
                 "question_sampling must contain version, eligible_questions, "
                 "sample_size, required_questions, and method."
             )
-        if policy["version"] != 1:
+        if (
+            isinstance(policy["version"], bool)
+            or not isinstance(policy["version"], int)
+            or policy["version"] != 1
+        ):
             raise SurveyError("Unsupported question_sampling version; supported version is 1.")
         if policy["method"] != "uniform_without_replacement":
             raise SurveyError(

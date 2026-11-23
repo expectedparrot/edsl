@@ -166,7 +166,7 @@ ep surveys show survey.ep
 ep validate --file survey.ep
 ```
 
-Required questions count toward `--sample-size`; questions outside the eligible pool are always asked. Results expose `randomization.sampled_questions` and `randomization.unselected_questions` for inspection and export.
+Required questions count toward `--sample-size`; questions outside the eligible pool are always asked. By default, each agent/scenario/iteration gets one sample shared across model variants. Results expose `randomization.sampled_questions` and `randomization.unselected_questions` for inspection and export.
 
 If validation fails, correct the reported problem before running the object.
 

@@ -60,6 +60,16 @@ def test_sampling_validates_exact_count_and_required_boundaries():
         "sample_size"
     ] == len(eligible)
 
+    invalid_policy = {
+        "version": True,
+        "eligible_questions": eligible,
+        "sample_size": 1,
+        "required_questions": [],
+        "method": "uniform_without_replacement",
+    }
+    with pytest.raises(SurveyError, match="version"):
+        Survey(make_survey().questions, question_sampling=invalid_policy)
+
 
 def test_sampling_rejects_dependencies_that_cannot_be_guaranteed():
     survey = Survey(
@@ -232,3 +242,42 @@ def test_realized_selection_is_exact_shared_across_models_and_queryable(tmp_path
     )
     assert json.loads(exported.stdout)["status"] == "ok"
     assert csv_path.exists()
+
+
+def test_question_sampling_runs_with_local_test_model_and_marks_omissions():
+    survey = make_survey().sample_questions(
+        ["q1", "q2", "q3", "q4"], sample_size=2, required_questions=["q1"]
+    )
+    job = survey.by(Agent()).by(
+        [
+            Model("test", temperature=0.1, canned_response="local answer"),
+            Model("test", temperature=0.9, canned_response="local answer"),
+        ]
+    )
+
+    results = job.run(
+        n=1,
+        cache=False,
+        disable_remote_inference=True,
+        disable_remote_cache=True,
+        progress_bar=False,
+    )
+
+    assert len(results) == 2
+    realized = [result["randomization"] for result in results]
+    assert realized[0]["assignment_id"] == realized[1]["assignment_id"]
+    assert realized[0]["sampled_questions"] == realized[1]["sampled_questions"]
+    for result, provenance in zip(results, realized):
+        assert len(provenance["sampled_questions"]) == 2
+        assert "q1" in provenance["sampled_questions"]
+        assert len(provenance["unselected_questions"]) == 2
+        assert set(provenance["sampled_questions"]).isdisjoint(
+            provenance["unselected_questions"]
+        )
+        for name in provenance["unselected_questions"]:
+            assert result.answer[name] is None
+            assert provenance["exposure_events"][name] == {
+                "presented": False,
+                "answered": False,
+                "answered_at": None,
+            }
