@@ -231,6 +231,7 @@ class ResultBuilder:
                 f"{key}_resolution_method": value
                 for key, value in self.data["resolution_method"].items()
             },
+            "randomization": self.data.get("randomization", {}),
         }
 
     # Static factory methods for sub-dictionaries

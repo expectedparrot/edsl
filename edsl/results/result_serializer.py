@@ -174,6 +174,7 @@ class ResultSerializer:
             resolution_draw=json_dict.get("resolution_draw", {}),
             resolution_seed=json_dict.get("resolution_seed", {}),
             resolution_method=json_dict.get("resolution_method", {}),
+            randomization=json_dict.get("randomization", {}),
         )
 
         if "interview_hash" in json_dict:

@@ -1806,6 +1806,7 @@ class JobService:
         questions_data: dict | None = None,
         prefetched_answers: dict | None = None,
         indices: dict | None = None,
+        task_statuses_by_question: dict | None = None,
         _timing: dict | None = None,
     ) -> Any:
         """
@@ -2121,6 +2122,72 @@ class JobService:
             interview_def.iteration if hasattr(interview_def, "iteration") else 0
         )
 
+        option_orders = {
+            name: question_to_attributes.get(name, {}).get("question_options")
+            for name in option_permutations
+            if question_to_attributes.get(name, {}).get("question_options") is not None
+        }
+        matrix_row_orders = {
+            name: question_to_attributes.get(name, {}).get("question_items")
+            for name in item_randomization_seeds
+            if question_to_attributes.get(name, {}).get("question_items") is not None
+        }
+        answer_by_name = {a.question_name: a for a in answers}
+        completion_order = sorted(answers, key=lambda a: a.created_at)
+        randomized_questions = set(option_orders) | set(matrix_row_orders)
+        randomization = {
+            "schema_version": 1,
+            "design_version": 1,
+            "assignment_id": interview_id,
+            "assignment_unit": "interview",
+            "option_orders": option_orders,
+            "matrix_row_orders": matrix_row_orders,
+            "option_seeds": {},
+            "matrix_row_seeds": dict(item_randomization_seeds),
+            "policies": {
+                name: [
+                    policy
+                    for applies, policy in (
+                        (name in option_orders, "randomized_option_order"),
+                        (name in matrix_row_orders, "randomized_matrix_row_order"),
+                    )
+                    if applies
+                ]
+                for name in randomized_questions
+            },
+            "exposure_order": [a.question_name for a in completion_order],
+            "exposure_order_basis": "answer_completion_time",
+            "exposure_events": {
+                name: {
+                    "presented": (
+                        False
+                        if (task_statuses_by_question or {}).get(name)
+                        == TaskStatus.SKIPPED
+                        else (
+                            bool(
+                                answer_by_name[name].system_prompt
+                                or answer_by_name[name].user_prompt
+                            )
+                            if name in answer_by_name
+                            else None
+                        )
+                    ),
+                    "answered": name in answer_by_name,
+                    "answered_at": (
+                        answer_by_name[name].created_at.isoformat()
+                        if name in answer_by_name
+                        else None
+                    ),
+                }
+                for name in question_to_attributes
+            },
+        }
+        randomization["not_presented_questions"] = [
+            name
+            for name, event in randomization["exposure_events"].items()
+            if event["presented"] is False
+        ]
+
         _t = _time.time()
         result = Result(
             agent=agent,
@@ -2143,6 +2210,7 @@ class JobService:
             resolution_draw=resolution_draw_dict,
             resolution_seed=resolution_seed_dict,
             resolution_method=resolution_method_dict,
+            randomization=randomization,
         )
 
         # Set interview_hash for compatibility with EDSL's Interview-based results.
@@ -2372,6 +2440,11 @@ class JobService:
                 questions_data=questions_data,
                 prefetched_answers=interview_answers,
                 indices=indices,
+                task_statuses_by_question={
+                    task_definitions[task_id].question_name: task_statuses.get(task_id)
+                    for task_id in (interview_def.task_ids if interview_def else [])
+                    if task_id in task_definitions
+                },
                 _timing=_timing,
             )
             result_list.append(result)

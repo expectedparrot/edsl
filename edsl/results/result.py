@@ -93,6 +93,7 @@ class Result(Base, UserDict):
         resolution_draw: Optional[dict[QuestionName, Any]] = None,
         resolution_seed: Optional[dict[QuestionName, int]] = None,
         resolution_method: Optional[dict[QuestionName, str]] = None,
+        randomization: Optional[dict[str, Any]] = None,
     ):
         """Initialize a Result object.
 
@@ -139,6 +140,7 @@ class Result(Base, UserDict):
             "resolution_draw": resolution_draw or {},
             "resolution_seed": resolution_seed or {},
             "resolution_method": resolution_method or {},
+            "randomization": randomization or {},
         }
         super().__init__(**data)
         self.indices = indices
@@ -263,6 +265,7 @@ class Result(Base, UserDict):
             "resolution_draw": filter_keys(self.data.get("resolution_draw", {})),
             "resolution_seed": filter_keys(self.data.get("resolution_seed", {})),
             "resolution_method": filter_keys(self.data.get("resolution_method", {})),
+            "randomization": self.data.get("randomization", {}),
         }
 
         return Result(**new_data, indices=self.indices)
@@ -363,6 +366,7 @@ class Result(Base, UserDict):
             "validated_dict": rename_keys(
                 self.data.get("validated_dict", {}), handle_prefixes=True
             ),
+            "randomization": self.data.get("randomization", {}),
         }
 
         return Result(**new_data, indices=self.indices)

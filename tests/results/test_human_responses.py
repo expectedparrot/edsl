@@ -95,6 +95,28 @@ def test_per_question_fields_land_in_raw_model_response():
     assert rmr["color_answered_at"] == "t4"
 
 
+def test_randomization_provenance_is_queryable_and_round_trips(tmp_path):
+    results = Results.from_human_responses(make_survey(), [make_row(entries=ANSWERED)])
+    row = results.select(
+        "randomization.assignment_id",
+        "randomization.assignment_unit",
+        "randomization.presented_options",
+        "randomization.exposure_order",
+    ).to_dicts(remove_prefix=False)[0]
+    assert row["randomization.assignment_id"] == "r1"
+    assert row["randomization.assignment_unit"] == "human_response"
+    assert row["randomization.presented_options"] == {
+        "color": ["green", "blue", "red"]
+    }
+    assert row["randomization.exposure_order"] == ["name", "color"]
+    restored = Results.from_dict(results.to_dict())
+    assert restored[0]["randomization"] == results[0]["randomization"]
+    package_path = tmp_path / "randomization-results.ep"
+    results.git.save(package_path)
+    package_restored = Results.git.load(package_path)
+    assert package_restored[0]["randomization"] == results[0]["randomization"]
+
+
 RECORDINGS = [
     {
         "role": "respondent",

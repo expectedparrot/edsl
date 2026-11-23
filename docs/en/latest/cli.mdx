@@ -255,6 +255,20 @@ ep results export results.ep \
 
 Repeat `--column` for multiple columns; do not pass a comma-separated list. Inspect available columns before selecting them. Use a bounded `select` to review responses and `export` to save larger datasets. Results queries support `.ep`, `.json`, and `.json.gz` files.
 
+For randomized surveys, inspect assignment and exposure provenance as structured columns:
+
+```bash
+ep results columns --file results.ep
+ep results select --file results.ep \
+  --column randomization.assignment_id \
+  --column randomization.option_orders \
+  --column randomization.exposure_order
+ep results export results.ep \
+  --column randomization.assignment_id \
+  --column randomization.exposure_events \
+  --output randomization.csv
+```
+
 ## Automation conventions
 
 - Discover commands and schemas from the installed version before generating inputs.
