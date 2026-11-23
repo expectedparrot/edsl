@@ -91,6 +91,42 @@ class TestEnvelope:
         assert out["data"]["config"]["EXPECTED_PARROT_API_KEY"] == "***"
         assert "ep_test_secret" not in result.output
 
+    def test_survey_question_order_block_cli_authoring_and_inspection(self, tmp_path):
+        from edsl import QuestionFreeText, Survey
+
+        survey_path = tmp_path / "survey.ep"
+        survey = Survey(
+            [
+                QuestionFreeText(question_name=name, question_text=f"{name}?")
+                for name in ("trust", "fairness", "satisfaction")
+            ]
+        )
+        survey.git.save(survey_path)
+
+        edited = run_cli(
+            "surveys",
+            "add-question-order-block",
+            str(survey_path),
+            "--name",
+            "attitudes",
+            "--question",
+            "trust",
+            "--question",
+            "fairness",
+            "--question",
+            "satisfaction",
+        )
+        assert edited["status"] == "ok"
+        shown = run_cli("surveys", "show", str(survey_path))
+        assert shown["status"] == "ok"
+        assert shown["data"]["question_order"]["blocks"][0]["name"] == "attitudes"
+        validated = run_cli("validate", "--file", str(survey_path))
+        assert validated["status"] == "ok"
+        assert (
+            Survey.git.load(survey_path).question_order["blocks"][0]["name"]
+            == "attitudes"
+        )
+
 
 class TestCliModuleBoundaries:
     def test_command_modules_import_independently(self):

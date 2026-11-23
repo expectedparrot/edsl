@@ -156,6 +156,18 @@ ep inspect survey.ep
 
 `add-question` updates the survey package in place. A job built earlier retains its saved survey, so rebuild the job to include the new question. Use `ep agents create --help` and `ep scenarios create --help` for creating respondent profiles and scenario data from files.
 
+Declare and inspect question-order blocks with `ep surveys add-question-order-block` and `ep surveys show`:
+
+```bash
+ep surveys add-question-order-block survey.ep \
+  --name attitudes \
+  --question trust --question fairness --question satisfaction
+ep surveys show survey.ep
+ep validate --file survey.ep
+```
+
+V1 requires at least two contiguous, independent questions in declared order. It rejects custom branching, internal piping or memory dependencies, and instructions inside a block. `questions_to_randomize` continues to randomize answer options. Humanize currently reports a capability error for surveys with question-order blocks.
+
 If validation fails, correct the reported problem before running the object.
 
 ## Run with language models
@@ -262,6 +274,7 @@ ep results columns --file results.ep
 ep results select --file results.ep \
   --column randomization.assignment_id \
   --column randomization.option_orders \
+  --column randomization.planned_question_order \
   --column randomization.exposure_order
 ep results export results.ep \
   --column randomization.assignment_id \

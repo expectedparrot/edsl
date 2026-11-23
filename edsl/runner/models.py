@@ -275,6 +275,10 @@ class InterviewDefinition:
     # Only populated for questions in survey.questions_to_randomize
     question_option_permutations: dict[str, list] = field(default_factory=dict)
     question_item_randomization_seeds: dict[str, int] = field(default_factory=dict)
+    question_order: list[str] = field(default_factory=list)
+    question_order_seeds: dict[str, int] = field(default_factory=dict)
+    question_order_blocks: dict[str, list[str]] = field(default_factory=dict)
+    randomization_assignment_id: str | None = None
     indices: dict[str, int] | None = None
 
     def storage_key(self) -> str:
@@ -290,6 +294,10 @@ class InterviewDefinition:
             "iteration": self.iteration,
             "question_option_permutations": self.question_option_permutations,
             "question_item_randomization_seeds": self.question_item_randomization_seeds,
+            "question_order": self.question_order,
+            "question_order_seeds": self.question_order_seeds,
+            "question_order_blocks": self.question_order_blocks,
+            "randomization_assignment_id": self.randomization_assignment_id,
             "indices": self.indices,
         }
 
@@ -310,6 +318,10 @@ class InterviewDefinition:
             question_item_randomization_seeds=data.get(
                 "question_item_randomization_seeds", {}
             ),
+            question_order=data.get("question_order", []),
+            question_order_seeds=data.get("question_order_seeds", {}),
+            question_order_blocks=data.get("question_order_blocks", {}),
+            randomization_assignment_id=data.get("randomization_assignment_id"),
             indices=data.get("indices"),
         )
 

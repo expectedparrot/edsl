@@ -8,8 +8,9 @@ Surveys can include skip logic, memory management, and question groups.
 """
 
 from __future__ import annotations
-import re
+import copy
 import random
+import re
 from uuid import uuid4
 from pathlib import Path
 
@@ -170,6 +171,7 @@ class Survey(Base):
         name: Optional[str] = None,
         questions_to_randomize: Optional[List[str]] = None,
         options_to_pin: Optional[Dict[str, List]] = None,
+        question_order: Optional[dict] = None,
         _internal_copy: bool = False,
     ):
         """Initialize a new Survey instance.
@@ -189,6 +191,8 @@ class Survey(Base):
             name: DEPRECATED. The name of the survey.
             questions_to_randomize: A list of question names to randomize when the
                 survey is drawn. This affects the order of options in these questions.
+            question_order: Versioned plan of named question blocks. Prefer
+                ``randomize_question_order`` to validate and add blocks.
 
         Examples:
             Create a basic survey with three questions:
@@ -241,6 +245,14 @@ class Survey(Base):
         self.questions_to_randomize = questions_to_randomize
 
         self.options_to_pin: Dict[str, List] = options_to_pin or {}
+        self._question_order = {
+            "version": 1,
+            "blocks": [],
+            "memory": {"mode": "preserve"},
+        }
+        if question_order is not None:
+            self._validate_question_order(question_order)
+            self._question_order = copy.deepcopy(question_order)
 
         self._seed: Optional[int] = None
 
@@ -1439,6 +1451,9 @@ class Survey(Base):
         if self.options_to_pin:
             d["options_to_pin"] = self.options_to_pin
 
+        if self._question_order["blocks"]:
+            d["question_order"] = copy.deepcopy(self._question_order)
+
         # Add version information if requested
         if add_edsl_version:
             d["edsl_version"] = __version__
@@ -1550,6 +1565,7 @@ class Survey(Base):
 
         # Get the pinned options if present
         options_to_pin = data.get("options_to_pin", None)
+        question_order = data.get("question_order")
 
         if "name" in data:
             name = data["name"]
@@ -1575,6 +1591,7 @@ class Survey(Base):
             questions_to_randomize=questions_to_randomize,
             name=name,
             options_to_pin=options_to_pin,
+            question_order=question_order,
             _internal_copy=_internal_copy,
         )
 
@@ -2141,7 +2158,17 @@ class Survey(Base):
                 "Cannot combine two surveys with non-default rules. Please use the 'clear_non_default_rules' method to remove non-default rules from the survey.",
             )
 
-        return Survey(questions=self.questions + other.questions)
+        combined = Survey(questions=self.questions + other.questions)
+        blocks = self.question_order["blocks"] + other.question_order["blocks"]
+        if blocks:
+            plan = {
+                "version": 1,
+                "blocks": blocks,
+                "memory": {"mode": "preserve"},
+            }
+            combined._validate_question_order(plan)
+            combined._question_order = plan
+        return combined
 
     def move_question(self, identifier: Union[str, int], new_index: int) -> Survey:
         """
@@ -2173,6 +2200,180 @@ class Survey(Base):
         0
         """
         return self._editor.delete_question(identifier)
+
+    @property
+    def question_order(self) -> dict:
+        """Return the versioned random question-order plan."""
+        return copy.deepcopy(self._question_order)
+
+    def _validate_question_order(self, plan: dict) -> None:
+        """Validate the supported v1 fixed-block permutation plan."""
+        from .exceptions import SurveyError
+
+        if not isinstance(plan, dict) or set(plan) != {
+            "version",
+            "blocks",
+            "memory",
+        }:
+            raise SurveyError(
+                "question_order must contain exactly version, blocks, and memory."
+            )
+        if plan["version"] != 1:
+            raise SurveyError(
+                "Unsupported question_order version; supported version is 1."
+            )
+        if plan["memory"] != {"mode": "preserve"}:
+            raise SurveyError(
+                "Question-order randomization currently supports "
+                "memory.mode='preserve' only."
+            )
+        if not isinstance(plan["blocks"], list):
+            raise SurveyError("question_order.blocks must be a list.")
+
+        sequence = self._recombined_questions_and_instructions()
+        sequence_names = [getattr(item, "question_name", None) for item in sequence]
+        all_names = [name for name in sequence_names if name is not None]
+        claimed: set[str] = set()
+        blocks_seen: set[str] = set()
+        for block in plan["blocks"]:
+            if not isinstance(block, dict) or set(block) != {
+                "name",
+                "questions",
+                "method",
+            }:
+                raise SurveyError(
+                    "Each question-order block needs name, questions, and method."
+                )
+            name, members = block["name"], block["questions"]
+            if not isinstance(name, str) or not name.strip() or name in blocks_seen:
+                raise SurveyError(
+                    "Question-order block names must be unique, non-empty strings."
+                )
+            blocks_seen.add(name)
+            if block["method"] != "permute":
+                raise SurveyError("Question-order block method must be 'permute'.")
+            if (
+                not isinstance(members, list)
+                or len(members) < 2
+                or not all(isinstance(q, str) for q in members)
+            ):
+                raise SurveyError(
+                    "Each question-order block must name at least two questions."
+                )
+            if len(set(members)) != len(members):
+                raise SurveyError(f"Question-order block {name!r} repeats a question name.")
+            missing = set(members) - set(all_names)
+            if missing:
+                raise SurveyError(
+                    f"Question-order block {name!r} names unknown questions: "
+                    f"{sorted(missing)}."
+                )
+            overlap = claimed.intersection(members)
+            if overlap:
+                raise SurveyError(
+                    "Question-order blocks must be disjoint; repeated members: "
+                    f"{sorted(overlap)}."
+                )
+            claimed.update(members)
+            positions = [sequence_names.index(q) for q in members]
+            if positions != list(range(min(positions), max(positions) + 1)):
+                raise SurveyError(
+                    f"Question-order block {name!r} must be contiguous in the declared survey."
+                )
+            declared = [
+                q
+                for q in sequence_names[min(positions) : max(positions) + 1]
+                if q is not None
+            ]
+            if declared != members:
+                raise SurveyError(
+                    f"Question-order block {name!r} members must follow "
+                    "declared survey order."
+                )
+
+            for group_name, (start, end) in self.question_groups.items():
+                grouped = set(self.question_names[start : end + 1])
+                intersection = grouped.intersection(members)
+                if intersection and grouped != set(members):
+                    raise SurveyError(
+                        f"Question-order block {name!r} intersects display group "
+                        f"{group_name!r}; the group must contain exactly the block members."
+                    )
+
+        if plan["blocks"] and self.rule_collection.non_default_rules:
+            raise SurveyError(
+                "Question-order blocks do not yet support custom skip, stop, "
+                "or jump rules."
+            )
+
+        # A permutation is valid only when no member depends on another member.
+        names_by_index = {i: q.question_name for i, q in enumerate(self.questions)}
+        position_by_name = {
+            name: index
+            for index, name in enumerate(sequence_names)
+            if name is not None
+        }
+        dependencies = self.dag()
+        for child_index, parents in dependencies.items():
+            child = names_by_index.get(child_index)
+            for parent_index in parents:
+                parent = names_by_index.get(parent_index)
+                if child in claimed and parent in claimed:
+                    raise SurveyError(
+                        "Question-order block cannot be permuted because "
+                        f"{child!r} depends on {parent!r}."
+                    )
+                if child in claimed and parent in position_by_name:
+                    block = next(
+                        item
+                        for item in plan["blocks"]
+                        if child in item["questions"]
+                    )
+                    block_positions = [
+                        position_by_name[name] for name in block["questions"]
+                    ]
+                    if position_by_name[parent] > max(block_positions):
+                        raise SurveyError(
+                            f"Question-order block {block['name']!r} cannot be "
+                            f"permuted because {child!r} depends on later fixed "
+                            f"question {parent!r}."
+                        )
+
+    def randomize_question_order(self, block: str, questions: list[str]) -> Survey:
+        """Add a named contiguous block whose questions may be permuted per interview."""
+        from .exceptions import SurveyError
+
+        if any(existing["name"] == block for existing in self._question_order["blocks"]):
+            raise SurveyError(f"Question-order block {block!r} already exists.")
+        candidate = copy.deepcopy(self._question_order)
+        candidate["blocks"].append(
+            {"name": block, "questions": list(questions), "method": "permute"}
+        )
+        self._validate_question_order(candidate)
+        self._question_order = candidate
+        return self
+
+    def _inherit_question_order(self, new_survey: Survey) -> None:
+        """Carry complete blocks into derived surveys and reject partial blocks."""
+        from .exceptions import SurveyError
+
+        selected = set(new_survey.question_names)
+        blocks = []
+        for block in self._question_order["blocks"]:
+            members = set(block["questions"])
+            overlap = selected.intersection(members)
+            if overlap and overlap != members:
+                raise SurveyError(
+                    f"Subset contains only part of question-order block "
+                    f"{block['name']!r}; retain all block questions or none."
+                )
+            if overlap:
+                blocks.append(copy.deepcopy(block))
+        if blocks:
+            plan = copy.deepcopy(self._question_order)
+            plan["blocks"] = blocks
+            new_survey._validate_question_order(plan)
+            new_survey._question_order = plan
 
     def add_question(
         self, question: QuestionBase, index: Optional[int] = None
@@ -3815,6 +4016,8 @@ class Survey(Base):
             if relevant_randomization:
                 new_survey.questions_to_randomize = relevant_randomization
 
+        self._inherit_question_order(new_survey)
+
         return new_survey
 
     def __getitem__(
@@ -3890,7 +4093,9 @@ class Survey(Base):
 
         kept_questions = [self.get(name) for name in question_names]
         assert all(kept_questions), f"Question(s) {question_names} not found in survey"
-        return Survey(questions=kept_questions)
+        new_survey = Survey(questions=kept_questions)
+        self._inherit_question_order(new_survey)
+        return new_survey
 
     def drop(self, *question_names) -> "Survey":
         """Create a new Survey with specified questions removed by name.
@@ -4122,7 +4327,15 @@ class Survey(Base):
             if question.question_name in rename_dict:
                 new_question.question_name = rename_dict[question.question_name]
             new_questions.append(new_question)
-        return Survey(questions=new_questions)
+        question_order = copy.deepcopy(self._question_order)
+        for block in question_order["blocks"]:
+            block["questions"] = [
+                rename_dict.get(name, name) for name in block["questions"]
+            ]
+        return Survey(
+            questions=new_questions,
+            question_order=question_order if question_order["blocks"] else None,
+        )
 
     def with_edited_question(
         self,

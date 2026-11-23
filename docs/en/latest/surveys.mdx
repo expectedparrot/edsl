@@ -33,6 +33,21 @@ A stop rule is evaluated after its question. A skip rule can bypass an individua
 
 See [Survey logic and piping](/en/latest/guides/survey_logic) for testing routes and [Survey messages](/en/latest/survey_messages) for instructions shown between questions.
 
+## Randomize question order within blocks
+
+Use `randomize_question_order()` to mark a contiguous set of independent questions as a named block. The block moves as a unit among fixed surrounding questions; answer names and question definitions stay the same. `questions_to_randomize` remains the separate setting for answer-option order.
+
+```python
+survey = Survey([consent, trust, fairness, satisfaction, age])
+survey.randomize_question_order(
+    "attitudes", ["trust", "fairness", "satisfaction"]
+)
+```
+
+V1 preserves the named memory plan and rejects internal piping or memory dependencies, custom skip/stop/jump rules, and instructions between block members. Blocks must be disjoint, contain at least two questions, and follow declared survey order. Within a submitted job, a respondent/scenario/iteration assignment gets the same order across models. The realized permutation and per-block seeds are saved with the interview, so retries and resumes reuse it. Results record `randomization.planned_question_order`; model task execution is serialized for surveys using this feature. Humanize does not yet support question-order blocks and rejects them at publication time.
+
+Use `ep surveys add-question-order-block` to configure a block in a saved survey and `ep surveys show` to inspect it. See the [CLI Guide](/en/latest/cli#create-and-validate-study-objects) for the commands.
+
 ## Prepare a run
 
 Combine a survey with scenarios, agents, and models using `by()` to construct a [Jobs](/en/latest/jobs) object. For example, `survey.by(messages).by(model)` prepares one interview per message scenario; calling `.run()` collects the answers. Use `survey.run()` when you want to ask it once with the default model and no custom profiles or scenarios. See [Model access](/en/latest/api_keys) for connecting a model.
