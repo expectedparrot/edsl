@@ -811,6 +811,10 @@ class JobsRemoteInferenceHandler:
                     cache_used_dict[qname] = a.get("cached", False)
                     cache_keys[qname] = a.get("cache_key")
                     validated_dict[f"{qname}_validated"] = a.get("validated")
+                    if a.get("answer_source") is not None:
+                        validated_dict[f"{qname}_answer_source"] = a.get(
+                            "answer_source"
+                        )
 
                 result = Result(
                     agent=agent,

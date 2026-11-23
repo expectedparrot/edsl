@@ -329,6 +329,61 @@ def test_numerical_repair_does_not_fall_back_to_an_in_range_value():
         )
 
 
+def test_numerical_repair_does_not_hide_out_of_range_candidates():
+    q = QuestionNumerical(
+        question_name="probability",
+        question_text="Return one probability.",
+        min_value=0,
+        max_value=1,
+    )
+
+    with pytest.raises(QuestionAnswerValidationError):
+        q.response_validator.validate(
+            {"answer": "I started at 0.5 but settled on 1.5."}
+        )
+
+
+def test_numerical_repair_rejects_alternatives_after_answer_marker():
+    q = QuestionNumerical(
+        question_name="probability",
+        question_text="Return one probability.",
+        min_value=0,
+        max_value=1,
+    )
+
+    with pytest.raises(QuestionAnswerValidationError):
+        q.response_validator.validate({"answer": "Final answer: 0.2 or 0.8"})
+
+
+def test_numerical_repair_does_not_prioritize_an_earlier_standalone_number():
+    q = QuestionNumerical(
+        question_name="probability",
+        question_text="Return one probability.",
+        min_value=0,
+        max_value=1,
+    )
+
+    with pytest.raises(QuestionAnswerValidationError):
+        q.response_validator.validate(
+            {"answer": "0.2\nAfter recalculating, I get 0.8."}
+        )
+
+
+def test_numerical_repair_preserves_large_integers():
+    q = QuestionNumerical(
+        question_name="count",
+        question_text="Return a count.",
+    )
+    large_integer = 9_007_199_254_740_993
+
+    result = q.response_validator.validate(
+        {"answer": "Final answer: 9,007,199,254,740,993"}
+    )
+
+    assert result["answer"] == large_integer
+    assert isinstance(result["answer"], int)
+
+
 def test_numerical_repair_uses_generated_tokens_only_without_an_answer():
     q = QuestionNumerical(
         question_name="probability",

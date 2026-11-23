@@ -304,10 +304,9 @@ class NumericalResponseValidator(ResponseValidatorABC):
                 match.group(1) if match.re.groups else match.group(0)
             )
             number_text = captured_number.replace(",", "")
-            number = float(number_text)
             if "." not in number_text and "e" not in number_text.lower():
-                return int(number)
-            return number
+                return int(number_text)
+            return float(number_text)
 
         def unique_numbers(matches: list[re.Match]) -> list[float | int]:
             values = []
@@ -317,38 +316,34 @@ class NumericalResponseValidator(ResponseValidatorABC):
                     values.append(value)
             return values
 
-        final_markers = unique_numbers(list(self._final_answer_pattern.finditer(text)))
+        def marker_numbers(pattern: re.Pattern) -> list[float | int]:
+            values = []
+            for match in pattern.finditer(text):
+                line_end = text.find("\n", match.end())
+                if line_end == -1:
+                    line_end = len(text)
+                answer_line = text[match.start(1) : line_end]
+                values.extend(
+                    parse_number(number_match)
+                    for number_match in self._number_pattern.finditer(answer_line)
+                )
+            return list(dict.fromkeys(values))
+
+        final_markers = marker_numbers(self._final_answer_pattern)
         if final_markers:
             return final_markers
 
-        answer_markers = unique_numbers(
-            list(self._answer_marker_pattern.finditer(text))
-        )
+        answer_markers = marker_numbers(self._answer_marker_pattern)
         if answer_markers:
             return answer_markers
 
-        standalone = unique_numbers(
-            [
-                match
-                for line in text.splitlines()
-                if (match := self._standalone_number_pattern.fullmatch(line))
-            ]
-        )
-        if standalone:
-            return standalone
+        nonempty_lines = [line for line in text.splitlines() if line.strip()]
+        if nonempty_lines:
+            final_line = self._standalone_number_pattern.fullmatch(nonempty_lines[-1])
+            if final_line:
+                return unique_numbers([final_line])
 
-        all_candidates = unique_numbers(list(self._number_pattern.finditer(text)))
-        return [value for value in all_candidates if self._is_in_range(value)]
-
-    def _is_in_range(self, value: float | int) -> bool:
-        """Return whether a candidate satisfies the numerical question bounds."""
-        if self.permissive:
-            return True
-        if self.min_value is not None and value < float(self.min_value):
-            return False
-        if self.max_value is not None and value > float(self.max_value):
-            return False
-        return True
+        return unique_numbers(list(self._number_pattern.finditer(text)))
 
     def _check_constraints(self, pydantic_edsl_answer: BaseModel):
         """Method preserved for compatibility, constraints handled in Pydantic model."""
