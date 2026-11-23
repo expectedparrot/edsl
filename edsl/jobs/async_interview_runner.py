@@ -237,6 +237,7 @@ class AsyncInterviewRunner:
         --------
             >>> from unittest.mock import MagicMock
             >>> mock_jobs = MagicMock()
+            >>> mock_jobs.treatment_assignment = None
             >>> mock_interview = MagicMock()
             >>> mock_jobs.generate_interviews.return_value = [mock_interview]
             >>> mock_run_config = MagicMock()
