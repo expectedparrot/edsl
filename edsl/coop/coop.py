@@ -1826,8 +1826,8 @@ class Coop(CoopFunctionsMixin):
         Returns:
             dict: A dict with:
                 - human_surveys: list of dicts with uuid, name, visibility, created_ts,
-                  n_complete (finished responses) and n_in_progress (responses still
-                  being taken)
+                  is_active (False while response collection is paused), n_complete
+                  (finished responses) and n_in_progress (responses still being taken)
                 - current_page, page_size, total_pages, total_count
 
         Raises:
@@ -3032,6 +3032,7 @@ class Coop(CoopFunctionsMixin):
             "admin_url": f"{self.url}/home/human-surveys/{response_json.get('uuid')}",
             "respondent_url": respondent_url,
             "preview_url": self._get_preview_url(respondent_url),
+            "is_active": response_json.get("is_active"),
             "n_complete": response_json.get("n_complete"),
             "n_in_progress": response_json.get("n_in_progress"),
             "survey_uuid": response_json.get("survey_uuid"),
@@ -3062,11 +3063,68 @@ class Coop(CoopFunctionsMixin):
             "admin_url": f"{self.url}/home/human-surveys/{response_json.get('uuid')}",
             "respondent_url": respondent_url,
             "preview_url": self._get_preview_url(respondent_url),
+            "is_active": response_json.get("is_active"),
             "n_complete": response_json.get("n_complete"),
             "n_in_progress": response_json.get("n_in_progress"),
             "survey_uuid": response_json.get("survey_uuid"),
             "agent_list_uuid": response_json.get("agent_list_uuid"),
             "scenario_list_uuid": response_json.get("scenario_list_uuid"),
+        }
+
+    def pause_human_survey(self, human_survey_uuid: Union[str, UUID]) -> dict:
+        """
+        Pause response collection for a human survey.
+
+        New respondents who open the link are told the survey is closed. Anyone
+        partway through can still finish. Pausing a survey that is already paused
+        does nothing. Undo with ``resume_human_survey()``.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+
+        Returns:
+            dict: ``uuid``, ``is_active`` (False), ``n_complete`` and
+            ``n_in_progress`` (responses that can still be finished).
+
+        Raises:
+            CoopServerResponseError: If the survey doesn't exist or you don't own it.
+        """
+        return self._set_human_survey_active(human_survey_uuid, False)
+
+    def resume_human_survey(self, human_survey_uuid: Union[str, UUID]) -> dict:
+        """
+        Resume response collection for a paused human survey.
+
+        The link accepts new respondents again. Resuming a survey that isn't paused
+        does nothing.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+
+        Returns:
+            dict: ``uuid``, ``is_active`` (True), ``n_complete`` and
+            ``n_in_progress``.
+
+        Raises:
+            CoopServerResponseError: If the survey doesn't exist or you don't own it.
+        """
+        return self._set_human_survey_active(human_survey_uuid, True)
+
+    def _set_human_survey_active(
+        self, human_survey_uuid: Union[str, UUID], is_active: bool
+    ) -> dict:
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/active",
+            method="PATCH",
+            payload={"is_active": is_active},
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "uuid": data.get("uuid"),
+            "is_active": data.get("is_active"),
+            "n_complete": data.get("n_complete"),
+            "n_in_progress": data.get("n_in_progress"),
         }
 
     def get_human_survey_qr_code(

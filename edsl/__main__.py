@@ -363,7 +363,8 @@ def humanize(ctx):
     if ctx.invoked_subcommand is None:
         _output({
             "commands": [
-                "list", "create", "status", "responses", "qr", "preview",
+                "list", "create", "status", "pause", "resume", "responses", "qr",
+                "preview",
                 "respondents", "links", "events", "interactions", "assistant",
                 "background", "schedules", "deliveries", "callbacks",
                 "agent-list", "agent-access", "schema", "css", "custom-js-access",

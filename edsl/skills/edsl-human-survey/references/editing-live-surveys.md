@@ -105,3 +105,29 @@ Leave out `.by(scenarios)` and `scenario_list_method` when the survey has no
 scenarios, and `.by(agents)`, `delivery_map`, and the agent-list patch when it
 has no agent list. If the edit renamed or removed a question, update its
 entries in `humanize_schema` and `question_settings` to match.
+
+### Pausing and resuming response collection
+
+Pause a survey to stop taking responses without changing it. Its links stay the
+same.
+
+```python
+from edsl import Coop
+
+result = Coop().pause_human_survey(human_survey_uuid)
+# {"uuid", "is_active": False, "n_complete", "n_in_progress"}
+
+Coop().resume_human_survey(human_survey_uuid)
+```
+
+The CLI equivalents are `ep humanize pause <uuid>` and `ep humanize resume <uuid>`.
+
+While a survey is paused, anyone who opens its link without a response in
+progress, person or AI agent, is told the survey is closed. Respondents who are
+partway through can still finish; `n_in_progress` in the result says how many.
+Pausing or resuming twice changes nothing. `get_human_survey()`,
+`list_human_surveys()`, `ep humanize status`, and `ep humanize list` include
+`is_active`, which is `False` while the survey is paused.
+
+Pausing the survey doesn't pause a Prolific study that recruits for it; pause or
+stop the study separately (`edsl:edsl-prolific`).
