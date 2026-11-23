@@ -842,6 +842,7 @@ class JobService:
         thinking_tokens: int | None = None,
         cache_key: str | None = None,
         validated: bool | None = None,
+        answer_source: str | None = None,
         reasoning_summary: str | None = None,
         distribution: list[float] | None = None,
         resolution_draw: Any = None,
@@ -881,6 +882,7 @@ class JobService:
             output_price_per_million_tokens=output_price_per_million_tokens,
             cache_key=cache_key,
             validated=validated,
+            answer_source=answer_source,
             reasoning_summary=reasoning_summary,
             distribution=distribution,
             resolution_draw=resolution_draw,
@@ -2009,6 +2011,8 @@ class JobService:
         validated_dict = {}
         for a in answers:
             validated_dict[f"{a.question_name}_validated"] = a.validated
+            if a.answer_source is not None:
+                validated_dict[f"{a.question_name}_answer_source"] = a.answer_source
 
         distribution_dict = {
             a.question_name: a.distribution

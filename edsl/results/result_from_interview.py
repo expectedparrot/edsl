@@ -334,6 +334,9 @@ class ResultFromInterview:
         validated_dict = {}
         for result in model_response_objects:
             validated_dict[f"{result.question_name}_validated"] = result.validated
+            answer_source = getattr(result, "answer_source", None)
+            if answer_source is not None:
+                validated_dict[f"{result.question_name}_answer_source"] = answer_source
         return validated_dict
 
     def _build_question_to_attributes(self, survey):

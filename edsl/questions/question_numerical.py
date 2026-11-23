@@ -163,22 +163,68 @@ class NumericalResponseValidator(ResponseValidatorABC):
         >>> response = {"answer": "42"}
         >>> fixed = validator.fix(response)
         >>> fixed
-        {'answer': '42'}
+        {'answer': 42, 'answer_source': 'repaired'}
 
         >>> # Extract number from text
         >>> response = {"answer": "The answer is 42"}
         >>> fixed = validator.fix(response)
         >>> fixed
-        {'answer': '42'}
+        {'answer': 42, 'answer_source': 'repaired'}
 
         >>> # Preserve comments when fixing
         >>> response = {"answer": "The answer is 42", "comment": "My explanation"}
         >>> fixed = validator.fix(response)
         >>> fixed
-        {'answer': '42', 'comment': 'My explanation'}
+        {'answer': 42, 'comment': 'My explanation', 'answer_source': 'repaired'}
     """
 
     required_params = ["min_value", "max_value", "permissive"]
+
+    _number_pattern = re.compile(
+        r"(?<![\w.])[-+]?(?:\d{1,3}(?:,\d{3})+|\d+)"
+        r"(?:\.\d+)?(?:[eE][-+]?\d+)?(?![\w]|\.\d)"
+    )
+    _final_answer_pattern = re.compile(
+        r"\bfinal(?:\s+(?:answer|value|probability|estimate))?"
+        r"\s*(?:is|:|=)?\s*(" + _number_pattern.pattern + r")",
+        re.IGNORECASE,
+    )
+    _answer_marker_pattern = re.compile(
+        r"\b(?:the\s+)?(?:answer|probability|estimate)"
+        r"\s*(?:is|:|=)\s*(" + _number_pattern.pattern + r")",
+        re.IGNORECASE,
+    )
+    _standalone_number_pattern = re.compile(
+        r"^\s*(" + _number_pattern.pattern + r")\s*%?\s*[.!]?\s*$"
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._pending_answer_source = "structured"
+
+    def validate(
+        self,
+        raw_edsl_answer_dict,
+        fix=False,
+        verbose=False,
+        replacement_dict=None,
+    ):
+        """Validate a response and reset repair provenance for each new answer."""
+        if not fix:
+            self._pending_answer_source = "structured"
+        return super().validate(
+            raw_edsl_answer_dict,
+            fix=fix,
+            verbose=verbose,
+            replacement_dict=replacement_dict,
+        )
+
+    def _extract_answer(self, response: BaseModel) -> dict:
+        """Include whether the numerical answer was parsed or heuristically repaired."""
+        answer = super()._extract_answer(response)
+        answer["answer_source"] = self._pending_answer_source
+        self._pending_answer_source = "structured"
+        return answer
 
     valid_examples = [
         ({"answer": 1}, {"min_value": 0, "max_value": 10}),
@@ -206,26 +252,103 @@ class NumericalResponseValidator(ResponseValidatorABC):
             A fixed version of the response dictionary.
 
         Notes:
-            - Attempts to extract numbers using regex pattern matching
-            - Removes commas from numbers (e.g., "1,000" → "1000")
-            - Preserves any comment in the original response
+            - Preserves structured numeric answers without examining other fields.
+            - Uses answer text, or generated_tokens only when answer is missing.
+            - Refuses to choose among multiple plausible numeric candidates.
+            - Preserves comments and generated tokens for auditability.
         """
-        response_text = str(response).lower()
+        fixed_response = dict(response)
+        answer = response.get("answer")
+
+        # A structured numeric answer always takes precedence over unrelated
+        # numbers in the generated text, even when the structured value itself
+        # later fails a range constraint.
+        if isinstance(answer, (int, float)) and not isinstance(answer, bool):
+            self._pending_answer_source = "structured"
+            fixed_response["answer_source"] = self._pending_answer_source
+            return fixed_response
+
+        text = answer if isinstance(answer, str) else None
+        if text is None and answer is None:
+            # Some providers return no parsed answer but retain the model's raw
+            # text. This is the only supported fallback to generated_tokens.
+            generated_tokens = response.get("generated_tokens")
+            text = generated_tokens if isinstance(generated_tokens, str) else None
+
+        if text is None:
+            return fixed_response
 
         if verbose:
-            print(f"Invalid generated tokens was: {response_text}")
+            print(f"Attempting numerical repair from answer text: {text}")
 
-        pattern = r"\b\d+(?:\.\d+)?\b"
-        match = re.search(pattern, response_text.replace(",", ""))
-        solution = match.group(0) if match else response.get("answer")
+        candidates = self._extract_repair_candidates(text)
+        if len(candidates) != 1:
+            self._pending_answer_source = "ambiguous"
+            fixed_response["answer_source"] = self._pending_answer_source
+            return fixed_response
+
+        solution = candidates[0]
+        self._pending_answer_source = "repaired"
+        fixed_response["answer"] = solution
+        fixed_response["answer_source"] = self._pending_answer_source
 
         if verbose:
             print("Proposed solution is: ", solution)
+        return fixed_response
 
-        if "comment" in response:
-            return {"answer": solution, "comment": response["comment"]}
-        else:
-            return {"answer": solution}
+    def _extract_repair_candidates(self, text: str) -> list[float | int]:
+        """Extract a single unambiguous number from an answer field."""
+
+        def parse_number(match: re.Match) -> float | int:
+            captured_number = (
+                match.group(1) if match.re.groups else match.group(0)
+            )
+            number_text = captured_number.replace(",", "")
+            number = float(number_text)
+            if "." not in number_text and "e" not in number_text.lower():
+                return int(number)
+            return number
+
+        def unique_numbers(matches: list[re.Match]) -> list[float | int]:
+            values = []
+            for match in matches:
+                value = parse_number(match)
+                if value not in values:
+                    values.append(value)
+            return values
+
+        final_markers = unique_numbers(list(self._final_answer_pattern.finditer(text)))
+        if final_markers:
+            return final_markers
+
+        answer_markers = unique_numbers(
+            list(self._answer_marker_pattern.finditer(text))
+        )
+        if answer_markers:
+            return answer_markers
+
+        standalone = unique_numbers(
+            [
+                match
+                for line in text.splitlines()
+                if (match := self._standalone_number_pattern.fullmatch(line))
+            ]
+        )
+        if standalone:
+            return standalone
+
+        all_candidates = unique_numbers(list(self._number_pattern.finditer(text)))
+        return [value for value in all_candidates if self._is_in_range(value)]
+
+    def _is_in_range(self, value: float | int) -> bool:
+        """Return whether a candidate satisfies the numerical question bounds."""
+        if self.permissive:
+            return True
+        if self.min_value is not None and value < float(self.min_value):
+            return False
+        if self.max_value is not None and value > float(self.max_value):
+            return False
+        return True
 
     def _check_constraints(self, pydantic_edsl_answer: BaseModel):
         """Method preserved for compatibility, constraints handled in Pydantic model."""

@@ -57,6 +57,7 @@ class ExecutionResult:
     # Cache and validation info
     cache_key: str | None = None
     validated: bool | None = None
+    answer_source: str | None = None
     reasoning_summary: str | None = None
     distribution: list[float] | None = None
     resolution_draw: Any = None
@@ -184,6 +185,7 @@ class ExecutionWorker:
                         thinking_tokens=result.thinking_tokens,
                         cache_key=result.cache_key,
                         validated=result.validated,
+                        answer_source=result.answer_source,
                         reasoning_summary=result.reasoning_summary,
                         distribution=result.distribution,
                         resolution_draw=result.resolution_draw,
@@ -335,6 +337,7 @@ class ExecutionWorker:
                 resolution_draw,
                 resolution_seed,
                 resolution_method,
+                answer_source,
             ) = self._validate_answer(task, answer, comment, generated_tokens)
 
             return ExecutionResult(
@@ -356,6 +359,7 @@ class ExecutionWorker:
                 thinking_tokens=thinking_tokens,
                 cache_key=cache_key,
                 validated=validated,
+                answer_source=answer_source,
                 reasoning_summary=reasoning_summary,
                 distribution=distribution,
                 resolution_draw=resolution_draw,
@@ -467,6 +471,7 @@ class ExecutionWorker:
             thinking_tokens=result.thinking_tokens,
             cache_key=result.cache_key,
             validated=result.validated,
+            answer_source=result.answer_source,
             reasoning_summary=result.reasoning_summary,
             distribution=result.distribution,
             resolution_draw=result.resolution_draw,
@@ -504,7 +509,16 @@ class ExecutionWorker:
 
     def _validate_answer(
         self, task: Any, answer: Any, comment: str | None, generated_tokens: str | None
-    ) -> tuple[Any, str | None, bool, list[float] | None, Any, int | None, str | None,]:
+    ) -> tuple[
+        Any,
+        str | None,
+        bool,
+        list[float] | None,
+        Any,
+        int | None,
+        str | None,
+        str | None,
+    ]:
         """Validate answer through the question's response validator.
 
         Resolves template options before validation.
@@ -513,14 +527,14 @@ class ExecutionWorker:
         Returns the answer, comment, validation status, and resolution audit fields.
         """
         if task.question_id is None:
-            return answer, comment, True, None, None, None, None
+            return answer, comment, True, None, None, None, None, None
 
         question_data = self._job_service._jobs.get_question(
             task.job_id, task.question_id
         )
 
         if not question_data:
-            return answer, comment, True, None, None, None, None
+            return answer, comment, True, None, None, None, None, None
 
         # Resolve template strings in question data before validation.
         # This handles question_options, min_value, max_value, etc.
@@ -579,12 +593,13 @@ class ExecutionWorker:
                 validated_dict.get("resolution_draw"),
                 validated_dict.get("resolution_seed"),
                 validated_dict.get("resolution_method"),
+                validated_dict.get("answer_source"),
             )
         except QuestionAnswerValidationError:
             raise  # Real validation failure — let _execute handle it
         except Exception:
             # Bug in validation code (e.g. type mismatch) — don't block the answer
-            return answer, comment, False, None, None, None, None
+            return answer, comment, False, None, None, None, None, None
 
     def _get_interview_answers(self, job_id: str, interview_id: str) -> dict:
         """Get current answers for an interview as {question_name: answer_value}."""
