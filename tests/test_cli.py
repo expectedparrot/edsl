@@ -7307,6 +7307,10 @@ class TestSurveys:
         restored = Survey.git.load(survey_path)
         assert restored.questions_to_randomize == ["pick"]
         assert restored.options_to_pin == {"pick": ["Other"]}
+        validation = CliRunner().invoke(
+            cli_module.app, ["validate", "--file", str(survey_path)]
+        )
+        assert validation.exit_code == 0, validation.output
 
         clear_result = CliRunner().invoke(
             cli_module.app,
