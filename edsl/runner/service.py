@@ -2084,6 +2084,16 @@ class JobService:
         # Build question_to_attributes from already-fetched questions_data
         # Get per-interview option permutations (for questions_to_randomize)
         _t_qattr = _time.time()
+        option_permutations = (
+            interview_def.question_option_permutations
+            if interview_def and hasattr(interview_def, "question_option_permutations")
+            else {}
+        )
+        option_randomizations = (
+            interview_def.question_option_randomizations
+            if interview_def and hasattr(interview_def, "question_option_randomizations")
+            else {}
+        )
         item_randomization_seeds = (
             interview_def.question_item_randomization_seeds
             if interview_def
@@ -2126,11 +2136,12 @@ class JobService:
             interview_def.iteration if hasattr(interview_def, "iteration") else 0
         )
 
-        option_orders = {
-            name: question_to_attributes.get(name, {}).get("question_options")
-            for name in option_permutations
-            if question_to_attributes.get(name, {}).get("question_options") is not None
-        }
+        randomized_option_names = set(option_permutations) | set(option_randomizations)
+        option_orders = {}
+        for name in randomized_option_names:
+            options = question_to_attributes.get(name, {}).get("question_options")
+            if isinstance(options, list):
+                option_orders[name] = options
         matrix_row_orders = {
             name: question_to_attributes.get(name, {}).get("question_items")
             for name in item_randomization_seeds
@@ -2138,7 +2149,9 @@ class JobService:
         }
         answer_by_name = {a.question_name: a for a in answers}
         completion_order = sorted(answers, key=lambda a: a.created_at)
-        randomized_questions = set(option_orders) | set(matrix_row_orders)
+        randomized_questions = (
+            set(option_orders) | set(option_randomizations) | set(matrix_row_orders)
+        )
         randomization = {
             "schema_version": 1,
             "design_version": 1,
@@ -2146,13 +2159,18 @@ class JobService:
             "assignment_unit": "interview",
             "option_orders": option_orders,
             "matrix_row_orders": matrix_row_orders,
-            "option_seeds": {},
+            "option_seeds": {
+                name: draw["seed"] for name, draw in option_randomizations.items()
+            },
             "matrix_row_seeds": dict(item_randomization_seeds),
             "policies": {
                 name: [
                     policy
                     for applies, policy in (
-                        (name in option_orders, "randomized_option_order"),
+                        (
+                            name in option_orders or name in option_randomizations,
+                            "randomized_option_order",
+                        ),
                         (name in matrix_row_orders, "randomized_matrix_row_order"),
                     )
                     if applies

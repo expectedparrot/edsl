@@ -191,6 +191,11 @@ def test_stored_draws_survive_reload_and_repeated_rendering(monkeypatch):
     results = handle.results(stop_on_exception=True)
     assert results.select("question_options.pick").to_list() == expected
     assert results.select("answer.pick").to_list() == ["Beta", "Alpha"]
+    for seed, (result, order) in enumerate(zip(results, expected)):
+        randomization = result["randomization"]
+        assert randomization["option_orders"]["pick"] == order
+        assert randomization["option_seeds"]["pick"] == seed
+        assert randomization["policies"]["pick"] == ["randomized_option_order"]
 
 
 def test_old_interview_definitions_have_no_deferred_draw():
