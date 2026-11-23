@@ -3147,6 +3147,8 @@ class TestHumanizeCli:
             "list",
             "create",
             "status",
+            "pause",
+            "resume",
             "responses",
             "qr",
             "preview",

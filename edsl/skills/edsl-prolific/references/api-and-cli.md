@@ -128,6 +128,11 @@ update the study status. Stop is terminal. `delete_prolific_study` applies only
 to draft studies. The CLI requires `--yes` for stop and delete so these
 irreversible actions are explicit.
 
+Pausing or resuming the study is separate from pausing the human survey
+(`coop.pause_human_survey(human_survey_uuid)`). A paused survey tells new
+respondents it's closed but doesn't stop Prolific recruiting; pause or stop the
+study as well when participation should stop.
+
 `preflight_prolific_study(...)` checks that the study is an unpublished draft,
 the deployed survey matches an optional expected `Survey`, required question
 names are present, and the relevant balance covers the required credits. It
