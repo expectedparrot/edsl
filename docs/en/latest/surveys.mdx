@@ -17,6 +17,44 @@ For [data labeling](/en/latest/guides/data_labeling), a survey might ask about e
 
 Construct questions before passing them to `Survey([...])`. Each question must have a unique name. See [Questions](/en/latest/questions) for choosing types; the survey controls how those questions work together.
 
+## Randomize answer-option order
+
+Set `questions_to_randomize` on a survey to shuffle the answer options for selected questions independently for each interview. This also works when a question's entire option list is supplied by a scenario or a prior answer; EDSL resolves the list before drawing and reuses that interview's order for rendering, validation, and result metadata.
+
+```python
+from edsl import QuestionMultipleChoice, Scenario, Survey
+
+question = QuestionMultipleChoice(
+    question_name="pick",
+    question_text="Pick one.",
+    question_options="{{ scenario.options }}",
+)
+survey = Survey([question], questions_to_randomize=["pick"])
+scenario = Scenario({"options": ["A", "B", "Other"]})
+```
+
+Use `options_to_pin` to keep selected values in their original positions while shuffling the others. Put an end-pinned option in the last position of the source list; pinning preserves its position rather than moving it.
+
+```python
+survey = Survey(
+    [question],
+    questions_to_randomize=["pick"],
+    options_to_pin={"pick": ["Other"]},
+)
+```
+
+For CLI-authored surveys, configure and inspect the same policy with `ep`:
+
+```bash
+ep surveys set-option-randomization survey.ep \
+  --question pick \
+  --pin-options '{"pick":["Other"]}'
+ep surveys show survey.ep
+ep results select --file results.ep --column question_options.pick --limit 5
+```
+
+The pinned values are JSON, so numbers and other typed options can be written as JSON values. Inspect `question_options.<name>` in results to see the order used for each interview. Avoid randomizing ordered scales, numeric ranges, or yes/no choices. This setting randomizes answer options, not question order.
+
 <span id="applying-survey-rules" />
 <span id="survey-rules-logic" />
 <span id="id2" />

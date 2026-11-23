@@ -330,9 +330,13 @@ class JobService:
                         "seed": random.getrandbits(64),
                         "pin_options": list(survey.options_to_pin.get(q_name, [])),
                     }
-                    for q_data in questions_batch.values()
-                    if (q_name := q_data.get("question_name")) in questions_to_randomize
-                    and isinstance(q_data.get("question_options"), (str, dict))
+                    for question in questions
+                    if (
+                        q_name := self._get_question_name(question)
+                    ) in questions_to_randomize
+                    and isinstance(
+                        self._to_dict(question).get("question_options"), (str, dict)
+                    )
                 }
 
                 # Create tasks for this interview

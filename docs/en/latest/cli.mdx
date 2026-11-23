@@ -156,6 +156,18 @@ ep inspect survey.ep
 
 `add-question` updates the survey package in place. A job built earlier retains its saved survey, so rebuild the job to include the new question. Use `ep agents create --help` and `ep scenarios create --help` for creating respondent profiles and scenario data from files.
 
+Set answer-option randomization on a survey with `set-option-randomization`. Repeat `--question` for each question; use `--pin-options` with a JSON object or a path to one when some options should stay in their original positions. This works for static choices and whole option lists resolved from scenarios or prior answers:
+
+```bash
+ep surveys set-option-randomization survey.ep \
+  --question recommend \
+  --pin-options '{"recommend":["No"]}'
+
+ep surveys show survey.ep
+```
+
+Use `--clear` to remove the survey's option-randomization settings. See [Surveys](/en/latest/surveys#randomize-answer-option-order) for execution behavior and Python examples.
+
 If validation fails, correct the reported problem before running the object.
 
 ## Run with language models

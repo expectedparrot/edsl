@@ -189,7 +189,6 @@ class DirectAnswerRegistry:
             options = self._job_service._resolve_interview_options(
                 question_data, interview_def, current_answers, entry.scenario
             )
-            )
             if isinstance(options, list):
                 question.question_options = list(options)
         items = self._job_service._resolve_question_items(

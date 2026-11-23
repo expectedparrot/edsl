@@ -10,6 +10,7 @@ import click
 from edsl.cli_shared import (
     EXIT_ERROR,
     EXIT_USAGE,
+    EXIT_VALIDATION,
     error,
     load_any_object,
     output,
@@ -345,6 +346,82 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
+    @surveys_group.command("set-option-randomization")
+    @click.argument("survey_path")
+    @click.option(
+        "--question",
+        "question_names",
+        multiple=True,
+        help="Question whose answer options, including dynamically resolved lists, should be shuffled. Repeat for multiple questions.",
+    )
+    @click.option(
+        "--pin-options",
+        "pin_options_json",
+        default=None,
+        help="JSON object (or path to one) mapping question names to option values kept in their original positions.",
+    )
+    @click.option("--clear", is_flag=True, help="Clear option randomization and pinned options.")
+    @click.option("--output", "-o", "output_path", default=None, help="Output .ep package, serialized file, or '-' for raw JSON stdout. Defaults to SURVEY_PATH.")
+    def set_option_randomization(
+        survey_path: str,
+        question_names: tuple[str, ...],
+        pin_options_json: str | None,
+        clear: bool,
+        output_path: str | None,
+    ):
+        """Configure per-interview answer-option randomization.
+
+        \b
+        Examples:
+          ep surveys set-option-randomization survey.ep --question q0
+          ep surveys set-option-randomization survey.ep --question q0 --pin-options '{"q0":["Other"]}'
+          ep surveys set-option-randomization survey.ep --clear
+        """
+        if clear and (question_names or pin_options_json):
+            error("USAGE_ERROR", "--clear cannot be combined with --question or --pin-options.", exit_code=EXIT_USAGE)
+        if not clear and not question_names:
+            error("USAGE_ERROR", "Provide at least one --question or use --clear.", exit_code=EXIT_USAGE)
+        if len(set(question_names)) != len(question_names):
+            error("USAGE_ERROR", "Each --question may be provided only once.", exit_code=EXIT_USAGE)
+
+        try:
+            survey = _load_survey(survey_path)
+            if clear:
+                survey.questions_to_randomize = []
+                survey.options_to_pin = {}
+            else:
+                known_questions = survey.question_names_to_questions()
+                for question_name in question_names:
+                    question = known_questions.get(question_name)
+                    if question is None:
+                        error("UNKNOWN_QUESTION", f"Unknown survey question: {question_name}", exit_code=EXIT_VALIDATION)
+                    if not hasattr(question, "question_options"):
+                        error("INVALID_RANDOMIZATION_TARGET", f"Question {question_name!r} has no answer options to randomize.", exit_code=EXIT_VALIDATION)
+
+                pin_options = _load_json_object(pin_options_json) if pin_options_json else {}
+                for question_name, values in pin_options.items():
+                    if question_name not in question_names:
+                        error("INVALID_PINNED_OPTIONS", f"Pinned options were supplied for {question_name!r}, but it is not listed with --question.", exit_code=EXIT_VALIDATION)
+                    if not isinstance(values, list):
+                        error("INVALID_PINNED_OPTIONS", f"Pinned options for {question_name!r} must be a JSON list.", exit_code=EXIT_VALIDATION)
+
+                survey.questions_to_randomize = list(question_names)
+                survey.options_to_pin = pin_options
+
+            saved = save_edsl_object(survey, output_path or survey_path, object_type="Survey")
+            if raw_output_written(saved):
+                return
+            output(_survey_summary(survey, saved=saved))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "SURVEYS_SET_OPTION_RANDOMIZATION_ERROR",
+                str(e),
+                suggestion="Check the survey path, question names, pinned option JSON, and output path.",
+                exit_code=EXIT_ERROR,
+            )
+
     @surveys_group.command("add-question-group")
     @click.argument("survey_path")
     @click.option("--name", "group_name", required=True, help="Question group name.")
@@ -647,6 +724,8 @@ def _survey_summary(survey, saved: dict | None = None) -> dict:
         "rule_count": len(rules),
         "rules": [_rule_summary(rule) for rule in rules],
         "question_groups": getattr(survey, "question_groups", {}),
+        "questions_to_randomize": getattr(survey, "questions_to_randomize", []),
+        "options_to_pin": getattr(survey, "options_to_pin", {}),
         "memory_plan": _memory_plan_summary(survey),
         "instructions": _instruction_summary(survey),
     }
@@ -794,13 +873,17 @@ def _load_json_object(value: str) -> dict:
     from pathlib import Path
 
     path = Path(value)
-    raw = path.read_text(encoding="utf-8") if path.exists() and path.is_file() else value
+    try:
+        is_file = path.is_file()
+    except OSError:
+        is_file = False
+    raw = path.read_text(encoding="utf-8") if is_file else value
     try:
         data = json.loads(raw)
     except json.JSONDecodeError as e:
         error("INVALID_JSON", f"Failed to parse JSON: {e}", exit_code=EXIT_USAGE)
     if not isinstance(data, dict):
-        error("USAGE_ERROR", "Question JSON must be an object.", exit_code=EXIT_USAGE)
+        error("USAGE_ERROR", "JSON input must be an object.", exit_code=EXIT_USAGE)
     return data
 
 
