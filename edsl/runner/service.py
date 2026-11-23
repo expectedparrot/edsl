@@ -104,9 +104,6 @@ class JobService:
         self._original_key_lookups: dict[str, Any] = (
             {}
         )  # job_id -> run_config.environment.key_lookup
-        self._interview_callbacks: dict[str, Any] = (
-            {}
-        )  # job_id -> callable(job_id, interview_id)
         self._interview_schedules: dict[str, Any] = {}
         self._round_snapshot_versions: dict[tuple, int] = {}
         self._round_snapshot_lock = threading.Lock()
@@ -417,15 +414,6 @@ class JobService:
     @property
     def answers(self) -> AnswerStore:
         return self._answers
-
-    def register_interview_callback(self, job_id: str, callback) -> None:
-        """Register a callback invoked when an interview completes.
-
-        The callback receives ``(job_id, interview_id)`` and is called
-        from ``on_task_completed`` / ``on_tasks_completed_batch`` once
-        all tasks for the interview are done.
-        """
-        self._interview_callbacks[job_id] = callback
 
     def get_model_for_task(self, job_id: str, model_id: str) -> Any:
         """
@@ -1661,9 +1649,6 @@ class JobService:
                 job_id, interview_id, state == InterviewState.COMPLETED_WITH_FAILURES
             )
             self._publish_shared_state_results(job_id)
-            callback = self._interview_callbacks.get(job_id)
-            if callback:
-                callback(job_id, interview_id)
 
     def _repair_if_terminal(self, job_id, task_def):
         if not self._distributed:
@@ -1843,10 +1828,6 @@ class JobService:
             had_failures = interview_state == InterviewState.COMPLETED_WITH_FAILURES
             self._jobs.mark_interview_completed(job_id, interview_id, had_failures)
             self._publish_shared_state_results(job_id)
-            # Notify CAS streaming callback (if registered)
-            cb = self._interview_callbacks.get(job_id)
-            if cb:
-                cb(job_id, interview_id)
         _dt_finalize = (_time.monotonic() - _t) * 1000
 
         _dt_total = (_time.monotonic() - _t_total) * 1000
@@ -1983,14 +1964,11 @@ class JobService:
         interview_states = self._interviews.get_states_batch(interview_ids)
         completed_iids = []
         had_failures_iids: set[str] = set()
-        cb = self._interview_callbacks.get(job_id)
         for iid, state in interview_states.items():
             if state != InterviewState.RUNNING:
                 completed_iids.append(iid)
                 if state == InterviewState.COMPLETED_WITH_FAILURES:
                     had_failures_iids.add(iid)
-                if cb:
-                    cb(job_id, iid)
 
         if completed_iids:
             self._jobs.mark_interviews_completed_batch(
@@ -2071,9 +2049,6 @@ class JobService:
             had_failures = interview_state == InterviewState.COMPLETED_WITH_FAILURES
             self._jobs.mark_interview_completed(job_id, interview_id, had_failures)
             self._publish_shared_state_results(job_id)
-            cb = self._interview_callbacks.get(job_id)
-            if cb:
-                cb(job_id, interview_id)
 
     @serialized_transition
     def on_task_failed(
@@ -2197,9 +2172,6 @@ class JobService:
             had_failures = True  # We just had a failure
             self._jobs.mark_interview_completed(job_id, interview_id, had_failures)
             self._publish_shared_state_results(job_id)
-            cb = self._interview_callbacks.get(job_id)
-            if cb:
-                cb(job_id, interview_id)
 
     def _propagate_failure(
         self, job_id: str, interview_id: str, dependent_ids: list[str]

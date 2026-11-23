@@ -2006,7 +2006,6 @@ class Jobs(Base):
             ),
             cache=self.run_config.environment.cache,
             stop_on_exception=self.run_config.parameters.stop_on_exception,
-            stream_to_cas=True,
         )
         return handle.results(
             show_progress=self.run_config.parameters.progress_bar,
