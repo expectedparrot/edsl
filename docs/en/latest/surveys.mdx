@@ -33,6 +33,44 @@ A stop rule is evaluated after its question. A skip rule can bypass an individua
 
 See [Survey logic and piping](/en/latest/guides/survey_logic) for testing routes and [Survey messages](/en/latest/survey_messages) for instructions shown between questions.
 
+## Counterbalance a linear scale's direction
+
+For model-run experiments, a linear scale can be shown in its declared order or
+reversed for each agent/scenario/iteration assignment. Direction is shared
+across model variants. The scale values and their labels remain attached, so
+reversing the presentation does not change the numeric meaning of an answer.
+Version 1 makes independent forward/reverse draws and does not guarantee exact
+balance. Humanize deployments do not apply this model-run assignment policy.
+Full remote job offload does not support it yet, so disable offload and use the
+local runner (which can still use an API proxy for model calls).
+
+```python
+from edsl import Model, QuestionLinearScale, Survey
+
+q = QuestionLinearScale(
+    question_name="satisfaction",
+    question_text="How satisfied are you?",
+    question_options=[1, 2, 3, 4, 5],
+    option_labels={1: "Very dissatisfied", 5: "Very satisfied"},
+)
+survey = Survey([q]).randomize_scale_direction("satisfaction")
+model = Model("gpt-4o-mini")
+results = survey.by(model).run(offload_execution=False)
+```
+
+Each result records `randomization.scale_directions`,
+`randomization.scale_direction_seeds`, a shared
+`randomization.scale_direction_assignment_id`, and the realized option order.
+The policy is included when saving the Survey as JSON or an `.ep` package.
+
+The CLI can set or clear the same policy:
+
+```bash
+ep surveys set-scale-direction-randomization survey.ep --question satisfaction
+ep surveys show survey.ep
+ep surveys set-scale-direction-randomization survey.ep --clear
+```
+
 ## Prepare a run
 
 Combine a survey with scenarios, agents, and models using `by()` to construct a [Jobs](/en/latest/jobs) object. For example, `survey.by(messages).by(model)` prepares one interview per message scenario; calling `.run()` collects the answers. Use `survey.run()` when you want to ask it once with the default model and no custom profiles or scenarios. See [Model access](/en/latest/api_keys) for connecting a model.

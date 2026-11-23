@@ -292,6 +292,10 @@ class JobService:
 
         # Get questions to randomize (if any)
         questions_to_randomize = getattr(survey, "questions_to_randomize", []) or []
+        scale_policy = getattr(survey, "scale_direction_randomization", None)
+        scale_question_names = (scale_policy or {}).get("questions", [])
+        scale_assignments = {}
+        scale_assignment_ids = {}
 
         # Resolve source positions in plan order, including duplicate rows.
         t0 = time.time()
@@ -318,6 +322,34 @@ class JobService:
                     questions_to_randomize,
                     getattr(survey, "options_to_pin", None),
                 )
+                scale_directions = {}
+                scale_direction_seeds = {}
+                assignment_key = (agent_index, scenario_index, iteration)
+                if scale_question_names:
+                    if assignment_key not in scale_assignments:
+                        scale_assignment_ids[assignment_key] = generate_id()
+                        scale_assignments[assignment_key] = {
+                            name: (
+                                seed := random.getrandbits(64),
+                                random.Random(seed).choice(("forward", "reverse")),
+                            )
+                            for name in scale_question_names
+                        }
+                    questions_by_name = {
+                        self._get_question_name(question): question
+                        for question in questions
+                    }
+                    for name, (seed, direction) in scale_assignments[
+                        assignment_key
+                    ].items():
+                        options = list(questions_by_name[name].question_options)
+                        scale_directions[name] = direction
+                        scale_direction_seeds[name] = seed
+                        question_option_permutations[name] = (
+                            options
+                            if direction == "forward"
+                            else list(reversed(options))
+                        )
                 question_item_randomization_seeds = {
                     self._get_question_name(question): random.getrandbits(64)
                     for question in questions
@@ -376,6 +408,11 @@ class JobService:
                     iteration=iteration,
                     question_option_permutations=question_option_permutations,
                     question_item_randomization_seeds=question_item_randomization_seeds,
+                    scale_directions=scale_directions,
+                    scale_direction_seeds=scale_direction_seeds,
+                    scale_direction_assignment_id=scale_assignment_ids.get(
+                        assignment_key
+                    ),
                     indices={
                         "agent": agent_index,
                         "scenario": scenario_index,
@@ -2127,6 +2164,10 @@ class JobService:
             for name in option_permutations
             if question_to_attributes.get(name, {}).get("question_options") is not None
         }
+        scale_directions = getattr(interview_def, "scale_directions", {}) or {}
+        scale_direction_seeds = (
+            getattr(interview_def, "scale_direction_seeds", {}) or {}
+        )
         matrix_row_orders = {
             name: question_to_attributes.get(name, {}).get("question_items")
             for name in item_randomization_seeds
@@ -2135,6 +2176,11 @@ class JobService:
         answer_by_name = {a.question_name: a for a in answers}
         completion_order = sorted(answers, key=lambda a: a.created_at)
         randomized_questions = set(option_orders) | set(matrix_row_orders)
+        scale_randomized_questions = set(scale_directions)
+        ordinary_option_randomized_questions = (
+            set(option_orders) - scale_randomized_questions
+        )
+        randomized_questions |= scale_randomized_questions
         randomization = {
             "schema_version": 1,
             "design_version": 1,
@@ -2142,13 +2188,25 @@ class JobService:
             "assignment_unit": "interview",
             "option_orders": option_orders,
             "matrix_row_orders": matrix_row_orders,
+            "scale_directions": dict(scale_directions),
+            "scale_direction_seeds": dict(scale_direction_seeds),
+            "scale_direction_assignment_id": getattr(
+                interview_def, "scale_direction_assignment_id", None
+            ),
+            "scale_direction_assignment_unit": (
+                "agent_scenario_iteration" if scale_directions else None
+            ),
             "option_seeds": {},
             "matrix_row_seeds": dict(item_randomization_seeds),
             "policies": {
                 name: [
                     policy
                     for applies, policy in (
-                        (name in option_orders, "randomized_option_order"),
+                        (
+                            name in ordinary_option_randomized_questions,
+                            "randomized_option_order",
+                        ),
+                        (name in scale_randomized_questions, "randomized_scale_direction"),
                         (name in matrix_row_orders, "randomized_matrix_row_order"),
                     )
                     if applies

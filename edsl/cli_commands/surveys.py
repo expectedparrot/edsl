@@ -395,6 +395,58 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
+    @surveys_group.command("set-scale-direction-randomization")
+    @click.argument("survey_path")
+    @click.option(
+        "--question",
+        "question_names",
+        multiple=True,
+        help="Linear-scale question name. Repeat for multiple scales.",
+    )
+    @click.option(
+        "--clear", "clear_policy", is_flag=True, help="Remove scale-direction randomization."
+    )
+    @click.option(
+        "--output",
+        "output_path",
+        default=None,
+        help="Output .ep package or serialized file. Defaults to SURVEY_PATH.",
+    )
+    def set_scale_direction_randomization(
+        survey_path: str,
+        question_names: tuple[str, ...],
+        clear_policy: bool,
+        output_path: str | None,
+    ):
+        """Set or clear v1 forward/reverse randomization for linear scales."""
+        try:
+            if clear_policy == bool(question_names):
+                error(
+                    "USAGE_ERROR",
+                    "Provide one or more --question options, or use --clear.",
+                    exit_code=EXIT_USAGE,
+                )
+            survey = _load_survey(survey_path)
+            if clear_policy:
+                survey.clear_scale_direction_randomization()
+            else:
+                survey.randomize_scale_direction(*question_names)
+            saved = save_edsl_object(
+                survey, output_path or survey_path, object_type="Survey"
+            )
+            if raw_output_written(saved):
+                return
+            output(_survey_summary(survey, saved=saved))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "SCALE_DIRECTION_RANDOMIZATION_ERROR",
+                str(e),
+                suggestion="Use existing linear-scale question names and repeat --question for each scale.",
+                exit_code=EXIT_ERROR,
+            )
+
     @surveys_group.command("questions")
     @click.argument("survey_path")
     def survey_questions(survey_path: str):
@@ -647,6 +699,9 @@ def _survey_summary(survey, saved: dict | None = None) -> dict:
         "rule_count": len(rules),
         "rules": [_rule_summary(rule) for rule in rules],
         "question_groups": getattr(survey, "question_groups", {}),
+        "scale_direction_randomization": getattr(
+            survey, "scale_direction_randomization", None
+        ),
         "memory_plan": _memory_plan_summary(survey),
         "instructions": _instruction_summary(survey),
     }

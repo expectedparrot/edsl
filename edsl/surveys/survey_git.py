@@ -180,6 +180,7 @@ def _read_survey_dict_at_ref(path: Path, ref: str) -> dict:
         "name": "metadata/name.json",
         "questions_to_randomize": "metadata/questions_to_randomize.json",
         "options_to_pin": "metadata/options_to_pin.json",
+        "scale_direction_randomization": "metadata/scale_direction_randomization.json",
     }
     for key, file_path in optional_fields.items():
         value = _read_optional_json_at_ref(path, file_path, ref, default=None)
@@ -364,6 +365,9 @@ def _write_metadata(path: Path, survey_dict: dict) -> None:
         "name": survey_dict.get("name"),
         "questions_to_randomize": survey_dict.get("questions_to_randomize"),
         "options_to_pin": survey_dict.get("options_to_pin"),
+        "scale_direction_randomization": survey_dict.get(
+            "scale_direction_randomization"
+        ),
     }
     for name, value in required.items():
         (metadata_dir / f"{name}.json").write_text(

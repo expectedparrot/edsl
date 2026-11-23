@@ -292,6 +292,7 @@ def surveys(ctx):
             "commands": [
                 "create", "add-question", "drop-question", "move-question",
                 "show", "questions", "add-skip-rule", "add-stop-rule",
+                "set-scale-direction-randomization",
             ],
             "help": "Use 'ep surveys <command> --help' for details.",
         })

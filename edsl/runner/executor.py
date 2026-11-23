@@ -16,6 +16,7 @@ from .coordinator import ExecutionCoordinator, WorkAssignment, WorkCompletion
 from .service import JobService
 from .models import TaskStatus, generate_id
 from .question_resolution import resolve_question_for_validation
+from .render import _question_from_data_with_presentation_order
 
 # EDSL imports - relative since this module lives inside edsl package
 from ..caching import Cache
@@ -408,7 +409,7 @@ class ExecutionWorker:
         question_data = self._resolve_question_templates(
             question_data, task.job_id, task.interview_id
         )
-        question = QuestionBase.from_dict(question_data)
+        question = _question_from_data_with_presentation_order(question_data)
 
         interview_def = self._job_service._interviews.get_definition(
             task.job_id, task.interview_id
@@ -528,7 +529,7 @@ class ExecutionWorker:
             question_data, task.job_id, task.interview_id
         )
 
-        question = QuestionBase.from_dict(question_data)
+        question = _question_from_data_with_presentation_order(question_data)
         from ..questions.probabilistic_response import ProbabilisticResponse
 
         task_definition = self._job_service._tasks.get_definition(

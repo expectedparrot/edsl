@@ -8,6 +8,7 @@ Surveys can include skip logic, memory management, and question groups.
 """
 
 from __future__ import annotations
+import copy
 import re
 import random
 from uuid import uuid4
@@ -170,6 +171,7 @@ class Survey(Base):
         name: Optional[str] = None,
         questions_to_randomize: Optional[List[str]] = None,
         options_to_pin: Optional[Dict[str, List]] = None,
+        scale_direction_randomization: Optional[dict] = None,
         _internal_copy: bool = False,
     ):
         """Initialize a new Survey instance.
@@ -241,6 +243,14 @@ class Survey(Base):
         self.questions_to_randomize = questions_to_randomize
 
         self.options_to_pin: Dict[str, List] = options_to_pin or {}
+        self._scale_direction_randomization = None
+        if scale_direction_randomization is not None:
+            self._validate_scale_direction_randomization(
+                scale_direction_randomization
+            )
+            self._scale_direction_randomization = copy.deepcopy(
+                scale_direction_randomization
+            )
 
         self._seed: Optional[int] = None
 
@@ -1160,7 +1170,11 @@ class Survey(Base):
         }
 
     def draw(self) -> "Survey":
-        """Return a new survey with a randomly selected permutation of the options."""
+        """Return a new survey with a randomly selected permutation of the options.
+
+        Scale-direction policies are applied by the Jobs runner, which can persist
+        a per-interview assignment and expose it in Results.
+        """
         if self._seed is None:  # only set once
             self._seed = hash(self)
             random.seed(self._seed)  # type: ignore
@@ -1439,6 +1453,11 @@ class Survey(Base):
         if self.options_to_pin:
             d["options_to_pin"] = self.options_to_pin
 
+        if self._scale_direction_randomization is not None:
+            d["scale_direction_randomization"] = copy.deepcopy(
+                self._scale_direction_randomization
+            )
+
         # Add version information if requested
         if add_edsl_version:
             d["edsl_version"] = __version__
@@ -1550,6 +1569,7 @@ class Survey(Base):
 
         # Get the pinned options if present
         options_to_pin = data.get("options_to_pin", None)
+        scale_direction_randomization = data.get("scale_direction_randomization")
 
         if "name" in data:
             name = data["name"]
@@ -1575,6 +1595,7 @@ class Survey(Base):
             questions_to_randomize=questions_to_randomize,
             name=name,
             options_to_pin=options_to_pin,
+            scale_direction_randomization=scale_direction_randomization,
             _internal_copy=_internal_copy,
         )
 
@@ -2141,7 +2162,26 @@ class Survey(Base):
                 "Cannot combine two surveys with non-default rules. Please use the 'clear_non_default_rules' method to remove non-default rules from the survey.",
             )
 
-        return Survey(questions=self.questions + other.questions)
+        policies = [
+            policy
+            for policy in (
+                self.scale_direction_randomization,
+                other.scale_direction_randomization,
+            )
+            if policy is not None
+        ]
+        scale_policy = None
+        if policies:
+            names = [name for policy in policies for name in policy["questions"]]
+            if len(set(names)) != len(names):
+                raise SurveyCreationError(
+                    "Cannot combine surveys with overlapping scale-direction targets."
+                )
+            scale_policy = {**policies[0], "questions": names}
+        return Survey(
+            questions=self.questions + other.questions,
+            scale_direction_randomization=scale_policy,
+        )
 
     def move_question(self, identifier: Union[str, int], new_index: int) -> Survey:
         """
@@ -2429,6 +2469,110 @@ class Survey(Base):
             question_name=question_name, question_text=question_text
         )
         return self.add_question(compute_q)
+
+    @property
+    def scale_direction_randomization(self) -> Optional[dict]:
+        """Return a copy of the optional forward/reverse scale policy."""
+        return copy.deepcopy(self._scale_direction_randomization)
+
+    def _validate_scale_direction_randomization(self, policy: dict) -> None:
+        from .exceptions import SurveyError
+
+        expected_keys = {
+            "version",
+            "questions",
+            "method",
+            "assignment_unit",
+            "balance",
+        }
+        if not isinstance(policy, dict) or set(policy) != expected_keys:
+            raise SurveyError(
+                "scale_direction_randomization must contain version, questions, "
+                "method, assignment_unit, and balance."
+            )
+        if (
+            isinstance(policy["version"], bool)
+            or not isinstance(policy["version"], int)
+            or policy["version"] != 1
+        ):
+            raise SurveyError(
+                "Unsupported scale-direction policy version; supported version is 1."
+            )
+        if policy["method"] != "uniform_forward_reverse":
+            raise SurveyError(
+                "Scale-direction method must be 'uniform_forward_reverse'."
+            )
+        if policy["assignment_unit"] != "agent_scenario_iteration":
+            raise SurveyError(
+                "Scale-direction assignment_unit must be 'agent_scenario_iteration'."
+            )
+        if policy["balance"] != "none":
+            raise SurveyError("Scale-direction v1 does not provide balance guarantees.")
+        names = policy["questions"]
+        if not isinstance(names, list) or not names or not all(
+            isinstance(name, str) and name for name in names
+        ):
+            raise SurveyError(
+                "Scale-direction questions must be non-empty question names."
+            )
+        if len(set(names)) != len(names):
+            raise SurveyError("Scale-direction questions cannot contain duplicates.")
+        known = set(self.question_names)
+        unknown = set(names) - known
+        if unknown:
+            raise SurveyError(
+                f"Scale-direction policy references unknown questions: {sorted(unknown)}."
+            )
+        question_by_name = self.question_names_to_questions()
+        non_scales = [
+            name
+            for name in names
+            if getattr(question_by_name[name], "question_type", None)
+            != "linear_scale"
+        ]
+        if non_scales:
+            raise SurveyError(
+                "Scale-direction randomization only supports QuestionLinearScale; "
+                f"unsupported question(s): {non_scales}."
+            )
+        conflicts = set(names).intersection(self.questions_to_randomize or [])
+        if conflicts:
+            raise SurveyError(
+                "Scale-direction questions cannot also use ordinary option shuffling: "
+                f"{sorted(conflicts)}."
+            )
+        for name in names:
+            options = question_by_name[name].question_options
+            if not isinstance(options, list) or len(options) < 2:
+                raise SurveyError(
+                    f"Scale-direction question {name!r} must have at least two options."
+                )
+
+    def randomize_scale_direction(self, *question_names) -> "Survey":
+        """Randomize a linear scale between its declared and reversed order.
+
+        One direction is assigned per agent/scenario/iteration and shared across
+        model variants. V1 uses independent draws and promises no exact balance.
+        Pass question names as arguments or as one list.
+        """
+        if len(question_names) == 1 and not isinstance(question_names[0], str):
+            question_names = tuple(question_names[0])
+        questions = list(question_names)
+        policy = {
+            "version": 1,
+            "questions": questions,
+            "method": "uniform_forward_reverse",
+            "assignment_unit": "agent_scenario_iteration",
+            "balance": "none",
+        }
+        self._validate_scale_direction_randomization(policy)
+        self._scale_direction_randomization = policy
+        return self
+
+    def clear_scale_direction_randomization(self) -> "Survey":
+        """Remove the forward/reverse scale assignment policy."""
+        self._scale_direction_randomization = None
+        return self
 
     def _recombined_questions_and_instructions(
         self,
@@ -3815,6 +3959,18 @@ class Survey(Base):
             if relevant_randomization:
                 new_survey.questions_to_randomize = relevant_randomization
 
+        scale_policy = self.scale_direction_randomization
+        if scale_policy is not None:
+            relevant_scales = [
+                name
+                for name in scale_policy["questions"]
+                if name in {q.question_name for q in selected_questions}
+            ]
+            if relevant_scales:
+                scale_policy["questions"] = relevant_scales
+                new_survey._validate_scale_direction_randomization(scale_policy)
+                new_survey._scale_direction_randomization = scale_policy
+
         return new_survey
 
     def __getitem__(
@@ -3890,7 +4046,7 @@ class Survey(Base):
 
         kept_questions = [self.get(name) for name in question_names]
         assert all(kept_questions), f"Question(s) {question_names} not found in survey"
-        return Survey(questions=kept_questions)
+        return self._create_subsurvey(kept_questions)
 
     def drop(self, *question_names) -> "Survey":
         """Create a new Survey with specified questions removed by name.
@@ -4122,7 +4278,15 @@ class Survey(Base):
             if question.question_name in rename_dict:
                 new_question.question_name = rename_dict[question.question_name]
             new_questions.append(new_question)
-        return Survey(questions=new_questions)
+        scale_policy = self.scale_direction_randomization
+        if scale_policy is not None:
+            scale_policy["questions"] = [
+                rename_dict.get(name, name) for name in scale_policy["questions"]
+            ]
+        return Survey(
+            questions=new_questions,
+            scale_direction_randomization=scale_policy,
+        )
 
     def with_edited_question(
         self,
