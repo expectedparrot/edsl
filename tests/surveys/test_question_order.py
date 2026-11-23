@@ -215,3 +215,36 @@ def test_realized_order_is_persisted_and_shared_across_models():
         result["randomization"]["planned_question_order"] == list(order)
         for result in results
     )
+
+
+def test_randomized_question_order_runs_with_local_test_models():
+    survey = make_survey().randomize_question_order(
+        "attitudes", ["trust", "fairness", "satisfaction"]
+    )
+    job = survey.by(Agent()).by(
+        [
+            Model("test", temperature=0.1, canned_response="local answer"),
+            Model("test", temperature=0.9, canned_response="local answer"),
+        ]
+    )
+
+    results = job.run(
+        n=1,
+        cache=False,
+        disable_remote_inference=True,
+        disable_remote_cache=True,
+        progress_bar=False,
+    )
+
+    assert len(results) == 2
+    orders = [
+        result["randomization"]["planned_question_order"] for result in results
+    ]
+    assert orders[0] == orders[1]
+    assert orders[0][0] == "intro"
+    assert set(orders[0][1:4]) == {"trust", "fairness", "satisfaction"}
+    assert orders[0][4] == "age"
+    for result in results:
+        assert result["randomization"]["exposure_order"] == orders[0]
+        assert set(result.answer) == set(orders[0])
+        assert set(result.answer.values()) == {"local answer"}
