@@ -156,6 +156,18 @@ ep inspect survey.ep
 
 `add-question` updates the survey package in place. A job built earlier retains its saved survey, so rebuild the job to include the new question. Use `ep agents create --help` and `ep scenarios create --help` for creating respondent profiles and scenario data from files.
 
+Configure exact-count question sampling in a saved Survey package, then inspect and validate the policy:
+
+```bash
+ep surveys set-question-sampling survey.ep \
+  --eligible-question q1 --eligible-question q2 --eligible-question q3 \
+  --sample-size 2 --required-question q1
+ep surveys show survey.ep
+ep validate --file survey.ep
+```
+
+Required questions count toward `--sample-size`; questions outside the eligible pool are always asked. Results expose `randomization.sampled_questions` and `randomization.unselected_questions` for inspection and export.
+
 If validation fails, correct the reported problem before running the object.
 
 ## Run with language models

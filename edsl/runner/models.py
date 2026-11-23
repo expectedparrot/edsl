@@ -275,6 +275,10 @@ class InterviewDefinition:
     # Only populated for questions in survey.questions_to_randomize
     question_option_permutations: dict[str, list] = field(default_factory=dict)
     question_item_randomization_seeds: dict[str, int] = field(default_factory=dict)
+    sampled_questions: list[str] = field(default_factory=list)
+    unselected_questions: list[str] = field(default_factory=list)
+    question_sampling_seed: int | None = None
+    question_sampling_assignment_id: str | None = None
     indices: dict[str, int] | None = None
 
     def storage_key(self) -> str:
@@ -290,6 +294,10 @@ class InterviewDefinition:
             "iteration": self.iteration,
             "question_option_permutations": self.question_option_permutations,
             "question_item_randomization_seeds": self.question_item_randomization_seeds,
+            "sampled_questions": self.sampled_questions,
+            "unselected_questions": self.unselected_questions,
+            "question_sampling_seed": self.question_sampling_seed,
+            "question_sampling_assignment_id": self.question_sampling_assignment_id,
             "indices": self.indices,
         }
 
@@ -309,6 +317,12 @@ class InterviewDefinition:
             question_option_permutations=data.get("question_option_permutations", {}),
             question_item_randomization_seeds=data.get(
                 "question_item_randomization_seeds", {}
+            ),
+            sampled_questions=data.get("sampled_questions", []),
+            unselected_questions=data.get("unselected_questions", []),
+            question_sampling_seed=data.get("question_sampling_seed"),
+            question_sampling_assignment_id=data.get(
+                "question_sampling_assignment_id"
             ),
             indices=data.get("indices"),
         )
