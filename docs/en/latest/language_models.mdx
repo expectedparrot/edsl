@@ -114,9 +114,9 @@ A ModelList can be inspected with `to_scenario_list()` or `to_dataset()`, filter
 ## Provider tools
 
 Some inference services expose tools that run on the provider's infrastructure.
-OpenAI Responses and Anthropic Messages support provider-hosted tools through the
-same EDSL interface. Attach the provider's tool declaration to a model, then use
-the model in a normal EDSL job:
+OpenAI Responses, Anthropic Messages, Google Gemini, and Meta's Responses API
+support provider-hosted tools through the same EDSL interface. Attach the
+provider's tool declaration to a model, then use the model in a normal EDSL job:
 
 ```python
 from edsl import Model, QuestionFreeText, Survey
@@ -145,12 +145,13 @@ search events and citations, in the question's `raw_model_response` fields (for 
 `answer_raw_model_response`). Provider tool declarations are serialized with the model
 and included in cache identity.
 
-Provider-hosted tools currently work through `service_name="openai_v2"` and
-`service_name="anthropic"`. Application function tools, where EDSL must execute a
-returned function call and send its result back to the model, are a separate
-capability and are not supported yet. Direct execution is required because remote
-EDSL workers do not yet support tool requests. The provider must support the
-selected tool and model; unsupported combinations return the provider's API error.
+Provider-hosted tools currently work through `service_name="openai_v2"`,
+`service_name="anthropic"`, `service_name="google"`, and `service_name="meta"`.
+Application function tools, where EDSL must execute a returned function call and
+send its result back to the model, are a separate capability and are not supported
+yet. Direct execution is required because remote EDSL workers do not yet support
+tool requests. The provider must support the selected tool and model; unsupported
+combinations return the provider's API error.
 
 The same interface accepts other Responses API tool definitions. Code Interpreter
 needs an automatic container:
@@ -193,6 +194,27 @@ file_results = survey.by(file_model).run(
 Tool-specific request fields are passed through to OpenAI and validated there. EDSL
 stores each complete provider response under the question's `raw_model_response`
 fields, so tool event types, statuses, and returned citations can be inspected there.
+
+Meta's Responses API also provides server-side web search. Use a Meta model with
+`service_name="meta"` and the `web_search` tool declaration:
+
+```python
+meta_search_model = Model("muse-spark-1.3", service_name="meta").with_tools(
+    {"type": "web_search"}
+)
+meta_results = survey.by(meta_search_model).run(
+    offload_execution=False,
+    disable_remote_inference=True,
+)
+```
+
+Meta returns search calls and cited response messages in its Responses output.
+EDSL keeps that complete output in `raw_model_response` and uses the final answer
+message for the question answer, omitting intermediate commentary from the answer
+field. Meta's `tool_search` can find developer-defined tools, but executing those
+tools and continuing the conversation still requires application-side logic.
+See Meta's [search grounding](https://dev.meta.ai/docs/search-grounding) and
+[tool calling](https://dev.meta.ai/docs/tool-calling) documentation.
 
 Anthropic Messages has its own versioned server-tool declarations. For example,
 web search can be enabled with `web_search_20250305`:
