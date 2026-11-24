@@ -24,6 +24,7 @@ consistent interface regardless of which model provider is being used.
 """
 
 from __future__ import annotations
+import copy
 from functools import wraps
 import asyncio
 import json
@@ -567,6 +568,59 @@ class LanguageModel(
             The value of the specified attribute
         """
         return getattr(self, key)
+
+    def with_tools(
+        self, *tools: dict[str, Any], tool_choice: Any = None
+    ) -> "LanguageModel":
+        """Return a copy configured with provider-native tool declarations.
+
+        Tool schemas are sent to the configured provider and serialized with the
+        model, so they participate in Jobs and cache identity. This initial
+        implementation supports provider-native tools through OpenAI Responses
+        (``service_name="openai_v2"``); it does not execute application function
+        tools returned by the provider.
+
+        Example:
+            ``Model("gpt-4.1", service_name="openai_v2").with_tools(
+                {"type": "web_search"}
+            )``
+        """
+        if self._inference_service_ != "openai_v2":
+            raise LanguageModelValueError(
+                "Provider-native tools are currently supported only by the OpenAI "
+                "Responses API (service_name='openai_v2')."
+            )
+        if not tools:
+            raise LanguageModelValueError("with_tools() requires at least one tool.")
+
+        if len(tools) == 1 and isinstance(tools[0], (list, tuple)):
+            tools = tuple(tools[0])
+        normalized_tools = []
+        for tool in tools:
+            if not isinstance(tool, dict) or not isinstance(tool.get("type"), str):
+                raise LanguageModelValueError(
+                    "Each tool must be a provider tool dictionary with a string 'type'."
+                )
+            normalized_tools.append(copy.deepcopy(tool))
+
+        try:
+            json.dumps(normalized_tools)
+            json.dumps(tool_choice)
+        except TypeError as exc:
+            raise LanguageModelValueError(
+                "Provider tool declarations and tool_choice must be JSON serializable."
+            ) from exc
+
+        configured_model = self.copy()
+        configured_model.parameters = dict(configured_model.parameters)
+        configured_model.tools = normalized_tools
+        configured_model.parameters["tools"] = normalized_tools
+        configured_model.tool_choice = tool_choice
+        if tool_choice is None:
+            configured_model.parameters.pop("tool_choice", None)
+        else:
+            configured_model.parameters["tool_choice"] = tool_choice
+        return configured_model
 
     def hello(self, verbose=False):
         """Run a simple test to verify the model connection is working.

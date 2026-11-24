@@ -110,3 +110,43 @@ These test models return fixed answers. Replace them with configurations from th
 For PDF, video, and audio inputs, choose a model that supports the specific media type; the image filter only describes image support. See [Files and media as scenarios](/en/latest/scenarios#data-and-files) for examples, including Google video and audio inputs.
 
 A ModelList can be inspected with `to_scenario_list()` or `to_dataset()`, filtered with `filter(expression)`, and saved with `save("models.ep")` for later `ModelList.load("models.ep")`. `ModelList.from_names(names)` constructs configurations from a list of model names; use explicit `Model(name, service_name=provider)` objects when the provider needs to be unambiguous.
+
+## Provider tools
+
+Some inference services expose tools that run on the provider's infrastructure. For
+example, OpenAI's Responses API can use hosted web search. Attach the provider's tool
+declaration to a model, then use the model in a normal EDSL job:
+
+```python
+from edsl import Model, QuestionFreeText, Survey
+
+model = Model("gpt-4.1-mini", service_name="openai_v2").with_tools(
+    {"type": "web_search"}
+)
+survey = Survey(
+    [
+        QuestionFreeText(
+            question_name="answer",
+            question_text="What changed in the latest release of Python? Include sources.",
+        )
+    ]
+)
+results = survey.by(model).run(
+    offload_execution=False,
+    disable_remote_inference=True,
+)
+trace = results[0]["raw_model_response"]["answer_raw_model_response"]
+```
+
+The provider performs the search as part of its Responses API request. EDSL returns
+the final text as the ordinary answer and preserves the provider response, including
+search events and citations, in the question's `raw_model_response` fields (for example,
+`answer_raw_model_response`). Provider tool declarations are serialized with the model
+and included in cache identity.
+
+This currently supports provider-native tools through `service_name="openai_v2"`.
+Application function tools, where EDSL must execute a returned function call and send
+its result back to the model, are a separate capability and are not supported yet.
+Direct execution is required because remote EDSL workers do not yet support tool
+requests. The provider must support the selected tool and model; unsupported
+combinations return the provider's API error.

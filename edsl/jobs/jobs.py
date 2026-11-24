@@ -1292,6 +1292,19 @@ class Jobs(Base):
     ) -> Tuple[Optional["Results"], Optional[str]]:
         from .remote_inference import RemoteJobInfo
 
+        if any(
+            model.parameters.get("tools") or getattr(model, "tools", None)
+            for model in self.models
+        ):
+            from .exceptions import JobsRunError
+
+            raise JobsRunError(
+                "Models configured with provider tools must run directly through "
+                "the provider API for now. Set offload_execution=False and "
+                "disable_remote_inference=True; "
+                "remote worker support is not available yet."
+            )
+
         background = config.parameters.background
 
         jh = self._create_remote_inference_handler()
@@ -1673,6 +1686,18 @@ class Jobs(Base):
         # Handle mutual exclusivity between use_api_proxy and offload_execution
         # If user explicitly sets use_api_proxy=True, it takes priority and disables offload_execution
         if self.run_config.parameters.use_api_proxy:
+            if any(
+                model.parameters.get("tools") or getattr(model, "tools", None)
+                for model in self.models
+            ):
+                from .exceptions import JobsRunError
+
+                raise JobsRunError(
+                    "Models configured with provider tools cannot use the API proxy "
+                    "yet. Set use_api_proxy=False, offload_execution=False, and "
+                    "disable_remote_inference=True to run directly through the "
+                    "provider API."
+                )
             # User explicitly wants API proxy mode - disable offload_execution no matter what
             self.run_config.parameters.offload_execution = False
             self._logger.info(
