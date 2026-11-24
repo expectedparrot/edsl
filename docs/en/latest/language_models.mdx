@@ -150,3 +150,45 @@ its result back to the model, are a separate capability and are not supported ye
 Direct execution is required because remote EDSL workers do not yet support tool
 requests. The provider must support the selected tool and model; unsupported
 combinations return the provider's API error.
+
+The same interface accepts other Responses API tool definitions. Code Interpreter
+needs an automatic container:
+
+```python
+code_model = Model("gpt-4.1-mini", service_name="openai_v2").with_tools(
+    {"type": "code_interpreter", "container": {"type": "auto"}}
+)
+calculation = Survey(
+    [
+        QuestionFreeText(
+            question_name="calculation",
+            question_text="Use Python to compute the sum of squares from 1 through 20.",
+        )
+    ]
+)
+code_results = calculation.by(code_model).run(
+    offload_execution=False,
+    disable_remote_inference=True,
+)
+```
+
+File Search requires a populated OpenAI vector store. Create the store and upload/index
+files with the OpenAI Files and Vector Stores APIs, then supply its ID:
+
+```python
+file_model = Model("gpt-4.1-mini", service_name="openai_v2").with_tools(
+    {
+        "type": "file_search",
+        "vector_store_ids": ["VECTOR_STORE_ID"],
+        "max_num_results": 3,
+    }
+)
+file_results = survey.by(file_model).run(
+    offload_execution=False,
+    disable_remote_inference=True,
+)
+```
+
+Tool-specific request fields are passed through to OpenAI and validated there. EDSL
+stores each complete provider response under the question's `raw_model_response`
+fields, so tool event types, statuses, and returned citations can be inspected there.
