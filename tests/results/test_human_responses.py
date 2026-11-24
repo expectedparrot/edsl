@@ -117,6 +117,27 @@ def test_randomization_provenance_is_queryable_and_round_trips(tmp_path):
     assert package_restored[0]["randomization"] == results[0]["randomization"]
 
 
+def test_recorded_options_survive_when_presentation_status_is_unknown():
+    entries = {"color": {"answer": "blue", "question_options": ["green", "blue", "red"]}}
+    results = Results.from_human_responses(make_survey(), [make_row(entries=entries)])
+
+    assert results[0].get_question_options("color") == ["green", "blue", "red"]
+    assert "color" not in results[0]["randomization"]["presented_options"]
+    assert results[0]["randomization"]["exposure_events"]["color"]["presented"] is None
+
+
+def test_randomization_question_references_follow_result_rename():
+    results = Results.from_human_responses(make_survey(), [make_row(entries=ANSWERED)])
+    renamed = results[0].rename({"color": "favorite_color"})
+
+    assert renamed["answer"] == {"name": "Ada", "favorite_color": "blue"}
+    assert renamed["randomization"]["presented_options"] == {
+        "favorite_color": ["green", "blue", "red"]
+    }
+    assert "favorite_color" in renamed["randomization"]["exposure_events"]
+    assert renamed["randomization"]["exposure_order"] == ["name", "favorite_color"]
+
+
 RECORDINGS = [
     {
         "role": "respondent",

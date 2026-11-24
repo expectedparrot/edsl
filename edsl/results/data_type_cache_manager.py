@@ -81,8 +81,8 @@ class DataTypeCacheManager:
         if self._data_type_to_keys_cache is None or self._cache_dirty:
             d: dict = defaultdict(set)
             for result in self.results.data:
-                for key, value in result.key_to_data_type.items():
-                    d[value].add(key)
+                for data_type, values in result.sub_dicts.items():
+                    d[data_type].update(values)
             for column in self.results.created_columns:
                 d["answer"].add(column)
             self._data_type_to_keys_cache = d
@@ -97,7 +97,11 @@ class DataTypeCacheManager:
             list[str]: Sorted list of all column names in "data_type.key" format
         """
         if self._columns_cache is None or self._cache_dirty:
-            column_names = [f"{v}.{k}" for k, v in self.key_to_data_type.items()]
+            column_names = [
+                f"{data_type}.{key}"
+                for data_type, keys in self.data_type_to_keys.items()
+                for key in keys
+            ]
             self._columns_cache = sorted(column_names)
 
         return self._columns_cache
