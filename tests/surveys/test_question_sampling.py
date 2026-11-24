@@ -161,8 +161,11 @@ def test_realized_selection_is_exact_shared_across_models_and_queryable(tmp_path
             provenance["unselected_questions"]
             == next(iter(definitions.values())).unselected_questions
         )
-        assert set(provenance["not_presented_questions"]) == set(
-            provenance["unselected_questions"]
+        # The synthetic task completions below do not include prompt history, so
+        # provenance may mark other questions as not presented when exposure is
+        # unknown. Planned omissions must still be included in that set.
+        assert set(provenance["unselected_questions"]).issubset(
+            provenance["not_presented_questions"]
         )
         assert all(
             provenance["exposure_events"][name]["presented"] is False
