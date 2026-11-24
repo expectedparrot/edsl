@@ -50,9 +50,7 @@ class OpenAIParameterBuilder:
             is_openai_reasoning_model(model),
         )
         # Defaults must not overwrite explicit limits, including small ones.
-        max_tokens = model_params.get(
-            "max_tokens", 16000 if is_reasoning_model else 1000
-        )
+        max_tokens = default_max_tokens
         reasoning_effort = model_params.get("reasoning_effort")
         if reasoning_effort is None and is_reasoning_model:
             reasoning_effort = model_params.get("default_reasoning_effort", "high")
@@ -118,7 +116,9 @@ class OpenAIService(InferenceServiceABC):
 
     @classmethod
     def _default_max_tokens(cls, model_name: str) -> int:
-        return 16000 if cls._is_reasoning_model(model_name) else 1000
+        from ...language_models.output_token_policy import resolve_output_token_limit
+
+        return resolve_output_token_limit(model_name)
 
     @classmethod
     def _default_reasoning_effort(cls, model_name: str) -> Optional[str]:
