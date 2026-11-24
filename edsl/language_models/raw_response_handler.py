@@ -71,6 +71,24 @@ class RawResponseHandler:
         self.inference_service = inference_service
 
     def get_generated_token_string(self, raw_response):
+        # Gemini may place thoughts and server-tool parts before the final text
+        # part. The fixed Google key_sequence points at parts[0], which can be
+        # commentary, executable code, or a code result instead of the answer.
+        if self.inference_service == "google" and isinstance(raw_response, dict):
+            candidates = raw_response.get("candidates")
+            if isinstance(candidates, list) and candidates:
+                content = candidates[0].get("content")
+                parts = content.get("parts") if isinstance(content, dict) else None
+                if isinstance(parts, list):
+                    answer_parts = [
+                        part["text"]
+                        for part in parts
+                        if isinstance(part, dict)
+                        and isinstance(part.get("text"), str)
+                        and not part.get("thought", False)
+                    ]
+                    return "\n".join(answer_parts).strip()
+
         try:
             return _extract_item_from_raw_response(raw_response, self.key_sequence)
         except (
