@@ -267,6 +267,11 @@ class GoogleService(InferenceServiceABC):
                 # Apply Gemini 3's HIGH default at request time so a caller's
                 # explicit thinking_budget can still take precedence.
                 "thinking_level": None,
+                # Ask Google to return optional thought-summary parts by
+                # default. This is not a full private chain of thought; it is
+                # provider-generated summary text that remains in raw response
+                # data and is also exposed through EDSL's reasoning summary.
+                "include_thoughts": True,
                 # Backend selection (Vertex AI vs Gemini Developer API). These
                 # are model parameters so they travel with the serialized model:
                 # a job built with use_vertex=True runs on Vertex through coopr's
@@ -497,12 +502,14 @@ class GoogleService(InferenceServiceABC):
                         thinking_config = {"thinking_budget": self.thinking_budget}
                     else:
                         thinking_config = {"thinking_level": "HIGH"}
+                    thinking_config["include_thoughts"] = self.include_thoughts
                     config_kwargs["thinking_config"] = types.ThinkingConfig(
                         **thinking_config,
                     )
                 elif self.thinking_budget is not None:
                     config_kwargs["thinking_config"] = types.ThinkingConfig(
                         thinking_budget=self.thinking_budget,
+                        include_thoughts=self.include_thoughts,
                     )
 
                 generation_config = types.GenerateContentConfig(**config_kwargs)

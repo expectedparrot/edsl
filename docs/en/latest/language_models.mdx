@@ -313,3 +313,12 @@ or code execution parts, remains available in `raw_model_response`. See Google's
 [code execution](https://ai.google.dev/gemini-api/docs/code-execution), and
 [URL context](https://ai.google.dev/gemini-api/docs/url-context) guides for
 provider and model availability details.
+
+For Gemini models that support thinking, EDSL requests Google's optional thought
+summaries by default. Returned summaries remain in `raw_model_response` and are
+also exposed in `reasoning_summaries_dict` (for example,
+`result["reasoning_summaries_dict"]["answer_reasoning_summary"]`). Disable them
+with `Model("gemini-2.5-flash", service_name="google", include_thoughts=False)`.
+These are provider-generated summaries, not a complete transcript of the model's
+internal reasoning, and Google may omit them for a response. See Google's
+[thinking documentation](https://ai.google.dev/gemini-api/docs/thinking).

@@ -239,6 +239,26 @@ class RawResponseHandler:
         if self.inference_service is None:
             return None
 
+        # GenerateContent may include provider-generated thought summaries as
+        # text parts marked thought=True. Keep those separate from the answer
+        # text extracted above, while the complete response remains available.
+        if self.inference_service == "google" and isinstance(raw_response, dict):
+            candidates = raw_response.get("candidates")
+            if isinstance(candidates, list) and candidates:
+                content = candidates[0].get("content")
+                parts = content.get("parts") if isinstance(content, dict) else None
+                if isinstance(parts, list):
+                    summaries = [
+                        part["text"]
+                        for part in parts
+                        if isinstance(part, dict)
+                        and part.get("thought") is True
+                        and isinstance(part.get("text"), str)
+                    ]
+                    if summaries:
+                        return "\n\n".join(summaries).strip()
+            return None
+
         # Anthropic: use reasoning_sequence to get content, then filter thinking blocks
         if self.inference_service == "anthropic":
             if self.reasoning_sequence is not None:
