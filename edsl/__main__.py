@@ -12,6 +12,7 @@ from edsl.cli_commands import account as account_commands
 from edsl.cli_commands import agents as agents_commands
 from edsl.cli_commands import auth as auth_commands
 from edsl.cli_commands import costs as costs_commands
+from edsl.cli_commands import collections as collections_commands
 from edsl.cli_commands import docs as docs_commands
 from edsl.cli_commands import humanize as humanize_commands
 from edsl.cli_commands import inspect as inspect_commands
@@ -20,6 +21,7 @@ from edsl.cli_commands import models as models_commands
 from edsl.cli_commands import objects as objects_commands
 from edsl.cli_commands import open as open_commands
 from edsl.cli_commands import packages as package_commands
+from edsl.cli_commands import playbooks as playbooks_commands
 from edsl.cli_commands import profiles as profiles_commands
 from edsl.cli_commands import research_agent as research_agent_commands
 from edsl.cli_commands import present as present_commands
@@ -31,6 +33,7 @@ from edsl.cli_commands import schema as schema_commands
 from edsl.cli_commands import scenarios as scenarios_commands
 from edsl.cli_commands import surveys as surveys_commands
 from edsl.cli_commands import study as study_commands
+from edsl.skills.cli import skills as skills_commands
 from edsl.cli_commands import validate as validate_commands
 from ep_workflow import cli as workflow_commands
 from edsl.cli_shared import (
@@ -71,6 +74,7 @@ def app(ctx):
                 "search",
                 "push",
                 "pull",
+                "log",
                 "metadata",
                 "update-metadata",
                 "share",
@@ -91,11 +95,14 @@ def app(ctx):
                 "results",
                 "jobs",
                 "surveys",
+                "collections",
                 "costs",
                 "workflow",
                 "present",
                 "report",
                 "study",
+                "skills",
+                "playbooks",
             ],
             "help": "Use 'ep <command> --help' for details on each command.",
             "pipe_contract": {
@@ -117,6 +124,7 @@ def objects(ctx):
                 "clone",
                 "push",
                 "pull",
+                "log",
                 "metadata",
                 "update-metadata",
                 "share",
@@ -125,6 +133,17 @@ def objects(ctx):
                 "delete",
             ],
             "help": "Use 'ep objects <command> --help' for details.",
+        })
+
+
+@app.group(invoke_without_command=True)
+@click.pass_context
+def collections(ctx):
+    """Create and manage local metadata-only Collection packages."""
+    if ctx.invoked_subcommand is None:
+        _output({
+            "commands": ["create", "from-search", "add", "remove", "show", "metadata"],
+            "help": "Use 'ep collections <command> --help' for details.",
         })
 
 
@@ -154,7 +173,7 @@ def auth(ctx):
     """Authentication management."""
     if ctx.invoked_subcommand is None:
         _output({
-            "commands": ["login", "status", "balance"],
+            "commands": ["login", "status", "setup-git", "balance"],
             "help": "Use 'ep auth <command> --help' for details.",
         })
 
@@ -344,7 +363,8 @@ def humanize(ctx):
     if ctx.invoked_subcommand is None:
         _output({
             "commands": [
-                "list", "create", "status", "responses", "qr", "preview",
+                "list", "create", "status", "pause", "resume", "responses", "qr",
+                "preview",
                 "respondents", "links", "events", "interactions", "assistant",
                 "background", "schedules", "deliveries", "callbacks",
                 "agent-list", "agent-access", "schema", "css", "custom-js-access",
@@ -383,6 +403,7 @@ for command_name in [
     "clone",
     "push",
     "pull",
+    "log",
     "metadata",
     "update-metadata",
     "share",
@@ -401,8 +422,11 @@ run_commands.register(app)
 run_manifest_commands.register(app)
 schema_commands.register(schema)
 scenarios_commands.register(scenarios)
+collections_commands.register(collections)
 surveys_commands.register(surveys)
 study_commands.register(app)
+playbooks_commands.register(app)
+app.add_command(skills_commands)
 validate_commands.register(app)
 workflow_commands.register(workflow, gate)
 

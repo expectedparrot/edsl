@@ -5,6 +5,8 @@ description: "Store, retrieve, update, and share EDSL objects through the Expect
 
 Expected Parrot is a platform for model access, remote execution, caching, human research, and sharing study materials. The `Coop` client exposes its services in Python. This page covers storing and retrieving EDSL objects; see [Remote Inference](/en/latest/remote_inference), [Remote Caching](/en/latest/remote_caching), and [Human studies](/en/latest/guides/human_studies) for execution and collection workflows.
 
+To organize stored objects as typed UUID references in a versioned `.ep` package, see [Collections](/en/latest/collections).
+
 Use these methods to reopen a study from another computer, reuse a collaborator's questionnaire, or share completed results. `push()` uploads an object and `pull()` retrieves it as a usable EDSL object. The returned **UUID** is its unique identifier, which you can keep instead of searching for the object each time.
 
 ## Authentication

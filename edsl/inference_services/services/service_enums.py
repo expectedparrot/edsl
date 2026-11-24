@@ -33,3 +33,14 @@ def openai_requires_temperature_one(model_name: str) -> bool:
     if gpt_match and int(gpt_match.group(1)) >= 5:
         return True
     return False
+
+
+def is_openai_reasoning_model(model_name: str) -> bool:
+    """Identify OpenAI reasoning families, including dated and suffixed IDs."""
+    name = model_name.lower()
+    if re.match(r"o\d", name):
+        return True
+    gpt_match = re.match(r"gpt-(\d+)", name)
+    if gpt_match and int(gpt_match.group(1)) >= 5:
+        return True
+    return any(tag in name for tag in OPENAI_REASONING_MODELS)
