@@ -47,6 +47,8 @@ class SurveySerializer:
             meta["options_to_pin"] = s.options_to_pin
         if s.scale_direction_randomization is not None:
             meta["scale_direction_randomization"] = s.scale_direction_randomization
+        if s.question_sampling is not None:
+            meta["question_sampling"] = s.question_sampling
         if add_edsl_version:
             from edsl import __version__
 
@@ -160,6 +162,7 @@ class SurveySerializer:
             questions_to_randomize=meta.get("questions_to_randomize"),
             options_to_pin=meta.get("options_to_pin"),
             scale_direction_randomization=meta.get("scale_direction_randomization"),
+            question_sampling=meta.get("question_sampling"),
             name=meta.get("name"),
         )
 

@@ -12,6 +12,7 @@ import time
 from datetime import datetime
 from typing import Any, TYPE_CHECKING
 import random
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -171,6 +172,8 @@ class JobService:
         # Extract components from the EDSL Job
         t0 = time.time()
         survey = job.survey if hasattr(job, "survey") else job._survey
+        if survey.question_sampling is not None:
+            survey._validate_question_sampling(survey.question_sampling)
         scenarios = list(job.scenarios)
         agents = list(job.agents)
         models = list(job.models)
@@ -304,6 +307,9 @@ class JobService:
         all_task_definitions = []  # Collect for job_data cache
         all_direct_task_info = []  # Collect all direct-answer task info
         total_tasks_created = 0
+        question_sampling_by_unit: dict[
+            tuple[int, int, int], tuple[int, list[str], list[str]]
+        ] = {}
 
         for agent_index, scenario_index, model_index in assignment_plan.iter_indices():
             scenario_id = scenario_ids[scenario_index]
@@ -316,9 +322,24 @@ class JobService:
                 interview_id = generate_id()
                 interview_ids.append(interview_id)
 
+                sampled_questions, unselected_questions, question_sampling_seed = (
+                    self._realize_question_sample(
+                        survey,
+                        questions,
+                        question_sampling_by_unit,
+                        (agent_index, scenario_index, iteration),
+                    )
+                )
+                unselected_set = set(unselected_questions)
+                interview_questions = [
+                    question
+                    for question in questions
+                    if self._get_question_name(question) not in unselected_set
+                ]
+
                 # Generate randomized question options for this interview
                 question_option_permutations = self._generate_question_permutations(
-                    questions,
+                    interview_questions,
                     questions_to_randomize,
                     getattr(survey, "options_to_pin", None),
                 )
@@ -352,7 +373,7 @@ class JobService:
                         )
                 question_item_randomization_seeds = {
                     self._get_question_name(question): random.getrandbits(64)
-                    for question in questions
+                    for question in interview_questions
                     if self._to_dict(question).get("randomize_items")
                 }
 
@@ -368,7 +389,7 @@ class JobService:
                     scenario_id=scenario_id,
                     agent_id=agent_id,
                     model_id=model_id,
-                    questions=questions,
+                    questions=interview_questions,
                     question_name_to_id=question_name_to_id,
                     dag=dag,
                     iteration=iteration,
@@ -387,10 +408,10 @@ class JobService:
                             "interview_id": interview_id,
                             "agent": agent_obj,
                             "scenario": scenario_obj,
-                            "question": questions[info["question_index"]],
+                            "question": interview_questions[info["question_index"]],
                             "item_randomization_seed": question_item_randomization_seeds.get(
                                 self._get_question_name(
-                                    questions[info["question_index"]]
+                                    interview_questions[info["question_index"]]
                                 )
                             ),
                         }
@@ -412,6 +433,19 @@ class JobService:
                     scale_direction_seeds=scale_direction_seeds,
                     scale_direction_assignment_id=scale_assignment_ids.get(
                         assignment_key
+                    ),
+                    sampled_questions=sampled_questions,
+                    unselected_questions=unselected_questions,
+                    question_sampling_seed=question_sampling_seed,
+                    question_sampling_assignment_id=(
+                        str(
+                            uuid.uuid5(
+                                uuid.NAMESPACE_URL,
+                                f"edsl:{job_id}:{agent_index}:{scenario_index}:{iteration}",
+                            )
+                        )
+                        if survey.question_sampling is not None
+                        else None
                     ),
                     indices={
                         "agent": agent_index,
@@ -2181,11 +2215,38 @@ class JobService:
             set(option_orders) - scale_randomized_questions
         )
         randomized_questions |= scale_randomized_questions
+        sampling_policy = getattr(survey, "question_sampling", None)
+        sampled_questions = list(
+            getattr(interview_def, "sampled_questions", []) or []
+        )
+        unselected_questions = list(
+            getattr(interview_def, "unselected_questions", []) or []
+        )
+        unselected_set = set(unselected_questions)
         randomization = {
             "schema_version": 1,
             "design_version": 1,
-            "assignment_id": interview_id,
-            "assignment_unit": "interview",
+            "assignment_id": (
+                getattr(interview_def, "question_sampling_assignment_id", None)
+                or interview_id
+            ),
+            "assignment_unit": (
+                "respondent_scenario_iteration"
+                if sampling_policy is not None
+                else "interview"
+            ),
+            "sampling_policy": sampling_policy,
+            "sample_size": (
+                sampling_policy["sample_size"] if sampling_policy is not None else None
+            ),
+            "required_questions": (
+                list(sampling_policy["required_questions"])
+                if sampling_policy is not None
+                else []
+            ),
+            "sampled_questions": sampled_questions,
+            "unselected_questions": unselected_questions,
+            "sampling_seed": getattr(interview_def, "question_sampling_seed", None),
             "option_orders": option_orders,
             "matrix_row_orders": matrix_row_orders,
             "scale_directions": dict(scale_directions),
@@ -2219,13 +2280,11 @@ class JobService:
                 name: {
                     "presented": (
                         False
-                        if (task_statuses_by_question or {}).get(name)
+                        if name in unselected_set
+                        or (task_statuses_by_question or {}).get(name)
                         == TaskStatus.SKIPPED
                         else (
-                            bool(
-                                answer_by_name[name].system_prompt
-                                or answer_by_name[name].user_prompt
-                            )
+                            True
                             if name in answer_by_name
                             else None
                         )
@@ -2586,6 +2645,37 @@ class JobService:
     # =========================================================================
     # Helper Methods
     # =========================================================================
+
+    def _realize_question_sample(
+        self,
+        survey: Any,
+        questions: list,
+        samples_by_unit: dict[
+            tuple[int, int, int], tuple[int, list[str], list[str]]
+        ],
+        assignment_unit: tuple[int, int, int],
+    ) -> tuple[list[str], list[str], int | None]:
+        """Draw an exact-size sample once per respondent/scenario/iteration unit."""
+        policy = getattr(survey, "question_sampling", None)
+        if policy is None:
+            return [], [], None
+        if assignment_unit not in samples_by_unit:
+            eligible = list(policy["eligible_questions"])
+            required = set(policy["required_questions"])
+            seed = random.getrandbits(64)
+            optional = [name for name in eligible if name not in required]
+            chosen = set(required)
+            chosen.update(
+                random.Random(seed).sample(
+                    optional, policy["sample_size"] - len(required)
+                )
+            )
+            sampled = [name for name in eligible if name in chosen]
+            unselected = [name for name in eligible if name not in chosen]
+            samples_by_unit[assignment_unit] = (seed, sampled, unselected)
+
+        seed, sampled, unselected = samples_by_unit[assignment_unit]
+        return list(sampled), list(unselected), seed
 
     def _extract_dag(self, survey: Any) -> dict[str, set[str]]:
         """Extract the dependency DAG from an EDSL Survey.

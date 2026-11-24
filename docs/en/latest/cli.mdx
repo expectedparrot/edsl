@@ -166,6 +166,18 @@ ep surveys show survey.ep
 ep surveys set-scale-direction-randomization survey.ep --clear
 ```
 
+Configure exact-count question sampling in a saved Survey package, then inspect and validate the policy:
+
+```bash
+ep surveys set-question-sampling survey.ep \
+  --eligible-question q1 --eligible-question q2 --eligible-question q3 \
+  --sample-size 2 --required-question q1
+ep surveys show survey.ep
+ep validate --file survey.ep
+```
+
+Required questions count toward `--sample-size`; questions outside the eligible pool are always asked. By default, each agent/scenario/iteration gets one sample shared across model variants. Results expose `randomization.sampled_questions` and `randomization.unselected_questions` for inspection and export.
+
 If validation fails, correct the reported problem before running the object.
 
 ## Run with language models

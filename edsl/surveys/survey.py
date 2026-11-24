@@ -172,6 +172,7 @@ class Survey(Base):
         questions_to_randomize: Optional[List[str]] = None,
         options_to_pin: Optional[Dict[str, List]] = None,
         scale_direction_randomization: Optional[dict] = None,
+        question_sampling: Optional[dict] = None,
         _internal_copy: bool = False,
     ):
         """Initialize a new Survey instance.
@@ -191,6 +192,8 @@ class Survey(Base):
             name: DEPRECATED. The name of the survey.
             questions_to_randomize: A list of question names to randomize when the
                 survey is drawn. This affects the order of options in these questions.
+            question_sampling: Versioned policy for exact-count sampling from
+                explicitly named eligible questions. Prefer ``sample_questions``.
 
         Examples:
             Create a basic survey with three questions:
@@ -251,6 +254,10 @@ class Survey(Base):
             self._scale_direction_randomization = copy.deepcopy(
                 scale_direction_randomization
             )
+        self._question_sampling = None
+        if question_sampling is not None:
+            self._validate_question_sampling(question_sampling)
+            self._question_sampling = copy.deepcopy(question_sampling)
 
         self._seed: Optional[int] = None
 
@@ -1457,6 +1464,8 @@ class Survey(Base):
             d["scale_direction_randomization"] = copy.deepcopy(
                 self._scale_direction_randomization
             )
+        if self._question_sampling is not None:
+            d["question_sampling"] = copy.deepcopy(self._question_sampling)
 
         # Add version information if requested
         if add_edsl_version:
@@ -1570,6 +1579,7 @@ class Survey(Base):
         # Get the pinned options if present
         options_to_pin = data.get("options_to_pin", None)
         scale_direction_randomization = data.get("scale_direction_randomization")
+        question_sampling = data.get("question_sampling")
 
         if "name" in data:
             name = data["name"]
@@ -1596,6 +1606,7 @@ class Survey(Base):
             name=name,
             options_to_pin=options_to_pin,
             scale_direction_randomization=scale_direction_randomization,
+            question_sampling=question_sampling,
             _internal_copy=_internal_copy,
         )
 
@@ -2178,9 +2189,19 @@ class Survey(Base):
                     "Cannot combine surveys with overlapping scale-direction targets."
                 )
             scale_policy = {**policies[0], "questions": names}
+        sampling_policies = [
+            policy
+            for policy in (self.question_sampling, other.question_sampling)
+            if policy is not None
+        ]
+        if len(sampling_policies) > 1:
+            raise SurveyCreationError(
+                "Cannot combine surveys that both define question sampling."
+            )
         return Survey(
             questions=self.questions + other.questions,
             scale_direction_randomization=scale_policy,
+            question_sampling=sampling_policies[0] if sampling_policies else None,
         )
 
     def move_question(self, identifier: Union[str, int], new_index: int) -> Survey:
@@ -2213,6 +2234,149 @@ class Survey(Base):
         0
         """
         return self._editor.delete_question(identifier)
+
+    @property
+    def question_sampling(self) -> Optional[dict]:
+        """Return the optional exact-count question-sampling policy."""
+        return copy.deepcopy(self._question_sampling)
+
+    def _validate_question_sampling(self, policy: dict) -> None:
+        """Validate exact-count sampling over independent eligible questions."""
+        from .exceptions import SurveyError
+
+        expected_keys = {
+            "version",
+            "eligible_questions",
+            "sample_size",
+            "required_questions",
+            "method",
+        }
+        if not isinstance(policy, dict) or set(policy) != expected_keys:
+            raise SurveyError(
+                "question_sampling must contain version, eligible_questions, "
+                "sample_size, required_questions, and method."
+            )
+        if (
+            isinstance(policy["version"], bool)
+            or not isinstance(policy["version"], int)
+            or policy["version"] != 1
+        ):
+            raise SurveyError("Unsupported question_sampling version; supported version is 1.")
+        if policy["method"] != "uniform_without_replacement":
+            raise SurveyError(
+                "Question sampling method must be 'uniform_without_replacement'."
+            )
+        eligible = policy["eligible_questions"]
+        required = policy["required_questions"]
+        sample_size = policy["sample_size"]
+        if not isinstance(eligible, list) or not eligible or not all(
+            isinstance(name, str) for name in eligible
+        ):
+            raise SurveyError("eligible_questions must be a non-empty list of question names.")
+        if len(set(eligible)) != len(eligible):
+            raise SurveyError("eligible_questions cannot contain duplicate names.")
+        if not isinstance(required, list) or not all(
+            isinstance(name, str) for name in required
+        ):
+            raise SurveyError("required_questions must be a list of question names.")
+        if len(set(required)) != len(required):
+            raise SurveyError("required_questions cannot contain duplicate names.")
+        if not set(required).issubset(eligible):
+            raise SurveyError("Every required question must be in eligible_questions.")
+        if isinstance(sample_size, bool) or not isinstance(sample_size, int):
+            raise SurveyError("sample_size must be an integer, not a boolean.")
+        if sample_size < max(1, len(required)) or sample_size > len(eligible):
+            raise SurveyError(
+                "sample_size must be at least one, at least the number of required "
+                "questions, and no greater than the number of eligible questions."
+            )
+
+        names = set(self.question_names)
+        missing = set(eligible) - names
+        if missing:
+            raise SurveyError(
+                f"Question sampling names unknown questions: {sorted(missing)}."
+            )
+        positions = [self.question_names.index(name) for name in eligible]
+        if positions != sorted(positions):
+            raise SurveyError(
+                "eligible_questions must follow the survey's declared question order."
+            )
+
+        if self.rule_collection.non_default_rules:
+            raise SurveyError(
+                "Question sampling does not yet support custom skip, stop, or jump rules."
+            )
+        eligible_set = set(eligible)
+        required_set = set(required)
+        names_by_index = {index: q.question_name for index, q in enumerate(self.questions)}
+        index_by_name = {name: index for index, name in names_by_index.items()}
+        for group_name, (start, end) in self.question_groups.items():
+            grouped = set(self.question_names[start : end + 1])
+            if grouped.intersection(eligible_set):
+                raise SurveyError(
+                    f"Question sampling does not yet support display group {group_name!r}."
+                )
+
+        for child_index, parents in self.dag().items():
+            child = names_by_index.get(child_index)
+            for parent_index in parents:
+                parent = names_by_index.get(parent_index)
+                if (
+                    child in eligible_set
+                    and parent in index_by_name
+                    and index_by_name[parent] > child_index
+                ):
+                    raise SurveyError(
+                        f"Question sampling prerequisite {parent!r} appears after "
+                        f"dependent question {child!r}."
+                    )
+                if parent in eligible_set and parent not in required_set:
+                    raise SurveyError(
+                        f"Question sampling cannot guarantee prerequisite {parent!r} "
+                        f"for dependent question {child!r}; mark it required or remove "
+                        "the dependency."
+                    )
+
+    def sample_questions(
+        self,
+        eligible_questions: list[str],
+        sample_size: int,
+        required_questions: Optional[list[str]] = None,
+    ) -> Survey:
+        """Sample exactly ``sample_size`` eligible questions per assignment.
+
+        Required questions are always included and count toward ``sample_size``.
+        Questions outside the eligible set remain fixed and are always presented.
+        """
+        policy = {
+            "version": 1,
+            "eligible_questions": list(eligible_questions),
+            "sample_size": sample_size,
+            "required_questions": list(required_questions or []),
+            "method": "uniform_without_replacement",
+        }
+        self._validate_question_sampling(policy)
+        self._question_sampling = policy
+        return self
+
+    def _inherit_question_sampling(self, new_survey: Survey) -> None:
+        """Preserve the policy only when a derived survey retains its full pool."""
+        if self._question_sampling is None:
+            return
+        old_eligible = set(self._question_sampling["eligible_questions"])
+        selected = set(new_survey.question_names)
+        overlap = old_eligible.intersection(selected)
+        if overlap and overlap != old_eligible:
+            from .exceptions import SurveyError
+
+            raise SurveyError(
+                "A derived survey cannot contain only part of the question-sampling "
+                "pool; retain the full pool or remove it entirely."
+            )
+        if overlap:
+            new_survey._validate_question_sampling(self._question_sampling)
+            new_survey._question_sampling = copy.deepcopy(self._question_sampling)
 
     def add_question(
         self, question: QuestionBase, index: Optional[int] = None
@@ -3970,6 +4134,7 @@ class Survey(Base):
                 scale_policy["questions"] = relevant_scales
                 new_survey._validate_scale_direction_randomization(scale_policy)
                 new_survey._scale_direction_randomization = scale_policy
+        self._inherit_question_sampling(new_survey)
 
         return new_survey
 
@@ -4283,9 +4448,20 @@ class Survey(Base):
             scale_policy["questions"] = [
                 rename_dict.get(name, name) for name in scale_policy["questions"]
             ]
+        question_sampling = copy.deepcopy(self._question_sampling)
+        if question_sampling is not None:
+            question_sampling["eligible_questions"] = [
+                rename_dict.get(name, name)
+                for name in question_sampling["eligible_questions"]
+            ]
+            question_sampling["required_questions"] = [
+                rename_dict.get(name, name)
+                for name in question_sampling["required_questions"]
+            ]
         return Survey(
             questions=new_questions,
             scale_direction_randomization=scale_policy,
+            question_sampling=question_sampling,
         )
 
     def with_edited_question(

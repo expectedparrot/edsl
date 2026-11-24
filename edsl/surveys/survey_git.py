@@ -181,6 +181,7 @@ def _read_survey_dict_at_ref(path: Path, ref: str) -> dict:
         "questions_to_randomize": "metadata/questions_to_randomize.json",
         "options_to_pin": "metadata/options_to_pin.json",
         "scale_direction_randomization": "metadata/scale_direction_randomization.json",
+        "question_sampling": "metadata/question_sampling.json",
     }
     for key, file_path in optional_fields.items():
         value = _read_optional_json_at_ref(path, file_path, ref, default=None)
@@ -368,6 +369,7 @@ def _write_metadata(path: Path, survey_dict: dict) -> None:
         "scale_direction_randomization": survey_dict.get(
             "scale_direction_randomization"
         ),
+        "question_sampling": survey_dict.get("question_sampling"),
     }
     for name, value in required.items():
         (metadata_dir / f"{name}.json").write_text(
@@ -448,6 +450,15 @@ def _validate_package(path: Path) -> list[str]:
             json.loads(metadata_path.read_text())
         except json.JSONDecodeError as exc:
             errors.append(f"invalid metadata file metadata/{name}.json: {exc.msg}")
+    question_sampling_path = metadata_dir / "question_sampling.json"
+    if question_sampling_path.exists():
+        try:
+            json.loads(question_sampling_path.read_text())
+        except json.JSONDecodeError as exc:
+            errors.append(
+                "invalid metadata file metadata/question_sampling.json: "
+                f"{exc.msg}"
+            )
     n_questions = manifest.get("n_questions")
     if n_questions is not None and n_questions != len(question_order):
         errors.append("manifest n_questions does not match question_order")
