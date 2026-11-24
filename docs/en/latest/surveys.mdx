@@ -22,26 +22,52 @@ Construct questions before passing them to `Survey([...])`. Each question must h
 Set `questions_to_randomize` on a survey to shuffle the answer options for selected questions independently for each interview. This also works when a question's entire option list is supplied by a scenario or a prior answer; EDSL resolves the list before drawing and reuses that interview's order for rendering, validation, and result metadata.
 
 ```python
-from edsl import QuestionMultipleChoice, Scenario, Survey
+from edsl import Model, QuestionMultipleChoice, ScenarioList, Survey
 
 question = QuestionMultipleChoice(
     question_name="pick",
     question_text="Pick one.",
     question_options="{{ scenario.options }}",
 )
-survey = Survey([question], questions_to_randomize=["pick"])
-scenario = Scenario({"options": ["A", "B", "Other"]})
-```
-
-Use `options_to_pin` to keep selected values in their original positions while shuffling the others. Put an end-pinned option in the last position of the source list; pinning preserves its position rather than moving it. Results record the realized order in both `question_options.<name>` and `randomization.option_orders.<name>`, with deferred draw seeds in `randomization.option_seeds.<name>`.
-
-```python
 survey = Survey(
     [question],
     questions_to_randomize=["pick"],
     options_to_pin={"pick": ["Other"]},
 )
+scenarios = ScenarioList.from_list(
+    "options",
+    [["A", "B", "Other"], ["X", "Y", "Other"]],
+)
+results = survey.by(scenarios).by(Model("gpt-4o-mini")).run(n=1)
+
+shown_options = results.select("question_options.pick").to_list()
+audit_orders = results.select("randomization.option_orders.pick").to_list()
 ```
+
+Each scenario supplies its own full list; EDSL resolves that list first, then shuffles it independently for each interview. Here `Other` stays last because it is pinned in the source list's last position. `shown_options` and `audit_orders` contain the same realized order, while the answer value continues to refer to that option.
+
+```python
+from edsl import QuestionList, QuestionMultipleChoice, Survey
+
+pool = QuestionList(
+    question_name="pool",
+    question_text="List three possible recommendations.",
+)
+pick_from_pool = QuestionMultipleChoice(
+    question_name="recommendation",
+    question_text="Choose one recommendation.",
+    question_options={"from": "{{ pool.answer }}", "add": ["Other"]},
+)
+survey_from_answer = Survey(
+    [pool, pick_from_pool],
+    questions_to_randomize=["recommendation"],
+    options_to_pin={"recommendation": ["Other"]},
+)
+```
+
+The second pattern builds the choice list from a prior `QuestionList` answer and appends `Other` if it was not already present. The resulting whole list is randomized after it resolves; pinning keeps `Other` at the end.
+
+Results record the realized order in both `question_options.<name>` and `randomization.option_orders.<name>`, with deferred draw seeds in `randomization.option_seeds.<name>`.
 
 For CLI-authored surveys, configure and inspect the same policy with `ep`:
 
