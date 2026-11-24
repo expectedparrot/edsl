@@ -39,27 +39,24 @@ def test_scale_direction_randomization_with_live_openai():
         stop_on_exception=True,
     )
 
-    rows = results.select(
-        "answer.satisfaction",
-        "question_options.satisfaction",
-        "randomization.scale_directions",
-        "randomization.scale_direction_assignment_id",
+    answers = results.select("answer.satisfaction").to_list()
+    option_orders = results.select("question_options.satisfaction").to_list()
+    directions = results.select("randomization.scale_directions").to_list()
+    assignment_ids = results.select(
+        "randomization.scale_direction_assignment_id"
     ).to_list()
-    assert len(rows) == 4
-    for row in rows:
-        answer = row["answer.satisfaction"]
+    assert len(answers) == len(option_orders) == len(directions) == len(assignment_ids) == 4
+    for answer, options, direction_map in zip(answers, option_orders, directions):
         assert isinstance(answer, int) and 1 <= answer <= 5
-        direction = row["randomization.scale_directions"]["satisfaction"]
-        options = row["question_options.satisfaction"]
+        direction = direction_map["satisfaction"]
         expected_options = (
             [1, 2, 3, 4, 5] if direction == "forward" else [5, 4, 3, 2, 1]
         )
         assert options == expected_options
 
     directions_by_assignment = {}
-    for row in rows:
-        assignment_id = row["randomization.scale_direction_assignment_id"]
-        direction = row["randomization.scale_directions"]["satisfaction"]
+    for assignment_id, direction_map in zip(assignment_ids, directions):
+        direction = direction_map["satisfaction"]
         directions_by_assignment.setdefault(assignment_id, set()).add(direction)
     assert len(directions_by_assignment) == 2
     assert all(len(directions) == 1 for directions in directions_by_assignment.values())
