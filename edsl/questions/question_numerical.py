@@ -341,6 +341,14 @@ class NumericalResponseValidator(ResponseValidatorABC):
         if nonempty_lines:
             final_line = self._standalone_number_pattern.fullmatch(nonempty_lines[-1])
             if final_line:
+                final_line_start = text.rfind(nonempty_lines[-1])
+                prior_numbers = list(
+                    self._number_pattern.finditer(text[:final_line_start])
+                )
+                if prior_numbers:
+                    connector = text[prior_numbers[-1].end() : final_line_start]
+                    if re.search(r"\b(?:or|and/or)\b", connector, re.IGNORECASE):
+                        return unique_numbers(list(self._number_pattern.finditer(text)))
                 return unique_numbers([final_line])
 
         return unique_numbers(list(self._number_pattern.finditer(text)))

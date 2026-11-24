@@ -369,6 +369,18 @@ def test_numerical_repair_does_not_prioritize_an_earlier_standalone_number():
         )
 
 
+def test_numerical_repair_rejects_multiline_alternatives_before_final_number():
+    q = QuestionNumerical(
+        question_name="probability",
+        question_text="Return one probability.",
+        min_value=0,
+        max_value=1,
+    )
+
+    with pytest.raises(QuestionAnswerValidationError):
+        q.response_validator.validate({"answer": "Either\n0.2\nor\n0.8"})
+
+
 def test_numerical_repair_preserves_large_integers():
     q = QuestionNumerical(
         question_name="count",
