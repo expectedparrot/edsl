@@ -118,12 +118,46 @@ def test_push_json_still_rejects_package_backed_objects(tmp_path, monkeypatch):
     assert out["error"]["code"] == "USAGE_ERROR"
 
 
-def test_push_rejects_other_files(tmp_path):
+def test_push_raw_file_uses_filestore_and_keeps_stdout_json(tmp_path, monkeypatch):
+    from edsl.scenarios import FileStore
+
     path = tmp_path / "notes.txt"
     path.write_text(TEXT, encoding="utf-8")
-    result, out = invoke("push", str(path))
-    assert result.exit_code != 0
-    assert out["error"]["code"] == "USAGE_ERROR"
+    push_calls = []
+
+    class FakeCoop:
+        def push(self, obj, **kwargs):
+            push_calls.append((obj, kwargs))
+            print("Uploading files to GCS: 1/1")
+            return {"uuid": "created-uuid", "object_type": "filestore"}
+
+    import edsl.coop as coop_module
+
+    monkeypatch.setattr(coop_module, "Coop", FakeCoop)
+
+    result = CliRunner().invoke(
+        cli_module.app,
+        ["push", str(path), "--alias", "meeting-notes", "--visibility", "unlisted"],
+    )
+
+    assert result.exit_code == 0, result.output
+    out = json.loads(result.stdout)
+    assert out["data"]["object_type"] == "FileStore"
+    assert out["data"]["operation"] == "push"
+    assert out["data"]["coop_info"]["uuid"] == "created-uuid"
+    assert "Uploading files to GCS" not in result.stdout
+    assert "Uploading files to GCS" in result.stderr
+
+    obj, kwargs = push_calls[0]
+    assert isinstance(obj, FileStore)
+    assert obj.suffix == "txt"
+    assert obj.extracted_text == TEXT
+    assert kwargs == {
+        "description": None,
+        "alias": "meeting-notes",
+        "force": False,
+        "visibility": "unlisted",
+    }
 
 
 def test_inspect_prompt(tmp_path):

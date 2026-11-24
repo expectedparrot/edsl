@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import contextlib
 from pathlib import Path
+import sys
 
 import click
 
@@ -243,7 +245,10 @@ def register(app: click.Group) -> None:
         if visibility is not None:
             push_kwargs["visibility"] = visibility
 
-        info = Coop().push(file_store, **push_kwargs)
+        # Coop's FileStore upload helper prints progress directly to stdout.
+        # Keep the CLI's stdout reserved for its JSON response.
+        with contextlib.redirect_stdout(sys.stderr):
+            info = Coop().push(file_store, **push_kwargs)
         output(
             {
                 "object_type": "FileStore",
