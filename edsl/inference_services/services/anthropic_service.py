@@ -299,8 +299,18 @@ class AnthropicService(InferenceServiceABC):
                 if self.output_config is not None:
                     create_kwargs["output_config"] = self.output_config
 
+                tools = self.parameters.get("tools")
+                tool_choice = self.parameters.get("tool_choice")
+                if tools is not None:
+                    create_kwargs["tools"] = tools
+                if tool_choice is not None:
+                    create_kwargs["tool_choice"] = tool_choice
+
                 response = await client.messages.create(**create_kwargs)
-                response_model = response.model_dump()
+                # Server tool responses can include datetime metadata (for example,
+                # code-execution container expiry). Cache and Results payloads must
+                # remain JSON serializable, so normalize SDK values at the boundary.
+                response_model = response.model_dump(mode="json")
                 return response_model
 
         LLM.__name__ = model_class_name

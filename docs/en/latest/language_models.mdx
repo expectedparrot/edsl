@@ -113,9 +113,10 @@ A ModelList can be inspected with `to_scenario_list()` or `to_dataset()`, filter
 
 ## Provider tools
 
-Some inference services expose tools that run on the provider's infrastructure. For
-example, OpenAI's Responses API can use hosted web search. Attach the provider's tool
-declaration to a model, then use the model in a normal EDSL job:
+Some inference services expose tools that run on the provider's infrastructure.
+OpenAI Responses and Anthropic Messages support provider-hosted tools through the
+same EDSL interface. Attach the provider's tool declaration to a model, then use
+the model in a normal EDSL job:
 
 ```python
 from edsl import Model, QuestionFreeText, Survey
@@ -144,12 +145,12 @@ search events and citations, in the question's `raw_model_response` fields (for 
 `answer_raw_model_response`). Provider tool declarations are serialized with the model
 and included in cache identity.
 
-This currently supports provider-native tools through `service_name="openai_v2"`.
-Application function tools, where EDSL must execute a returned function call and send
-its result back to the model, are a separate capability and are not supported yet.
-Direct execution is required because remote EDSL workers do not yet support tool
-requests. The provider must support the selected tool and model; unsupported
-combinations return the provider's API error.
+Provider-hosted tools currently work through `service_name="openai_v2"` and
+`service_name="anthropic"`. Application function tools, where EDSL must execute a
+returned function call and send its result back to the model, are a separate
+capability and are not supported yet. Direct execution is required because remote
+EDSL workers do not yet support tool requests. The provider must support the
+selected tool and model; unsupported combinations return the provider's API error.
 
 The same interface accepts other Responses API tool definitions. Code Interpreter
 needs an automatic container:
@@ -192,3 +193,54 @@ file_results = survey.by(file_model).run(
 Tool-specific request fields are passed through to OpenAI and validated there. EDSL
 stores each complete provider response under the question's `raw_model_response`
 fields, so tool event types, statuses, and returned citations can be inspected there.
+
+Anthropic Messages has its own versioned server-tool declarations. For example,
+web search can be enabled with `web_search_20250305`:
+
+```python
+anthropic_search_model = Model("claude-haiku-5-5", service_name="anthropic").with_tools(
+    {"type": "web_search_20250305", "name": "web_search", "max_uses": 2}
+)
+search_results = survey.by(anthropic_search_model).run(
+    offload_execution=False,
+    disable_remote_inference=True,
+)
+```
+
+Anthropic's code execution tool can run a calculation in the provider's sandbox:
+
+```python
+anthropic_code_model = Model("claude-haiku-5-5", service_name="anthropic").with_tools(
+    {"type": "code_execution_20250825", "name": "code_execution"}
+)
+code_results = calculation.by(anthropic_code_model).run(
+    offload_execution=False,
+    disable_remote_inference=True,
+)
+```
+
+Web fetch can be restricted to specific domains. This example allows pages from
+Anthropic's documentation site only:
+
+```python
+anthropic_fetch_model = Model("claude-haiku-5-5", service_name="anthropic").with_tools(
+    {
+        "type": "web_fetch_20250910",
+        "name": "web_fetch",
+        "max_uses": 1,
+        "allowed_domains": ["platform.claude.com"],
+    }
+)
+fetch_results = survey.by(anthropic_fetch_model).run(
+    offload_execution=False,
+    disable_remote_inference=True,
+)
+```
+
+Anthropic returns server-tool activity and results as content blocks in the
+provider response, which EDSL retains under `raw_model_response`. Server tools
+execute within the Anthropic request; EDSL does not run a client-side tool loop.
+Tool names and versions are provider-specific. See Anthropic's documentation for
+[web search](https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool),
+[code execution](https://platform.claude.com/docs/en/agents-and-tools/tool-use/code-execution-tool),
+and [web fetch](https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-fetch-tool).

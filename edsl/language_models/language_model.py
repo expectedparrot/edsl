@@ -576,8 +576,9 @@ class LanguageModel(
 
         Tool schemas are sent to the configured provider and serialized with the
         model, so they participate in Jobs and cache identity. This initial
-        implementation supports provider-native tools through OpenAI Responses
-        (``service_name="openai_v2"``); it does not execute application function
+        implementation supports provider-hosted tools through OpenAI Responses
+        (``service_name="openai_v2"``) and Anthropic Messages
+        (``service_name="anthropic"``); it does not execute application function
         tools returned by the provider.
 
         Example:
@@ -585,10 +586,11 @@ class LanguageModel(
                 {"type": "web_search"}
             )``
         """
-        if self._inference_service_ != "openai_v2":
+        if self._inference_service_ not in {"openai_v2", "anthropic"}:
             raise LanguageModelValueError(
-                "Provider-native tools are currently supported only by the OpenAI "
-                "Responses API (service_name='openai_v2')."
+                "Provider-hosted tools are currently supported by the OpenAI "
+                "Responses API (service_name='openai_v2') and Anthropic Messages "
+                "API (service_name='anthropic')."
             )
         if not tools:
             raise LanguageModelValueError("with_tools() requires at least one tool.")
