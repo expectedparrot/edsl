@@ -105,6 +105,7 @@
         "pages": [
           "en/latest/guides/saving_objects",
           "en/latest/coop",
+          "en/latest/collections",
           "en/latest/survey_ep_format",
           "en/latest/notebooks",
           "en/latest/colab_notebooks",

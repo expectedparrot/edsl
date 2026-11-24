@@ -35,6 +35,8 @@ edsl validate
 edsl models
 edsl docs
 edsl skills
+edsl collections
+edsl playbooks
 edsl search
 edsl clone
 edsl push
@@ -117,6 +119,36 @@ replace an existing playbook's content. `push` creates by default; `--force`
 explicitly overwrites an existing playbook with the same alias. `show --output
 -` emits only raw prompt text for piping. Without `--output`, `show` returns
 prompt text and metadata in the JSON envelope.
+
+## Collections
+
+Collections are local `.ep` packages containing ordered, typed UUID references
+to objects stored on Expected Parrot. They do not embed member content or
+change member permissions. Use `ep collections --help` and the subcommand help
+for the installed options.
+
+```bash
+ep collections create --name "Study materials" --purpose "Survey and prompt references." --output study-materials.ep
+ep collections add study-materials.ep "$SURVEY_UUID" --type survey
+ep collections add study-materials.ep "$PROMPT_UUID" --type prompt
+ep collections show study-materials.ep
+ep collections metadata study-materials.ep
+ep collections remove study-materials.ep "$PROMPT_UUID" --type prompt
+ep push study-materials.ep --alias study-materials --description "Survey and prompt references for the study." --visibility private
+ep clone "$COLLECTION_UUID" --path study-materials-copy.ep
+ep pull study-materials-copy.ep
+```
+
+Use the UUIDs returned by `ep push` or shown by `ep metadata`; each reference
+also needs the correct `--type`. Set `SURVEY_UUID` and `PROMPT_UUID` to those
+UUIDs. `metadata` looks up current metadata for every member without fetching
+object contents and requires access to each member.
+`from-search` builds a collection from one result page, so check its pagination
+metadata and warnings. Set `COLLECTION_UUID` to the UUID returned by `ep push`
+before running the clone example. Collection visibility does not change member
+visibility.
+See [Collections](/en/latest/collections) for a complete guide and a search
+example.
 
 ## Documentation Search
 
