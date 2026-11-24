@@ -74,6 +74,7 @@ def app(ctx):
                 "search",
                 "push",
                 "pull",
+                "log",
                 "metadata",
                 "update-metadata",
                 "share",
@@ -123,6 +124,7 @@ def objects(ctx):
                 "clone",
                 "push",
                 "pull",
+                "log",
                 "metadata",
                 "update-metadata",
                 "share",
@@ -171,7 +173,7 @@ def auth(ctx):
     """Authentication management."""
     if ctx.invoked_subcommand is None:
         _output({
-            "commands": ["login", "status", "balance"],
+            "commands": ["login", "status", "setup-git", "balance"],
             "help": "Use 'ep auth <command> --help' for details.",
         })
 
@@ -401,6 +403,7 @@ for command_name in [
     "clone",
     "push",
     "pull",
+    "log",
     "metadata",
     "update-metadata",
     "share",

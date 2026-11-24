@@ -36,6 +36,33 @@ def test_collection_git_loads_previous_commit(tmp_path):
     assert historical.metadata == {"version": 1}
 
 
+def test_collection_save_keeps_the_object_uuid_and_remote_url(tmp_path, monkeypatch):
+    from edsl.base import git_package as gitpkg
+    from edsl.coop.coop import Coop
+
+    monkeypatch.setattr(Coop, "get_metadata", lambda self, _uuid: {"uuid": object_uuid})
+    object_uuid = str(uuid4())
+    url = f"https://git.example.test/edsl/alice/obj-{object_uuid}.git"
+    path = tmp_path / "pushed.ep"
+    collection = Collection("Pushed")
+    collection.git.save(path)
+    collection.git._write_coop_info_and_commit(
+        {"uuid": object_uuid, "git_remote_url": url}, message="pushed"
+    )
+    worktree = collection.git.worktree_path
+    gitpkg.record_object_remote(worktree)
+    gitpkg.commit_paths(worktree, "manifest.json", message="Record EDSL object remote")
+
+    collection.name = "Renamed"
+    collection.git.save(message="rename")
+
+    loaded = Collection.git.load(path, sync_coop=False)
+    manifest = gitpkg.read_manifest_file(loaded.git.worktree_path)
+    assert loaded.name == "Renamed"
+    assert manifest["object_uuid"] == object_uuid
+    assert manifest["remote_url"] == url
+
+
 def test_collection_rejects_duplicate_members():
     object_uuid = str(uuid4())
     collection = Collection("Duplicates").add("survey", object_uuid)

@@ -257,13 +257,7 @@ def _write_manifest(path: Path, model_list_dict: dict, model_ids: list[str]) -> 
         "model_order": model_ids,
         "n_models": len(model_ids),
     }
-    existing_remotes = gitpkg.manifest_remotes(existing_manifest)
-    if existing_remotes:
-        manifest["remotes"] = existing_remotes
-    if "primary_remote" in existing_manifest:
-        manifest["primary_remote"] = existing_manifest["primary_remote"]
-    elif "remote" in existing_manifest and existing_manifest["remote"].get("name"):
-        manifest["primary_remote"] = existing_manifest["remote"]["name"]
+    gitpkg.carry_package_metadata(existing_manifest, manifest)
     try:
         from edsl import __version__
 
