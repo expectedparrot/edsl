@@ -244,3 +244,50 @@ Tool names and versions are provider-specific. See Anthropic's documentation for
 [web search](https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool),
 [code execution](https://platform.claude.com/docs/en/agents-and-tools/tool-use/code-execution-tool),
 and [web fetch](https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-fetch-tool).
+
+Google Gemini's `generate_content` API accepts tool declarations in its own
+configuration format. For example, Google Search uses `google_search`:
+
+```python
+google_search_model = Model("gemini-2.5-flash", service_name="google").with_tools(
+    {"google_search": {}}
+)
+google_search_results = survey.by(google_search_model).run(
+    offload_execution=False,
+    disable_remote_inference=True,
+)
+```
+
+The same pattern enables sandboxed Python execution or URL context. Include the
+URL in the question when using URL context:
+
+```python
+google_code_model = Model("gemini-2.5-flash", service_name="google").with_tools(
+    {"code_execution": {}}
+)
+google_code_results = calculation.by(google_code_model).run(
+    offload_execution=False,
+    disable_remote_inference=True,
+)
+
+google_url_model = Model("gemini-2.5-flash", service_name="google").with_tools(
+    {"url_context": {}}
+)
+page_question = QuestionFreeText(
+    question_name="page_summary",
+    question_text="Summarize the tool-use guidance at https://ai.google.dev/gemini-api/docs/url-context",
+)
+page_results = Survey([page_question]).by(google_url_model).run(
+    offload_execution=False,
+    disable_remote_inference=True,
+)
+```
+
+Google's SDK represents these built-in tools with provider-specific fields rather
+than a generic `type` field. EDSL passes those declarations to the Google Gen AI
+SDK's `GenerateContentConfig`; the complete response, including grounding metadata
+or code execution parts, remains available in `raw_model_response`. See Google's
+[Search grounding](https://ai.google.dev/gemini-api/docs/google-search),
+[code execution](https://ai.google.dev/gemini-api/docs/code-execution), and
+[URL context](https://ai.google.dev/gemini-api/docs/url-context) guides for
+provider and model availability details.

@@ -462,6 +462,16 @@ class GoogleService(InferenceServiceABC):
                     system_instruction=system_instruction,
                 )
 
+                # Provider-hosted tools (Google Search, code execution, URL
+                # context, etc.) are supplied as Google Gen AI Tool dictionaries.
+                # The SDK validates/converts them when building the request config.
+                tools = self.parameters.get("tools")
+                if tools is not None:
+                    config_kwargs["tools"] = tools
+                tool_config = self.parameters.get("tool_config")
+                if tool_config is not None:
+                    config_kwargs["tool_config"] = tool_config
+
                 # Gemini 3+ is tuned for its sampling defaults; Google advises
                 # omitting temperature/top-p/top-k for these models.
                 if not model_uses_thinking_level:

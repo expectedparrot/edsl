@@ -577,8 +577,9 @@ class LanguageModel(
         Tool schemas are sent to the configured provider and serialized with the
         model, so they participate in Jobs and cache identity. This initial
         implementation supports provider-hosted tools through OpenAI Responses
-        (``service_name="openai_v2"``) and Anthropic Messages
-        (``service_name="anthropic"``); it does not execute application function
+        (``service_name="openai_v2"``), Anthropic Messages
+        (``service_name="anthropic"``), and Google Gemini
+        (``service_name="google"``); it does not execute application function
         tools returned by the provider.
 
         Example:
@@ -586,11 +587,12 @@ class LanguageModel(
                 {"type": "web_search"}
             )``
         """
-        if self._inference_service_ not in {"openai_v2", "anthropic"}:
+        if self._inference_service_ not in {"openai_v2", "anthropic", "google"}:
             raise LanguageModelValueError(
-                "Provider-hosted tools are currently supported by the OpenAI "
-                "Responses API (service_name='openai_v2') and Anthropic Messages "
-                "API (service_name='anthropic')."
+                "Provider-hosted tools are currently supported for "
+                "service_name='openai_v2' (OpenAI Responses), "
+                "service_name='anthropic' (Anthropic Messages), and "
+                "service_name='google' (Google Gemini)."
             )
         if not tools:
             raise LanguageModelValueError("with_tools() requires at least one tool.")
@@ -599,9 +601,9 @@ class LanguageModel(
             tools = tuple(tools[0])
         normalized_tools = []
         for tool in tools:
-            if not isinstance(tool, dict) or not isinstance(tool.get("type"), str):
+            if not isinstance(tool, dict) or not tool:
                 raise LanguageModelValueError(
-                    "Each tool must be a provider tool dictionary with a string 'type'."
+                    "Each tool must be a non-empty provider tool dictionary."
                 )
             normalized_tools.append(copy.deepcopy(tool))
 
