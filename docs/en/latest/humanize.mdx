@@ -483,6 +483,34 @@ The returned `FileStore` and `FileStoreList` objects behave like any other — y
 
 ---
 
+## Pause and resume response collection
+
+Pause a survey to stop taking new responses. While it's paused, anyone who opens the link is told the survey is closed. Respondents who are partway through can still finish.
+
+```python
+from edsl import Coop
+
+coop = Coop()
+paused = coop.pause_human_survey("your-human-survey-uuid")
+print(f"Still in progress: {paused['n_in_progress']}")
+
+# Later, to accept new respondents again:
+coop.resume_human_survey("your-human-survey-uuid")
+```
+
+Both return the survey's `uuid`, `is_active`, `n_complete` and `n_in_progress`. Calling either twice has the same effect as calling it once. `get_human_survey()` and `list_human_surveys()` include `is_active`, which is `False` while a survey is paused.
+
+From the command line:
+
+```bash
+ep humanize pause HUMAN_SURVEY_UUID
+ep humanize resume HUMAN_SURVEY_UUID
+```
+
+Pausing the survey doesn't pause a [Prolific study](#prolific-integration) that recruits for it: Prolific keeps sending participants, who see that the survey is closed. To stop participation, pause the study too with `coop.pause_prolific_study()`.
+
+---
+
 ## QR code
 
 Generate a QR code for the respondent link using `get_human_survey_qr_code()`. Requires the `qrcode` library (`pip install "edsl[full]"` or `pip install "qrcode[pil]"`).

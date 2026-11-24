@@ -866,7 +866,7 @@ class Jobs(Base):
                 ),
             }
         )
-        info = jobs_scenario.push()
+        info = jobs_scenario.push(git_repo=kwargs.get("git_repo", False))
         return info
 
         # @classmethod
