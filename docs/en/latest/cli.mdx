@@ -162,12 +162,23 @@ Set answer-option randomization on a survey with `set-option-randomization`. Rep
 ep surveys set-option-randomization survey.ep \
   --question recommend \
   --pin-options '{"recommend":["No"]}'
-
 ep surveys show survey.ep
 ep validate --file survey.ep
 ```
 
 Use `--clear` to remove the survey's option-randomization settings. See [Surveys](/en/latest/surveys#randomize-answer-option-order) for execution behavior and Python examples.
+
+Configure exact-count question sampling in a saved Survey package, then inspect and validate the policy:
+
+```bash
+ep surveys set-question-sampling survey.ep \
+  --eligible-question q1 --eligible-question q2 --eligible-question q3 \
+  --sample-size 2 --required-question q1
+ep surveys show survey.ep
+ep validate --file survey.ep
+```
+
+Required questions count toward `--sample-size`; questions outside the eligible pool are always asked. By default, each agent/scenario/iteration gets one sample shared across model variants. Results expose `randomization.sampled_questions` and `randomization.unselected_questions` for inspection and export.
 
 If validation fails, correct the reported problem before running the object.
 
