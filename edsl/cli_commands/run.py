@@ -149,7 +149,8 @@ def register(app: click.Group) -> None:
                    suggestion="Use 'ep validate' to check your input.",
                    exit_code=EXIT_ERROR)
 
-        # Step 3: Apply component overrides
+        # Step 3: Replace components on the loaded job so its schedule,
+        # dependencies, filters, and assignment metadata survive the override.
         try:
             if agent_list:
                 agents_obj = load_any_object(
@@ -159,12 +160,7 @@ def register(app: click.Group) -> None:
                     raise TypeError(
                         f"--agent_list requires AgentList, got {type(agents_obj).__name__}"
                     )
-                job = Jobs(
-                    survey=job.survey,
-                    agents=agents_obj,
-                    models=job.models,
-                    scenarios=job.scenarios,
-                )
+                job.agents = agents_obj
             if scenario_list:
                 scenarios_obj = load_any_object(
                     scenario_list, expected_object_type="ScenarioList"
@@ -174,12 +170,7 @@ def register(app: click.Group) -> None:
                         "--scenario_list requires ScenarioList, "
                         f"got {type(scenarios_obj).__name__}"
                     )
-                job = Jobs(
-                    survey=job.survey,
-                    agents=job.agents,
-                    models=job.models,
-                    scenarios=scenarios_obj,
-                )
+                job.scenarios = scenarios_obj
             if model_list:
                 models_obj = load_any_object(
                     model_list, expected_object_type="ModelList"
@@ -188,24 +179,14 @@ def register(app: click.Group) -> None:
                     raise TypeError(
                         f"--model_list requires ModelList, got {type(models_obj).__name__}"
                     )
-                job = Jobs(
-                    survey=job.survey,
-                    agents=job.agents,
-                    models=models_obj,
-                    scenarios=job.scenarios,
-                )
+                job.models = models_obj
             if model:
                 connection_kwargs = {}
                 if base_url:
                     connection_kwargs["base_url"] = base_url
                 if api_key_env:
                     connection_kwargs["api_key_env"] = api_key_env
-                job = Jobs(
-                    survey=job.survey,
-                    agents=job.agents,
-                    models=[ModelClass(model, service_name=service, **connection_kwargs)],
-                    scenarios=job.scenarios,
-                )
+                job.models = [ModelClass(model, service_name=service, **connection_kwargs)]
         except SystemExit:
             raise
         except Exception as e:

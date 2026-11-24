@@ -18,7 +18,8 @@ child of the target directory, including its scripts. `ep skills show <name>`
 returns the main file and every transitively linked local Markdown reference.
 Fetch one reference with `ep skills show <name> --reference
 references/<file>.md`; fetch a script's source with
-`ep skills show <name> --script scripts/<file>`. `ep skills list --routing`
-reports available script paths and fetch commands. The CLI returns script source
-for inspection; search also indexes script text, and the CLI does not execute
-bundled scripts.
+`ep skills show <name> --script scripts/<file>`. Version-matched EDSL examples
+are fetchable with `ep skills show <name> --example <path>` and listed by
+`ep skills list --routing`. Search indexes skill references, scripts, and
+assigned example source. The CLI returns code for inspection; it does not
+execute bundled scripts or examples.
