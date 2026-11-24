@@ -46,6 +46,8 @@ class SurveySerializer:
             meta["options_to_pin"] = s.options_to_pin
         if s.question_sampling is not None:
             meta["question_sampling"] = s.question_sampling
+        if s.question_order["blocks"]:
+            meta["question_order"] = s.question_order
         if add_edsl_version:
             from edsl import __version__
 
@@ -159,6 +161,7 @@ class SurveySerializer:
             questions_to_randomize=meta.get("questions_to_randomize"),
             options_to_pin=meta.get("options_to_pin"),
             question_sampling=meta.get("question_sampling"),
+            question_order=meta.get("question_order"),
             name=meta.get("name"),
         )
 

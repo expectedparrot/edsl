@@ -427,6 +427,53 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
+    @surveys_group.command("add-question-order-block")
+    @click.argument("survey_path")
+    @click.option(
+        "--name", "block_name", required=True, help="Stable name for this randomization block."
+    )
+    @click.option(
+        "--question",
+        "questions",
+        multiple=True,
+        required=True,
+        help="Question name in declared order. Repeat for each block member.",
+    )
+    @click.option(
+        "--output",
+        "output_path",
+        default=None,
+        help="Output package or file; defaults to SURVEY_PATH.",
+    )
+    def add_question_order_block(
+        survey_path: str,
+        block_name: str,
+        questions: tuple[str, ...],
+        output_path: str | None,
+    ):
+        """Declare a contiguous block of independent questions to permute per interview."""
+        try:
+            survey = _load_survey(survey_path)
+            survey.randomize_question_order(block_name, list(questions))
+            saved = save_edsl_object(
+                survey, output_path or survey_path, object_type="Survey"
+            )
+            if raw_output_written(saved):
+                return
+            output(_survey_summary(survey, saved=saved))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "SURVEYS_ORDER_BLOCK_ERROR",
+                str(e),
+                suggestion=(
+                    "Use at least two contiguous, independent question names "
+                    "in declared order."
+                ),
+                exit_code=EXIT_ERROR,
+            )
+
     @surveys_group.command("show")
     @click.argument("survey_path")
     def show_survey(survey_path: str):
@@ -701,6 +748,7 @@ def _survey_summary(survey, saved: dict | None = None) -> dict:
         "rules": [_rule_summary(rule) for rule in rules],
         "question_groups": getattr(survey, "question_groups", {}),
         "question_sampling": survey.question_sampling,
+        "question_order": survey.question_order,
         "memory_plan": _memory_plan_summary(survey),
         "instructions": _instruction_summary(survey),
     }
