@@ -106,11 +106,16 @@ class ResultBuilder:
         key_mappings = {}
         conflicts = []
 
-        # Process data types with 'answer' first to give it priority
+        # Process answers first to preserve their unqualified names. Process the
+        # new provenance namespace last so existing unqualified columns retain
+        # their previous owner when provenance contains a colliding bare name.
         data_types = sorted(sub_dicts.keys())
         if "answer" in data_types:
             data_types.remove("answer")
             data_types = ["answer"] + data_types
+        if "randomization" in data_types:
+            data_types.remove("randomization")
+            data_types.append("randomization")
 
         for data_type in data_types:
             for key in sub_dicts[data_type]:
@@ -119,7 +124,8 @@ class ResultBuilder:
 
                     warnings.warn(
                         f"Key '{key}' of data type '{data_type}' is already in use. "
-                        f"Renaming to {key}_{data_type}.\n"
+                        f"Unqualified access remains with {key_mappings[key]}; "
+                        f"use {data_type}.{key} for the duplicate.\n"
                         f"Conflicting data_type for this key at {key_mappings[key]}"
                     )
                     conflicts.append((key, data_type))
@@ -129,15 +135,13 @@ class ResultBuilder:
         return key_mappings, conflicts
 
     def _resolve_conflicts(self, sub_dicts: dict, conflicts: list) -> dict:
-        """Resolve conflicts by renaming keys."""
-        resolved_sub_dicts = {k: dict(v) for k, v in sub_dicts.items()}  # deep copy
-        for key, data_type in conflicts:
-            if key in resolved_sub_dicts[data_type]:
-                new_key = f"{key}_{data_type}"
-                resolved_sub_dicts[data_type][new_key] = resolved_sub_dicts[
-                    data_type
-                ].pop(key)
-        return resolved_sub_dicts
+        """Copy sub-dictionaries while preserving all qualified column names.
+
+        Conflicts affect only unqualified access. Renaming a nested key makes its
+        qualified column (for example, ``scenario.foo``) disappear. The key map
+        selects the owner for an unqualified name; every namespace keeps its key.
+        """
+        return {key: dict(values) for key, values in sub_dicts.items()}
 
     def _merge_sub_dicts(self, resolved_sub_dicts: dict) -> tuple[dict, list]:
         """Merge all sub-dictionaries into a single combined dictionary.
@@ -149,8 +153,11 @@ class ResultBuilder:
         problem_keys = []
 
         for key, sub_dict in resolved_sub_dicts.items():
-            # First update with the contents of the sub-dictionary
-            combined.update(sub_dict)
+            # Only the selected owner contributes an unqualified alias. Qualified
+            # access is served from the intact sub-dictionary below.
+            for sub_key, value in sub_dict.items():
+                if self.keys_to_data_types.get(sub_key) == key:
+                    combined[sub_key] = value
 
             # Check if the sub-dict key conflicts with any of its contents
             if key in combined:

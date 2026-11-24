@@ -345,6 +345,59 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
+    @surveys_group.command("set-question-sampling")
+    @click.argument("survey_path")
+    @click.option(
+        "--eligible-question",
+        "eligible_questions",
+        multiple=True,
+        required=True,
+        help="A question eligible for sampling. Repeat for each question.",
+    )
+    @click.option(
+        "--sample-size", required=True, type=int, help="Exact number selected from the eligible set."
+    )
+    @click.option(
+        "--required-question",
+        "required_questions",
+        multiple=True,
+        help="Eligible question that must be selected. Repeat as needed.",
+    )
+    @click.option("--output", "output_path", default=None, help="Output path; defaults to SURVEY_PATH.")
+    def set_question_sampling(
+        survey_path: str,
+        eligible_questions: tuple[str, ...],
+        sample_size: int,
+        required_questions: tuple[str, ...],
+        output_path: str | None,
+    ):
+        """Configure exact-count sampling without replacement for survey questions."""
+        try:
+            survey = _load_survey(survey_path)
+            survey.sample_questions(
+                list(eligible_questions),
+                sample_size,
+                required_questions=list(required_questions),
+            )
+            saved = save_edsl_object(
+                survey, output_path or survey_path, object_type="Survey"
+            )
+            if raw_output_written(saved):
+                return
+            output(_survey_summary(survey, saved=saved))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "SURVEYS_SAMPLING_ERROR",
+                str(e),
+                suggestion=(
+                    "Check that the sample size is feasible and eligible questions "
+                    "have supported dependency relationships."
+                ),
+                exit_code=EXIT_ERROR,
+            )
+
     @surveys_group.command("add-question-group")
     @click.argument("survey_path")
     @click.option("--name", "group_name", required=True, help="Question group name.")
@@ -371,6 +424,53 @@ def register(surveys_group: click.Group) -> None:
                 "SURVEYS_ADD_QUESTION_GROUP_ERROR",
                 str(e),
                 suggestion="Check the survey path, question names, and group name.",
+                exit_code=EXIT_ERROR,
+            )
+
+    @surveys_group.command("add-question-order-block")
+    @click.argument("survey_path")
+    @click.option(
+        "--name", "block_name", required=True, help="Stable name for this randomization block."
+    )
+    @click.option(
+        "--question",
+        "questions",
+        multiple=True,
+        required=True,
+        help="Question name in declared order. Repeat for each block member.",
+    )
+    @click.option(
+        "--output",
+        "output_path",
+        default=None,
+        help="Output package or file; defaults to SURVEY_PATH.",
+    )
+    def add_question_order_block(
+        survey_path: str,
+        block_name: str,
+        questions: tuple[str, ...],
+        output_path: str | None,
+    ):
+        """Declare a contiguous block of independent questions to permute per interview."""
+        try:
+            survey = _load_survey(survey_path)
+            survey.randomize_question_order(block_name, list(questions))
+            saved = save_edsl_object(
+                survey, output_path or survey_path, object_type="Survey"
+            )
+            if raw_output_written(saved):
+                return
+            output(_survey_summary(survey, saved=saved))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "SURVEYS_ORDER_BLOCK_ERROR",
+                str(e),
+                suggestion=(
+                    "Use at least two contiguous, independent question names "
+                    "in declared order."
+                ),
                 exit_code=EXIT_ERROR,
             )
 
@@ -647,6 +747,8 @@ def _survey_summary(survey, saved: dict | None = None) -> dict:
         "rule_count": len(rules),
         "rules": [_rule_summary(rule) for rule in rules],
         "question_groups": getattr(survey, "question_groups", {}),
+        "question_sampling": survey.question_sampling,
+        "question_order": survey.question_order,
         "memory_plan": _memory_plan_summary(survey),
         "instructions": _instruction_summary(survey),
     }
