@@ -113,6 +113,35 @@ def test_treatment_assignment_humanize_is_rejected_before_scenario_processing():
         job.humanize()
 
 
+def test_treatment_assignment_does_not_count_skipped_question_as_exposure():
+    gate = QuestionFreeText(question_name="gate", question_text="Should we skip?")
+    response = QuestionFreeText(
+        question_name="response",
+        question_text="Respond to this {{ scenario.condition }} condition.",
+    )
+    survey = Survey([gate, response]).add_skip_rule(
+        "response", "{{ gate.answer }} == 'skip'"
+    )
+    job = _job()
+    job.survey = survey
+    job.models = [Model("test", canned_response="skip")]
+    job.set_treatment_assignment(_policy())
+
+    results = job.run(
+        n=2,
+        cache=False,
+        disable_remote_inference=True,
+        disable_remote_cache=True,
+        progress_bar=False,
+    )
+
+    assert len(results) == 4
+    assert all(
+        result["randomization"]["treatment_exposure"]["exposed"] is False
+        for result in results
+    )
+
+
 def test_treatment_assignment_rejects_missing_schedule_units():
     policy = TreatmentAssignment(
         conditions={"control": 0, "treatment": 1},
