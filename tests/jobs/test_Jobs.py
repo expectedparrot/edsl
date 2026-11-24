@@ -2,7 +2,11 @@ import pytest
 from edsl.agents import Agent
 from edsl.interviews import Interview
 from edsl.jobs import Jobs
-from edsl.questions import QuestionMultipleChoice, QuestionFreeText
+from edsl.questions import (
+    QuestionMultipleChoice,
+    QuestionFreeText,
+    QuestionThinking,
+)
 from edsl.results import Result, Results
 from edsl.scenarios import Scenario, ScenarioList
 from edsl.surveys import Survey
@@ -89,6 +93,41 @@ def test_disable_remote_inference_allows_local_execution(valid_job, monkeypatch)
 
     results = valid_job.run(cache=False, disable_remote_inference=True)
     assert results is not None
+
+
+def test_question_thinking_tools_are_included_in_remote_execution_guard():
+    from edsl.jobs.exceptions import JobsRunError
+
+    question_model = Model("claude-sonnet-4-6", service_name="anthropic").with_tools(
+        {"type": "web_search_20250305", "name": "web_search"}
+    )
+    job = Jobs(
+        survey=Survey(
+            [QuestionThinking("think", "Find the answer.", model=question_model)]
+        ),
+        agents=[Agent()],
+        models=[Model("test", canned_response="unused")],
+    )
+
+    assert question_model in job._models_with_question_models()
+    with pytest.raises(JobsRunError, match="provider tools must run directly"):
+        job._remote_results(job.run_config)
+
+
+def test_question_thinking_tools_are_included_in_api_proxy_guard():
+    question_model = Model("claude-sonnet-4-6", service_name="anthropic").with_tools(
+        {"type": "web_search_20250305", "name": "web_search"}
+    )
+    job = Jobs(
+        survey=Survey(
+            [QuestionThinking("think", "Find the answer.", model=question_model)]
+        ),
+        agents=[Agent()],
+        models=[Model("test", canned_response="unused")],
+    )
+
+    with pytest.raises(JobsRunError, match="cannot use the API proxy"):
+        job.run(use_api_proxy=True, cache=False)
 
 
 def test_jobs_by_agents():

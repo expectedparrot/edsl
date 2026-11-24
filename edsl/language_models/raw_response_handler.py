@@ -71,6 +71,35 @@ class RawResponseHandler:
         self.inference_service = inference_service
 
     def get_generated_token_string(self, raw_response):
+        # Provider-hosted tool calls can be preceded by short progress text. That
+        # text is not the answer EDSL should store; use only text emitted after
+        # the final tool interaction.
+        if isinstance(raw_response, dict):
+            output = raw_response.get("output")
+            if isinstance(output, list):
+                tool_positions = [
+                    index
+                    for index, item in enumerate(output)
+                    if isinstance(item, dict)
+                    and item.get("type") not in {"message", "reasoning"}
+                ]
+                if tool_positions:
+                    final_text = self._responses_final_text(
+                        output[tool_positions[-1] + 1 :]
+                    )
+                    return final_text
+
+            content = raw_response.get("content")
+            if isinstance(content, list):
+                tool_positions = [
+                    index
+                    for index, item in enumerate(content)
+                    if isinstance(item, dict)
+                    and item.get("type") in {"tool_use", "server_tool_use"}
+                ]
+                if tool_positions:
+                    return self._anthropic_final_text(content[tool_positions[-1] + 1 :])
+
         # Gemini may place thoughts and server-tool parts before the final text
         # part. The fixed Google key_sequence points at parts[0], which can be
         # commentary, executable code, or a code result instead of the answer.
@@ -197,6 +226,37 @@ class RawResponseHandler:
                 return f"[ERROR: Could not extract text. Raw response: {str(raw_response)}]"
             except Exception:
                 return "[ERROR: Could not extract text from response]"
+
+    @staticmethod
+    def _responses_final_text(output):
+        """Return text from the last Responses API message in *output*."""
+        messages = [
+            item
+            for item in output
+            if isinstance(item, dict)
+            and item.get("type") == "message"
+            and isinstance(item.get("content"), list)
+        ]
+        if not messages:
+            return ""
+        return "\n".join(
+            block["text"]
+            for block in messages[-1]["content"]
+            if isinstance(block, dict)
+            and block.get("type") in {"output_text", "text"}
+            and isinstance(block.get("text"), str)
+        ).strip()
+
+    @staticmethod
+    def _anthropic_final_text(content):
+        """Return text blocks following the final Anthropic tool-use block."""
+        return "\n\n".join(
+            block["text"]
+            for block in content
+            if isinstance(block, dict)
+            and block.get("type") == "text"
+            and isinstance(block.get("text"), str)
+        ).strip()
 
     def get_usage_dict(self, raw_response):
         if self.usage_sequence is None:

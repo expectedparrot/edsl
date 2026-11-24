@@ -1294,7 +1294,7 @@ class Jobs(Base):
 
         if any(
             model.parameters.get("tools") or getattr(model, "tools", None)
-            for model in self.models
+            for model in self._models_with_question_models()
         ):
             from .exceptions import JobsRunError
 
@@ -1353,6 +1353,15 @@ class Jobs(Base):
                 "and the remote inference setting. To run locally, pass "
                 "disable_remote_inference=True or offload_execution=False."
             )
+
+    def _models_with_question_models(self):
+        """Return all job models, including models attached to questions."""
+        models = list(self.models)
+        for question in getattr(self.survey, "questions", []):
+            question_model = getattr(question, "_model", None)
+            if question_model is not None:
+                models.append(question_model)
+        return models
 
     @staticmethod
     def _remote_results_are_invalid(results: "Results") -> bool:
@@ -1688,7 +1697,7 @@ class Jobs(Base):
         if self.run_config.parameters.use_api_proxy:
             if any(
                 model.parameters.get("tools") or getattr(model, "tools", None)
-                for model in self.models
+                for model in self._models_with_question_models()
             ):
                 from .exceptions import JobsRunError
 
