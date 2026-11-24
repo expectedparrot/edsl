@@ -33,6 +33,23 @@ A stop rule is evaluated after its question. A skip rule can bypass an individua
 
 See [Survey logic and piping](/en/latest/guides/survey_logic) for testing routes and [Survey messages](/en/latest/survey_messages) for instructions shown between questions.
 
+## Sample questions per respondent
+
+Use `sample_questions()` when every respondent should receive the same fixed questions plus an exact-size sample from an eligible pool. Sampling is uniform and without replacement. Required questions are included in the sample count; questions outside the eligible pool remain fixed.
+
+```python
+survey = Survey([consent, q1, q2, q3, q4, debrief])
+survey.sample_questions(
+    eligible_questions=["q1", "q2", "q3", "q4"],
+    sample_size=2,
+    required_questions=["q1"],
+)
+```
+
+The sample size must be at least one and no larger than the eligible pool; required questions must fit within it. Sampling keeps declared question order among selected questions. A sampled question cannot depend on another eligible question unless that prerequisite is required. Custom skip/stop/jump rules and display groups that overlap the eligible pool are rejected. By default, each agent/scenario/iteration gets one sample shared across its model variants. The realized sample and seed are stored with each assignment, reused on retry/resume, and recorded in `randomization.sampled_questions` and `randomization.unselected_questions`. The latter identifies planned omissions separately from unanswered questions. Humanize does not yet support this policy and rejects it before publishing.
+
+Use `ep surveys set-question-sampling` to configure the policy in a saved package and `ep surveys show` to inspect it. The [CLI Guide](/en/latest/cli#create-and-validate-study-objects) has an example.
+
 ## Prepare a run
 
 Combine a survey with scenarios, agents, and models using `by()` to construct a [Jobs](/en/latest/jobs) object. For example, `survey.by(messages).by(model)` prepares one interview per message scenario; calling `.run()` collects the answers. Use `survey.run()` when you want to ask it once with the default model and no custom profiles or scenarios. See [Model access](/en/latest/api_keys) for connecting a model.
