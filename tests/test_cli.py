@@ -3147,6 +3147,8 @@ class TestHumanizeCli:
             "list",
             "create",
             "status",
+            "pause",
+            "resume",
             "responses",
             "qr",
             "preview",
@@ -6173,6 +6175,45 @@ class TestHumanizeCli:
         assert outputs[4]["saved"]["format"] == "ep"
         assert output_path.exists()
 
+    @pytest.mark.parametrize(
+        ("action", "method_name"),
+        [("stop", "stop_prolific_study"), ("delete", "delete_prolific_study")],
+    )
+    def test_humanize_prolific_irreversible_actions_require_confirmation(
+        self, action, method_name, monkeypatch
+    ):
+        import edsl.coop
+
+        calls = []
+
+        class FakeCoop:
+            def stop_prolific_study(self, human_survey_uuid, study_id):
+                calls.append(("stop_prolific_study", human_survey_uuid, study_id))
+                return {"study_id": study_id, "status": "STOPPED"}
+
+            def delete_prolific_study(self, human_survey_uuid, study_id):
+                calls.append(("delete_prolific_study", human_survey_uuid, study_id))
+                return {"study_id": study_id, "deleted": True}
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        runner = CliRunner()
+        command = [
+            "humanize",
+            "prolific",
+            action,
+            "human-survey-uuid",
+            "study-id",
+        ]
+
+        refused = runner.invoke(cli_module.app, command)
+        assert refused.exit_code == 2
+        assert json.loads(refused.output)["error"]["code"] == "CONFIRMATION_REQUIRED"
+        assert calls == []
+
+        confirmed = runner.invoke(cli_module.app, [*command, "--yes"])
+        assert confirmed.exit_code == 0, confirmed.output
+        assert calls == [(method_name, "human-survey-uuid", "study-id")]
+
     def test_humanize_delivery_create_route_helper(self, monkeypatch):
         import edsl.coop
 
@@ -8195,6 +8236,7 @@ class TestDefault:
         assert "clone" in data["commands"]
         assert "push" in data["commands"]
         assert "pull" in data["commands"]
+        assert "log" in data["commands"]
         assert "metadata" in data["commands"]
         assert "update-metadata" in data["commands"]
         assert "share" in data["commands"]
@@ -8317,6 +8359,7 @@ class TestPush:
             visibility=None,
             expected_parrot_url=None,
             force=False,
+            git_repo=False,
         ):
             push_calls.append(
                 {
@@ -8324,6 +8367,7 @@ class TestPush:
                     "alias": alias,
                     "visibility": visibility,
                     "force": force,
+                    "git_repo": git_repo,
                 }
             )
             return {
@@ -8381,6 +8425,7 @@ class TestPush:
                 "alias": "created-alias",
                 "visibility": "public",
                 "force": False,
+                "git_repo": True,
             }
         ]
         html = Survey.git.open(package_path).html()
@@ -8409,7 +8454,10 @@ class TestPush:
             def __init__(self, url=None):
                 pass
 
-            def patch(self, url_or_uuid, description=None, alias=None, value=None, visibility=None):
+            def patch(
+                self, url_or_uuid, description=None, alias=None, value=None, visibility=None,
+                git_repo=False,
+            ):
                 patch_calls.append(
                     {
                         "url_or_uuid": url_or_uuid,
@@ -8417,6 +8465,7 @@ class TestPush:
                         "alias": alias,
                         "object_type": type(value).__name__,
                         "visibility": visibility,
+                        "git_repo": git_repo,
                     }
                 )
                 return {
@@ -8468,6 +8517,7 @@ class TestPush:
                 "alias": "new-alias",
                 "object_type": "Survey",
                 "visibility": "unlisted",
+                "git_repo": True,
             }
         ]
 
@@ -8574,7 +8624,7 @@ class TestPull:
         assert out["status"] == "ok"
         assert out["data"]["operation"] == "unchanged"
 
-    def test_pull_package_without_coop_info_errors(self, tmp_path):
+    def test_pull_package_without_any_remote_errors(self, tmp_path):
         from edsl.surveys import Survey
 
         package_path = tmp_path / "survey.ep"
@@ -8585,4 +8635,4 @@ class TestPull:
         assert result.exit_code == cli_module.EXIT_VALIDATION
         out = json.loads(result.output)
         assert out["status"] == "error"
-        assert out["error"]["code"] == "NO_COOP_INFO"
+        assert out["error"]["code"] == "NO_REMOTE"

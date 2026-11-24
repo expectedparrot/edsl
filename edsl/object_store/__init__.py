@@ -9,7 +9,6 @@ from .http_backend import HttpBackend
 from .metadata_index import MetadataIndex
 from .sqlite_metadata_index import SQLiteMetadataIndex
 from .store_info import StoreSaveInfo, StoreListInfo, StoreLogInfo, StoreDiffInfo
-from .streaming_writer import StreamingCASWriter
 
 __all__ = [
     "ObjectStore",
@@ -25,7 +24,6 @@ __all__ = [
     "StoreListInfo",
     "StoreLogInfo",
     "StoreDiffInfo",
-    "StreamingCASWriter",
 ]
 
 

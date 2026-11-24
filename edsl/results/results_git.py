@@ -159,7 +159,9 @@ def _write_package(
     path: Path, results: "Results", jsonl: str, content_sha256: str
 ) -> None:
     (path / "results.jsonl").write_text(jsonl)
-    gitpkg.write_manifest_dict(path, _manifest(results, content_sha256))
+    manifest = _manifest(results, content_sha256)
+    gitpkg.carry_package_metadata(gitpkg.read_manifest_file(path), manifest)
+    gitpkg.write_manifest_dict(path, manifest)
 
 
 def _manifest(results: "Results", content_sha256: str) -> dict:

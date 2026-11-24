@@ -96,7 +96,7 @@ class MistralAIService(InferenceServiceABC):
             _model_ = model_name
             _parameters_ = {
                 "temperature": 0.5,
-                "max_tokens": 512,
+                "max_tokens": 16000 if "magistral" in model_name.lower() else 512,
                 "top_p": 0.9,
             }
 

@@ -165,7 +165,10 @@ def register(humanize: click.Group) -> None:
         """Manage Prolific studies for human surveys."""
         if ctx.invoked_subcommand is None:
             output({
-                "commands": ["filters", "cost", "settings", "create", "publish", "responses"],
+                "commands": [
+                    "filters", "cost", "settings", "create", "list", "get", "update",
+                    "preflight", "publish", "pause", "resume", "stop", "delete", "responses",
+                ],
                 "help": "Use 'ep humanize prolific <command> --help' for details.",
             })
 
@@ -281,6 +284,178 @@ def register(humanize: click.Group) -> None:
             error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
 
 
+    @humanize_prolific.command("list")
+    @click.argument("human_survey_uuid")
+    def humanize_prolific_list(human_survey_uuid):
+        """List Prolific studies linked to a human survey."""
+        try:
+            from edsl.coop import Coop
+
+            studies = Coop().list_prolific_studies(human_survey_uuid)
+            output({
+                "human_survey_uuid": human_survey_uuid,
+                "studies": jsonable(studies),
+                "returned_count": len(studies),
+            })
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
+
+
+    @humanize_prolific.command("get")
+    @click.argument("human_survey_uuid")
+    @click.argument("study_id")
+    def humanize_prolific_get(human_survey_uuid, study_id):
+        """Get Prolific study details."""
+        try:
+            from edsl.coop import Coop
+
+            output(jsonable(Coop().get_prolific_study(human_survey_uuid, study_id)))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
+
+
+    @humanize_prolific.command("update")
+    @click.argument("human_survey_uuid")
+    @click.argument("study_id")
+    @click.option(
+        "--config",
+        "config_path",
+        required=True,
+        type=click.Path(exists=True),
+        help="JSON object with fields to update.",
+    )
+    def humanize_prolific_update(human_survey_uuid, study_id, config_path):
+        """Update Prolific study fields from a JSON object."""
+        try:
+            from edsl.coop import Coop
+
+            config = _read_json_or_gzip(config_path)
+            if not isinstance(config, dict):
+                error(
+                    "USAGE_ERROR",
+                    "Prolific update config must be a JSON object.",
+                    exit_code=EXIT_USAGE,
+                )
+            if not config:
+                error(
+                    "USAGE_ERROR",
+                    "Provide at least one field to update.",
+                    exit_code=EXIT_USAGE,
+                )
+            allowed_fields = {
+                "name",
+                "description",
+                "num_participants",
+                "estimated_completion_time_minutes",
+                "participant_payment_cents",
+                "device_compatibility",
+                "peripheral_requirements",
+                "filters",
+                "approval_mode",
+            }
+            unknown_fields = sorted(set(config) - allowed_fields)
+            if unknown_fields:
+                error(
+                    "USAGE_ERROR",
+                    "Unsupported Prolific study update field(s): "
+                    + ", ".join(unknown_fields),
+                    suggestion="Check the update command documentation for supported fields.",
+                    exit_code=EXIT_USAGE,
+                )
+            updated = Coop().update_prolific_study(
+                human_survey_uuid, study_id, **config
+            )
+            output(jsonable(updated))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
+
+
+    @humanize_prolific.command("pause")
+    @click.argument("human_survey_uuid")
+    @click.argument("study_id")
+    def humanize_prolific_pause(human_survey_uuid, study_id):
+        """Pause recruitment for a Prolific study."""
+        try:
+            from edsl.coop import Coop
+
+            output(jsonable(Coop().pause_prolific_study(human_survey_uuid, study_id)))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
+
+
+    @humanize_prolific.command("resume")
+    @click.argument("human_survey_uuid")
+    @click.argument("study_id")
+    def humanize_prolific_resume(human_survey_uuid, study_id):
+        """Resume a paused Prolific study."""
+        try:
+            from edsl.coop import Coop
+
+            output(jsonable(Coop().resume_prolific_study(human_survey_uuid, study_id)))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
+
+
+    @humanize_prolific.command("stop")
+    @click.argument("human_survey_uuid")
+    @click.argument("study_id")
+    @click.option(
+        "--yes", is_flag=True, default=False, help="Confirm permanently stopping the study."
+    )
+    def humanize_prolific_stop(human_survey_uuid, study_id, yes):
+        """Permanently stop a Prolific study; it cannot be resumed."""
+        if not yes:
+            error(
+                "CONFIRMATION_REQUIRED",
+                "Permanently stopping a Prolific study requires --yes.",
+                suggestion="Re-run with --yes if you intend to end this study permanently.",
+                exit_code=EXIT_USAGE,
+            )
+        try:
+            from edsl.coop import Coop
+
+            output(jsonable(Coop().stop_prolific_study(human_survey_uuid, study_id)))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
+
+
+    @humanize_prolific.command("delete")
+    @click.argument("human_survey_uuid")
+    @click.argument("study_id")
+    @click.option(
+        "--yes", is_flag=True, default=False, help="Confirm deleting the draft study."
+    )
+    def humanize_prolific_delete(human_survey_uuid, study_id, yes):
+        """Delete an unpublished Prolific draft study."""
+        if not yes:
+            error(
+                "CONFIRMATION_REQUIRED",
+                "Deleting a Prolific study requires --yes.",
+                suggestion="Re-run with --yes if you intend to delete this draft study.",
+                exit_code=EXIT_USAGE,
+            )
+        try:
+            from edsl.coop import Coop
+
+            output(jsonable(Coop().delete_prolific_study(human_survey_uuid, study_id)))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
+
+
     @humanize_prolific.command("preflight")
     @click.argument("human_survey_uuid")
     @click.argument("study_id")
@@ -388,6 +563,44 @@ def register(humanize: click.Group) -> None:
                 "HUMANIZE_ERROR",
                 str(e),
                 suggestion="Check the human survey UUID and Expected Parrot API key.",
+                exit_code=EXIT_REMOTE,
+            )
+
+
+    @humanize.command("pause")
+    @click.argument("human_survey_uuid")
+    def humanize_pause(human_survey_uuid):
+        """Pause response collection: new respondents are told the survey is closed."""
+        try:
+            from edsl.coop import Coop
+
+            output(jsonable(Coop().pause_human_survey(human_survey_uuid)))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "HUMANIZE_ERROR",
+                str(e),
+                suggestion="Check the human survey UUID and that you own the survey.",
+                exit_code=EXIT_REMOTE,
+            )
+
+
+    @humanize.command("resume")
+    @click.argument("human_survey_uuid")
+    def humanize_resume(human_survey_uuid):
+        """Resume response collection for a paused human survey."""
+        try:
+            from edsl.coop import Coop
+
+            output(jsonable(Coop().resume_human_survey(human_survey_uuid)))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "HUMANIZE_ERROR",
+                str(e),
+                suggestion="Check the human survey UUID and that you own the survey.",
                 exit_code=EXIT_REMOTE,
             )
 

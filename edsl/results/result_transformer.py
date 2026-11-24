@@ -157,6 +157,7 @@ class RawModelResponseDict(ResultComponentPrependedKeys):
         "answered_at",
         "question_presented",
         "voice_recordings",
+        "voice_option",
     ]
 
 

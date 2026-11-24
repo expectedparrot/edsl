@@ -1,0 +1,29 @@
+{
+  "edsl": [
+    "edsl-agent-lists",
+    "edsl-file-store",
+    "edsl-human-survey",
+    "edsl-human-survey-agent-access",
+    "edsl-human-survey-assistant",
+    "edsl-human-survey-css",
+    "edsl-human-survey-javascript",
+    "edsl-human-survey-notifications",
+    "edsl-human-survey-preview",
+    "edsl-object-publishing",
+    "edsl-object-search",
+    "edsl-prolific",
+    "edsl-quirks",
+    "edsl-scenario-lists",
+    "edsl-study-files",
+    "edsl-surveys",
+    "edsl-surveys-cost"
+  ],
+  "ep-agent": [
+    "methods-ai-interview",
+    "methods-prompt-optimization",
+    "research-interview-design",
+    "research-marginal-twins",
+    "workflow-file-layout",
+    "workflow-model-selection"
+  ]
+}
