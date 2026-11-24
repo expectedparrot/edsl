@@ -590,6 +590,7 @@ class LanguageModel(
         """
         if self._inference_service_ not in {
             "openai_v2",
+            "xai_responses",
             "anthropic",
             "google",
             "meta",
@@ -597,6 +598,7 @@ class LanguageModel(
             raise LanguageModelValueError(
                 "Provider-hosted tools are currently supported for "
                 "service_name='openai_v2' (OpenAI Responses), "
+                "service_name='xai_responses' (xAI Responses), "
                 "service_name='anthropic' (Anthropic Messages), and "
                 "service_name='google' (Google Gemini), and "
                 "service_name='meta' (Meta Responses)."

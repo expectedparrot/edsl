@@ -281,7 +281,7 @@ class RawResponseHandler:
             return None
 
         # OpenAI-style: reasoning_sequence or output/summary fallbacks
-        if self.inference_service in ("openai", "openai_v2"):
+        if self.inference_service in ("openai", "openai_v2", "xai_responses"):
             if self.reasoning_sequence is not None:
                 try:
                     summary_data = _extract_item_from_raw_response(

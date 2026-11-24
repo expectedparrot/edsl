@@ -114,7 +114,7 @@ A ModelList can be inspected with `to_scenario_list()` or `to_dataset()`, filter
 ## Provider tools
 
 Some inference services expose tools that run on the provider's infrastructure.
-OpenAI Responses, Anthropic Messages, Google Gemini, and Meta's Responses API
+OpenAI Responses, xAI Responses, Anthropic Messages, Google Gemini, and Meta's Responses API
 support provider-hosted tools through the same EDSL interface. Attach the
 provider's tool declaration to a model, then use the model in a normal EDSL job:
 
@@ -146,12 +146,32 @@ search events and citations, in the question's `raw_model_response` fields (for 
 and included in cache identity.
 
 Provider-hosted tools currently work through `service_name="openai_v2"`,
-`service_name="anthropic"`, `service_name="google"`, and `service_name="meta"`.
+`service_name="xai_responses"`, `service_name="anthropic"`,
+`service_name="google"`, and `service_name="meta"`.
 Application function tools, where EDSL must execute a returned function call and
 send its result back to the model, are a separate capability and are not supported
 yet. Direct execution is required because remote EDSL workers do not yet support
 tool requests. The provider must support the selected tool and model; unsupported
 combinations return the provider's API error.
+
+xAI exposes hosted Web Search, X Search, and Code Execution through its
+Responses API. Use `service_name="xai_responses"` to select that API path; the
+existing `service_name="xai"` continues to use xAI's Chat Completions API:
+
+```python
+xai_model = Model("grok-4.7", service_name="xai_responses").with_tools(
+    {"type": "web_search"}
+)
+xai_results = survey.by(xai_model).run(
+    offload_execution=False,
+    disable_remote_inference=True,
+)
+xai_raw = xai_results[0]["raw_model_response"]["answer_raw_model_response"]
+```
+
+Use `{"type": "x_search"}` for posts on X or `{"type": "code_interpreter"}`
+for provider-hosted Python execution. Tool invocation may incur provider charges
+in addition to token costs.
 
 The same interface accepts other Responses API tool definitions. Code Interpreter
 needs an automatic container:
