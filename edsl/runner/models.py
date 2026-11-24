@@ -286,6 +286,10 @@ class InterviewDefinition:
     unselected_questions: list[str] = field(default_factory=list)
     question_sampling_seed: int | None = None
     question_sampling_assignment_id: str | None = None
+    question_order: list[str] = field(default_factory=list)
+    question_order_seeds: dict[str, int] = field(default_factory=dict)
+    question_order_blocks: dict[str, list[str]] = field(default_factory=dict)
+    randomization_assignment_id: str | None = None
     indices: dict[str, int] | None = None
     question_option_randomizations: dict[str, OptionRandomization] = field(
         default_factory=dict
@@ -308,6 +312,10 @@ class InterviewDefinition:
             "unselected_questions": self.unselected_questions,
             "question_sampling_seed": self.question_sampling_seed,
             "question_sampling_assignment_id": self.question_sampling_assignment_id,
+            "question_order": self.question_order,
+            "question_order_seeds": self.question_order_seeds,
+            "question_order_blocks": self.question_order_blocks,
+            "randomization_assignment_id": self.randomization_assignment_id,
             "indices": self.indices,
             "question_option_randomizations": self.question_option_randomizations,
         }
@@ -335,6 +343,10 @@ class InterviewDefinition:
             question_sampling_assignment_id=data.get(
                 "question_sampling_assignment_id"
             ),
+            question_order=data.get("question_order", []),
+            question_order_seeds=data.get("question_order_seeds", {}),
+            question_order_blocks=data.get("question_order_blocks", {}),
+            randomization_assignment_id=data.get("randomization_assignment_id"),
             indices=data.get("indices"),
             question_option_randomizations=data.get(
                 "question_option_randomizations", {}

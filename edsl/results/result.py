@@ -270,6 +270,38 @@ class Result(Base, UserDict):
 
         return Result(**new_data, indices=self.indices)
 
+    def _rename_randomization_questions(self, rename_dict: dict) -> dict:
+        """Rename question references in randomization provenance metadata."""
+        import copy
+
+        randomization = copy.deepcopy(self.data.get("randomization", {}))
+        keyed_fields = (
+            "option_orders", "option_seeds", "matrix_row_orders",
+            "matrix_row_seeds", "policies", "exposure_events",
+            "presented_options", "scale_directions", "scale_direction_seeds",
+        )
+        list_fields = (
+            "sampled_questions", "unselected_questions", "required_questions",
+            "exposure_order", "not_presented_questions",
+        )
+        for field in keyed_fields:
+            values = randomization.get(field)
+            if isinstance(values, dict):
+                randomization[field] = {
+                    rename_dict.get(key, key): value for key, value in values.items()
+                }
+        for field in list_fields:
+            values = randomization.get(field)
+            if isinstance(values, list):
+                randomization[field] = [rename_dict.get(value, value) for value in values]
+        policy = randomization.get("sampling_policy")
+        if isinstance(policy, dict):
+            for field in ("eligible_questions", "required_questions"):
+                values = policy.get(field)
+                if isinstance(values, list):
+                    policy[field] = [rename_dict.get(value, value) for value in values]
+        return randomization
+
     def rename(self, rename_dict: dict[QuestionName, QuestionName]) -> "Result":
         """Return a new Result with question names renamed according to rename_dict.
 
@@ -366,7 +398,7 @@ class Result(Base, UserDict):
             "validated_dict": rename_keys(
                 self.data.get("validated_dict", {}), handle_prefixes=True
             ),
-            "randomization": self.data.get("randomization", {}),
+            "randomization": self._rename_randomization_questions(rename_dict),
         }
 
         return Result(**new_data, indices=self.indices)

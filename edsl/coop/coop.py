@@ -2932,10 +2932,9 @@ class Coop(CoopFunctionsMixin):
         then the survey and scenario list (if scenarios are used).
         """
         if getattr(survey, "question_sampling", None) is not None:
-            raise CoopValueError(
-                "Humanize does not yet support question sampling. "
-                "Remove the question_sampling policy before publishing this survey."
-            )
+            raise CoopValueError("Humanize does not yet support question sampling. Remove the question_sampling policy before publishing this survey.")
+        if getattr(survey, "question_order", {}).get("blocks"):
+            raise CoopValueError("Humanize does not yet support question-order randomization. Remove the question_order blocks before publishing this survey.")
         if scenario_list is None and scenario_list_method is not None:
             raise CoopValueError(
                 "You must specify both a scenario list and a scenario list method to use scenarios with your survey."

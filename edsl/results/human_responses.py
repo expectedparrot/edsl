@@ -157,11 +157,9 @@ class HumanResponsesBuilder:
                     )
                     raw_model_response[f"{qn}_voice_option"] = entry.voice_option
                 attributes[qn] = dict(question_attributes[qn])
-                if (
-                    entry.question_presented is True
-                    and entry.question_options is not None
-                ):
+                if entry.question_options is not None:
                     attributes[qn]["question_options"] = entry.question_options
+                if entry.question_presented is True and entry.question_options is not None:
                     presented_options[qn] = entry.question_options
                 exposure_events[qn] = {
                     "presented": entry.question_presented,
