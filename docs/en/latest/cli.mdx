@@ -176,7 +176,19 @@ ep surveys show survey.ep
 ep validate --file survey.ep
 ```
 
-Required questions count toward `--sample-size`; questions outside the eligible pool are always asked. By default, each agent/scenario/iteration gets one sample shared across model variants. Results expose `randomization.sampled_questions` and `randomization.unselected_questions` for inspection and export.
+Declare and inspect question-order blocks:
+
+```bash
+ep surveys add-question-order-block survey.ep \
+  --name attitudes \
+  --question trust --question fairness --question satisfaction
+ep surveys show survey.ep
+ep validate --file survey.ep
+```
+
+Required questions count toward `--sample-size`; questions outside the eligible pool are always asked. Each respondent/scenario/iteration gets one sample shared across model variants. Results expose sampled and omitted questions under `randomization.*`.
+
+Question-order blocks contain at least two contiguous, independent questions in declared order. Custom branching, internal piping or memory dependencies, and instructions inside a block are not supported. `questions_to_randomize` continues to randomize answer options. Humanize currently reports a capability error for surveys with question-order blocks or question sampling.
 
 If validation fails, correct the reported problem before running the object.
 
@@ -284,6 +296,7 @@ ep results columns --file results.ep
 ep results select --file results.ep \
   --column randomization.assignment_id \
   --column randomization.option_orders \
+  --column randomization.planned_question_order \
   --column randomization.exposure_order
 ep results export results.ep \
   --column randomization.assignment_id \

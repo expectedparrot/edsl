@@ -8,6 +8,8 @@ Handles:
 """
 
 import logging
+import hashlib
+import uuid
 import time
 from datetime import datetime
 from typing import Any, TYPE_CHECKING
@@ -174,6 +176,10 @@ class JobService:
         survey = job.survey if hasattr(job, "survey") else job._survey
         if survey.question_sampling is not None:
             survey._validate_question_sampling(survey.question_sampling)
+        if survey.question_order["blocks"]:
+            survey._validate_question_order(survey.question_order)
+        if getattr(survey, "question_order", {}).get("blocks"):
+            survey._validate_question_order(survey.question_order)
         scenarios = list(job.scenarios)
         agents = list(job.agents)
         models = list(job.models)
@@ -310,6 +316,7 @@ class JobService:
         question_sampling_by_unit: dict[
             tuple[int, int, int], tuple[int, list[str], list[str]]
         ] = {}
+        order_seeds_by_unit: dict[tuple[int, int, int], int] = {}
 
         for agent_index, scenario_index, model_index in assignment_plan.iter_indices():
             scenario_id = scenario_ids[scenario_index]
@@ -376,6 +383,16 @@ class JobService:
                     for question in interview_questions
                     if self._to_dict(question).get("randomize_items")
                 }
+                question_order, question_order_seeds = self._realize_question_order(
+                    survey,
+                    questions,
+                    order_seeds_by_unit,
+                    (agent_index, scenario_index, iteration),
+                )
+                interview_dag = {name: set(parents) for name, parents in dag.items()}
+                if question_order:
+                    for before, after in zip(question_order, question_order[1:]):
+                        interview_dag.setdefault(after, set()).add(before)
 
                 # Create tasks for this interview
                 # Pass agent and scenario objects for direct answer detection
@@ -391,7 +408,7 @@ class JobService:
                     model_id=model_id,
                     questions=interview_questions,
                     question_name_to_id=question_name_to_id,
-                    dag=dag,
+                    dag=interview_dag,
                     iteration=iteration,
                     agent=agent_obj,
                     scenario=scenario_obj,
@@ -438,14 +455,15 @@ class JobService:
                     unselected_questions=unselected_questions,
                     question_sampling_seed=question_sampling_seed,
                     question_sampling_assignment_id=(
-                        str(
-                            uuid.uuid5(
-                                uuid.NAMESPACE_URL,
-                                f"edsl:{job_id}:{agent_index}:{scenario_index}:{iteration}",
-                            )
-                        )
-                        if survey.question_sampling is not None
-                        else None
+                        str(uuid.uuid5(uuid.NAMESPACE_URL, f"edsl:{job_id}:{agent_index}:{scenario_index}:{iteration}"))
+                        if survey.question_sampling is not None else None
+                    ),
+                    question_order=question_order,
+                    question_order_seeds=question_order_seeds,
+                    question_order_blocks={block["name"]: list(block["questions"]) for block in survey.question_order["blocks"]},
+                    randomization_assignment_id=(
+                        str(uuid.uuid5(uuid.NAMESPACE_URL, f"edsl:{job_id}:{agent_index}:{scenario_index}:{iteration}"))
+                        if question_order else None
                     ),
                     indices={
                         "agent": agent_index,
@@ -2226,24 +2244,13 @@ class JobService:
         randomization = {
             "schema_version": 1,
             "design_version": 1,
-            "assignment_id": (
-                getattr(interview_def, "question_sampling_assignment_id", None)
-                or interview_id
-            ),
-            "assignment_unit": (
-                "respondent_scenario_iteration"
-                if sampling_policy is not None
-                else "interview"
-            ),
+            "assignment_id": (getattr(interview_def, "randomization_assignment_id", None)
+                              or getattr(interview_def, "question_sampling_assignment_id", None)
+                              or interview_id),
+            "assignment_unit": "respondent_scenario_iteration" if (sampling_policy is not None or getattr(interview_def, "question_order", [])) else "interview",
             "sampling_policy": sampling_policy,
-            "sample_size": (
-                sampling_policy["sample_size"] if sampling_policy is not None else None
-            ),
-            "required_questions": (
-                list(sampling_policy["required_questions"])
-                if sampling_policy is not None
-                else []
-            ),
+            "sample_size": sampling_policy["sample_size"] if sampling_policy is not None else None,
+            "required_questions": list(sampling_policy["required_questions"]) if sampling_policy is not None else [],
             "sampled_questions": sampled_questions,
             "unselected_questions": unselected_questions,
             "sampling_seed": getattr(interview_def, "question_sampling_seed", None),
@@ -2259,6 +2266,15 @@ class JobService:
             ),
             "option_seeds": {},
             "matrix_row_seeds": dict(item_randomization_seeds),
+            "planned_question_order": list(
+                getattr(interview_def, "question_order", []) or []
+            ),
+            "question_order_seeds": dict(
+                getattr(interview_def, "question_order_seeds", {}) or {}
+            ),
+            "question_order_blocks": dict(
+                getattr(interview_def, "question_order_blocks", {}) or {}
+            ),
             "policies": {
                 name: [
                     policy
@@ -2676,6 +2692,30 @@ class JobService:
 
         seed, sampled, unselected = samples_by_unit[assignment_unit]
         return list(sampled), list(unselected), seed
+    def _realize_question_order(
+        self, survey: Any, questions: list,
+        seeds_by_unit: dict[tuple[int, int, int], int],
+        assignment_unit: tuple[int, int, int],
+    ) -> tuple[list[str], dict[str, int]]:
+        """Draw and persist one independent permutation per declared order block."""
+        blocks = (getattr(survey, "question_order", {}) or {}).get("blocks", [])
+        if not blocks:
+            return [], {}
+        names = [self._get_question_name(q) for q in questions]
+        seeds_by_unit.setdefault(assignment_unit, random.getrandbits(64))
+        seed = seeds_by_unit[assignment_unit]
+        order = list(names)
+        block_seeds = {}
+        for block in blocks:
+            block_seed = int.from_bytes(hashlib.sha256(f"question-order-v1:{seed}:{block['name']}".encode()).digest()[:8], "big")
+            block_seeds[block["name"]] = block_seed
+            available = [name for name in block["questions"] if name in order]
+            permutation = list(available)
+            random.Random(block_seed).shuffle(permutation)
+            positions = [order.index(name) for name in available]
+            for position, name in zip(positions, permutation):
+                order[position] = name
+        return order, block_seeds
 
     def _extract_dag(self, survey: Any) -> dict[str, set[str]]:
         """Extract the dependency DAG from an EDSL Survey.
