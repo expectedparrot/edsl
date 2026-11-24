@@ -2999,6 +2999,12 @@ class Jobs(Base):
         from ..scenarios import Scenario
         from ..surveys import Survey
 
+        if self._treatment_assignment is not None:
+            raise CoopValueError(
+                "Humanize does not support treatment assignment schedules. "
+                "Clear the schedule before publishing this job."
+            )
+
         if len(self.models) > 0:
             raise CoopValueError("We don't support humanize with models yet.")
 

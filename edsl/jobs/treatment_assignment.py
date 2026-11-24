@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import cached_property
 import hashlib
 import json
 from typing import Any
@@ -125,7 +126,7 @@ class TreatmentAssignment:
         if len(set(self.exposure_questions)) != len(self.exposure_questions):
             raise JobsValueError("exposure_questions cannot contain duplicates.")
 
-    @property
+    @cached_property
     def design_id(self) -> str:
         canonical = json.dumps(self.to_dict(include_design_id=False), sort_keys=True)
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:24]
@@ -173,6 +174,10 @@ class TreatmentAssignment:
         # Policy mappings are mutable Python objects; recheck them at execution
         # time in case a caller changed them after the initial validation.
         self.__post_init__()
+        # These derived values are reused by every realized unit in this run.
+        # Clear prior values because callers may have mutated the public mappings.
+        self.__dict__.pop("design_id", None)
+        self.__dict__.pop("_condition_counts", None)
         if iterations != self.planned_iterations and self.unit in {
             "agent_iteration",
             "agent_model_iteration",
@@ -236,6 +241,9 @@ class TreatmentAssignment:
                     f"Exact balance requires equal assignments per condition; got {counts}."
                 )
 
+        _ = self.design_id
+        _ = self._condition_counts
+
     def expected_unit_keys(self, job, iterations: int = 1) -> set[str]:
         return {
             self.unit_key(agent_index, agent, model_index, iteration)
@@ -270,11 +278,15 @@ class TreatmentAssignment:
             )
         return str(value)
 
-    def condition_counts(self) -> dict[str, int]:
+    @cached_property
+    def _condition_counts(self) -> dict[str, int]:
         counts = {condition: 0 for condition in self.conditions}
         for condition in self.schedule.values():
             counts[condition] += 1
         return counts
+
+    def condition_counts(self) -> dict[str, int]:
+        return dict(self._condition_counts)
 
     def realize(
         self,

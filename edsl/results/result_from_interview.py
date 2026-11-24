@@ -136,12 +136,40 @@ class ResultFromInterview:
             exposure_questions = list(
                 treatment_assignment.get("exposure_questions", [])
             )
-            exposed_questions = [
-                name for name in exposure_questions if name in question_results
-            ]
-            treatment_exposed = (
-                None if not exposure_questions else bool(exposed_questions)
-            )
+            logs_by_question = getattr(self.interview, "task_status_logs", {}) or {}
+            from edsl.tasks.task_status_enum import TaskStatus
+
+            exposed_questions = []
+            not_exposed_questions = []
+            unknown_exposure_questions = []
+            for name in exposure_questions:
+                logs = logs_by_question.get(name, [])
+                statuses = [entry.get("value") for entry in logs]
+                # The first API_CALL_IN_PROGRESS transition means the request was
+                # sent, even if the answer later failed. A skipped task never gets
+                # this transition and therefore was not exposed.
+                if TaskStatus.API_CALL_IN_PROGRESS in statuses or any(
+                    getattr(status, "name", None) == TaskStatus.API_CALL_IN_PROGRESS.name
+                    for status in statuses
+                ):
+                    exposed_questions.append(name)
+                elif statuses and statuses[-1] in {
+                    TaskStatus.NOT_STARTED,
+                    TaskStatus.WAITING_FOR_DEPENDENCIES,
+                    TaskStatus.CANCELLED,
+                    TaskStatus.PARENT_FAILED,
+                }:
+                    not_exposed_questions.append(name)
+                else:
+                    unknown_exposure_questions.append(name)
+            if not exposure_questions:
+                treatment_exposed = None
+            elif exposed_questions:
+                treatment_exposed = True
+            elif not_exposed_questions and not unknown_exposure_questions:
+                treatment_exposed = False
+            else:
+                treatment_exposed = None
             randomization = {
                 "treatment_assignment": treatment_assignment,
                 "treatment_exposure": {

@@ -187,17 +187,21 @@ ep results select --file results.ep \
 
 Unit keys start with `agent:<id>`; `agent_model` appends `|model:<index>`, `agent_iteration` appends `|iteration:<index>`, and `agent_model_iteration` appends both. `balance: "exact"` requires equal counts for all conditions. Iteration-specific units require `planned_iterations` to match the run's `n`. Use `ep jobs set-treatment-assignment jobs.ep --clear` to remove a schedule. This version accepts explicit schedules on the default Cartesian assignment plan; it rejects probability-based assignment, stratification, custom Jobs assignment plans, and Humanize.
 Configure exact-count question sampling in a saved Survey package, then inspect and validate the policy:
+```bash
 ep surveys set-question-sampling survey.ep \
   --eligible-question q1 --eligible-question q2 --eligible-question q3 \
   --sample-size 2 --required-question q1
 ep surveys show survey.ep
 ep validate --file survey.ep
+```
 Declare and inspect question-order blocks:
+```bash
 ep surveys add-question-order-block survey.ep \
   --name attitudes \
   --question trust --question fairness --question satisfaction
 ep surveys show survey.ep
 ep validate --file survey.ep
+```
 Required questions count toward `--sample-size`; questions outside the eligible pool are always asked. Each respondent/scenario/iteration gets one sample shared across model variants. Results expose sampled and omitted questions under `randomization.*`.
 Question-order blocks contain at least two contiguous, independent questions in declared order. Custom branching, internal piping or memory dependencies, and instructions inside a block are not supported. `questions_to_randomize` continues to randomize answer options. Humanize currently reports a capability error for surveys with question-order blocks or question sampling.
 

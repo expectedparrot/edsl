@@ -104,6 +104,15 @@ def test_treatment_assignment_runner_persists_interview_realizations():
         assert result["randomization"]["treatment_exposure"]["exposed"] is True
 
 
+def test_treatment_assignment_humanize_is_rejected_before_scenario_processing():
+    from edsl.coop.exceptions import CoopValueError
+
+    job = _job().set_treatment_assignment(_policy())
+    job.models = []
+    with pytest.raises(CoopValueError, match="does not support treatment assignment"):
+        job.humanize()
+
+
 def test_treatment_assignment_rejects_missing_schedule_units():
     policy = TreatmentAssignment(
         conditions={"control": 0, "treatment": 1},
