@@ -86,6 +86,11 @@ audit = results.select(
 ).to_list()
 ```
 
+`offload_execution=False` is a Python `Jobs.run()` option that keeps job
+execution in the local runner; it is not a shell command. The model names above
+make live provider calls when their credentials are configured. The regression
+tests for this feature use local test models and do not make live provider calls.
+
 Each result row is one model interview. `scale_directions` records `forward`
 or `reverse` for each configured question. `option_orders` records the actual
 values shown, for example `[1, 2, 3, 4, 5]` or `[5, 4, 3, 2, 1]`.
