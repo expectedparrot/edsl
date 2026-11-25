@@ -2291,48 +2291,47 @@ class JobService:
             self._skip_task(job_id, interview_id, task_id)
             return
 
-        if validated is False or raw_model_response is not None or generated_tokens is not None:
-            metadata = dict(response_metadata or {})
-            metadata.setdefault(
-                "failure",
-                {
-                    "stage": "render" if error_type == "render_error" else "execution",
-                    "code": error_type.upper(),
-                    "message": error_message,
-                },
+        metadata = dict(response_metadata or {})
+        metadata.setdefault(
+            "failure",
+            {
+                "stage": "render" if error_type == "render_error" else "execution",
+                "code": error_type.upper(),
+                "message": error_message,
+            },
+        )
+        self._answers.store(
+            Answer(
+                job_id=job_id,
+                interview_id=interview_id,
+                question_name=task_def.question_name,
+                answer=None,
+                created_at=datetime.utcnow(),
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                comment=comment or error_message,
+                cached=cached,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                thinking_tokens=thinking_tokens,
+                raw_model_response=raw_model_response,
+                generated_tokens=generated_tokens,
+                model_id=task_def.model_id,
+                input_price_per_million_tokens=input_price_per_million_tokens,
+                output_price_per_million_tokens=output_price_per_million_tokens,
+                cache_key=cache_key,
+                validated=False,
+                reasoning_summary=reasoning_summary,
+                response_metadata=self._response_diagnostics(
+                    job_id,
+                    interview_id,
+                    task_def.question_name,
+                    raw_model_response,
+                    cached,
+                    metadata,
+                ),
             )
-            self._answers.store(
-                Answer(
-                    job_id=job_id,
-                    interview_id=interview_id,
-                    question_name=task_def.question_name,
-                    answer=None,
-                    created_at=datetime.utcnow(),
-                    system_prompt=system_prompt,
-                    user_prompt=user_prompt,
-                    comment=comment or error_message,
-                    cached=cached,
-                    input_tokens=input_tokens,
-                    output_tokens=output_tokens,
-                    thinking_tokens=thinking_tokens,
-                    raw_model_response=raw_model_response,
-                    generated_tokens=generated_tokens,
-                    model_id=task_def.model_id,
-                    input_price_per_million_tokens=input_price_per_million_tokens,
-                    output_price_per_million_tokens=output_price_per_million_tokens,
-                    cache_key=cache_key,
-                    validated=validated,
-                    reasoning_summary=reasoning_summary,
-                    response_metadata=self._response_diagnostics(
-                        job_id,
-                        interview_id,
-                        task_def.question_name,
-                        raw_model_response,
-                        cached,
-                        metadata,
-                    ),
-                )
-            )
+        )
 
         # Check retry policy before marking as permanently failed
         # Skip retries if stop_on_exception is set for this job
