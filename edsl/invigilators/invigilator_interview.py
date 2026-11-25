@@ -230,6 +230,16 @@ class InvigilatorInterview(InvigilatorBase):
             )
             if part
         )
+        memory_prompt = self.prompt_constructor.prior_question_memory_prompt.text
+        if memory_prompt:
+            respondent_description = "\n\n".join(
+                part
+                for part in (
+                    respondent_description,
+                    f"Prior survey context:\n{memory_prompt}",
+                )
+                if part
+            )
         interviewer_description = (
             "You are a skilled qualitative interviewer. Conduct a natural, "
             "neutral interview. Follow the goal and guide in the conversation "
@@ -238,15 +248,69 @@ class InvigilatorInterview(InvigilatorBase):
             f"Interview goal: {rendered_question.question_text}\n\n"
             f"Interview guide: {rendered_question.interview_guide}"
         )
-        setting = (
+        setting_parts = [
             f"Qualitative interview.\n\nGoal: {rendered_question.question_text}"
             f"\n\nGuide: {rendered_question.interview_guide}"
-        )
+        ]
+        if memory_prompt:
+            setting_parts.append(f"Prior survey context:\n{memory_prompt}")
+        setting = "\n\n".join(setting_parts)
         headers = {
             "Authorization": f"Bearer {self.model.api_token}",
             "Content-Type": "application/json",
         }
         base_url = "https://api.persimmon.humansand.ai/v1"
+        cache_parameters = self.model.parameters.copy()
+        cache_user_prompt = json.dumps(
+            {
+                "question_name": rendered_question.question_name,
+                "goal": rendered_question.question_text,
+                "guide": rendered_question.interview_guide,
+                "max_turns": rendered_question.max_turns,
+                "interviewer": interviewer_description,
+                "respondent": respondent_description,
+                "prior_survey_context": memory_prompt,
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+        cache_system_prompt = setting
+        cached_response = None
+        cache_key = None
+        if self.cache is not None:
+            cached_response, cache_key = self.cache.fetch(
+                model=str(self.model.model),
+                parameters=cache_parameters,
+                system_prompt=cache_system_prompt,
+                user_prompt=cache_user_prompt,
+                iteration=self.iteration,
+                remote_fetch=False,
+            )
+            if cached_response:
+                try:
+                    cached_payload = json.loads(cached_response)
+                except (TypeError, json.JSONDecodeError):
+                    cached_payload = None
+                if isinstance(cached_payload, dict) and cached_payload.get("validated"):
+                    self.generated_tokens = cached_payload["generated_tokens"]
+                    self.raw_model_response = cached_payload["raw_model_response"]
+                    return EDSLResultObjectInput(
+                        answer=cached_payload["answer"],
+                        comment=cached_payload["comment"],
+                        generated_tokens=cached_payload["generated_tokens"],
+                        question_name=self.question.question_name,
+                        prompts=self.get_prompts(),
+                        cached_response=cached_response,
+                        raw_model_response=cached_payload["raw_model_response"],
+                        cache_used=True,
+                        cache_key=cache_key,
+                        validated=True,
+                        exception_occurred=None,
+                        input_tokens=cached_payload["input_tokens"],
+                        output_tokens=cached_payload["output_tokens"],
+                        thinking_tokens=None,
+                        total_cost=None,
+                    )
         transcript: List[dict[str, Any]] = []
         raw_responses: List[dict[str, Any]] = []
         input_tokens: List[int] = []
@@ -353,6 +417,25 @@ class InvigilatorInterview(InvigilatorBase):
 
         self.generated_tokens = generated_tokens
         self.raw_model_response = raw_responses
+        if self.cache is not None and validated:
+            cached_payload = {
+                "answer": answer,
+                "comment": comment,
+                "generated_tokens": generated_tokens,
+                "raw_model_response": raw_responses,
+                "input_tokens": sum(input_tokens) if input_tokens else None,
+                "output_tokens": sum(output_tokens) if output_tokens else None,
+                "validated": True,
+            }
+            cache_key = self.cache.store(
+                model=str(self.model.model),
+                parameters=cache_parameters,
+                system_prompt=cache_system_prompt,
+                user_prompt=cache_user_prompt,
+                response=cached_payload,
+                iteration=self.iteration,
+                service=self.model._inference_service_,
+            )
         return EDSLResultObjectInput(
             answer=answer,
             comment=comment,
@@ -362,7 +445,7 @@ class InvigilatorInterview(InvigilatorBase):
             cached_response=None,
             raw_model_response=raw_responses,
             cache_used=False,
-            cache_key=None,
+            cache_key=cache_key,
             validated=validated,
             exception_occurred=exception_occurred,
             input_tokens=sum(input_tokens) if input_tokens else None,

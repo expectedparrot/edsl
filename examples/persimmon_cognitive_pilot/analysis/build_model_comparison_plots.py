@@ -53,13 +53,32 @@ def build_answer_distributions(summary: dict) -> None:
         gpt = item["gpt6_answer_counts"]
         options = list(LABELS[key])
         if key == "bat_ball" and any(
-            answer not in LABELS[key] for answer in (*pers, *gpt)
+            answer not in LABELS[key] and answer != "<missing>"
+            for answer in (*pers, *gpt)
         ):
             options.append("Other")
         y = np.arange(len(options))
         height = 0.34
-        pers_values = [pers.get(option, 0) for option in options]
-        gpt_values = [gpt.get(option, 0) for option in options]
+        pers_values = [
+            sum(
+                count
+                for answer, count in pers.items()
+                if answer not in LABELS[key] and answer != "<missing>"
+            )
+            if option == "Other"
+            else pers.get(option, 0)
+            for option in options
+        ]
+        gpt_values = [
+            sum(
+                count
+                for answer, count in gpt.items()
+                if answer not in LABELS[key] and answer != "<missing>"
+            )
+            if option == "Other"
+            else gpt.get(option, 0)
+            for option in options
+        ]
         b1 = ax.barh(y + height / 2, pers_values, height, color=model_colors[0])
         b2 = ax.barh(y - height / 2, gpt_values, height, color=model_colors[1])
         for bars in (b1, b2):

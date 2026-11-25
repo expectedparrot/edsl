@@ -55,23 +55,51 @@ def parse_money(value: str | None) -> float | None:
     if is_missing(value):
         return None
     text = (value or "").lower().replace(",", "")
-    cent_matches = list(re.finditer(r"(\d+(?:\.\d+)?)\s*(?:cents|¢)", text))
-    if cent_matches:
-        try:
-            return float(cent_matches[-1].group(1)) / 100
-        except ValueError:
-            return None
-    word_cents = {"five cents": 0.05, "ten cents": 0.10, "one cent": 0.01}
+    amount_pattern = r"\$?\s*(\d+(?:\.\d{1,3})?)\s*(cents?|¢)?"
+    ball_patterns = (
+        rf"\b(?:the\s+)?ball\s+(?:costs?|is|would cost|would be)\s*{amount_pattern}",
+        rf"\bcost of (?:the )?ball is\s*{amount_pattern}",
+    )
+    for pattern in ball_patterns:
+        matches = list(re.finditer(pattern, text))
+        if matches:
+            if len(matches) != 1:
+                return None
+            amount, unit = matches[0].groups()[-2:]
+            try:
+                result = float(amount)
+            except ValueError:
+                return None
+            is_cents = (unit and unit.startswith("cent")) or unit == "¢"
+            return result / 100 if is_cents else result
+
+    word_cents = {
+        "one cent": 0.01,
+        "five cents": 0.05,
+        "ten cents": 0.10,
+    }
     for phrase, amount in word_cents.items():
-        if phrase in text:
+        ball_phrase = rf"\b(?:the\s+)?ball\b[^.!?\n]{{0,60}}\b{re.escape(phrase)}\b"
+        if re.search(ball_phrase, text):
             return amount
-    matches = list(re.finditer(r"\$?\b(\d+(?:\.\d{1,3})?)\b", text))
-    if not matches:
+    candidates = [
+        amount
+        for phrase, amount in word_cents.items()
+        if phrase in text
+    ]
+    for match in re.finditer(amount_pattern, text):
+        raw_amount, unit = match.groups()
+        amount = float(raw_amount)
+        if unit and (unit.startswith("cent") or unit == "¢"):
+            amount /= 100
+        candidates.append(amount)
+    if not candidates:
         return None
-    try:
-        return float(matches[-1].group(1))
-    except ValueError:
-        return None
+    unique = []
+    for amount in candidates:
+        if not any(math.isclose(amount, known, abs_tol=0.0001) for known in unique):
+            unique.append(amount)
+    return unique[0] if len(unique) == 1 else None
 
 
 def wilson_interval(successes: int, n: int, z: float = 1.96) -> tuple[float, float]:
@@ -142,6 +170,7 @@ def summarize_engineer(rows: list[dict[str, str]]) -> dict:
         lambda: defaultdict(lambda: defaultdict(list))
     )
     missing = Counter()
+    observed = set()
     for row in rows:
         model = row.get("model.model", "")
         engineer_count = parse_probability(row.get("scenario.engineer_count"))
@@ -150,25 +179,20 @@ def summarize_engineer(rows: list[dict[str, str]]) -> dict:
             continue
         condition = "low_engineer_prior" if engineer_count == 30 else "high_engineer_prior"
         for profile, answer_column in PROFILE_ANSWERS.items():
+            observed.add((model, condition, profile))
             raw = parse_probability(row.get(answer_column))
             if raw is None:
                 missing[(model, condition, profile)] += 1
                 continue
             converted = 100.0 - raw if target == "lawyers" else raw
             values[model][condition][profile].append(converted)
-    return {
-        model: {
-            condition: {
-                profile: {
-                    **percentile_summary(profile_values),
-                    "missing": missing[(model, condition, profile)],
-                }
-                for profile, profile_values in profiles.items()
-            }
-            for condition, profiles in conditions.items()
+    output = {}
+    for model, condition, profile in sorted(observed):
+        output.setdefault(model, {}).setdefault(condition, {})[profile] = {
+            **percentile_summary(values[model][condition][profile]),
+            "missing": missing[(model, condition, profile)],
         }
-        for model, conditions in values.items()
-    }
+    return output
 
 
 def summarize_batball(rows: list[dict[str, str]]) -> dict:
@@ -307,7 +331,7 @@ def plot_batball(summary: dict, output_dir: Path) -> None:
     for px, rate in zip(x - width, human_rates):
         ax.text(px, rate + 0.012, f"{rate:.0%}", ha="center", va="bottom", fontsize=8)
     ax.set_xticks(x, labels)
-    ax.set_ylim(0, 0.72)
+    ax.set_ylim(0, 1.1)
     ax.set_ylabel("Share of valid numeric responses")
     ax.set_title("Bat-and-ball responses: free numeric answers")
     ax.legend(frameon=False)
