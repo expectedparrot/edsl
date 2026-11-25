@@ -192,7 +192,15 @@ class DirectAnswerRegistry:
                 options, current_answers, entry.scenario
             )
             if isinstance(options, list):
-                question.question_options = list(options)
+                if (
+                    question.question_type == "linear_scale"
+                    and options != sorted(options)
+                ):
+                    # Scale direction changes display order while retaining the
+                    # underlying numeric values and their label mapping.
+                    question.__dict__["_question_options"] = list(options)
+                else:
+                    question.question_options = list(options)
         items = self._job_service._resolve_question_items(
             question_data,
             current_answers,

@@ -156,6 +156,16 @@ ep inspect survey.ep
 
 `add-question` updates the survey package in place. A job built earlier retains its saved survey, so rebuild the job to include the new question. Use `ep agents create --help` and `ep scenarios create --help` for creating respondent profiles and scenario data from files.
 
+For model-run studies, configure forward/reverse presentation of linear scales
+with `ep surveys set-scale-direction-randomization`. Repeat `--question` for
+each scale; use `--clear` to remove the policy:
+
+```bash
+ep surveys set-scale-direction-randomization survey.ep --question satisfaction
+ep surveys show survey.ep
+ep surveys set-scale-direction-randomization survey.ep --clear
+```
+
 Configure exact-count question sampling in a saved Survey package, then inspect and validate the policy:
 
 ```bash

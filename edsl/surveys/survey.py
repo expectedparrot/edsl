@@ -172,6 +172,7 @@ class Survey(Base):
         name: Optional[str] = None,
         questions_to_randomize: Optional[List[str]] = None,
         options_to_pin: Optional[Dict[str, List]] = None,
+        scale_direction_randomization: Optional[dict] = None,
         question_sampling: Optional[dict] = None,
         question_order: Optional[dict] = None,
         _internal_copy: bool = False,
@@ -249,6 +250,14 @@ class Survey(Base):
         self.questions_to_randomize = questions_to_randomize
 
         self.options_to_pin: Dict[str, List] = options_to_pin or {}
+        self._scale_direction_randomization = None
+        if scale_direction_randomization is not None:
+            self._validate_scale_direction_randomization(
+                scale_direction_randomization
+            )
+            self._scale_direction_randomization = copy.deepcopy(
+                scale_direction_randomization
+            )
         self._question_sampling = None
         if question_sampling is not None:
             self._validate_question_sampling(question_sampling)
@@ -1180,7 +1189,11 @@ class Survey(Base):
         }
 
     def draw(self) -> "Survey":
-        """Return a new survey with a randomly selected permutation of the options."""
+        """Return a new survey with a randomly selected permutation of the options.
+
+        Scale-direction policies are applied by the Jobs runner, which can persist
+        a per-interview assignment and expose it in Results.
+        """
         if self._seed is None:  # only set once
             self._seed = hash(self)
             random.seed(self._seed)  # type: ignore
@@ -1459,6 +1472,10 @@ class Survey(Base):
         if self.options_to_pin:
             d["options_to_pin"] = self.options_to_pin
 
+        if self._scale_direction_randomization is not None:
+            d["scale_direction_randomization"] = copy.deepcopy(
+                self._scale_direction_randomization
+            )
         if self._question_sampling is not None:
             d["question_sampling"] = copy.deepcopy(self._question_sampling)
         if self._question_order["blocks"]:
@@ -1575,6 +1592,7 @@ class Survey(Base):
 
         # Get the pinned options if present
         options_to_pin = data.get("options_to_pin", None)
+        scale_direction_randomization = data.get("scale_direction_randomization")
         question_sampling = data.get("question_sampling")
         question_order = data.get("question_order")
 
@@ -1602,6 +1620,7 @@ class Survey(Base):
             questions_to_randomize=questions_to_randomize,
             name=name,
             options_to_pin=options_to_pin,
+            scale_direction_randomization=scale_direction_randomization,
             question_sampling=question_sampling,
             question_order=question_order,
             _internal_copy=_internal_copy,
@@ -2170,10 +2189,19 @@ class Survey(Base):
                 "Cannot combine two surveys with non-default rules. Please use the 'clear_non_default_rules' method to remove non-default rules from the survey.",
             )
 
-        policies = [policy for policy in (self.question_sampling, other.question_sampling) if policy is not None]
-        if len(policies) > 1:
+        scale_policies = [policy for policy in (self.scale_direction_randomization, other.scale_direction_randomization) if policy]
+        scale_policy = None
+        if scale_policies:
+            scale_names = [name for policy in scale_policies for name in policy["questions"]]
+            if len(set(scale_names)) != len(scale_names):
+                raise SurveyCreationError("Cannot combine surveys with overlapping scale-direction targets.")
+            scale_policy = {**scale_policies[0], "questions": scale_names}
+        sampling_policies = [policy for policy in (self.question_sampling, other.question_sampling) if policy]
+        if len(sampling_policies) > 1:
             raise SurveyCreationError("Cannot combine surveys that both define question sampling.")
-        combined = Survey(questions=self.questions + other.questions, question_sampling=policies[0] if policies else None)
+        combined = Survey(questions=self.questions + other.questions,
+                          scale_direction_randomization=scale_policy,
+                          question_sampling=sampling_policies[0] if sampling_policies else None)
         blocks = self.question_order["blocks"] + other.question_order["blocks"]
         if blocks:
             plan = {"version": 1, "blocks": blocks, "memory": {"mode": "preserve"}}
@@ -2785,6 +2813,110 @@ class Survey(Base):
             question_name=question_name, question_text=question_text
         )
         return self.add_question(compute_q)
+
+    @property
+    def scale_direction_randomization(self) -> Optional[dict]:
+        """Return a copy of the optional forward/reverse scale policy."""
+        return copy.deepcopy(self._scale_direction_randomization)
+
+    def _validate_scale_direction_randomization(self, policy: dict) -> None:
+        from .exceptions import SurveyError
+
+        expected_keys = {
+            "version",
+            "questions",
+            "method",
+            "assignment_unit",
+            "balance",
+        }
+        if not isinstance(policy, dict) or set(policy) != expected_keys:
+            raise SurveyError(
+                "scale_direction_randomization must contain version, questions, "
+                "method, assignment_unit, and balance."
+            )
+        if (
+            isinstance(policy["version"], bool)
+            or not isinstance(policy["version"], int)
+            or policy["version"] != 1
+        ):
+            raise SurveyError(
+                "Unsupported scale-direction policy version; supported version is 1."
+            )
+        if policy["method"] != "uniform_forward_reverse":
+            raise SurveyError(
+                "Scale-direction method must be 'uniform_forward_reverse'."
+            )
+        if policy["assignment_unit"] != "agent_scenario_iteration":
+            raise SurveyError(
+                "Scale-direction assignment_unit must be 'agent_scenario_iteration'."
+            )
+        if policy["balance"] != "none":
+            raise SurveyError("Scale-direction v1 does not provide balance guarantees.")
+        names = policy["questions"]
+        if not isinstance(names, list) or not names or not all(
+            isinstance(name, str) and name for name in names
+        ):
+            raise SurveyError(
+                "Scale-direction questions must be non-empty question names."
+            )
+        if len(set(names)) != len(names):
+            raise SurveyError("Scale-direction questions cannot contain duplicates.")
+        known = set(self.question_names)
+        unknown = set(names) - known
+        if unknown:
+            raise SurveyError(
+                f"Scale-direction policy references unknown questions: {sorted(unknown)}."
+            )
+        question_by_name = self.question_names_to_questions()
+        non_scales = [
+            name
+            for name in names
+            if getattr(question_by_name[name], "question_type", None)
+            != "linear_scale"
+        ]
+        if non_scales:
+            raise SurveyError(
+                "Scale-direction randomization only supports QuestionLinearScale; "
+                f"unsupported question(s): {non_scales}."
+            )
+        conflicts = set(names).intersection(self.questions_to_randomize or [])
+        if conflicts:
+            raise SurveyError(
+                "Scale-direction questions cannot also use ordinary option shuffling: "
+                f"{sorted(conflicts)}."
+            )
+        for name in names:
+            options = question_by_name[name].question_options
+            if not isinstance(options, list) or len(options) < 2:
+                raise SurveyError(
+                    f"Scale-direction question {name!r} must have at least two options."
+                )
+
+    def randomize_scale_direction(self, *question_names) -> "Survey":
+        """Randomize a linear scale between its declared and reversed order.
+
+        One direction is assigned per agent/scenario/iteration and shared across
+        model variants. V1 uses independent draws and promises no exact balance.
+        Pass question names as arguments or as one list.
+        """
+        if len(question_names) == 1 and not isinstance(question_names[0], str):
+            question_names = tuple(question_names[0])
+        questions = list(question_names)
+        policy = {
+            "version": 1,
+            "questions": questions,
+            "method": "uniform_forward_reverse",
+            "assignment_unit": "agent_scenario_iteration",
+            "balance": "none",
+        }
+        self._validate_scale_direction_randomization(policy)
+        self._scale_direction_randomization = policy
+        return self
+
+    def clear_scale_direction_randomization(self) -> "Survey":
+        """Remove the forward/reverse scale assignment policy."""
+        self._scale_direction_randomization = None
+        return self
 
     def _recombined_questions_and_instructions(
         self,
@@ -4171,6 +4303,17 @@ class Survey(Base):
             if relevant_randomization:
                 new_survey.questions_to_randomize = relevant_randomization
 
+        scale_policy = self.scale_direction_randomization
+        if scale_policy is not None:
+            relevant_scales = [
+                name
+                for name in scale_policy["questions"]
+                if name in {q.question_name for q in selected_questions}
+            ]
+            if relevant_scales:
+                scale_policy["questions"] = relevant_scales
+                new_survey._validate_scale_direction_randomization(scale_policy)
+                new_survey._scale_direction_randomization = scale_policy
         self._inherit_question_sampling(new_survey)
         self._inherit_question_order(new_survey)
 
@@ -4249,7 +4392,7 @@ class Survey(Base):
 
         kept_questions = [self.get(name) for name in question_names]
         assert all(kept_questions), f"Question(s) {question_names} not found in survey"
-        new_survey = Survey(questions=kept_questions)
+        new_survey = self._create_subsurvey(kept_questions)
         self._inherit_question_sampling(new_survey)
         self._inherit_question_order(new_survey)
         return new_survey
@@ -4484,6 +4627,11 @@ class Survey(Base):
             if question.question_name in rename_dict:
                 new_question.question_name = rename_dict[question.question_name]
             new_questions.append(new_question)
+        scale_policy = self.scale_direction_randomization
+        if scale_policy is not None:
+            scale_policy["questions"] = [
+                rename_dict.get(name, name) for name in scale_policy["questions"]
+            ]
         question_sampling = copy.deepcopy(self._question_sampling)
         if question_sampling is not None:
             for key in ("eligible_questions", "required_questions"):
@@ -4491,7 +4639,8 @@ class Survey(Base):
         question_order = copy.deepcopy(self._question_order)
         for block in question_order["blocks"]:
             block["questions"] = [rename_dict.get(name, name) for name in block["questions"]]
-        return Survey(questions=new_questions, question_sampling=question_sampling,
+        return Survey(questions=new_questions, scale_direction_randomization=scale_policy,
+                      question_sampling=question_sampling,
                       question_order=question_order if question_order["blocks"] else None)
 
     def with_edited_question(
