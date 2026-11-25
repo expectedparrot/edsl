@@ -1,0 +1,223 @@
+{
+  "manifest": {
+    "started_utc": "2026-09-18T13:14:18.838137+00:00",
+    "dataset": {
+      "dataset": "UCI SMS Spam Collection",
+      "dataset_url": "https://archive.ics.uci.edu/dataset/228/sms%2Bspam%2Bcollection",
+      "download_url": "https://archive.ics.uci.edu/static/public/228/sms%2Bspam%2Bcollection.zip",
+      "citation": "Almeida, T. & Hidalgo, J. (2011). SMS Spam Collection. https://doi.org/10.24432/C5CC84",
+      "license": "CC BY 4.0",
+      "source_sha256": "1587ea43e58e82b14ff1f5425c88e17f8496bfcdb67a583dbff9eefaf9963ce3",
+      "downloaded_rows": 5574,
+      "unique_nonconflicting_messages": 5171,
+      "conflicting_messages_excluded": 0,
+      "sampling": "uniform without replacement after exact-text deduplication",
+      "seed": 20260918,
+      "sample_count": 1000,
+      "class_counts": {
+        "ham": 882,
+        "spam": 118
+      },
+      "text_characters": {
+        "n": 1000,
+        "mean": 78.105,
+        "p50": 60.0,
+        "p95": 160.0,
+        "p99": 240.03999999999996,
+        "max": 446
+      },
+      "labels_sent_to_model": false
+    },
+    "model": "jev-1.13.0",
+    "concurrency": 8,
+    "request_rate_cap": 18,
+    "comparison_inputs": 100,
+    "comparison_only": true,
+    "python": "3.12.7",
+    "platform": "macOS-15.5-arm64-arm-64bit",
+    "git_branch": "feature/judgment-evaluation",
+    "git_head": "5e5ec10180f4914265e859c69488b8bfe27a8789",
+    "implementation_sha256": {
+      "__init__.py": "3d517a0fe3b72d8e049edf83acbefeb9413b72d59c17acc8740028c620608a61",
+      "evaluation.py": "d68c6dfc46d8c7c93529c4c5a8d7868faf45da7ef04ac2936c0e6f2c1efb549e",
+      "executor.py": "968fa67d2573de1f1b11025cc231226e2962b99053955befa6e4498ae8418156",
+      "model.py": "f2f16c42177f7f0b6e7df4e5d7e763446b3e4cce2e68b0d3c25a8f4fd6d018ef",
+      "persistence.py": "ebde729d863f4bbbfb3c18d392ff8f550048d0c8e8a05a0414f94ab3a0ff95f9"
+    },
+    "price_per_million_input_tokens_usd": 0.042,
+    "pricing_source": "https://docs.typesafe.ai/models",
+    "price_checked": "2026-09-18"
+  },
+  "phases": [
+    {
+      "phase": "matched_batched",
+      "inputs": 100,
+      "questions_per_input": 5,
+      "concurrency": 8,
+      "request_rate_cap": 18.0,
+      "planned_requests": 100,
+      "logical_calls": 100,
+      "http_attempts": 100,
+      "retries": 0,
+      "http_statuses": {
+        "200": 100
+      },
+      "completed_rows": 100,
+      "completed_judgments": 500,
+      "failed_batches": [],
+      "build_seconds": 0.0054348750272765756,
+      "compile_seconds": 0.27949458407238126,
+      "execute_seconds": 6.126082916976884,
+      "end_to_end_seconds": 6.411012376076542,
+      "inputs_per_second": 16.323644546644214,
+      "judgments_per_second": 81.61822273322107,
+      "http_latency_seconds": {
+        "n": 100,
+        "mean": 0.22666819658945314,
+        "p50": 0.2061133335228078,
+        "p95": 0.3996603395091369,
+        "p99": 0.4886999105708674,
+        "max": 0.4976175840711221
+      },
+      "logical_latency_including_pacing_and_retries_seconds": {
+        "n": 100,
+        "mean": 0.4506520033243578,
+        "p50": 0.4439545830246061,
+        "p95": 0.5691661118471528,
+        "p99": 0.7989322029147299,
+        "max": 0.8221801670733839
+      },
+      "pacing_wait_seconds": {
+        "n": 100,
+        "mean": 0.22365271757822483,
+        "p50": 0.23454816703451797,
+        "p95": 0.2849501562246587,
+        "p99": 0.33923063287627914,
+        "max": 0.39441974996589124
+      },
+      "usage": {
+        "input_tokens": 74578,
+        "output_tokens": 12600
+      },
+      "estimated_usd": 0.0031322760000000002,
+      "actual_models": [
+        "jev-1.13.0"
+      ],
+      "accuracy": {
+        "n": 100,
+        "accuracy": 0.99,
+        "majority_baseline": 0.88,
+        "spam_precision": 1.0,
+        "spam_recall": 0.9166666666666666,
+        "brier_score": 0.012948,
+        "confusion": {
+          "true_spam": 11,
+          "true_ham": 88,
+          "false_spam": 0,
+          "missed_spam": 1
+        },
+        "errors": [
+          {
+            "source_id": 4394,
+            "gold": "spam",
+            "predicted": "ham",
+            "p_spam": 0.06
+          }
+        ]
+      },
+      "cache_entries": 100,
+      "save_packages_seconds": 0.18429433403071016
+    },
+    {
+      "phase": "matched_single",
+      "inputs": 100,
+      "questions_per_input": 5,
+      "concurrency": 8,
+      "request_rate_cap": 18.0,
+      "planned_requests": 500,
+      "logical_calls": 500,
+      "http_attempts": 500,
+      "retries": 0,
+      "http_statuses": {
+        "200": 500
+      },
+      "completed_rows": 100,
+      "completed_judgments": 500,
+      "failed_batches": [],
+      "build_seconds": 0.0002199580194428563,
+      "compile_seconds": 0.3035844580736011,
+      "execute_seconds": 28.453767207916826,
+      "end_to_end_seconds": 28.75757162400987,
+      "inputs_per_second": 3.5144731194741947,
+      "judgments_per_second": 17.572365597370975,
+      "http_latency_seconds": {
+        "n": 500,
+        "mean": 0.22998267416725868,
+        "p50": 0.20498429145663977,
+        "p95": 0.40236181726213516,
+        "p99": 0.6008708049566482,
+        "max": 1.25659766595345
+      },
+      "logical_latency_including_pacing_and_retries_seconds": {
+        "n": 500,
+        "mean": 0.45171343374531714,
+        "p50": 0.43111441645305604,
+        "p95": 0.6165468371473247,
+        "p99": 0.8333560229837894,
+        "max": 1.496260958025232
+      },
+      "pacing_wait_seconds": {
+        "n": 500,
+        "mean": 0.22146509190788494,
+        "p50": 0.225585354026407,
+        "p95": 0.2812188066192903,
+        "p99": 0.29606661285855806,
+        "max": 0.3929424580419436
+      },
+      "usage": {
+        "input_tokens": 204490,
+        "output_tokens": 14000
+      },
+      "estimated_usd": 0.00858858,
+      "actual_models": [
+        "jev-1.13.0"
+      ],
+      "accuracy": {
+        "n": 100,
+        "accuracy": 0.99,
+        "majority_baseline": 0.88,
+        "spam_precision": 1.0,
+        "spam_recall": 0.9166666666666666,
+        "brier_score": 0.011204,
+        "confusion": {
+          "true_spam": 11,
+          "true_ham": 88,
+          "false_spam": 0,
+          "missed_spam": 1
+        },
+        "errors": [
+          {
+            "source_id": 4394,
+            "gold": "spam",
+            "predicted": "ham",
+            "p_spam": 0.09
+          }
+        ]
+      },
+      "cache_entries": 500,
+      "save_packages_seconds": 0.18496670899912715
+    }
+  ],
+  "comparison": {
+    "paired_inputs": 100,
+    "answer_agreement_by_question": {
+      "spam": 1.0,
+      "urgent": 1.0,
+      "commercial": 1.0,
+      "intent": 0.99,
+      "pressure": 1.0
+    },
+    "maximum_probability_difference": 0.13
+  },
+  "total_estimated_usd": 0.011720856
+}

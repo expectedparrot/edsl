@@ -117,6 +117,7 @@ from .question_registry import Question
 # Core Questions
 from .question_check_box import QuestionCheckBox
 from .question_checkbox_matrix import QuestionCheckboxMatrix
+from .question_date import QuestionDate, QuestionDateTime
 from .question_extract import QuestionExtract
 from .question_email import QuestionEmail
 from .question_free_text import QuestionFreeText
@@ -133,6 +134,7 @@ from .question_dict import QuestionDict
 from .question_multiple_choice import QuestionMultipleChoice
 from .probabilistic_response import ProbabilisticResponse
 from .question_numerical import QuestionNumerical
+from .question_numerical_range import QuestionNumericalRange
 from .question_budget import QuestionBudget
 from .question_distribution import QuestionDistribution
 from .question_demand import QuestionDemand
@@ -189,6 +191,8 @@ __all__ = [
     "QuestionMultipleChoice",
     "QuestionCheckBox",
     "QuestionCheckboxMatrix",
+    "QuestionDate",
+    "QuestionDateTime",
     "QuestionDict",
     "QuestionExtract",
     "QuestionEmail",
@@ -200,6 +204,7 @@ __all__ = [
     "QuestionMatrix",
     "QuestionMatrixWithText",
     "QuestionNumerical",
+    "QuestionNumericalRange",
     "QuestionBudget",
     "QuestionDemand",
     "QuestionRank",

@@ -87,6 +87,9 @@ Question.available()  # list all available types
 | `QuestionMultipleChoice` | Single selection | `question_options` |
 | `QuestionCheckBox` | Multiple selections | `question_options`, `min_selections`, `max_selections` |
 | `QuestionNumerical` | Numbers | `min_value`, `max_value` |
+| `QuestionDate` | Calendar date | `min_date`, `max_date` |
+| `QuestionDateTime` | Timezone-aware datetime | `min_datetime`, `max_datetime` |
+| `QuestionNumericalRange` | Inclusive numeric interval | `min_value`, `max_value` |
 | `QuestionYesNo` | Binary yes/no | — |
 | `QuestionLinearScale` | Numeric scale | `question_options`, `option_labels` |
 | `QuestionLikertFive` | 5-point agree/disagree | — |

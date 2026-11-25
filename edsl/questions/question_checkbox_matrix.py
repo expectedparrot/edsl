@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import random
+from html import escape
 from typing import Any, Dict, List, Optional, Type, Union
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .decorators import inject_exception
 from .descriptors import (
+    BaseDescriptor,
     OptionLabelDescriptor,
     QuestionOptionsDescriptor,
     QuestionTextDescriptor,
@@ -46,6 +48,18 @@ class CheckboxMatrixResponseValidator(ResponseValidatorABC):
 
     def fix(self, response, verbose=False):
         return response
+
+
+class MatrixItemsDescriptor(BaseDescriptor):
+    """Validate row labels without applying option-selection constraints."""
+
+    def validate(self, value, instance):
+        if not isinstance(value, list) or len(value) < 1:
+            raise QuestionCreationValidationError("question_items must be a non-empty list.")
+        if not all(isinstance(item, str) and item for item in value):
+            raise QuestionCreationValidationError("question_items must contain non-empty strings.")
+        if len(value) != len(set(value)):
+            raise QuestionCreationValidationError("question_items must be unique.")
 
 
 def create_checkbox_matrix_response(
@@ -107,11 +121,35 @@ class QuestionCheckboxMatrix(QuestionBase):
 
     question_type = "checkbox_matrix"
     question_text = QuestionTextDescriptor()
-    question_items = QuestionOptionsDescriptor()
+    question_items = MatrixItemsDescriptor()
     question_options = QuestionOptionsDescriptor()
     option_labels = OptionLabelDescriptor()
     response_validator_class = CheckboxMatrixResponseValidator
     _response_model = None
+
+    @property
+    def min_selections(self):
+        return self.__dict__.get("_min_selections", 0)
+
+    @min_selections.setter
+    def min_selections(self, value):
+        self.__dict__["_min_selections"] = value
+
+    @property
+    def max_selections(self):
+        return self.__dict__.get("_max_selections", len(self.question_options))
+
+    @max_selections.setter
+    def max_selections(self, value):
+        self.__dict__["_max_selections"] = value
+
+    @property
+    def permissive(self):
+        return self.__dict__.get("_permissive", False)
+
+    @permissive.setter
+    def permissive(self, value):
+        self.__dict__["_permissive"] = value
 
     def __init__(
         self,
@@ -191,10 +229,13 @@ class QuestionCheckboxMatrix(QuestionBase):
             </table>
             """
         ).render(
-            question_name=self.question_name,
-            question_items=self.question_items,
-            question_options=self.question_options,
-            option_labels=self.option_labels,
+            question_name=escape(self.question_name, quote=True),
+            question_items=[escape(item, quote=True) for item in self.question_items],
+            question_options=[escape(str(option), quote=True) for option in self.question_options],
+            option_labels={
+                key: escape(str(label), quote=True)
+                for key, label in self.option_labels.items()
+            },
         )
 
     @classmethod

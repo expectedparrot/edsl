@@ -509,6 +509,7 @@ test-openai-compatible: ## Test generic OpenAI-compatible support; set EDSL_OPEN
 	poetry run pytest -xv \
 		tests/inference_services/test_openai_compatible_service.py \
 		tests/inference_services/test_cli_openai_compatible.py \
+		tests/language_models/test_hosted_model.py \
 		--confcutdir=tests/inference_services
 
 test-token-bucket: ## Run token bucket tests
