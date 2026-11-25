@@ -6,7 +6,6 @@ from edsl.agents import Agent
 from edsl.scenarios import Scenario
 from edsl.language_models import LanguageModel
 from edsl.results import Results
-from edsl.surveys import Survey
 from edsl import QuestionFreeText, Survey
 
 
