@@ -43,6 +43,7 @@ Previewing requires [Expected Parrot access](/en/latest/api_keys). Pass the same
   <Expandable title="properties">
     <ParamField path="survey.presentation" type="string" default="question">
       `"question"` requests question-by-question presentation (the default); `"group"` requests one question group per page. Define groups on the survey with `add_question_group()` and include every question you want displayed. See [Grouped surveys](/en/latest/humanize_groups) for setup and branching between pages. Question time limits (`time_limit`) are ignored under `"group"`.
+    </ParamField>
     <ParamField path="survey.navigation" type="dict" required={false}>
       Navigation controls introduced in PR #2577. `back_button` is a strict boolean, defaulting to `false`. Set it to `true` to enable Back. See [Back navigation](/en/latest/humanize_navigation) for setup and hosted availability requirements.
     </ParamField>

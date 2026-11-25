@@ -45,13 +45,13 @@ class SurveySession:
         key = f"{question_name}.answer"
         prior_exists = key in self.active_rule_answers
         prior_value = self.active_rule_answers.get(key)
-        if prior_exists and prior_value != value:
+        if not prior_exists or prior_value != value:
             self._truncate_after_current()
 
         revision = len(self.answer_records.get(question_name, [])) + 1
         record = {"answer": deepcopy(value), "revision": revision}
         self.answer_records.setdefault(question_name, []).append(record)
-        self.active_rule_answers[key] = value
+        self.active_rule_answers[key] = deepcopy(value)
         self._inactive_answers.pop(question_name, None)
         self._navigation_events.append(
             {
@@ -153,19 +153,15 @@ class SurveySession:
         del self.active_path[self.current_index + 1 :]
 
     def _back_enabled(self) -> bool:
-        return bool(
-            self.humanize_schema.get("survey", {})
-            .get("navigation", {})
-            .get("back_button", False)
-        )
+        survey_settings = self.humanize_schema.get("survey") or {}
+        navigation = survey_settings.get("navigation") or {}
+        return bool(navigation.get("back_button", False))
 
     def _allow_back_past(self, question_name: str) -> bool:
-        return bool(
-            self.humanize_schema.get("questions", {})
-            .get(question_name, {})
-            .get("navigation", {})
-            .get("allow_back_past", True)
-        )
+        questions = self.humanize_schema.get("questions") or {}
+        question_settings = questions.get(question_name) or {}
+        navigation = question_settings.get("navigation") or {}
+        return bool(navigation.get("allow_back_past", True))
 
     @staticmethod
     def _item_name(item) -> Optional[str]:

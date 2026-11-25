@@ -78,3 +78,42 @@ def test_back_from_end_and_instructions():
     session.answer("q0", "done")
     assert session.forward() is EndOfSurvey
     assert session.back().question_name == "q0"
+
+
+def test_first_answer_after_return_recomputes_the_route():
+    q0, q1, q2, q3 = (_question(name) for name in ("q0", "q1", "q2", "q3"))
+    survey = Survey([q0, q1, q2, q3]).add_rule(
+        q1, "{{ q1.answer }} == 'skip'", q3
+    )
+    session = survey.start_session(_back_schema())
+    assert session.forward().question_name == "q1"
+    assert session.forward().question_name == "q2"  # q1 was left unanswered
+    assert session.back().question_name == "q1"
+    session.answer("q1", "skip")
+    assert session.forward().question_name == "q3"
+
+
+def test_null_navigation_settings_use_defaults():
+    schema = {
+        "survey": {"navigation": None},
+        "questions": {"q0": {"navigation": None}},
+    }
+    session = Survey([_question("q0"), _question("q1")]).start_session(schema)
+    session.answer("q0", "a")
+    session.forward()
+    assert not session.can_back()
+
+
+def test_mutated_answer_values_are_copied_before_comparison():
+    q0, q1, q2 = (_question(name) for name in ("q0", "q1", "q2"))
+    session = Survey([q0, q1, q2]).start_session(_back_schema())
+    value = ["first"]
+    session.answer("q0", value)
+    session.forward()
+    session.forward()
+    session.back()
+    session.back()
+    value[0] = "revised"
+    session.answer("q0", value)
+    assert session.active_path == [q0]
+    assert session.answer_records["q0"][-1]["answer"] == ["revised"]

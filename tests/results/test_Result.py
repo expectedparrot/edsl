@@ -126,3 +126,21 @@ def test_metadata_rejects_non_json_values():
             answer={},
             metadata={"bad": {1, 2}},
         )
+
+
+def test_metadata_collisions_preserve_qualified_columns():
+    result = Result(
+        agent=Agent.example(),
+        scenario=Scenario({"source": "survey"}),
+        model=LanguageModel.example(),
+        iteration=1,
+        answer={"source": "answer"},
+        metadata={"source": "human"},
+    )
+    results = Results(survey=Survey([]), data=[result])
+
+    assert "scenario.source" in results.columns
+    assert "metadata.source" in results.columns
+    assert results.select("scenario.source").to_list() == ["survey"]
+    assert results.select("metadata.source").to_list() == ["human"]
+    assert results.select("answer.source").to_list() == ["answer"]
