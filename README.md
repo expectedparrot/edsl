@@ -24,8 +24,9 @@ The copyable prompts below are for a harness you can already open. If you do
 not have that harness installed yet, run its bootstrap command in a terminal
 first. The script installs the selected harness when missing, installs EDSL
 from this branch, logs in to Expected Parrot if needed, and installs the
-harness-specific `edsl-harness` skill. Activate the Python environment where
-you want EDSL installed before running it.
+harness-specific `edsl-harness` skill, then launches the harness in the current
+directory. Activate the Python environment where you want EDSL installed
+before running it.
 
 From a local EDSL checkout:
 

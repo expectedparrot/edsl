@@ -134,4 +134,5 @@ if result.get("status") != "ok":
     raise SystemExit(1)
 '
 printf '%s\n' "$skill_install"
-printf 'Setup complete. Start %s in your project and use the edsl-harness skill.\n' "$command_name"
+printf 'Setup complete. Launching %s in %s...\n' "$command_name" "$PWD"
+exec "$command_name"

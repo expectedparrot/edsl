@@ -11,8 +11,9 @@ installed and open. For a first-time setup, run the bootstrap script from a
 terminal. It installs the selected harness if missing, installs EDSL from the
 current branch into the active Python environment, checks Expected Parrot
 authentication, and installs the `edsl-harness` skill in that harness's user
-skill directory. Activate the Python environment where EDSL should be
-installed first. The bootstrap script supports macOS, Linux, and WSL. On
+skill directory, then launches the harness in the current directory. Activate
+the Python environment where EDSL should be installed first. The bootstrap
+script supports macOS, Linux, and WSL. On
 native Windows, install the harness from its official guide first, then run
 the EDSL and skill setup steps in that environment.
 
