@@ -135,7 +135,10 @@ def test_gemini_3_keeps_explicit_sampling_overrides(monkeypatch):
     assert config["temperature"] == 0.3
     assert config["top_p"] == 0.8
     assert config["top_k"] == 12
-    assert config["thinking_config"] == {"thinking_level": "HIGH"}
+    assert config["thinking_config"] == {
+        "thinking_level": "HIGH",
+        "include_thoughts": True,
+    }
 
     model_with_budget = gs.GoogleService.create_model("gemini-3-flash-preview")(
         thinking_budget=128,
@@ -143,4 +146,7 @@ def test_gemini_3_keeps_explicit_sampling_overrides(monkeypatch):
     )
     asyncio.run(model_with_budget.async_execute_model_call(user_prompt="hello"))
 
-    assert captured["config"]["thinking_config"] == {"thinking_budget": 128}
+    assert captured["config"]["thinking_config"] == {
+        "thinking_budget": 128,
+        "include_thoughts": True,
+    }

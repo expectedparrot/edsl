@@ -347,6 +347,14 @@ class OpenAIServiceV2(InferenceServiceABC):
                 # instead of max_tokens (which is for the completions API)
                 params["max_output_tokens"] = self.max_tokens
 
+                # Preserve provider-native tools on the Responses API request.
+                tools = self.parameters.get("tools")
+                tool_choice = self.parameters.get("tool_choice")
+                if tools is not None:
+                    params["tools"] = tools
+                if tool_choice is not None:
+                    params["tool_choice"] = tool_choice
+
                 # GPT-5+ and o-series models only accept temperature=1.
                 if openai_requires_temperature_one(self.model):
                     params["temperature"] = 1

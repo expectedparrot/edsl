@@ -110,3 +110,235 @@ These test models return fixed answers. Replace them with configurations from th
 For PDF, video, and audio inputs, choose a model that supports the specific media type; the image filter only describes image support. See [Files and media as scenarios](/en/latest/scenarios#data-and-files) for examples, including Google video and audio inputs.
 
 A ModelList can be inspected with `to_scenario_list()` or `to_dataset()`, filtered with `filter(expression)`, and saved with `save("models.ep")` for later `ModelList.load("models.ep")`. `ModelList.from_names(names)` constructs configurations from a list of model names; use explicit `Model(name, service_name=provider)` objects when the provider needs to be unambiguous.
+
+## Provider tools
+
+Some inference services expose tools that run on the provider's infrastructure.
+OpenAI Responses, xAI Responses, Anthropic Messages, Google Gemini, and Meta's Responses API
+support provider-hosted tools through the same EDSL interface. Attach the
+provider's tool declaration to a model, then use the model in a normal EDSL job:
+
+```python
+from edsl import Model, QuestionFreeText, Survey
+
+model = Model("gpt-4.1-mini", service_name="openai_v2").with_tools(
+    {"type": "web_search"}
+)
+survey = Survey(
+    [
+        QuestionFreeText(
+            question_name="answer",
+            question_text="What changed in the latest release of Python? Include sources.",
+        )
+    ]
+)
+results = survey.by(model).run(
+    offload_execution=False,
+    disable_remote_inference=True,
+)
+trace = results[0]["raw_model_response"]["answer_raw_model_response"]
+```
+
+The provider performs the search as part of its Responses API request. EDSL returns
+the final text as the ordinary answer and preserves the provider response, including
+search events and citations, in the question's `raw_model_response` fields (for example,
+`answer_raw_model_response`). Provider tool declarations are serialized with the model
+and included in cache identity.
+
+Provider-hosted tools currently work through `service_name="openai_v2"`,
+`service_name="xai_responses"`, `service_name="anthropic"`,
+`service_name="google"`, and `service_name="meta"`.
+Application function tools, where EDSL must execute a returned function call and
+send its result back to the model, are a separate capability and are not supported
+yet. Direct execution is required because remote EDSL workers do not yet support
+tool requests. The provider must support the selected tool and model; unsupported
+combinations return the provider's API error.
+
+xAI exposes hosted Web Search, X Search, and Code Execution through its
+Responses API. Use `service_name="xai_responses"` to select that API path; the
+existing `service_name="xai"` continues to use xAI's Chat Completions API:
+
+```python
+xai_model = Model("grok-4.7", service_name="xai_responses").with_tools(
+    {"type": "web_search"}
+)
+xai_results = survey.by(xai_model).run(
+    offload_execution=False,
+    disable_remote_inference=True,
+)
+xai_raw = xai_results[0]["raw_model_response"]["answer_raw_model_response"]
+```
+
+Use `{"type": "x_search"}` for posts on X or `{"type": "code_interpreter"}`
+for provider-hosted Python execution. Tool invocation may incur provider charges
+in addition to token costs.
+
+The same interface accepts other Responses API tool definitions. Code Interpreter
+needs an automatic container:
+
+```python
+code_model = Model("gpt-4.1-mini", service_name="openai_v2").with_tools(
+    {"type": "code_interpreter", "container": {"type": "auto"}}
+)
+calculation = Survey(
+    [
+        QuestionFreeText(
+            question_name="calculation",
+            question_text="Use Python to compute the sum of squares from 1 through 20.",
+        )
+    ]
+)
+code_results = calculation.by(code_model).run(
+    offload_execution=False,
+    disable_remote_inference=True,
+)
+```
+
+File Search requires a populated OpenAI vector store. Create the store and upload/index
+files with the OpenAI Files and Vector Stores APIs, then supply its ID:
+
+```python
+file_model = Model("gpt-4.1-mini", service_name="openai_v2").with_tools(
+    {
+        "type": "file_search",
+        "vector_store_ids": ["VECTOR_STORE_ID"],
+        "max_num_results": 3,
+    }
+)
+file_results = survey.by(file_model).run(
+    offload_execution=False,
+    disable_remote_inference=True,
+)
+```
+
+Tool-specific request fields are passed through to OpenAI and validated there. EDSL
+stores each complete provider response under the question's `raw_model_response`
+fields, so tool event types, statuses, and returned citations can be inspected there.
+
+Meta's Responses API also provides server-side web search. Use a Meta model with
+`service_name="meta"` and the `web_search` tool declaration:
+
+```python
+meta_search_model = Model("muse-spark-1.3", service_name="meta").with_tools(
+    {"type": "web_search"}
+)
+meta_results = survey.by(meta_search_model).run(
+    offload_execution=False,
+    disable_remote_inference=True,
+)
+```
+
+Meta returns search calls and cited response messages in its Responses output.
+EDSL keeps that complete output in `raw_model_response` and uses the final answer
+message for the question answer, omitting intermediate commentary from the answer
+field. Meta's `tool_search` can find developer-defined tools, but executing those
+tools and continuing the conversation still requires application-side logic.
+See Meta's [search grounding](https://dev.meta.ai/docs/search-grounding) and
+[tool calling](https://dev.meta.ai/docs/tool-calling) documentation.
+
+Anthropic Messages has its own versioned server-tool declarations. For example,
+web search can be enabled with `web_search_20250305`:
+
+```python
+anthropic_search_model = Model("claude-haiku-5-5", service_name="anthropic").with_tools(
+    {"type": "web_search_20250305", "name": "web_search", "max_uses": 2}
+)
+search_results = survey.by(anthropic_search_model).run(
+    offload_execution=False,
+    disable_remote_inference=True,
+)
+```
+
+Anthropic's code execution tool can run a calculation in the provider's sandbox:
+
+```python
+anthropic_code_model = Model("claude-haiku-5-5", service_name="anthropic").with_tools(
+    {"type": "code_execution_20250825", "name": "code_execution"}
+)
+code_results = calculation.by(anthropic_code_model).run(
+    offload_execution=False,
+    disable_remote_inference=True,
+)
+```
+
+Web fetch can be restricted to specific domains. This example allows pages from
+Anthropic's documentation site only:
+
+```python
+anthropic_fetch_model = Model("claude-haiku-5-5", service_name="anthropic").with_tools(
+    {
+        "type": "web_fetch_20250910",
+        "name": "web_fetch",
+        "max_uses": 1,
+        "allowed_domains": ["platform.claude.com"],
+    }
+)
+fetch_results = survey.by(anthropic_fetch_model).run(
+    offload_execution=False,
+    disable_remote_inference=True,
+)
+```
+
+Anthropic returns server-tool activity and results as content blocks in the
+provider response, which EDSL retains under `raw_model_response`. Server tools
+execute within the Anthropic request; EDSL does not run a client-side tool loop.
+Tool names and versions are provider-specific. See Anthropic's documentation for
+[web search](https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool),
+[code execution](https://platform.claude.com/docs/en/agents-and-tools/tool-use/code-execution-tool),
+and [web fetch](https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-fetch-tool).
+
+Google Gemini's `generate_content` API accepts tool declarations in its own
+configuration format. For example, Google Search uses `google_search`:
+
+```python
+google_search_model = Model("gemini-2.5-flash", service_name="google").with_tools(
+    {"google_search": {}}
+)
+google_search_results = survey.by(google_search_model).run(
+    offload_execution=False,
+    disable_remote_inference=True,
+)
+```
+
+The same pattern enables sandboxed Python execution or URL context. Include the
+URL in the question when using URL context:
+
+```python
+google_code_model = Model("gemini-2.5-flash", service_name="google").with_tools(
+    {"code_execution": {}}
+)
+google_code_results = calculation.by(google_code_model).run(
+    offload_execution=False,
+    disable_remote_inference=True,
+)
+
+google_url_model = Model("gemini-2.5-flash", service_name="google").with_tools(
+    {"url_context": {}}
+)
+page_question = QuestionFreeText(
+    question_name="page_summary",
+    question_text="Summarize the tool-use guidance at https://ai.google.dev/gemini-api/docs/url-context",
+)
+page_results = Survey([page_question]).by(google_url_model).run(
+    offload_execution=False,
+    disable_remote_inference=True,
+)
+```
+
+Google's SDK represents these built-in tools with provider-specific fields rather
+than a generic `type` field. EDSL passes those declarations to the Google Gen AI
+SDK's `GenerateContentConfig`; the complete response, including grounding metadata
+or code execution parts, remains available in `raw_model_response`. See Google's
+[Search grounding](https://ai.google.dev/gemini-api/docs/google-search),
+[code execution](https://ai.google.dev/gemini-api/docs/code-execution), and
+[URL context](https://ai.google.dev/gemini-api/docs/url-context) guides for
+provider and model availability details.
+
+For Gemini models that support thinking, EDSL requests Google's optional thought
+summaries by default. Returned summaries remain in `raw_model_response` and are
+also exposed in `reasoning_summaries_dict` (for example,
+`result["reasoning_summaries_dict"]["answer_reasoning_summary"]`). Disable them
+with `Model("gemini-2.5-flash", service_name="google", include_thoughts=False)`.
+These are provider-generated summaries, not a complete transcript of the model's
+internal reasoning, and Google may omit them for a response. See Google's
+[thinking documentation](https://ai.google.dev/gemini-api/docs/thinking).
