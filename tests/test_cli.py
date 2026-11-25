@@ -6187,6 +6187,8 @@ class TestHumanizeCli:
 
         config_path = tmp_path / "prolific.json"
         output_path = tmp_path / "prolific-responses.ep"
+        demographics_path = tmp_path / "prolific-demographics.csv"
+        demographics_csv = "Submission id,Age,Sex\ns1,30,Female\ns2,41,Male\n"
         config_path.write_text(
             json.dumps(
                 {
@@ -6242,6 +6244,16 @@ class TestHumanizeCli:
                 assert study_id == "study-id"
                 return Results.example()
 
+            def get_prolific_study_demographics(
+                self, human_survey_uuid, study_id, save_path=None
+            ):
+                assert human_survey_uuid == "human-survey-uuid"
+                assert study_id == "study-id"
+                if save_path is not None:
+                    with open(save_path, "w", encoding="utf-8", newline="") as f:
+                        f.write(demographics_csv)
+                return demographics_csv
+
         monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
 
         commands = [
@@ -6269,6 +6281,16 @@ class TestHumanizeCli:
                 str(output_path),
             ],
             ["humanize", "prolific", "settings"],
+            [
+                "humanize",
+                "prolific",
+                "demographics",
+                "human-survey-uuid",
+                "study-id",
+                "--output",
+                str(demographics_path),
+            ],
+            ["humanize", "prolific", "demographics", "human-survey-uuid", "study-id"],
         ]
 
         outputs = []
@@ -6285,6 +6307,11 @@ class TestHumanizeCli:
         assert outputs[3]["status"] == "ACTIVE"
         assert outputs[4]["saved"]["format"] == "ep"
         assert output_path.exists()
+        assert outputs[6]["participant_count"] == 2
+        assert outputs[6]["columns"] == ["Submission id", "Age", "Sex"]
+        assert outputs[6]["saved"] == {"path": str(demographics_path), "format": "csv"}
+        assert demographics_path.read_text(encoding="utf-8") == demographics_csv
+        assert "next_step" in outputs[7]
 
     @pytest.mark.parametrize(
         ("action", "method_name"),

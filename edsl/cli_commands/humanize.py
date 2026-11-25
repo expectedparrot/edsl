@@ -168,6 +168,7 @@ def register(humanize: click.Group) -> None:
                 "commands": [
                     "filters", "cost", "settings", "create", "list", "get", "update",
                     "preflight", "publish", "pause", "resume", "stop", "delete", "responses",
+                    "demographics",
                 ],
                 "help": "Use 'ep humanize prolific <command> --help' for details.",
             })
@@ -529,6 +530,46 @@ def register(humanize: click.Group) -> None:
                 data["next_step"] = (
                     f"Use 'ep humanize prolific responses {human_survey_uuid} {study_id} "
                     "--output responses.ep' to save the response data."
+                )
+            output(data)
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
+
+
+    @humanize_prolific.command("demographics")
+    @click.argument("human_survey_uuid")
+    @click.argument("study_id")
+    @click.option("--output", "-o", "output_path", default=None, help="Save the demographics CSV to this path.")
+    def humanize_prolific_demographics(human_survey_uuid, study_id, output_path):
+        """Fetch Prolific participants' demographics as a CSV (survey owner only).
+
+        One row per submission; join to the responses on "Submission id", which
+        matches each result's prolific_submission_id trait.
+        """
+        try:
+            import csv
+            import io
+
+            from edsl.coop import Coop
+
+            csv_text = Coop().get_prolific_study_demographics(
+                human_survey_uuid, study_id, save_path=output_path
+            )
+            rows = list(csv.reader(io.StringIO(csv_text)))
+            data = {
+                "human_survey_uuid": human_survey_uuid,
+                "study_id": study_id,
+                "participant_count": max(len(rows) - 1, 0),
+                "columns": rows[0] if rows else [],
+            }
+            if output_path:
+                data["saved"] = {"path": str(Path(output_path)), "format": "csv"}
+            else:
+                data["next_step"] = (
+                    f"Use 'ep humanize prolific demographics {human_survey_uuid} {study_id} "
+                    "--output demographics.csv' to save the demographics."
                 )
             output(data)
         except SystemExit:

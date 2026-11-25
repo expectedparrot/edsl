@@ -25,6 +25,7 @@ ep humanize prolific resume <human_survey_uuid> <study_id>
 ep humanize prolific stop <human_survey_uuid> <study_id> --yes
 ep humanize prolific delete <human_survey_uuid> <draft_study_id> --yes
 ep humanize prolific responses <human_survey_uuid> <study_id> --output responses.ep
+ep humanize prolific demographics <human_survey_uuid> <study_id> --output demographics.csv
 ```
 
 `update --config` takes a JSON object containing only the fields to change, using
@@ -59,6 +60,10 @@ The create command accepts a JSON object whose keys match
 
 `responses` saves an EDSL Results artifact when given `--output`; supported
 formats include `.ep`, `.json`, and `.json.gz`.
+
+`demographics` downloads Prolific's demographics for the study's participants as
+a CSV, saved to the `--output` path; without it, the command reports the
+participant count and the columns. Only the survey's owner can download them.
 
 ## Coop API
 
@@ -120,7 +125,18 @@ coop.pause_prolific_study(human_survey_uuid, study_id)
 coop.resume_prolific_study(human_survey_uuid, study_id)
 coop.stop_prolific_study(human_survey_uuid, study_id)
 coop.get_prolific_study_responses(human_survey_uuid, study_id)
+coop.get_prolific_study_demographics(human_survey_uuid, study_id, save_path="demographics.csv")
 ```
+
+Each result from `get_prolific_study_responses` carries Prolific's submission
+fields as agent traits, such as `prolific_submission_id` and
+`prolific_submission_status`, but not participants' demographics.
+`get_prolific_study_demographics` returns those as Prolific's CSV text, one row
+per submission, and also saves it when given `save_path`. Join the two on the
+CSV's "Submission id" column and the `prolific_submission_id` trait. The columns
+are Prolific's own, such as "Age", "Sex", "Ethnicity simplified", "First
+language", "Current country of residence", "Nationality", and "Employment
+status".
 
 `update_prolific_study` accepts the same configuration fields as creation;
 `approval_mode` can only change on an unpublished draft. Pause, resume, and stop
