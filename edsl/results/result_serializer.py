@@ -174,6 +174,9 @@ class ResultSerializer:
             resolution_draw=json_dict.get("resolution_draw", {}),
             resolution_seed=json_dict.get("resolution_seed", {}),
             resolution_method=json_dict.get("resolution_method", {}),
+            # Metadata is intentionally opaque JSON. Do not interpret dicts that
+            # happen to resemble serialized EDSL objects.
+            metadata=json_dict.get("metadata", {}),
             randomization=json_dict.get("randomization", {}),
         )
 

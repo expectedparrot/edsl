@@ -78,7 +78,9 @@ class ResultBuilder:
         sub_dicts = self._construct_sub_dicts()
         self.keys_to_data_types, conflicts = self._analyze_key_conflicts(sub_dicts)
         resolved_sub_dicts = self._resolve_conflicts(sub_dicts, conflicts)
-        self.sub_dicts = resolved_sub_dicts
+        # Keep typed namespaces intact for qualified selection. Resolve
+        # collisions only in the flattened view used for unqualified keys.
+        self.sub_dicts = sub_dicts
         self.combined_dict, self.problem_keys = self._merge_sub_dicts(
             resolved_sub_dicts
         )
@@ -221,6 +223,7 @@ class ResultBuilder:
             "reasoning_summary": self.data["reasoning_summaries_dict"],
             "generated_tokens": self.data["generated_tokens"],
             "raw_model_response": self.data["raw_model_response"],
+            "metadata": self.data["metadata"],
             "validated": self.data["validated_dict"],
             "distribution": {
                 f"{key}_distribution": value

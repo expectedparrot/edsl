@@ -679,6 +679,8 @@ def register(humanize: click.Group) -> None:
     @click.option("--logo-alt", "logo_alt", default=None, help="Alt text naming the organization the logo identifies, e.g. \"Acme Research logo\".")
     @click.option("--logo-decorative", "logo_decorative", is_flag=True, default=False, help="Mark the logo decorative, rendering it with an empty alt.")
     @click.option("--logo-position", "logo_position", default=None, type=click.Choice(["left", "center", "right"]), help="Where the logo sits in the banner. Omit to use the default.")
+    @click.option("--back-button", is_flag=True, default=False, help="Enable Back navigation for respondents.")
+    @click.option("--no-back-past", "no_back_past_questions", multiple=True, help="Question that acts as a Back navigation boundary.")
     def humanize_schema_create(
         survey_path,
         output_path,
@@ -704,6 +706,8 @@ def register(humanize: click.Group) -> None:
         logo_alt,
         logo_decorative,
         logo_position,
+        back_button,
+        no_back_past_questions,
     ):
         """Create a humanize schema from CLI controls.
 
@@ -752,6 +756,8 @@ def register(humanize: click.Group) -> None:
                 logo_decorative=logo_decorative,
                 logo_position=logo_position,
                 clear_logo=False,
+                back_button=back_button,
+                no_back_past_questions=no_back_past_questions,
             )
             _validate_humanize_schema(survey, schema)
             data = {"schema": schema, "valid": True}
@@ -1692,6 +1698,8 @@ def register(humanize: click.Group) -> None:
     @click.option("--logo-decorative", "logo_decorative", is_flag=True, default=False, help="Mark the logo decorative, rendering it with an empty alt.")
     @click.option("--logo-position", "logo_position", default=None, type=click.Choice(["left", "center", "right"]), help="Where the logo sits in the banner. Omit to leave it unchanged.")
     @click.option("--clear-logo", "clear_logo", is_flag=True, default=False, help="Remove the survey's logo.")
+    @click.option("--back-button", is_flag=True, default=False, help="Enable Back navigation for respondents.")
+    @click.option("--no-back-past", "no_back_past_questions", multiple=True, help="Question that acts as a Back navigation boundary.")
     def humanize_schema_set(
         human_survey_uuid,
         schema_path,
@@ -1721,6 +1729,8 @@ def register(humanize: click.Group) -> None:
         logo_decorative,
         logo_position,
         clear_logo,
+        back_button,
+        no_back_past_questions,
     ):
         """Patch a human survey schema from a file or direct CLI controls.
 
@@ -1757,6 +1767,8 @@ def register(humanize: click.Group) -> None:
             logo_decorative,
             logo_position,
             clear_logo,
+            back_button,
+            no_back_past_questions,
         ):
             error(
                 "USAGE_ERROR",
@@ -1807,6 +1819,8 @@ def register(humanize: click.Group) -> None:
                 logo_decorative=logo_decorative,
                 logo_position=logo_position,
                 clear_logo=clear_logo,
+                back_button=back_button,
+                no_back_past_questions=no_back_past_questions,
             )
             if survey is not None and validate_schema:
                 _validate_humanize_schema(survey, _schema_for_local_validation(schema))
@@ -2984,6 +2998,8 @@ def register(humanize: click.Group) -> None:
         logo_decorative=False,
         logo_position=None,
         clear_logo=False,
+        back_button=False,
+        no_back_past_questions=(),
     ) -> dict:
         schema = json.loads(json.dumps(base_schema or {}))
         questions = schema.setdefault("questions", {})
@@ -3011,6 +3027,8 @@ def register(humanize: click.Group) -> None:
             logo_decorative,
             logo_position,
             clear_logo,
+            back_button,
+            no_back_past_questions,
         ):
             for question_name in getattr(survey, "question_names", []):
                 questions[question_name] = {}
@@ -3133,6 +3151,14 @@ def register(humanize: click.Group) -> None:
             logo_position=logo_position,
             clear_logo=clear_logo,
         )
+        if back_button:
+            schema.setdefault("survey", {}).setdefault("navigation", {})[
+                "back_button"
+            ] = True
+        for question_name in _expand_question_names(no_back_past_questions, survey):
+            _question_entry(questions, question_name).setdefault("navigation", {})[
+                "allow_back_past"
+            ] = False
 
         return schema
 

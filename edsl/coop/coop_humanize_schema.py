@@ -10,6 +10,7 @@ from pydantic import (
     ConfigDict,
     Field,
     PlainSerializer,
+    StrictBool,
     StringConstraints,
     ValidationError,
     field_validator,
@@ -38,6 +39,24 @@ class HumanizeSchemaBase(BaseModel):
     """Base for humanize schema models; forbids extra fields."""
 
     model_config = ConfigDict(extra="forbid")
+
+
+class SurveyNavigationConfig(HumanizeSchemaBase):
+    """Human respondent navigation controls for a survey."""
+
+    back_button: StrictBool = False
+
+
+class QuestionNavigationConfig(HumanizeSchemaBase):
+    """Human respondent navigation controls for a question."""
+
+    allow_back_past: StrictBool = True
+
+
+class QuestionHumanizeSchemaBase(HumanizeSchemaBase):
+    """Common controls supported by every humanized question type."""
+
+    navigation: Optional[QuestionNavigationConfig] = None
 
 
 class CalloutSubmittingIndicator(HumanizeSchemaBase):
@@ -372,6 +391,7 @@ class SurveyHumanizeSchema(HumanizeSchemaBase):
     # Require an Expected Parrot account for browser respondents.
     login_required: bool = False
     presentation: Literal["question", "group"] = "question"
+    navigation: Optional[SurveyNavigationConfig] = None
     # How the respondent is shown their position in the survey. Defaults to the
     # bar that shipped before this field existed, so stored configs render
     # identically.
@@ -491,7 +511,7 @@ class QuestionJavaScript(HumanizeSchemaBase):
         return hooks
 
 
-class FreeTextHumanizeSchema(HumanizeSchemaBase):
+class FreeTextHumanizeSchema(QuestionHumanizeSchemaBase):
     """Humanize options for the free text question type."""
 
     optional: bool = False
@@ -501,7 +521,7 @@ class FreeTextHumanizeSchema(HumanizeSchemaBase):
     javascript: Optional[QuestionJavaScript] = None
 
 
-class DropdownHumanizeSchema(HumanizeSchemaBase):
+class DropdownHumanizeSchema(QuestionHumanizeSchemaBase):
     """Humanize options for searchable EDSL dropdown questions."""
 
     optional: bool = False
@@ -511,7 +531,7 @@ class DropdownHumanizeSchema(HumanizeSchemaBase):
     javascript: Optional[QuestionJavaScript] = None
 
 
-class DemandHumanizeSchema(HumanizeSchemaBase):
+class DemandHumanizeSchema(QuestionHumanizeSchemaBase):
     """Humanize options for the demand question type (no optionality)."""
 
     time_limit: Optional[TimeLimit] = None
@@ -520,7 +540,7 @@ class DemandHumanizeSchema(HumanizeSchemaBase):
     javascript: Optional[QuestionJavaScript] = None
 
 
-class DictHumanizeSchema(HumanizeSchemaBase):
+class DictHumanizeSchema(QuestionHumanizeSchemaBase):
     """Humanize options for the dict question type (no optionality)."""
 
     time_limit: Optional[TimeLimit] = None
@@ -529,7 +549,7 @@ class DictHumanizeSchema(HumanizeSchemaBase):
     javascript: Optional[QuestionJavaScript] = None
 
 
-class EditHumanizeSchema(HumanizeSchemaBase):
+class EditHumanizeSchema(QuestionHumanizeSchemaBase):
     """Humanize options for the edit question type."""
 
     optional: bool = False
@@ -539,7 +559,7 @@ class EditHumanizeSchema(HumanizeSchemaBase):
     javascript: Optional[QuestionJavaScript] = None
 
 
-class EmailHumanizeSchema(HumanizeSchemaBase):
+class EmailHumanizeSchema(QuestionHumanizeSchemaBase):
     """Humanize options for the email question type."""
 
     optional: bool = False
@@ -549,7 +569,7 @@ class EmailHumanizeSchema(HumanizeSchemaBase):
     javascript: Optional[QuestionJavaScript] = None
 
 
-class BudgetHumanizeSchema(HumanizeSchemaBase):
+class BudgetHumanizeSchema(QuestionHumanizeSchemaBase):
     """Humanize options for the budget question type."""
 
     optional: bool = False
@@ -631,7 +651,7 @@ class DistributionSummary(HumanizeSchemaBase):
         return self
 
 
-class DistributionHumanizeSchema(HumanizeSchemaBase):
+class DistributionHumanizeSchema(QuestionHumanizeSchemaBase):
     """Humanize options for the distribution question type."""
 
     initial_distribution: InitialDistribution = Field(
@@ -661,7 +681,7 @@ class SelectAllControl(HumanizeSchemaBase):
     label: Optional[Literal["Select all"]] = None
 
 
-class CheckboxHumanizeSchema(HumanizeSchemaBase):
+class CheckboxHumanizeSchema(QuestionHumanizeSchemaBase):
     """Humanize options for the checkbox question type."""
 
     optional: bool = False
@@ -694,7 +714,7 @@ class CheckboxHumanizeSchema(HumanizeSchemaBase):
         return self
 
 
-class CheckboxWithOtherHumanizeSchema(HumanizeSchemaBase):
+class CheckboxWithOtherHumanizeSchema(QuestionHumanizeSchemaBase):
     """Humanize options for the checkbox with other question type."""
 
     optional: bool = False
@@ -719,7 +739,7 @@ class CheckboxWithOtherHumanizeSchema(HumanizeSchemaBase):
         return self
 
 
-class ComputeHumanizeSchema(HumanizeSchemaBase):
+class ComputeHumanizeSchema(QuestionHumanizeSchemaBase):
     """Humanize options for the compute question type (no optionality).
 
     No ``submitting_indicator``: compute questions run locally (no LLM) and are
@@ -729,7 +749,7 @@ class ComputeHumanizeSchema(HumanizeSchemaBase):
     pass
 
 
-class ImageGenerationHumanizeSchema(HumanizeSchemaBase):
+class ImageGenerationHumanizeSchema(QuestionHumanizeSchemaBase):
     """Humanize options for the image generation question type (none).
 
     Like compute, image generation is a background/auto-advanced question the
@@ -741,17 +761,12 @@ class ImageGenerationHumanizeSchema(HumanizeSchemaBase):
 
 
 class DetectAIHumanizeSchema(HumanizeSchemaBase):
-    """Humanize options for the detect AI question type (none).
-
-    Like compute and image generation, it is answered in the background (by
-    Pangram) and never shown to the respondent, so there are no per-question
-    humanize options and no ``submitting_indicator``.
-    """
-
+    """Humanize options for the detect AI question type (none)."""
     pass
 
 
-class FileUploadHumanizeSchema(HumanizeSchemaBase):
+class FileUploadHumanizeSchema(QuestionHumanizeSchemaBase):
+
     """Humanize options for the file upload question type."""
 
     optional: bool = False
@@ -1041,7 +1056,7 @@ class DefaultIntroScreen(HumanizeSchemaBase):
     ]
 
 
-class InterviewHumanizeSchema(HumanizeSchemaBase):
+class InterviewHumanizeSchema(QuestionHumanizeSchemaBase):
     """Humanize options for the interview question type."""
 
     optional: bool = False
@@ -1056,7 +1071,7 @@ class InterviewHumanizeSchema(HumanizeSchemaBase):
     javascript: Optional[QuestionJavaScript] = None
 
 
-class LikertHumanizeSchema(HumanizeSchemaBase):
+class LikertHumanizeSchema(QuestionHumanizeSchemaBase):
     """Humanize options for the likert question type."""
 
     optional: bool = False
@@ -1067,7 +1082,7 @@ class LikertHumanizeSchema(HumanizeSchemaBase):
     javascript: Optional[QuestionJavaScript] = None
 
 
-class LinearScaleHumanizeSchema(HumanizeSchemaBase):
+class LinearScaleHumanizeSchema(QuestionHumanizeSchemaBase):
     """Humanize options for the linear scale question type."""
 
     optional: bool = False
@@ -1078,7 +1093,7 @@ class LinearScaleHumanizeSchema(HumanizeSchemaBase):
     javascript: Optional[QuestionJavaScript] = None
 
 
-class ListHumanizeSchema(HumanizeSchemaBase):
+class ListHumanizeSchema(QuestionHumanizeSchemaBase):
     """Humanize options for the list question type."""
 
     optional: bool = False
@@ -1178,7 +1193,7 @@ class MatrixPreselection(HumanizeSchemaBase):
         return self
 
 
-class MatrixHumanizeSchema(HumanizeSchemaBase):
+class MatrixHumanizeSchema(QuestionHumanizeSchemaBase):
     """Humanize options for the matrix question type."""
 
     optional: bool = False
@@ -1199,7 +1214,7 @@ class MultipleChoiceCustomValidation(HumanizeSchemaBase):
     select_exact_answer: Optional[str] = None
 
 
-class MultipleChoiceHumanizeSchema(HumanizeSchemaBase):
+class MultipleChoiceHumanizeSchema(QuestionHumanizeSchemaBase):
     """Humanize options for the multiple choice question type."""
 
     optional: bool = False
@@ -1211,7 +1226,7 @@ class MultipleChoiceHumanizeSchema(HumanizeSchemaBase):
     javascript: Optional[QuestionJavaScript] = None
 
 
-class MultipleChoiceWithOtherHumanizeSchema(HumanizeSchemaBase):
+class MultipleChoiceWithOtherHumanizeSchema(QuestionHumanizeSchemaBase):
     """Humanize options for the multiple choice with other question type."""
 
     optional: bool = False
@@ -1252,7 +1267,7 @@ NumericalFormatSchema = Union[
 ]
 
 
-class NumericalHumanizeSchema(HumanizeSchemaBase):
+class NumericalHumanizeSchema(QuestionHumanizeSchemaBase):
     """Humanize options for the numerical question type."""
 
     optional: bool = False
@@ -1263,7 +1278,7 @@ class NumericalHumanizeSchema(HumanizeSchemaBase):
     javascript: Optional[QuestionJavaScript] = None
 
 
-class RankHumanizeSchema(HumanizeSchemaBase):
+class RankHumanizeSchema(QuestionHumanizeSchemaBase):
     """Humanize options for the rank question type."""
 
     optional: bool = False
@@ -1273,7 +1288,7 @@ class RankHumanizeSchema(HumanizeSchemaBase):
     javascript: Optional[QuestionJavaScript] = None
 
 
-class TopKHumanizeSchema(HumanizeSchemaBase):
+class TopKHumanizeSchema(QuestionHumanizeSchemaBase):
     """Humanize options for the top k question type."""
 
     optional: bool = False
@@ -1283,7 +1298,7 @@ class TopKHumanizeSchema(HumanizeSchemaBase):
     javascript: Optional[QuestionJavaScript] = None
 
 
-class URLHumanizeSchema(HumanizeSchemaBase):
+class URLHumanizeSchema(QuestionHumanizeSchemaBase):
     """Humanize options for the URL question type."""
 
     optional: bool = False
@@ -1293,7 +1308,7 @@ class URLHumanizeSchema(HumanizeSchemaBase):
     javascript: Optional[QuestionJavaScript] = None
 
 
-class YesNoHumanizeSchema(HumanizeSchemaBase):
+class YesNoHumanizeSchema(QuestionHumanizeSchemaBase):
     """Humanize options for the yes/no question type."""
 
     optional: bool = False
@@ -1304,7 +1319,7 @@ class YesNoHumanizeSchema(HumanizeSchemaBase):
     javascript: Optional[QuestionJavaScript] = None
 
 
-class SurveyMessageHumanizeSchema(HumanizeSchemaBase):
+class SurveyMessageHumanizeSchema(QuestionHumanizeSchemaBase):
     """Humanize marker for a display-only SurveyMessage.
 
     A message asks nothing, so it exposes no input-oriented configuration: no

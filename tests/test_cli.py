@@ -3628,6 +3628,9 @@ class TestHumanizeCli:
                 "rating=Good",
                 "--custom-css",
                 str(css_path),
+                "--back-button",
+                "--no-back-past",
+                "rating",
                 "--output",
                 str(schema_path),
             ],
@@ -3650,6 +3653,8 @@ class TestHumanizeCli:
             "step": 1.0,
         }
         assert schema["survey"]["custom_css"] == ".edsl-root { color: red; }"
+        assert schema["survey"]["navigation"]["back_button"] is True
+        assert schema["questions"]["rating"]["navigation"]["allow_back_past"] is False
         assert json.loads(schema_path.read_text(encoding="utf-8")) == schema
 
     def _logo_survey_path(self, tmp_path):
@@ -6056,8 +6061,10 @@ class TestHumanizeCli:
                         "rating": {
                             "format": {"type": "dropdown"},
                             "comment": {"label": "Why?"},
+                            "navigation": {"allow_back_past": False},
                         },
-                    }
+                    },
+                    "survey": {"navigation": {"back_button": True}},
                 }
                 return {"humanize_schema": partial_schema}
 
@@ -6076,6 +6083,9 @@ class TestHumanizeCli:
                 "rating=dropdown",
                 "--comment",
                 "rating=Why?",
+                "--back-button",
+                "--no-back-past",
+                "rating",
             ],
         )
 

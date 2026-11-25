@@ -850,6 +850,7 @@ class JobsRemoteInferenceHandler:
                     cache_used_dict=cache_used_dict,
                     cache_keys=cache_keys,
                     validated_dict=validated_dict,
+                    metadata=interview.get("metadata", {}),
                     question_to_attributes=question_to_attributes,
                 )
                 result_list.append(result)
