@@ -166,6 +166,7 @@ class JobDefinition:
     # Iterations - number of times to run each interview
     n_iterations: int = 1
     preserve_interview_order: bool = False
+    interview_schedule: str | dict = "concurrent"
 
     def storage_key(self) -> str:
         return f"job:{self.job_id}:meta"
@@ -184,6 +185,7 @@ class JobDefinition:
             "question_ids": self.question_ids,
             "n_iterations": self.n_iterations,
             "preserve_interview_order": self.preserve_interview_order,
+            "interview_schedule": self.interview_schedule,
         }
 
     @classmethod
@@ -204,6 +206,7 @@ class JobDefinition:
             question_ids=data["question_ids"],
             n_iterations=data.get("n_iterations", 1),
             preserve_interview_order=data.get("preserve_interview_order", False),
+            interview_schedule=data.get("interview_schedule", "concurrent"),
         )
 
 
@@ -560,6 +563,8 @@ class Answer:
     resolution_seed: int | None = None
     resolution_method: str | None = None
     response_metadata: dict | None = None
+    # Captured before execution; absent for older answers or non-presented tasks.
+    question_presentation: dict[str, Any] | None = None
 
     def storage_key(self) -> str:
         return f"job:{self.job_id}:interview:{self.interview_id}:answer:{self.question_name}"
@@ -572,6 +577,8 @@ class Answer:
         return (self.input_tokens or 0) + (self.output_tokens or 0)
 
     def to_dict(self) -> dict:
+        from copy import deepcopy
+
         return {
             "answer": _encode_answer_value(self.answer),
             "created_at": self.created_at.isoformat(),
@@ -595,12 +602,19 @@ class Answer:
             "resolution_seed": self.resolution_seed,
             "resolution_method": self.resolution_method,
             "response_metadata": self.response_metadata,
+            **(
+                {"question_presentation": deepcopy(self.question_presentation)}
+                if self.question_presentation is not None
+                else {}
+            ),
         }
 
     @classmethod
     def from_dict(
         cls, job_id: str, interview_id: str, question_name: str, data: dict
     ) -> "Answer":
+        from copy import deepcopy
+
         return cls(
             job_id=job_id,
             interview_id=interview_id,
@@ -627,6 +641,7 @@ class Answer:
             resolution_seed=data.get("resolution_seed"),
             resolution_method=data.get("resolution_method"),
             response_metadata=data.get("response_metadata"),
+            question_presentation=deepcopy(data.get("question_presentation")),
         )
 
 

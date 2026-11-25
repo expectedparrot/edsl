@@ -1,0 +1,28 @@
+"""Forecast history with live latest-response consensus statistics."""
+
+from edsl.sharedstate import Command, Machine, StateType, append, choose, current, field, arg, local, map_sequence, record, reduce, state_field
+
+latest_map = reduce("latest_by", field("forecasts"), field="forecaster")
+latest_records = latest_map.values()
+public_latest = map_sequence(latest_records, item="forecast", value_expr=record(forecaster=local("forecast").get("forecaster"), round=local("forecast").get("round"), probability=local("forecast").get("probability"), confidence=local("forecast").get("confidence")))
+public_history = map_sequence(field("forecasts"), item="forecast", value_expr=record(forecaster=local("forecast").get("forecaster"), round=local("forecast").get("round"), probability=local("forecast").get("probability"), confidence=local("forecast").get("confidence")))
+probabilities = map_sequence(latest_records, item="forecast", value_expr=local("forecast").get("probability"))
+confidences = map_sequence(latest_records, item="forecast", value_expr=local("forecast").get("confidence"))
+weighted_terms = map_sequence(latest_records, item="forecast", value_expr=local("forecast").get("probability") * local("forecast").get("confidence"))
+denominator = reduce("sum", confidences)
+SPEC = Machine(
+    name="SharedForecast", constants={},
+    fields={"forecasts": state_field(StateType.sequence(StateType.map()), [])},
+    commands={
+        "submit": Command(
+            inputs={"forecaster": StateType.text(), "round": StateType.integer(minimum=1), "probability": StateType.number(minimum=0, maximum=100), "confidence": StateType.number(minimum=0, maximum=100)},
+            effects=(append("forecasts", record(forecaster=arg("forecaster"), round=arg("round"), probability=arg("probability"), confidence=arg("confidence"), interview=current("interview_id"))),),
+        )
+    },
+    view={
+        "latest": public_latest, "history": public_history,
+        "mean_probability": reduce("mean", probabilities),
+        "median_probability": reduce("median", probabilities),
+        "confidence_weighted_probability": choose(denominator > 0, reduce("sum", weighted_terms) / denominator, None),
+    },
+)
