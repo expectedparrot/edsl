@@ -1070,6 +1070,10 @@ with RemoteJobQueue(max_workers=2, polling_interval=5.0) as queue:
             results.select("answer.*").print()
 ```
 
+The queue explicitly requests remote execution and reports failed, partially
+failed, or cancelled jobs in `error`; partial results are included when the
+remote service saved them. It does not fall back to local provider calls.
+
 Submit Jobs-like objects with `queue.submit(job, job_id="optional-id")` first.
 Queue shutdown waits for submitted jobs by default but does not cancel work
 already running remotely. The queue is process-local and is not a durable

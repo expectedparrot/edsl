@@ -6,6 +6,7 @@ from concurrent.futures import Future, ThreadPoolExecutor, wait as wait_futures
 import math
 from queue import Empty, Queue
 from threading import Lock
+import time
 from typing import Iterator, NamedTuple, Optional
 from uuid import uuid4
 
@@ -18,13 +19,21 @@ class RemoteJobCompletion(NamedTuple):
     error: Optional[BaseException] = None
 
 
+class RemoteJobError(RuntimeError):
+    """A remote job reached a terminal status other than ``completed``."""
+
+
 class RemoteJobQueue:
     """Submit remote jobs with bounded concurrency and consume finished results.
 
     Each worker submits one job with ``background=True`` and then blocks while
-    polling that job's ``Results``. Thus ``max_workers`` bounds the number of
-    remote jobs in flight. Jobs are yielded in the order their worker tasks
-    finish, and one job's exception does not stop other jobs.
+    polling its remote status. Queue submissions explicitly request remote
+    execution, so they never fall back to running provider calls locally.
+    Thus ``max_workers`` bounds the number of remote jobs in flight. Jobs are
+    yielded in the order their worker tasks finish, and one job's exception
+    does not stop other jobs. Failed, partially failed, and cancelled remote
+    jobs produce an error completion; partial Results are included when the
+    service has saved a Results object for that job.
 
     ``shutdown(wait=True)`` waits for already submitted remote jobs to finish;
     it does not cancel work running on the remote service.
@@ -63,8 +72,8 @@ class RemoteJobQueue:
     def submit(self, job, job_id: Optional[str] = None) -> str:
         """Submit a Jobs-like object and return its queue identifier.
 
-        ``job`` must implement ``run(background=True)`` and return a Results
-        object whose ``fetch(polling_interval=...)`` waits for completion.
+        ``job`` must implement ``run(background=True, offload_execution=True)``
+        and return a Results object created from a remote job.
         """
         resolved_id = str(job_id) if job_id is not None else str(uuid4())
         if not resolved_id:
@@ -86,11 +95,65 @@ class RemoteJobQueue:
 
     def _run_job(self, job, job_id: str) -> RemoteJobCompletion:
         try:
-            results = job.run(background=True)
-            results.fetch(polling_interval=self.polling_interval)
-            return RemoteJobCompletion(job_id=job_id, results=results)
+            results = job.run(background=True, offload_execution=True)
+            return self._wait_for_remote_job(job_id, results)
         except Exception as exc:
             return RemoteJobCompletion(job_id=job_id, error=exc)
+
+    def _wait_for_remote_job(self, job_id: str, results) -> RemoteJobCompletion:
+        """Poll remote status directly so every terminal state releases a worker."""
+        from ..coop import Coop
+        from .remote_inference import JobsRemoteInferenceHandler
+
+        job_uuid = results.job_info.job_uuid
+        terminal_statuses = {
+            "completed",
+            "failed",
+            "partial_failed",
+            "partially_failed",
+            "cancelled",
+        }
+        while True:
+            remote_job = JobsRemoteInferenceHandler.check_status(job_uuid)
+            status = remote_job.get("status")
+            if not status:
+                raise RemoteJobError(
+                    f"Remote job {job_uuid} status response did not include a status."
+                )
+            if status in terminal_statuses:
+                break
+            time.sleep(self.polling_interval)
+
+        error = None
+        if status != "completed":
+            details = remote_job.get("error") or remote_job.get("message")
+            message = f"Remote job {job_uuid} ended with status {status!r}."
+            if details:
+                message += f" {details}"
+            error = RemoteJobError(message)
+
+        results_uuid = remote_job.get("results_uuid")
+        if not results_uuid:
+            if error is None:
+                error = RemoteJobError(
+                    f"Remote job {job_uuid} completed without a results UUID."
+                )
+            return RemoteJobCompletion(job_id=job_id, error=error)
+
+        remote_results = Coop().pull(
+            results_uuid, expected_object_type="results"
+        )
+        results.data = remote_results.data
+        results.survey = remote_results.survey
+        results.created_columns = remote_results.created_columns
+        results.cache = remote_results.cache
+        results.task_history = remote_results.task_history
+        results.completed = True
+        results.job_uuid = job_uuid
+        if hasattr(remote_results, "results_uuid"):
+            results.results_uuid = remote_results.results_uuid
+
+        return RemoteJobCompletion(job_id=job_id, results=results, error=error)
 
     def _on_done(self, job_id: str, future: Future) -> None:
         try:

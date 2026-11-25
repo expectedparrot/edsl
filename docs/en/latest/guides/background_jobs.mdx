@@ -36,11 +36,15 @@ with RemoteJobQueue(max_workers=2, polling_interval=5.0) as queue:
             results.select("answer.*").print()
 ```
 
-`max_workers` bounds the number of jobs submitted and polled at once. Successful
-and failed jobs each produce one completion tuple `(job_id, results, error)`;
-an error for one job does not stop others. `shutdown()` waits for submitted work
-by default. It does not cancel jobs already running remotely. This helper is
-in-process orchestration, not a durable queue or retry system.
+`max_workers` bounds the number of jobs submitted and polled at once. The queue
+requests remote execution explicitly; if remote execution is unavailable, the
+submission fails instead of running provider calls locally. Successful and
+failed jobs each produce one completion tuple `(job_id, results, error)`.
+Failed, partially failed, and cancelled jobs set `error`; partial results are
+included when the remote service has saved them. An error for one job does not
+stop others. `shutdown()` waits for submitted work by default. It does not
+cancel jobs already running remotely. This helper is in-process orchestration,
+not a durable queue or retry system.
 
 ## Submit from Python
 
