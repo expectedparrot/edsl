@@ -177,9 +177,11 @@ def _read_survey_dict_at_ref(path: Path, ref: str) -> dict:
         ),
     }
     optional_fields = {
+        "state_steps": "metadata/state_steps.json",
         "name": "metadata/name.json",
         "questions_to_randomize": "metadata/questions_to_randomize.json",
         "options_to_pin": "metadata/options_to_pin.json",
+        "scale_direction_randomization": "metadata/scale_direction_randomization.json",
         "question_sampling": "metadata/question_sampling.json",
         "question_order": "metadata/question_order.json",
     }
@@ -323,13 +325,7 @@ def _write_manifest(
     }
     if survey_dict.get("name") is not None:
         manifest["name"] = survey_dict["name"]
-    existing_remotes = gitpkg.manifest_remotes(existing_manifest)
-    if existing_remotes:
-        manifest["remotes"] = existing_remotes
-    if "primary_remote" in existing_manifest:
-        manifest["primary_remote"] = existing_manifest["primary_remote"]
-    elif "remote" in existing_manifest and existing_manifest["remote"].get("name"):
-        manifest["primary_remote"] = existing_manifest["remote"]["name"]
+    gitpkg.carry_package_metadata(existing_manifest, manifest)
     try:
         from edsl import __version__
 
@@ -363,9 +359,13 @@ def _write_metadata(path: Path, survey_dict: dict) -> None:
         "question_groups": survey_dict["question_groups"],
     }
     optional = {
+        "state_steps": survey_dict.get("state_steps"),
         "name": survey_dict.get("name"),
         "questions_to_randomize": survey_dict.get("questions_to_randomize"),
         "options_to_pin": survey_dict.get("options_to_pin"),
+        "scale_direction_randomization": survey_dict.get(
+            "scale_direction_randomization"
+        ),
         "question_sampling": survey_dict.get("question_sampling"),
         "question_order": survey_dict.get("question_order"),
     }

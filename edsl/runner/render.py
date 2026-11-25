@@ -26,6 +26,25 @@ from ..surveys.memory import MemoryPlan
 from ..invigilators.prompt_constructor import PromptConstructor
 from ..invigilators.prompt_helpers import PromptPlan
 from ..caching import CacheEntry
+from .presentation import capture_presentation
+
+
+def _question_from_data_with_presentation_order(question_data: dict):
+    """Restore a question while allowing a reversed linear-scale presentation.
+
+    QuestionLinearScale enforces ascending option values at construction time.
+    Randomized presentation changes only the display order, so construct from the
+    canonical ascending values and then set the validated display list directly.
+    """
+    if question_data.get("question_type") == "linear_scale":
+        options = question_data.get("question_options")
+        if isinstance(options, list) and options != sorted(options):
+            canonical = dict(question_data)
+            canonical["question_options"] = sorted(options)
+            question = QuestionBase.from_dict(canonical)
+            question.__dict__["_question_options"] = list(options)
+            return question
+    return QuestionBase.from_dict(question_data)
 
 
 @dataclass
@@ -50,6 +69,10 @@ class RenderedPrompt:
     )
     agent_name: str | None = None
     question_type: str | None = None
+    # Exact question definition used to render this prompt. Validation must use
+    # this schema rather than independently resolving the original question.
+    resolved_question: dict[str, Any] | None = None
+    question_presentation: dict[str, Any] | None = None
 
 
 class RenderService:
@@ -204,9 +227,11 @@ class RenderService:
 
         # Load stored objects
         scenario_data = self._jobs.get_scenario(job_id, task_def.scenario_id)
+        scenario_data = dict(scenario_data or {})
+        scenario_data["run"] = {"round": task_def.iteration + 1}
+        agent_data = self._jobs.get_agent(job_id, task_def.agent_id)
         # Restore any offloaded FileStore blobs
         scenario_data = self._restore_scenario_filestores(scenario_data)
-        agent_data = self._jobs.get_agent(job_id, task_def.agent_id)
         model_data = self._jobs.get_model(job_id, task_def.model_id)
         question_data = self._jobs.get_question(job_id, task_def.question_id)
 
@@ -269,6 +294,10 @@ class RenderService:
             agent_name=agent_data.get("name") if agent_data else None,
             question_type=(
                 question_data.get("question_type") if question_data else None
+            ),
+            resolved_question=prompts.get("resolved_question"),
+            question_presentation=capture_presentation(
+                prompts.get("resolved_question"), source="prompt"
             ),
         )
 
@@ -352,7 +381,7 @@ class RenderService:
         ) + (_t.time() - _t0)
 
         _t0 = _t.time()
-        question = QuestionBase.from_dict(question_data)
+        question = _question_from_data_with_presentation_order(question_data)
         question._item_randomization_seed = item_randomization_seed
         self._profile_times["question_from_dict"] = self._profile_times.get(
             "question_from_dict", 0
@@ -399,6 +428,7 @@ class RenderService:
 
         _t0 = _t.time()
         prompts = prompt_constructor.get_prompts()
+        resolved_question = self._resolved_question(prompt_constructor)
         self._profile_times["get_prompts"] = self._profile_times.get(
             "get_prompts", 0
         ) + (_t.time() - _t0)
@@ -416,7 +446,23 @@ class RenderService:
             "system_prompt": system_prompt,
             "user_prompt": str(prompts.get("user_prompt", "")),
             "files_list": prompts.get("files_list"),
+            "resolved_question": resolved_question,
         }
+
+    @staticmethod
+    def _resolved_question(prompt_constructor: PromptConstructor) -> dict[str, Any]:
+        """Serialize the exact runtime-resolved question used for the prompt."""
+
+        from ..invigilators.question_template_replacements_builder import (
+            QuestionTemplateReplacementsBuilder,
+        )
+
+        builder = QuestionTemplateReplacementsBuilder.from_prompt_constructor(
+            prompt_constructor
+        )
+        replacements = builder.build_replacement_dict(prompt_constructor.question.data)
+        rendered = prompt_constructor.question.render(replacements, return_dict=True)
+        return _question_from_data_with_presentation_order(rendered).to_dict()
 
     def _render_with_objects(
         self,
@@ -452,6 +498,7 @@ class RenderService:
 
         _t0 = _t.time()
         prompts = prompt_constructor.get_prompts()
+        resolved_question = self._resolved_question(prompt_constructor)
         self._profile_times["get_prompts"] = self._profile_times.get(
             "get_prompts", 0
         ) + (_t.time() - _t0)
@@ -469,6 +516,7 @@ class RenderService:
             "system_prompt": system_prompt,
             "user_prompt": str(prompts.get("user_prompt", "")),
             "files_list": prompts.get("files_list"),
+            "resolved_question": resolved_question,
         }
 
     def get_profile_stats(self) -> dict:
@@ -531,6 +579,7 @@ class RenderWorker:
         max_tasks: int = 100,
         debug: bool = False,
         job_data: dict | None = None,
+        defer_queue_status: bool = False,
     ) -> list[RenderedPrompt]:
         """
         Render all ready tasks for a job using batch operations.
@@ -669,13 +718,13 @@ class RenderWorker:
         # Debug counters to verify optimization
         ops_counter = {
             "get_survey": 0,
-            "survey_from_dict": 0,
+            "survey_copies": 0,
             "gather_answers": 0,
             "skip_task_calls": 0,
         }
 
         if self._job_service is not None:
-            # Fetch and reconstruct survey ONCE
+            # Fetch one isolated copy of the validated survey template per batch.
             # Use job_data if available, otherwise fetch from PostgreSQL
             _t_survey = _time.time()
             if job_data and job_data.get("survey"):
@@ -688,8 +737,8 @@ class RenderWorker:
 
             _t_survey_parse = _time.time()
             if survey_data:
-                cached_survey = Survey.from_dict(survey_data)
-                ops_counter["survey_from_dict"] = 1
+                cached_survey = self._job_service._survey_cache.get(survey_data)
+                ops_counter["survey_copies"] = 1
 
                 # Build question_name -> index map ONCE
                 cached_question_index_map = {
@@ -759,6 +808,10 @@ class RenderWorker:
                 cached_survey.rule_collection, "non_default_rules", None
             )
             _has_skip_rules = non_default is not None and len(non_default) > 0
+        _has_group_stop = (
+            self._job_service is not None
+            and self._job_service.has_group_stop_condition(job_id)
+        )
 
         for task_id in task_ids:
             task_def = all_task_defs.get(task_id)
@@ -774,8 +827,8 @@ class RenderWorker:
                 direct_answer_tasks.append(task_id)
                 continue
 
-            # Check skip logic only if survey has user-defined skip rules
-            if self._job_service is not None and _has_skip_rules:
+            # Group stop conditions also require just-in-time skip evaluation.
+            if self._job_service is not None and (_has_skip_rules or _has_group_stop):
                 _, interview_id = locations[task_id]
 
                 # Get cached answers for this interview
@@ -850,7 +903,7 @@ class RenderWorker:
                 f"    - get_survey() calls: {ops_counter['get_survey']} (was {len(task_ids)} before)"
             )
             print(
-                f"    - Survey.from_dict() calls: {ops_counter['survey_from_dict']} (was {len(task_ids)} before)"
+                f"    - Survey template copies: {ops_counter['survey_copies']} (one per batch)"
             )
             print(
                 f"    - _gather_current_answers() calls: {ops_counter['gather_answers']} (was {len(task_ids)} before)"
@@ -861,7 +914,7 @@ class RenderWorker:
             )  # 2 DB calls + ~50 answer fetches per task
             new_complexity = (
                 ops_counter["get_survey"]
-                + ops_counter["survey_from_dict"]
+                + ops_counter["survey_copies"]
                 + ops_counter["gather_answers"] * 50
             )
             print(
@@ -1063,12 +1116,28 @@ class RenderWorker:
                 and task_def.question_name
                 in interview_def.question_option_randomizations
             ):
-                option_perms = JobService._resolve_interview_options(
-                    questions[task_def.question_id],
-                    interview_def,
-                    current_answers,
-                    scenario,
-                )
+                try:
+                    option_perms = JobService._resolve_interview_options(
+                        questions[task_def.question_id],
+                        interview_def,
+                        current_answers,
+                        scenario,
+                    )
+                except Exception as option_exc:
+                    if self._job_service is None:
+                        raise
+                    self._job_service.on_task_failed(
+                        job_id,
+                        interview_id,
+                        task_id,
+                        error_type=type(option_exc).__name__,
+                        error_message=(
+                            f"Dynamic option resolution failed for "
+                            f"{task_def.question_name}: {option_exc}"
+                        ),
+                        force_permanent=True,
+                    )
+                    continue
             item_seed = (
                 interview_def.question_item_randomization_seeds.get(
                     task_def.question_name
@@ -1086,7 +1155,15 @@ class RenderWorker:
                     q_data = questions.get(task_def.question_id)
                     if option_perms is not None:
                         q_data = {**q_data, "question_options": option_perms}
-                    _permuted_questions[_perm_key] = QuestionBase.from_dict(q_data)
+                    else:
+                        q_data = self._render_service._apply_option_permutation(
+                            q_data,
+                            task_def.question_name,
+                            interview_def.question_option_permutations,
+                        )
+                    _permuted_questions[_perm_key] = (
+                        _question_from_data_with_presentation_order(q_data)
+                    )
                 question = _permuted_questions[_perm_key]
 
             if interview_def:
@@ -1134,6 +1211,17 @@ class RenderWorker:
             survey, memory_plan = _survey_cache[survey_key]
             _survey_build_time += _time.time() - _t_survey
 
+            shared_version = None
+            render_scenario = scenario | {"run": {"round": task_def.iteration + 1}}
+            if self._job_service is not None:
+                traits = dict(agent.traits)
+                if agent.name:
+                    traits.setdefault("name", agent.name)
+                state_view, read_versions = self._job_service.read_state_for_question(
+                    job_id, survey, task_def, interview_id, traits
+                )
+                render_scenario = render_scenario | {"shared_state": state_view}
+                shared_version = read_versions
             # Render prompts using pre-built objects (cached by input combination)
             _t_edsl = _time.time()
             prompt_key = (
@@ -1141,14 +1229,16 @@ class RenderWorker:
                 task_def.agent_id,
                 task_def.model_id,
                 task_def.question_id,
+                task_def.iteration,
                 _perm_key,  # None if no permutation, otherwise (qid, perm_tuple)
                 answer_names,
+                shared_version,
             )
             if prompt_key in _prompt_cache:
                 prompts = _prompt_cache[prompt_key]
             else:
                 prompts = self._render_service._render_with_objects(
-                    scenario=scenario,
+                    scenario=render_scenario,
                     agent=agent,
                     model=model,
                     question=question,
@@ -1195,6 +1285,12 @@ class RenderWorker:
                     iteration=task_def.iteration,
                     agent_name=agent_data.get("name") if agent_data else None,
                     question_type=getattr(question, "question_type", None),
+                    resolved_question=prompts.get("resolved_question"),
+                    question_presentation=capture_presentation(
+                        prompts.get("resolved_question"),
+                        source="prompt",
+                        read_versions=shared_version or (),
+                    ),
                 )
             )
             _append_time += _time.time() - _t_ap
@@ -1262,7 +1358,10 @@ class RenderWorker:
         # Step 10: Batch set statuses to QUEUED
         _t0 = _time.time()
         task_ids_rendered = [r.task_id for r in rendered]
-        self._tasks.set_statuses_batch(task_ids_rendered, TaskStatus.QUEUED)
+        # A distributed caller can publish the queue entry and QUEUED status
+        # atomically. Until then an interrupted render remains recoverable.
+        if not defer_queue_status:
+            self._tasks.set_statuses_batch(task_ids_rendered, TaskStatus.QUEUED)
         _step_timings["step10_set_queued"] = _time.time() - _t0
 
         # Compute total render time

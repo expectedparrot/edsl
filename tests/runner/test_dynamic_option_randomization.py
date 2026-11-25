@@ -19,7 +19,10 @@ from edsl.runner.service import JobService
 from edsl.questions.probabilistic_response import ProbabilisticResponse
 
 
-@pytest.mark.parametrize("source", ["scenario", "prior_answer", "prior_with_other"])
+@pytest.mark.parametrize(
+    "source",
+    ["scenario", "prior_answer", "prior_with_other", "prior_with_existing_other"],
+)
 def test_dynamic_options_match_prompts_codes_and_results(monkeypatch, source):
     monkeypatch.setattr(random, "getrandbits", lambda bits: 0)
     options = ["Alpha", "Beta", "Gamma", "Other"]
@@ -31,7 +34,7 @@ def test_dynamic_options_match_prompts_codes_and_results(monkeypatch, source):
             QuestionList(question_name="pool", question_text="List the options.")
         )
         option_spec = "{{ pool.answer }}"
-        if source == "prior_with_other":
+        if source in {"prior_with_other", "prior_with_existing_other"}:
             option_spec = {"from": "{{ pool.answer }}", "add": ["Other"]}
     question = QuestionMultipleChoice(
         question_name="pick",
@@ -139,6 +142,37 @@ def test_dynamic_direct_answers_are_isolated_and_recorded(monkeypatch, probabili
         "first": "Beta",
         "second": "Two",
     }
+
+
+def test_invalid_dynamic_options_fail_one_interview_without_stopping_batch():
+    question = QuestionMultipleChoice(
+        question_name="pick",
+        question_text="Pick one.",
+        question_options="{{ scenario.options }}",
+    )
+    survey = Survey([question], questions_to_randomize=["pick"])
+    scenarios = ScenarioList(
+        [
+            Scenario({"respondent": "valid", "options": ["A", "B"]}),
+            Scenario({"respondent": "invalid", "options": "not a list"}),
+        ]
+    )
+
+    results = (
+        survey.by(scenarios)
+        .by(Model("test", func=lambda *args: "A"))
+        .run(
+            disable_remote_inference=True,
+            disable_remote_cache=True,
+            cache=False,
+            stop_on_exception=False,
+        )
+    )
+
+    rows = {row.scenario["respondent"]: row for row in results}
+    assert rows["valid"].answer["pick"] == "A"
+    assert rows["invalid"].answer.get("pick") is None
+    assert results.has_unfixed_exceptions
 
 
 def test_stored_draws_survive_reload_and_repeated_rendering(monkeypatch):

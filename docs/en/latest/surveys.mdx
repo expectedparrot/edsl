@@ -65,7 +65,7 @@ survey_from_answer = Survey(
 )
 ```
 
-The second pattern builds the choice list from a prior `QuestionList` answer and appends `Other` if it was not already present. The resulting whole list is randomized after it resolves; pinning keeps `Other` at the end.
+The second pattern builds the choice list from a prior `QuestionList` answer and appends `Other` only if it is not already in the resolved list. The resulting whole list is randomized after it resolves; pinning keeps `Other` at the end.
 
 Results record the realized order in both `question_options.<name>` and `randomization.option_orders.<name>`, with deferred draw seeds in `randomization.option_seeds.<name>`.
 
@@ -96,6 +96,96 @@ This example stops after the first question for respondents who have not used a 
 A stop rule is evaluated after its question. A skip rule can bypass an individual question before it is asked. Write expressions using named answers, and test each possible route. Piping inserts an answer in question text; memory includes a previous question and answer in the context supplied to the model.
 
 See [Survey logic and piping](/en/latest/guides/survey_logic) for testing routes and [Survey messages](/en/latest/survey_messages) for instructions shown between questions.
+
+## Randomize a linear scale's direction
+
+`QuestionLinearScale` displays options in their declared order. For a model-run
+experiment, you can randomize whether each selected scale appears in that order
+or in reverse. The numeric values and their labels stay together: if `1` means
+"Very dissatisfied", it still means that when the display starts at `5`. This
+changes presentation order; it does not reverse-score responses.
+
+Choose the linear-scale questions when you build the survey:
+
+```python
+from edsl import Model, ModelList, QuestionLinearScale, Survey
+
+satisfaction = QuestionLinearScale(
+    question_name="satisfaction",
+    question_text="How satisfied are you with the service?",
+    question_options=[1, 2, 3, 4, 5],
+    option_labels={1: "Very dissatisfied", 5: "Very satisfied"},
+)
+survey = Survey([satisfaction]).randomize_scale_direction("satisfaction")
+```
+
+The policy accepts one or more question names. Every named question must be a
+`QuestionLinearScale` with at least two options. A scale cannot use ordinary
+option shuffling at the same time. The method returns the survey, so it can be
+chained while constructing the instrument.
+
+### How assignments work
+
+EDSL draws forward or reverse independently for each scale and each
+agent/scenario/iteration assignment. The same draw is reused for every model
+variant in that assignment. This lets you compare models under the same scale
+presentation while getting a fresh assignment for another iteration. V1 uses
+independent 50/50 draws, so small samples may be uneven; it does not promise
+exact balance.
+
+For example, this runs two models over two iterations. Within each iteration,
+both models see the same direction:
+
+```python
+models = ModelList([Model("gpt-4o-mini"), Model("gpt-4o")])
+results = survey.by(models).run(n=2, offload_execution=False)
+
+audit = results.select(
+    "model.model",
+    "answer.satisfaction",
+    "randomization.scale_directions",
+    "randomization.scale_direction_seeds",
+    "randomization.scale_direction_assignment_id",
+    "randomization.option_orders",
+).to_list()
+```
+
+`offload_execution=False` is a Python `Jobs.run()` option that keeps job
+execution in the local runner; it is not a shell command. The model names above
+make live provider calls when their credentials are configured. The regression
+tests for this feature use local test models and do not make live provider calls.
+
+Each result row is one model interview. `scale_directions` records `forward`
+or `reverse` for each configured question. `option_orders` records the actual
+values shown, for example `[1, 2, 3, 4, 5]` or `[5, 4, 3, 2, 1]`.
+`scale_direction_assignment_id` is shared by model variants in the same
+agent/scenario/iteration assignment. `scale_direction_seeds` records the draw
+seeds for audit. The ordinary interview `randomization.assignment_id` remains
+unique to each model interview.
+
+### Save or edit the policy with the CLI
+
+The survey policy is serialized with JSON and `.ep` surveys. Set it on a saved
+survey package, validate the package, and inspect the saved policy:
+
+```bash
+ep surveys set-scale-direction-randomization survey.ep \
+  --question satisfaction \
+  --question trust
+ep validate --file survey.ep
+ep surveys show survey.ep
+```
+
+Remove the policy with `--clear`:
+
+```bash
+ep surveys set-scale-direction-randomization survey.ep --clear
+```
+
+This policy currently applies to model runs through the local runner. Full
+remote job offload and Humanize deployments do not support it; a survey with
+the policy is rejected before either unsupported path starts. The local runner
+can still use an API proxy for model calls.
 
 ## Sample questions per respondent
 
