@@ -6,6 +6,56 @@
 
 EDSL makes it easy to conduct computational social science and market research with AI. Use it to design and run surveys and experiments with many AI agents and large language models at once, or to perform complex data labeling and other research tasks. Results are formatted as specified datasets that can be replicated at no cost, and come with built-in methods for analysis, visualization and collaboration. 
 
+## Use EDSL with Codex
+
+Copy this prompt into Codex to set up EDSL in the current project and get a
+local example running. It does not assume you have cloned the EDSL repository.
+
+````text
+I want to use EDSL (Expected Parrot Domain-Specific Language) in this project.
+Set up the installed Python package and CLI, then show me the basic workflow:
+
+1. Inspect this project's Python environment and dependency files first. If
+   EDSL is already installed and its version satisfies the project, keep it.
+   Otherwise install EDSL into the active environment with
+   `python -m pip install edsl`. Do not clone or modify the EDSL source repo.
+2. Discover the CLI with `ep --help` and `ep info`.
+3. Check `ep auth status`. Local survey construction and the `test` model do
+   not need authentication. If a remote operation later needs authentication,
+   check for `EXPECTED_PARROT_API_KEY` in the environment. If it is available,
+   configure it with `ep auth login --api_key "$EXPECTED_PARROT_API_KEY"`
+   only after confirming the current project's `.env` is ignored by Git. Never
+   print, expose, or commit the key. If no key is available, ask me before
+   proceeding with that remote operation.
+4. Discover relevant version-matched guidance with `ep skills list --routing`.
+   Search using `ep skills search <query> --snippets`, then fetch only the
+   relevant skill with `ep skills show <name>`. Use `ep schema show` for
+   object shapes and `ep docs search` if the installed guidance is insufficient.
+5. Run this local smoke test in a temporary directory, checking each JSON
+   response's `status` and `warnings`:
+   `tmpdir=$(mktemp -d)`
+   `ep surveys create --question-type free_text --question-name q0 --question-text "What do you think?" --output "$tmpdir/survey.ep"`
+   `ep validate --file "$tmpdir/survey.ep"`
+   `ep open "$tmpdir/survey.ep" --no-browser --output "$tmpdir/survey.html"`
+   `ep run --question "Return the word ok." --model test --output "$tmpdir/results.ep"`
+   `ep results select --file "$tmpdir/results.ep" --column "answer.*"`
+   Use exactly the `test` model for this local check; do not substitute a
+   remote model. `ep open` creates a self-contained HTML inspection view of
+   the `.ep` object's definition; it is not a fillable respondent survey. Say
+   the page was generated, but do not claim to have visually reviewed it
+   unless you actually opened or inspected it.
+6. For CLI commands, treat stdout as one JSON document, parse it, check
+   `status`, and read `warnings`. Use `ep <command> --help` when flags are
+   unclear. Before any remote model run that may use credits, publishing or
+   deleting a remote object, or launching an external study, get my approval.
+
+Summarize what you installed and the smoke-test result, then ask what I want
+to do with EDSL.
+````
+
+EDSL's CLI is JSON-first, and its installed skill bundles provide
+version-matched API and workflow guidance.
+
 ## Getting started
 
 1. Run `pip install edsl` to install the package. See the <a href="https://docs.expectedparrot.com/en/latest/installation" target="_blank" rel="noopener noreferrer">installation guide</a>.
@@ -16,7 +66,7 @@ EDSL makes it easy to conduct computational social science and market research w
 
 4. Follow <a href="https://docs.expectedparrot.com/en/latest/starter_tutorial" target="_blank" rel="noopener noreferrer">Run your first survey</a>, then explore the <a href="https://docs.expectedparrot.com/en/latest/index#explore-the-docs" target="_blank" rel="noopener noreferrer">how-to guides and research examples</a>, including <a href="https://docs.expectedparrot.com/en/latest/guides/data_labeling" target="_blank" rel="noopener noreferrer">labeling data with survey questions</a>.
 
-5. Share workflows and survey results at <a href="https://www.expectedparrot.com/login" target="_blank" rel="noopener noreferrer">Coop</a>: a free platform for creating and sharing AI research. 
+5. Share workflows and survey results at <a href="https://www.expectedparrot.com/login" target="_blank" rel="noopener noreferrer">Coop</a>: a free platform for creating and sharing AI research.
 
 ## Code & Docs
 - <a href="https://github.com/expectedparrot/edsl" target="_blank" rel="noopener noreferrer">GitHub</a>
@@ -24,7 +74,7 @@ EDSL makes it easy to conduct computational social science and market research w
 - <a href="https://docs.expectedparrot.com" target="_blank" rel="noopener noreferrer">Documentation</a>
 
 ## Requirements
-- Python 3.9 - 3.13
+- Python 3.10 - 3.13
 - API keys for language models. You can use your own keys or an Expected Parrot key that provides access to all available models.
 See instructions on <a href="https://docs.expectedparrot.com/en/latest/api_keys" target="_blank" rel="noopener noreferrer">managing keys</a> and <a href="https://www.expectedparrot.com/models" target="_blank" rel="noopener noreferrer">model pricing and performance</a> information.
 

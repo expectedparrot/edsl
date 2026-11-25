@@ -737,6 +737,63 @@ class TestValidateHumanizeSchemaVoice:
             validate_humanize_schema(self._survey(), humanize_schema)
         assert "klingon" in str(exc_info.value).lower()
 
+    def test_voice_config_supported_voice_passes(self):
+        """A supported built-in voice validates through the public schema."""
+        humanize_schema = {
+            "questions": {
+                "q1": {
+                    "interview_mode": "voice",
+                    "voice_interview_config": {"voice_option": "marin"},
+                }
+            }
+        }
+        validate_humanize_schema(self._survey(), humanize_schema)
+
+    def test_voice_config_gpt_live_voice_passes(self):
+        """A GPT-Live only voice validates too."""
+        humanize_schema = {
+            "questions": {
+                "q1": {
+                    "interview_mode": "voice",
+                    "voice_interview_config": {"voice_option": "Quartz"},
+                }
+            }
+        }
+        validate_humanize_schema(self._survey(), humanize_schema)
+
+    def test_voice_config_voice_option_is_normalized(self):
+        """Case and surrounding whitespace are normalized."""
+        from edsl.coop.coop_humanize_schema import InterviewHumanizeSchema
+
+        parsed = InterviewHumanizeSchema.model_validate(
+            {"voice_interview_config": {"voice_option": "  Cedar "}}
+        )
+        assert parsed.voice_interview_config.voice_option == "cedar"
+
+    def test_voice_config_unsupported_voice_raises(self):
+        """A voice outside the built-in choices is rejected."""
+        humanize_schema = {
+            "questions": {
+                "q1": {
+                    "interview_mode": "voice",
+                    "voice_interview_config": {"voice_option": "not-a-voice"},
+                }
+            }
+        }
+        with pytest.raises(HumanizeSchemaValidationError) as exc_info:
+            validate_humanize_schema(self._survey(), humanize_schema)
+        assert "not-a-voice" in str(exc_info.value).lower()
+
+    def test_voice_config_voice_omitted_or_none_uses_default(self):
+        """Omitting the voice, or setting it to null or blank, keeps the default."""
+        from edsl.coop.coop_humanize_schema import InterviewHumanizeSchema
+
+        for config in ({}, {"voice_option": None}, {"voice_option": "  "}):
+            parsed = InterviewHumanizeSchema.model_validate(
+                {"voice_interview_config": config}
+            )
+            assert parsed.voice_interview_config.voice_option is None
+
 
 class TestValidateHumanizeSchemaComments:
     """Comment-related validate_humanize_schema behavior."""
@@ -1226,15 +1283,22 @@ class TestValidateGroupPresentation:
         survey.question_groups = {"g0": (0, 0), "g1": (1, 1)}
         validate_humanize_schema(survey, self.GROUP)
 
-    def test_instruction_on_a_background_only_group_raises(self):
+    @pytest.mark.parametrize("background_type", ["compute", "detect_ai"])
+    def test_instruction_on_a_background_only_group_raises(self, background_type):
         """That group is run and passed over, taking the instruction with it."""
-        from edsl.questions import QuestionCompute
+        from edsl.questions import QuestionCompute, QuestionDetectAI
 
+        background = {
+            "compute": QuestionCompute(question_name="c0", question_text="{{ 1 + 1 }}"),
+            "detect_ai": QuestionDetectAI(
+                question_name="c0", question_text="{{ a.answer }}"
+            ),
+        }[background_type]
         survey = Survey(
             [
                 QuestionFreeText(question_name="a", question_text="a"),
                 Instruction(name="mid", text="Part two"),
-                QuestionCompute(question_name="c0", question_text="{{ 1 + 1 }}"),
+                background,
                 QuestionFreeText(question_name="b", question_text="b"),
             ]
         )
@@ -1415,7 +1479,9 @@ class TestQuestionJavaScript:
                 self.schema({"question.ready": "x" * (MAX_TOTAL_HOOK_CHARS + 1)}),
             )
 
-    @pytest.mark.parametrize("question_type", ["compute", "image_generation"])
+    @pytest.mark.parametrize(
+        "question_type", ["compute", "detect_ai", "image_generation"]
+    )
     def test_background_question_types_reject_javascript(self, question_type):
         """They never reach the page, so there is nothing for a hook to run on."""
         model = QUESTION_TYPE_TO_HUMANIZE_CLASS[question_type]

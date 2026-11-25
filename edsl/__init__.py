@@ -36,6 +36,7 @@ __all__ = [
     "__version__",
     "modify_settings",
     "show_settings",
+    "InterviewSchedule",
 ]
 
 # Define modules for lazy loading
@@ -46,6 +47,7 @@ _LAZY_MODULES = {
     "questions",
     "image_generation",
     "scenarios",
+    "collections",
     "language_models",
     "embeddings",
     "results",
@@ -58,6 +60,8 @@ _LAZY_MODULES = {
     "extensions",
     "macros",
     "study",
+    "causal",
+    "conversations",
 }
 
 # Cache for lazy-loaded modules
@@ -84,8 +88,11 @@ _EXPORT_TO_MODULE = {
     "QuestionExtract": "questions",
     "QuestionEmail": "questions",
     "QuestionMatrix": "questions",
+    "QuestionMatrixWithText": "questions",
     "QuestionTopK": "questions",
     "QuestionFunctional": "questions",
+    "QuestionDetectAI": "questions",
+    "DetectAI": "questions",
     "QuestionBase": "questions",
     "QuestionDiagram": "questions",
     "QuestionImageGeneration": "questions",
@@ -98,6 +105,8 @@ _EXPORT_TO_MODULE = {
     # scenarios
     "Scenario": "scenarios",
     "ScenarioList": "scenarios",
+    "Collection": "collections",
+    "CollectionItem": "collections",
     "FileStore": "scenarios",
     # language_models
     "Model": "language_models",
@@ -120,6 +129,7 @@ _EXPORT_TO_MODULE = {
     "Coop": "coop",
     # jobs
     "Jobs": "jobs",
+    "InterviewSchedule": "jobs",
     # caching
     "Cache": "caching",
     "CacheEntry": "caching",

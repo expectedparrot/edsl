@@ -109,9 +109,9 @@ class AsyncInterviewRunner:
 
         try:
 
-            async def process_batches() -> (
-                AsyncGenerator[tuple["Result", "Interview", int], None]
-            ):
+            async def process_batches() -> AsyncGenerator[
+                tuple["Result", "Interview", int], None
+            ]:
                 import time
 
                 batch_count = 0
@@ -134,7 +134,7 @@ class AsyncInterviewRunner:
                     batch_time = time.time() - batch_start
                     self._logger.info(
                         f"Batch {batch_count} completed in {batch_time:.3f}s "
-                        f"({batch_time/len(chunk):.3f}s per interview)"
+                        f"({batch_time / len(chunk):.3f}s per interview)"
                     )
 
                     # Clean up chunk to help with garbage collection
@@ -237,6 +237,7 @@ class AsyncInterviewRunner:
         --------
             >>> from unittest.mock import MagicMock
             >>> mock_jobs = MagicMock()
+            >>> mock_jobs.treatment_assignment = None
             >>> mock_interview = MagicMock()
             >>> mock_jobs.generate_interviews.return_value = [mock_interview]
             >>> mock_run_config = MagicMock()
@@ -248,15 +249,35 @@ class AsyncInterviewRunner:
             2
 
         """
+        treatment_policy = getattr(self.jobs, "treatment_assignment", None)
+        if treatment_policy is not None:
+            treatment_policy.validate_for_job(
+                self.jobs, iterations=self.run_config.parameters.n
+            )
+
         for interview in self.jobs.generate_interviews():
             for iteration in range(self.run_config.parameters.n):
                 if iteration > 0:
-                    yield interview.duplicate(
+                    realized_interview = interview.duplicate(
                         iteration=iteration, cache=self.run_config.environment.cache
                     )
                 else:
                     interview.cache = self.run_config.environment.cache
-                    yield interview
+                    realized_interview = interview
+
+                if treatment_policy is not None:
+                    indices = realized_interview.indices or {}
+                    realization = treatment_policy.realize(
+                        indices["agent"],
+                        realized_interview.agent,
+                        indices["model"],
+                        iteration,
+                    )
+                    if indices["scenario"] != realization.scenario_index:
+                        continue
+                    realized_interview.treatment_assignment = realization.to_dict()
+
+                yield realized_interview
 
     def _get_next_chunk(
         self, gen: Generator["Interview", None, None]
@@ -308,7 +329,7 @@ class AsyncInterviewRunner:
                     elapsed = time.time() - runner_start
                     self._logger.info(
                         f"Processed {results_count} interviews in {elapsed:.3f}s "
-                        f"(avg: {elapsed/results_count:.3f}s per interview)"
+                        f"(avg: {elapsed / results_count:.3f}s per interview)"
                     )
 
                 # Yield a new tuple to break reference to the original tuple
@@ -320,7 +341,7 @@ class AsyncInterviewRunner:
         total_time = time.time() - runner_start
         self._logger.info(
             f"Async interview runner completed: {results_count} interviews "
-            f"in {total_time:.3f}s (avg: {total_time/results_count:.3f}s per interview)"
+            f"in {total_time:.3f}s (avg: {total_time / results_count:.3f}s per interview)"
             if results_count > 0
             else f"in {total_time:.3f}s"
         )

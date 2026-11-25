@@ -284,6 +284,11 @@ In Humanize, `QuestionEdit` shows `text_to_edit` in an editable text box, with a
 
       **Supported languages:** `english`, `french`, `german`, `spanish`, `portuguese`, `chinese`, `japanese`, `hindi`, `italian`, `korean`, `dutch`, `polish`, `russian`, `swedish`, `turkish`, `tagalog`, `bulgarian`, `romanian`, `arabic`, `czech`, `greek`, `finnish`, `croatian`, `malay`, `slovak`, `danish`, `tamil`, `ukrainian`, `hungarian`, `norwegian`, `vietnamese`, `bangla`, `thai`, `hebrew`, `georgian`, `indonesian`, `telugu`, `gujarati`, `kannada`, `malayalam`, `marathi`, `punjabi`, `multilingual`.
     </ParamField>
+    <ParamField path="voice_option" type="string" required={false}>
+      The voice used by the live AI interviewer. Case and surrounding whitespace are normalized; omit or set to `null` to use the default voice. An unsupported value raises a validation error. Supported values: `alloy`, `ash`, `ballad`, `coral`, `echo`, `sage`, `shimmer`, `verse`, `marin`, `cedar`. OpenAI recommends `marin` and `cedar` for best quality.
+
+      **GPT-Live only:** `beacon`, `bossa`, `brise`, `cinder`, `delta`, `flitz`, `gleam`, `harema`, `juni`, `meridian`, `nira`, `noeul`, `nuri`, `quartz`, `ripple`, `shida`, `sillage`, `stone`, `tempo`, `vesper`, `willow`. These are spoken only in Voice only interviews, which run on GPT-Live; a Voice + live transcript interview uses the default voice instead.
+    </ParamField>
     <ParamField path="turn_taking" type="dict" required={false}>
       How the interviewer decides the respondent has finished speaking. Omit to use the default (`{"initial_speed": "default"}`).
       <Expandable title="properties">
@@ -408,7 +413,7 @@ In Humanize, `QuestionEdit` shows `text_to_edit` in an editable text box, with a
 
   **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `demand`, `dict`, `dropdown`, `edit`, `email`, `file_upload`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `url`, `yes_no`.
 
-  Note: not supported for `compute` or `image_generation` (both run in the background and auto-advance, so neither is ever the question a respondent submits), or for `interview`.
+  Note: not supported for `compute`, `detect_ai` or `image_generation` (all run in the background and auto-advance, so none is ever the question a respondent submits), or for `interview`.
 
   <Expandable title="properties">
     <ParamField path="type" type="string" default="callout">
@@ -425,7 +430,7 @@ In Humanize, `QuestionEdit` shows `text_to_edit` in an editable text box, with a
 
   **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `demand`, `dict`, `distribution`, `dropdown`, `edit`, `email`, `file_upload`, `interview`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `url`, `yes_no`, `survey_message`.
 
-  Note: not supported for `compute` or `image_generation`. Both run in the background and are dropped from the page, so there is no rendered question for a script to attach to.
+  Note: not supported for `compute`, `detect_ai` or `image_generation`. All three run in the background and are dropped from the page, so there is no rendered question for a script to attach to.
 
   This feature is available on approved accounts only. Write to [info@expectedparrot.com](mailto:info@expectedparrot.com) to request approval; until your account is approved, a schema carrying a hook is rejected when you push it.
 

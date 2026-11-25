@@ -417,6 +417,15 @@ class KeyLookupBuilder:
                 self.key_data[openai_v2_service] = [openai_v2_entry]
             else:
                 self.key_data[openai_v2_service].append(openai_v2_entry)
+        elif key == "XAI_API_KEY":
+            xai_responses_entry = APIKeyEntry(
+                service="xai_responses", name=key, value=value, source=source
+            )
+            self.key_data.setdefault("xai_responses", []).append(xai_responses_entry)
+            if service not in self.key_data:
+                self.key_data[service] = [new_entry]
+            else:
+                self.key_data[service].append(new_entry)
         else:
             # Normal case for all other API keys
             if service not in self.key_data:

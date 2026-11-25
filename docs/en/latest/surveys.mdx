@@ -17,6 +17,70 @@ For [data labeling](/en/latest/guides/data_labeling), a survey might ask about e
 
 Construct questions before passing them to `Survey([...])`. Each question must have a unique name. See [Questions](/en/latest/questions) for choosing types; the survey controls how those questions work together.
 
+## Randomize answer-option order
+
+Set `questions_to_randomize` on a survey to shuffle the answer options for selected questions independently for each interview. This also works when a question's entire option list is supplied by a scenario or a prior answer; EDSL resolves the list before drawing and reuses that interview's order for rendering, validation, and result metadata.
+
+```python
+from edsl import Model, QuestionMultipleChoice, ScenarioList, Survey
+
+question = QuestionMultipleChoice(
+    question_name="pick",
+    question_text="Pick one.",
+    question_options="{{ scenario.options }}",
+)
+survey = Survey(
+    [question],
+    questions_to_randomize=["pick"],
+    options_to_pin={"pick": ["Other"]},
+)
+scenarios = ScenarioList.from_list(
+    "options",
+    [["A", "B", "Other"], ["X", "Y", "Other"]],
+)
+results = survey.by(scenarios).by(Model("gpt-4o-mini")).run(n=1)
+
+shown_options = results.select("question_options.pick").to_list()
+audit_orders = results.select("randomization.option_orders.pick").to_list()
+```
+
+Each scenario supplies its own full list; EDSL resolves that list first, then shuffles it independently for each interview. Here `Other` stays last because it is pinned in the source list's last position. `shown_options` and `audit_orders` contain the same realized order, while the answer value continues to refer to that option.
+
+```python
+from edsl import QuestionList, QuestionMultipleChoice, Survey
+
+pool = QuestionList(
+    question_name="pool",
+    question_text="List three possible recommendations.",
+)
+pick_from_pool = QuestionMultipleChoice(
+    question_name="recommendation",
+    question_text="Choose one recommendation.",
+    question_options={"from": "{{ pool.answer }}", "add": ["Other"]},
+)
+survey_from_answer = Survey(
+    [pool, pick_from_pool],
+    questions_to_randomize=["recommendation"],
+    options_to_pin={"recommendation": ["Other"]},
+)
+```
+
+The second pattern builds the choice list from a prior `QuestionList` answer and appends `Other` only if it is not already in the resolved list. The resulting whole list is randomized after it resolves; pinning keeps `Other` at the end.
+
+Results record the realized order in both `question_options.<name>` and `randomization.option_orders.<name>`, with deferred draw seeds in `randomization.option_seeds.<name>`.
+
+For CLI-authored surveys, configure and inspect the same policy with `ep`:
+
+```bash
+ep surveys set-option-randomization survey.ep \
+  --question pick \
+  --pin-options '{"pick":["Other"]}'
+ep surveys show survey.ep
+ep results select --file results.ep --column question_options.pick --column randomization.option_orders.pick --column randomization.option_seeds.pick --limit 5
+```
+
+The pinned values are JSON, so numbers and other typed options can be written as JSON values. Inspect `question_options.<name>` in results to see the order used for each interview. Avoid randomizing ordered scales, numeric ranges, or yes/no choices. This setting randomizes answer options, not question order.
+
 <span id="applying-survey-rules" />
 <span id="survey-rules-logic" />
 <span id="id2" />
@@ -32,6 +96,161 @@ This example stops after the first question for respondents who have not used a 
 A stop rule is evaluated after its question. A skip rule can bypass an individual question before it is asked. Write expressions using named answers, and test each possible route. Piping inserts an answer in question text; memory includes a previous question and answer in the context supplied to the model.
 
 See [Survey logic and piping](/en/latest/guides/survey_logic) for testing routes and [Survey messages](/en/latest/survey_messages) for instructions shown between questions.
+
+## Assign treatment conditions
+
+A Jobs object can attach an explicit schedule that maps each assignment unit to one of its scenario rows. The schedule is saved with the Jobs package and reused across retries and resumed execution. Its assignment unit controls whether conditions are shared across models and iterations:
+
+- `agent`: one condition per respondent, shared across models and iterations.
+- `agent_model`: one condition per respondent and model, shared across iterations.
+- `agent_iteration`: one condition per respondent and iteration, shared across models.
+- `agent_model_iteration`: one condition for each respondent, model, and iteration.
+
+Use `unit_id_field` to key the schedule by a unique agent trait such as `respondent_id`; otherwise keys use the saved agent positions (`agent:0`, `agent:1`, ...). Condition values point to scenario indices in the saved Jobs object. An `exact` balance promise is checked against the full schedule and rejected unless each condition has the same count.
+
+```json
+{
+  "version": 1,
+  "conditions": {"control": 0, "treatment": 1},
+  "schedule": {"agent:r1": "control", "agent:r2": "treatment"},
+  "unit": "agent",
+  "unit_id_field": "respondent_id",
+  "exposure_questions": ["outcome"],
+  "balance": "exact",
+  "planned_iterations": 1
+}
+```
+
+The `exposure_questions` list identifies survey questions whose presentation indicates that the assigned condition was encountered. Results record the assigned condition and its stable assignment ID separately from whether those questions were presented. Without exposure questions, exposure remains unknown. This first version supports explicit schedules on the default Cartesian Jobs plan; probability-based allocation, stratification, and Humanize schedules are unsupported and fail validation.
+
+Configure a saved Jobs package with `ep jobs set-treatment-assignment`, validate it, and inspect realized assignments in Results:
+
+```bash
+ep jobs set-treatment-assignment jobs.ep --policy treatment-policy.json
+ep validate --file jobs.ep
+ep run jobs.ep --local --output results.ep
+ep results select --file results.ep \
+  --column randomization.treatment_assignment.condition \
+  --column randomization.treatment_assignment.assignment_id \
+  --column randomization.treatment_exposure.exposed
+```
+
+If an assignment unit includes iterations, `planned_iterations` must match the requested run count. Use `--clear` to remove the schedule. See the [CLI Guide](/en/latest/cli#create-and-validate-study-objects) for policy and key examples.
+
+## Randomize a linear scale's direction
+
+`QuestionLinearScale` displays options in their declared order. For a model-run
+experiment, you can randomize whether each selected scale appears in that order
+or in reverse. The numeric values and their labels stay together: if `1` means
+"Very dissatisfied", it still means that when the display starts at `5`. This
+changes presentation order; it does not reverse-score responses.
+
+Choose the linear-scale questions when you build the survey:
+
+```python
+from edsl import Model, ModelList, QuestionLinearScale, Survey
+
+satisfaction = QuestionLinearScale(
+    question_name="satisfaction",
+    question_text="How satisfied are you with the service?",
+    question_options=[1, 2, 3, 4, 5],
+    option_labels={1: "Very dissatisfied", 5: "Very satisfied"},
+)
+survey = Survey([satisfaction]).randomize_scale_direction("satisfaction")
+```
+
+The policy accepts one or more question names. Every named question must be a
+`QuestionLinearScale` with at least two options. A scale cannot use ordinary
+option shuffling at the same time. The method returns the survey, so it can be
+chained while constructing the instrument.
+
+### How assignments work
+
+EDSL draws forward or reverse independently for each scale and each
+agent/scenario/iteration assignment. The same draw is reused for every model
+variant in that assignment. This lets you compare models under the same scale
+presentation while getting a fresh assignment for another iteration. V1 uses
+independent 50/50 draws, so small samples may be uneven; it does not promise
+exact balance.
+
+For example, this runs two models over two iterations. Within each iteration,
+both models see the same direction:
+
+```python
+models = ModelList([Model("gpt-4o-mini"), Model("gpt-4o")])
+results = survey.by(models).run(n=2, offload_execution=False)
+
+audit = results.select(
+    "model.model",
+    "answer.satisfaction",
+    "randomization.scale_directions",
+    "randomization.scale_direction_seeds",
+    "randomization.scale_direction_assignment_id",
+    "randomization.option_orders",
+).to_list()
+```
+
+`offload_execution=False` is a Python `Jobs.run()` option that keeps job
+execution in the local runner; it is not a shell command. The model names above
+make live provider calls when their credentials are configured. The regression
+tests for this feature use local test models and do not make live provider calls.
+
+Each result row is one model interview. `scale_directions` records `forward`
+or `reverse` for each configured question. `option_orders` records the actual
+values shown, for example `[1, 2, 3, 4, 5]` or `[5, 4, 3, 2, 1]`.
+`scale_direction_assignment_id` is shared by model variants in the same
+agent/scenario/iteration assignment. `scale_direction_seeds` records the draw
+seeds for audit. The ordinary interview `randomization.assignment_id` remains
+unique to each model interview.
+
+### Save or edit the policy with the CLI
+
+The survey policy is serialized with JSON and `.ep` surveys. Set it on a saved
+survey package, validate the package, and inspect the saved policy:
+
+```bash
+ep surveys set-scale-direction-randomization survey.ep \
+  --question satisfaction \
+  --question trust
+ep validate --file survey.ep
+ep surveys show survey.ep
+```
+
+Remove the policy with `--clear`:
+
+```bash
+ep surveys set-scale-direction-randomization survey.ep --clear
+```
+
+This policy currently applies to model runs through the local runner. Full
+remote job offload and Humanize deployments do not support it; a survey with
+the policy is rejected before either unsupported path starts. The local runner
+can still use an API proxy for model calls.
+
+## Sample questions per respondent
+Use `sample_questions()` when every respondent should receive the same fixed questions plus an exact-size sample from an eligible pool. Sampling is uniform and without replacement. Required questions are included in the sample count; questions outside the eligible pool remain fixed.
+```python
+survey = Survey([consent, q1, q2, q3, q4, debrief])
+survey.sample_questions(
+    eligible_questions=["q1", "q2", "q3", "q4"],
+    sample_size=2,
+    required_questions=["q1"],
+)
+```
+
+The sample size must be at least one and no larger than the eligible pool; required questions must fit within it. Sampling keeps declared question order among selected questions. A sampled question cannot depend on another eligible question unless that prerequisite is required. Custom skip/stop/jump rules and display groups that overlap the eligible pool are rejected. By default, each agent/scenario/iteration gets one sample shared across its model variants. The realized sample and seed are stored with each assignment, reused on retry/resume, and recorded in `randomization.sampled_questions` and `randomization.unselected_questions`. The latter identifies planned omissions separately from unanswered questions. Humanize does not yet support this policy and rejects it before publishing.
+Use `ep surveys set-question-sampling` to configure the policy in a saved package and `ep surveys show` to inspect it. The [CLI Guide](/en/latest/cli#create-and-validate-study-objects) has an example.
+## Randomize question order within blocks
+Use `randomize_question_order()` to mark a contiguous set of independent questions as a named block. The block moves as a unit among fixed surrounding questions; answer names and question definitions stay the same. `questions_to_randomize` remains the separate setting for answer-option order.
+```python
+survey = Survey([consent, trust, fairness, satisfaction, age])
+survey.randomize_question_order(
+    "attitudes", ["trust", "fairness", "satisfaction"]
+)
+```
+
+V1 preserves the named memory plan and rejects internal piping or memory dependencies, custom skip/stop/jump rules, and instructions between block members. Blocks must be disjoint, contain at least two questions, and follow declared survey order. Within a submitted job, a respondent/scenario/iteration assignment gets the same order across models. The realized permutation and per-block seeds are saved with the interview, so retries and resumes reuse it. Results record `randomization.planned_question_order`; model task execution is serialized for surveys using this feature. Humanize does not yet support question-order blocks and rejects them at publication time.
+Use `ep surveys add-question-order-block` to configure a block in a saved survey and `ep surveys show` to inspect it. See the [CLI Guide](/en/latest/cli#create-and-validate-study-objects) for the commands.
 
 ## Prepare a run
 

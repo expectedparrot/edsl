@@ -143,6 +143,13 @@ class RemoteInferenceCreationInfo(TypedDict):
     version: str
 
 
+def _git_remote(response) -> dict:
+    """``{"git_remote_url": ...}`` when Coop returned one for an ``.ep`` package's
+    push (``git_repo=True``), else {}."""
+    url = response.get("git_remote_url") if isinstance(response, dict) else None
+    return {"git_remote_url": url} if url else {}
+
+
 class Coop(CoopFunctionsMixin):
     """
     Client for the Expected Parrot API that provides cloud-based functionality for EDSL.
@@ -1612,6 +1619,7 @@ class Coop(CoopFunctionsMixin):
         alias: Optional[str] = None,
         value: Optional[EDSLObject] = None,
         visibility: Optional[VisibilityType] = None,
+        git_repo: bool = False,
     ) -> dict:
         """
         Change the attributes of an uploaded object
@@ -1622,6 +1630,8 @@ class Coop(CoopFunctionsMixin):
         :param alias: Optional new alias
         :param value: Optional new object value
         :param visibility: Optional new visibility setting
+        :param git_repo: True for an ``.ep`` package: Coop then returns its git
+            repo's ``git_remote_url``, creating the repo the first time
         """
         # Validate alias before attempting to patch
         self._validate_alias(alias)
@@ -1668,7 +1678,7 @@ class Coop(CoopFunctionsMixin):
             if is_new_format:
                 # Handle new format objects: update metadata first, then upload content
                 return self._patch_new_format_object(
-                    obj_uuid, description, alias, value, visibility
+                    obj_uuid, description, alias, value, visibility, git_repo
                 )
 
         # Handle traditional format objects or metadata-only updates
@@ -1696,6 +1706,7 @@ class Coop(CoopFunctionsMixin):
                     else None
                 ),
                 "visibility": visibility,
+                **({"git_repo": True} if git_repo else {}),
             },
         )
         self._resolve_server_response(response)
@@ -1708,6 +1719,7 @@ class Coop(CoopFunctionsMixin):
         alias: Optional[str],
         value: EDSLObject,
         visibility: Optional[VisibilityType],
+        git_repo: bool = False,
     ) -> dict:
         """
         Handle patching of objects stored in the new format (GCS).
@@ -1763,7 +1775,7 @@ class Coop(CoopFunctionsMixin):
         confirm_response = self._send_server_request(
             uri="api/v0/object/confirm-upload",
             method="POST",
-            payload={"object_uuid": str(obj_uuid)},
+            payload={"object_uuid": str(obj_uuid), **({"git_repo": True} if git_repo else {})},
         )
         self._resolve_server_response(confirm_response)
         confirm_data = confirm_response.json()
@@ -1773,6 +1785,7 @@ class Coop(CoopFunctionsMixin):
             "message": "Object updated successfully (new format - uploaded to GCS and processing triggered)",
             "object_uuid": str(obj_uuid),
             "processing_started": confirm_data.get("processing_started", False),
+            **_git_remote(confirm_data),
         }
 
     def _resolve_to_uuid(self, url_or_uuid: Union[str, UUID]) -> str:
@@ -1813,8 +1826,8 @@ class Coop(CoopFunctionsMixin):
         Returns:
             dict: A dict with:
                 - human_surveys: list of dicts with uuid, name, visibility, created_ts,
-                  n_complete (finished responses) and n_in_progress (responses still
-                  being taken)
+                  is_active (False while response collection is paused), n_complete
+                  (finished responses) and n_in_progress (responses still being taken)
                 - current_page, page_size, total_pages, total_count
 
         Raises:
@@ -2931,11 +2944,19 @@ class Coop(CoopFunctionsMixin):
         Create a human survey on Coop, first creating any linked agent list,
         then the survey and scenario list (if scenarios are used).
         """
+        if getattr(survey, "question_sampling", None) is not None:
+            raise CoopValueError("Humanize does not yet support question sampling. Remove the question_sampling policy before publishing this survey.")
+        if getattr(survey, "question_order", {}).get("blocks"):
+            raise CoopValueError("Humanize does not yet support question-order randomization. Remove the question_order blocks before publishing this survey.")
         if scenario_list is None and scenario_list_method is not None:
             raise CoopValueError(
                 "You must specify both a scenario list and a scenario list method to use scenarios with your survey."
             )
-        elif scenario_list is not None and scenario_list_method is None:
+        if getattr(survey, "scale_direction_randomization", None) is not None:
+            raise CoopValueError(
+                "Scale-direction randomization is currently supported for model runs only; clear the policy before creating a human survey."
+            )
+        if scenario_list is not None and scenario_list_method is None:
             raise CoopValueError(
                 "You must specify both a scenario list and a scenario list method to use scenarios with your survey."
             )
@@ -3019,6 +3040,7 @@ class Coop(CoopFunctionsMixin):
             "admin_url": f"{self.url}/home/human-surveys/{response_json.get('uuid')}",
             "respondent_url": respondent_url,
             "preview_url": self._get_preview_url(respondent_url),
+            "is_active": response_json.get("is_active"),
             "n_complete": response_json.get("n_complete"),
             "n_in_progress": response_json.get("n_in_progress"),
             "survey_uuid": response_json.get("survey_uuid"),
@@ -3049,11 +3071,68 @@ class Coop(CoopFunctionsMixin):
             "admin_url": f"{self.url}/home/human-surveys/{response_json.get('uuid')}",
             "respondent_url": respondent_url,
             "preview_url": self._get_preview_url(respondent_url),
+            "is_active": response_json.get("is_active"),
             "n_complete": response_json.get("n_complete"),
             "n_in_progress": response_json.get("n_in_progress"),
             "survey_uuid": response_json.get("survey_uuid"),
             "agent_list_uuid": response_json.get("agent_list_uuid"),
             "scenario_list_uuid": response_json.get("scenario_list_uuid"),
+        }
+
+    def pause_human_survey(self, human_survey_uuid: Union[str, UUID]) -> dict:
+        """
+        Pause response collection for a human survey.
+
+        New respondents who open the link are told the survey is closed. Anyone
+        partway through can still finish. Pausing a survey that is already paused
+        does nothing. Undo with ``resume_human_survey()``.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+
+        Returns:
+            dict: ``uuid``, ``is_active`` (False), ``n_complete`` and
+            ``n_in_progress`` (responses that can still be finished).
+
+        Raises:
+            CoopServerResponseError: If the survey doesn't exist or you don't own it.
+        """
+        return self._set_human_survey_active(human_survey_uuid, False)
+
+    def resume_human_survey(self, human_survey_uuid: Union[str, UUID]) -> dict:
+        """
+        Resume response collection for a paused human survey.
+
+        The link accepts new respondents again. Resuming a survey that isn't paused
+        does nothing.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+
+        Returns:
+            dict: ``uuid``, ``is_active`` (True), ``n_complete`` and
+            ``n_in_progress``.
+
+        Raises:
+            CoopServerResponseError: If the survey doesn't exist or you don't own it.
+        """
+        return self._set_human_survey_active(human_survey_uuid, True)
+
+    def _set_human_survey_active(
+        self, human_survey_uuid: Union[str, UUID], is_active: bool
+    ) -> dict:
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/active",
+            method="PATCH",
+            payload={"is_active": is_active},
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "uuid": data.get("uuid"),
+            "is_active": data.get("is_active"),
+            "n_complete": data.get("n_complete"),
+            "n_in_progress": data.get("n_in_progress"),
         }
 
     def get_human_survey_qr_code(
@@ -5737,6 +5816,10 @@ class Coop(CoopFunctionsMixin):
 
         if not isinstance(survey, Survey):
             raise CoopObjectTypeError("This is not a survey.")
+        if getattr(survey, "scale_direction_randomization", None) is not None:
+            raise CoopValueError(
+                "Scale-direction randomization is currently supported for model runs only; clear the policy before previewing a human survey."
+            )
         if humanize_schema is not None:
             self.validate_human_survey_humanize_schema(survey, humanize_schema)
         survey_dict = survey.to_dict()
@@ -7497,6 +7580,7 @@ class Coop(CoopFunctionsMixin):
         alias: Optional[str] = None,
         visibility: Optional[VisibilityType] = "private",
         force: bool = False,
+        git_repo: bool = False,
     ) -> "Scenario":
         """
         Upload an EDSL object to Coop via a signed GCS URL (PUT), then confirm the upload.
@@ -7569,6 +7653,7 @@ class Coop(CoopFunctionsMixin):
                     alias=alias,
                     value=object,
                     visibility=visibility,
+                    git_repo=git_repo,
                 )
 
                 # Get complete metadata after the patch
@@ -7585,6 +7670,7 @@ class Coop(CoopFunctionsMixin):
                         "description": metadata.get("description"),
                         "version": self._edsl_version,
                         "visibility": metadata.get("visibility"),
+                        **_git_remote(patch_result),
                     }
                 )
 
@@ -7659,7 +7745,7 @@ class Coop(CoopFunctionsMixin):
         confirm_response = self._send_server_request(
             uri="api/v0/object/confirm-upload",
             method="POST",
-            payload={"object_uuid": object_uuid},
+            payload={"object_uuid": object_uuid, **({"git_repo": True} if git_repo else {})},
         )
         self._resolve_server_response(confirm_response)
 
@@ -7673,6 +7759,7 @@ class Coop(CoopFunctionsMixin):
                 "description": response_json.get("description"),
                 "version": self._edsl_version,
                 "visibility": response_json.get("visibility"),
+                **_git_remote(confirm_response.json()),
             }
         )
 

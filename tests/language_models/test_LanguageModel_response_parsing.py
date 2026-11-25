@@ -80,7 +80,6 @@ class TestSplitAnswerAndComment:
         answer, comment = RawResponseHandler._split_answer_and_comment(text)
         assert answer == "No"
         assert comment == "The policy does not apply here."
-
     def test_comment_delimiter_multiline_answer(self):
         """Answer spans multiple lines; COMMENT: follows."""
         text = "Line 1\nLine 2\nLine 3\nCOMMENT: This is the real comment."
@@ -148,6 +147,46 @@ class TestSplitAnswerAndComment:
         answer, comment = RawResponseHandler._split_answer_and_comment(text)
         assert answer == "[1, 2, 3]"
         assert comment == "These are my choices."
+
+
+def test_bedrock_reasoning_content_does_not_hide_answer_text():
+    handler = RawResponseHandler(
+        ["output", "message", "content", 0, "text"],
+        inference_service="bedrock",
+    )
+    response = {
+        "output": {
+            "message": {
+                "content": [
+                    {"reasoningContent": {"reasoningText": {"text": "thinking"}}},
+                    {"text": "the answer"},
+                ]
+            }
+        }
+    }
+    assert handler.get_generated_token_string(response) == "the answer"
+
+
+def test_google_server_tool_parts_do_not_hide_final_text():
+    handler = RawResponseHandler(
+        ["candidates", 0, "content", "parts", 0, "text"],
+        inference_service="google",
+    )
+    response = {
+        "candidates": [
+            {
+                "content": {
+                    "parts": [
+                        {"text": "intermediate thought", "thought": True},
+                        {"executable_code": {"code": "print(1 + 1)"}},
+                        {"code_execution_result": {"output": "2"}},
+                        {"text": "2"},
+                    ]
+                }
+            }
+        ]
+    }
+    assert handler.get_generated_token_string(response) == "2"
 
 
 def test_parse_response_with_comment_delimiter():

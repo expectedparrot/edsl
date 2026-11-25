@@ -16,6 +16,7 @@ def register(schema: click.Group) -> None:
         """Return a map of schema names to (class, description) for all introspectable types."""
         from edsl.agents import Agent, AgentList
         from edsl.scenarios import Scenario, ScenarioList
+        from edsl.collections import Collection
         from edsl.surveys import Survey
         from edsl.language_models import Model
         from edsl.language_models.model_list import ModelList
@@ -31,6 +32,7 @@ def register(schema: click.Group) -> None:
             "AgentList": (AgentList, "A list of Agent objects. Pass to 'ep run --agent_list'."),
             "Scenario": (Scenario, "Template parameters for questions using Jinja2 {{variable}} syntax."),
             "ScenarioList": (ScenarioList, "A list of Scenario objects. Pass to 'ep run --scenario_list'."),
+            "Collection": (Collection, "An ordered collection of typed references to Coop objects."),
             "Survey": (Survey, "A collection of questions with optional flow logic."),
             "Model": (Model, "An LLM configuration. Pass to 'ep run --model'."),
             "ModelList": (ModelList, "A list of Model objects. Pass to 'ep run --model_list'."),

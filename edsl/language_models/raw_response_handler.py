@@ -71,6 +71,53 @@ class RawResponseHandler:
         self.inference_service = inference_service
 
     def get_generated_token_string(self, raw_response):
+        # Provider-hosted tool calls can be preceded by short progress text. That
+        # text is not the answer EDSL should store; use only text emitted after
+        # the final tool interaction.
+        if isinstance(raw_response, dict):
+            output = raw_response.get("output")
+            if isinstance(output, list):
+                tool_positions = [
+                    index
+                    for index, item in enumerate(output)
+                    if isinstance(item, dict)
+                    and item.get("type") not in {"message", "reasoning"}
+                ]
+                if tool_positions:
+                    final_text = self._responses_final_text(
+                        output[tool_positions[-1] + 1 :]
+                    )
+                    return final_text
+
+            content = raw_response.get("content")
+            if isinstance(content, list):
+                tool_positions = [
+                    index
+                    for index, item in enumerate(content)
+                    if isinstance(item, dict)
+                    and item.get("type") in {"tool_use", "server_tool_use"}
+                ]
+                if tool_positions:
+                    return self._anthropic_final_text(content[tool_positions[-1] + 1 :])
+
+        # Gemini may place thoughts and server-tool parts before the final text
+        # part. The fixed Google key_sequence points at parts[0], which can be
+        # commentary, executable code, or a code result instead of the answer.
+        if self.inference_service == "google" and isinstance(raw_response, dict):
+            candidates = raw_response.get("candidates")
+            if isinstance(candidates, list) and candidates:
+                content = candidates[0].get("content")
+                parts = content.get("parts") if isinstance(content, dict) else None
+                if isinstance(parts, list):
+                    answer_parts = [
+                        part["text"]
+                        for part in parts
+                        if isinstance(part, dict)
+                        and isinstance(part.get("text"), str)
+                        and not part.get("thought", False)
+                    ]
+                    return "\n".join(answer_parts).strip()
+
         try:
             return _extract_item_from_raw_response(raw_response, self.key_sequence)
         except (
@@ -82,6 +129,20 @@ class RawResponseHandler:
             # For non-reasoning models or reasoning models with different response formats,
             # try to extract text directly from common response formats
             if isinstance(raw_response, dict):
+                # Bedrock Converse can return reasoningContent before the final
+                # text block when model thinking is enabled.
+                output = raw_response.get("output")
+                message = output.get("message") if isinstance(output, dict) else None
+                content = message.get("content") if isinstance(message, dict) else None
+                if isinstance(content, list):
+                    text_parts = [
+                        block["text"]
+                        for block in content
+                        if isinstance(block, dict) and isinstance(block.get("text"), str)
+                    ]
+                    if text_parts:
+                        return "\n\n".join(text_parts)
+
                 # Responses API format — scan all output items for a message block
                 if "output" in raw_response and isinstance(
                     raw_response["output"], list
@@ -166,6 +227,37 @@ class RawResponseHandler:
             except Exception:
                 return "[ERROR: Could not extract text from response]"
 
+    @staticmethod
+    def _responses_final_text(output):
+        """Return text from the last Responses API message in *output*."""
+        messages = [
+            item
+            for item in output
+            if isinstance(item, dict)
+            and item.get("type") == "message"
+            and isinstance(item.get("content"), list)
+        ]
+        if not messages:
+            return ""
+        return "\n".join(
+            block["text"]
+            for block in messages[-1]["content"]
+            if isinstance(block, dict)
+            and block.get("type") in {"output_text", "text"}
+            and isinstance(block.get("text"), str)
+        ).strip()
+
+    @staticmethod
+    def _anthropic_final_text(content):
+        """Return text blocks following the final Anthropic tool-use block."""
+        return "\n\n".join(
+            block["text"]
+            for block in content
+            if isinstance(block, dict)
+            and block.get("type") == "text"
+            and isinstance(block.get("text"), str)
+        ).strip()
+
     def get_usage_dict(self, raw_response):
         if self.usage_sequence is None:
             return {}
@@ -207,6 +299,26 @@ class RawResponseHandler:
         if self.inference_service is None:
             return None
 
+        # GenerateContent may include provider-generated thought summaries as
+        # text parts marked thought=True. Keep those separate from the answer
+        # text extracted above, while the complete response remains available.
+        if self.inference_service == "google" and isinstance(raw_response, dict):
+            candidates = raw_response.get("candidates")
+            if isinstance(candidates, list) and candidates:
+                content = candidates[0].get("content")
+                parts = content.get("parts") if isinstance(content, dict) else None
+                if isinstance(parts, list):
+                    summaries = [
+                        part["text"]
+                        for part in parts
+                        if isinstance(part, dict)
+                        and part.get("thought") is True
+                        and isinstance(part.get("text"), str)
+                    ]
+                    if summaries:
+                        return "\n\n".join(summaries).strip()
+            return None
+
         # Anthropic: use reasoning_sequence to get content, then filter thinking blocks
         if self.inference_service == "anthropic":
             if self.reasoning_sequence is not None:
@@ -229,7 +341,7 @@ class RawResponseHandler:
             return None
 
         # OpenAI-style: reasoning_sequence or output/summary fallbacks
-        if self.inference_service in ("openai", "openai_v2"):
+        if self.inference_service in ("openai", "openai_v2", "xai_responses"):
             if self.reasoning_sequence is not None:
                 try:
                     summary_data = _extract_item_from_raw_response(

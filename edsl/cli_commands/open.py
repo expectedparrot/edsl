@@ -133,10 +133,14 @@ def register(app: click.Group) -> None:
             from edsl.language_models import ModelList
 
             return ModelList.git.open(path)
+        if class_name == "Collection":
+            from edsl.collections import Collection
+
+            return Collection.git.open(path)
         error(
             "UNSUPPORTED_OBJECT",
             f"Object package type does not support HTML rendering: {class_name or 'unknown'}",
-            suggestion="Currently supported package types: Survey, AgentList, Jobs, Results, ScenarioList, ModelList.",
+            suggestion="Currently supported package types: Survey, AgentList, Jobs, Results, ScenarioList, ModelList, Collection.",
             exit_code=EXIT_USAGE,
         )
 

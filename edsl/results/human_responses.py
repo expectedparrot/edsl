@@ -48,6 +48,8 @@ class HumanResponseEntry(BaseModel):
     question_options: Optional[list[JsonValue]] = None
     # References to the stored call audio, one per track. Interview questions only.
     voice_recordings: Optional[list[JsonValue]] = None
+    # The voice the interviewer spoke with, such as "marin". Voice interviews only.
+    voice_option: Optional[str] = None
 
 
 ENTRIES = TypeAdapter(dict[str, HumanResponseEntry])
@@ -137,6 +139,8 @@ class HumanResponsesBuilder:
             comments: dict[str, Optional[str]] = {}
             raw_model_response: dict[str, JsonValue] = {}
             attributes: dict[str, dict[str, Any]] = {}
+            presented_options: dict[str, list[JsonValue]] = {}
+            exposure_events: dict[str, dict[str, Any]] = {}
             for qn in question_names:
                 entry = entries.get(qn, no_entry)
                 answers[qn] = (
@@ -145,14 +149,33 @@ class HumanResponsesBuilder:
                 comments[f"{qn}_comment"] = entry.comment
                 for field in RAW_MODEL_RESPONSE_FIELDS:
                     raw_model_response[f"{qn}_{field}"] = getattr(entry, field)
-                # Only interviews can carry recordings, so other questions get no column.
+                # Only interviews can carry recordings or a voice, so other questions
+                # get no columns.
                 if question_attributes[qn].get("question_type") == "interview":
                     raw_model_response[f"{qn}_voice_recordings"] = (
                         entry.voice_recordings
                     )
+                    raw_model_response[f"{qn}_voice_option"] = entry.voice_option
                 attributes[qn] = dict(question_attributes[qn])
                 if entry.question_options is not None:
                     attributes[qn]["question_options"] = entry.question_options
+                if entry.question_presented is True and entry.question_options is not None:
+                    presented_options[qn] = entry.question_options
+                exposure_events[qn] = {
+                    "presented": entry.question_presented,
+                    "answered": entry.answered_at is not None,
+                    "started_at": entry.started_at,
+                    "answered_at": entry.answered_at,
+                }
+
+            observed_order = [
+                qn
+                for qn, entry in sorted(
+                    ((qn, entries.get(qn, no_entry)) for qn in question_names),
+                    key=lambda pair: pair[1].started_at or "\uffff",
+                )
+                if entry.question_presented is True and entry.started_at is not None
+            ]
 
             data.append(
                 Result(
@@ -171,6 +194,20 @@ class HumanResponsesBuilder:
                     survey=survey,
                     question_to_attributes=attributes,
                     comments_dict=comments,
+                    randomization={
+                        "schema_version": 1,
+                        "design_version": 1,
+                        "assignment_id": row.response_uuid,
+                        "assignment_unit": "human_response",
+                        "presented_options": presented_options,
+                        "exposure_order": observed_order,
+                        "exposure_events": exposure_events,
+                        "not_presented_questions": [
+                            qn
+                            for qn, event in exposure_events.items()
+                            if event["presented"] is False
+                        ],
+                    },
                     # No indices: Results would write its own position into
                     # agent.agent_index over the respondent's agent_index trait.
                     indices=None,

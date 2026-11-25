@@ -1,0 +1,28 @@
+# Durable run archives remain on disk; avoid committing large SQLite histories.
+/runs/
+__pycache__/
+!/source.json
+!/theory-grid-plan.json
+!/personas/*.txt
+!/report/*
+!/report_assets/*
+!/paper-six-report/*
+!/speculative-report/*
+!/comprehension-report/*
+!/gpt5-pilot-report/*
+!/latex-note/**
+!/portable/**
+!/typed-market-verification.json
+!/full-market-note/**
+!/v3-note/**
+# Keep source, data, figures, PDFs, and bundles; omit TeX build intermediates.
+/**/*.aux
+/**/*.fdb_latexmk
+/**/*.fls
+/**/*.log
+/**/*.out
+/latex-note/*.aux
+/latex-note/*.fdb_latexmk
+/latex-note/*.fls
+/latex-note/*.log
+/latex-note/*.out

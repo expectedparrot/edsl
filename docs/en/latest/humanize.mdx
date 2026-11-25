@@ -31,6 +31,26 @@ This page covers code methods for launching surveys, gathering human responses, 
 
 ---
 
+## Coordinating dependent human tasks
+
+`survey.humanize()` is the right abstraction for one survey or one independent
+set of respondents. If a participant's response determines which task becomes
+available next—or what a later participant may see—define a [research
+workflow](/en/latest/workflows).
+
+In a workflow, the coordinator owns dependencies, visibility, idempotent
+submission, and recovery. Humanize is the delivery adapter: it creates a private
+survey for a ready work item and imports the completed response. Delivery is
+at-least-once, so adapters and callbacks must preserve the coordinator's stable
+idempotency key. If quorum or branching makes an outstanding task irrelevant,
+EDSL marks its local work item canceled; an already delivered external survey
+may still need provider-side cancellation or access control.
+
+Use [shared state](/en/latest/shared_state) when those tasks also read or update
+typed common data.
+
+---
+
 ## Basic usage
 
 The example collects three measures of workplace experience: work-from-home frequency, satisfaction, and a suggested improvement. After defining the questions, `.humanize()` publishes them using your [Expected Parrot account](/en/latest/api_keys#log-in-from-a-notebook).
@@ -480,6 +500,34 @@ fs = FileStore.from_file_upload_answer(uploaded_files[0])
 ```
 
 The returned `FileStore` and `FileStoreList` objects behave like any other — you can inspect, filter, or pass them into further EDSL workflows.
+
+---
+
+## Pause and resume response collection
+
+Pause a survey to stop taking new responses. While it's paused, anyone who opens the link is told the survey is closed. Respondents who are partway through can still finish.
+
+```python
+from edsl import Coop
+
+coop = Coop()
+paused = coop.pause_human_survey("your-human-survey-uuid")
+print(f"Still in progress: {paused['n_in_progress']}")
+
+# Later, to accept new respondents again:
+coop.resume_human_survey("your-human-survey-uuid")
+```
+
+Both return the survey's `uuid`, `is_active`, `n_complete` and `n_in_progress`. Calling either twice has the same effect as calling it once. `get_human_survey()` and `list_human_surveys()` include `is_active`, which is `False` while a survey is paused.
+
+From the command line:
+
+```bash
+ep humanize pause HUMAN_SURVEY_UUID
+ep humanize resume HUMAN_SURVEY_UUID
+```
+
+Pausing the survey doesn't pause a [Prolific study](#prolific-integration) that recruits for it: Prolific keeps sending participants, who see that the survey is closed. To stop participation, pause the study too with `coop.pause_prolific_study()`.
 
 ---
 

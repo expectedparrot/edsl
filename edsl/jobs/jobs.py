@@ -173,6 +173,7 @@ class Jobs(Base):
         self._where_clauses = []
         self._include_expression = None
         self._assignment_plan = None
+        self._treatment_assignment = None
 
         self._post_run_methods = []
         self._depends_on = None
@@ -318,6 +319,7 @@ class Jobs(Base):
             self.run_config.environment.bucket_collection = (
                 self.create_bucket_collection()
             )
+        self._invalidate_filtered_assignment_plan()
 
     @property
     def agents(self):
@@ -342,6 +344,7 @@ class Jobs(Base):
                 self._agents = value
         else:
             self._agents = AgentList([])
+        self._invalidate_filtered_assignment_plan()
 
     def where(self, expression: str) -> Jobs:
         """Filter the agents, scenarios, and models based on a condition.
@@ -424,6 +427,7 @@ class Jobs(Base):
                 self._scenarios = value
         else:
             self._scenarios = ScenarioList([])
+        self._invalidate_filtered_assignment_plan()
 
         # Validate that scenario fields are used in the survey
         if hasattr(self, "survey") and self.survey is not None:
@@ -433,6 +437,12 @@ class Jobs(Base):
 
             checker = CheckSurveyScenarioCompatibility(self.survey, self._scenarios)
             checker.check()
+
+    def _invalidate_filtered_assignment_plan(self) -> None:
+        # Explicit and zipped rows refer to source positions, so same-length
+        # replacements preserve them. Only expression-derived plans are caches.
+        if self.__dict__.get("_include_expression") is not None:
+            self._assignment_plan = None
 
     def _validate_assignment_component(self, axis, value) -> None:
         plan = self.__dict__.get("_assignment_plan")
@@ -464,6 +474,29 @@ class Jobs(Base):
             self._assignment_plan = plan
         if "include_expression" in data:
             self._include_expression = data["include_expression"]
+
+    @property
+    def treatment_assignment(self):
+        """Return the optional precomputed treatment-assignment policy."""
+        return self._treatment_assignment
+
+    def set_treatment_assignment(self, policy) -> "Jobs":
+        """Attach and validate a precomputed treatment schedule to this Jobs object."""
+        from .treatment_assignment import TreatmentAssignment
+
+        if policy is None:
+            self._treatment_assignment = None
+            return self
+        if isinstance(policy, dict):
+            policy = TreatmentAssignment.from_dict(policy)
+        if not isinstance(policy, TreatmentAssignment):
+            raise JobsValueError(
+                "policy must be a TreatmentAssignment or its serialized dictionary."
+            )
+        self.replace_missing_objects()
+        policy.validate_for_job(self, policy.planned_iterations)
+        self._treatment_assignment = policy
+        return self
 
     def by(
         self,
@@ -866,7 +899,7 @@ class Jobs(Base):
                 ),
             }
         )
-        info = jobs_scenario.push()
+        info = jobs_scenario.push(git_repo=kwargs.get("git_repo", False))
         return info
 
         # @classmethod
@@ -1064,7 +1097,7 @@ class Jobs(Base):
                 "<tr>"
                 f"<td>{index}</td>"
                 f"<td><code>{html_module.escape(str(question_name))}</code></td>"
-                f"<td><span class=\"pill\">{html_module.escape(str(question_type))}</span></td>"
+                f'<td><span class="pill">{html_module.escape(str(question_type))}</span></td>'
                 f"<td>{html_module.escape(str(question_text))}</td>"
                 f"<td>{self._jobs_pre_html(self._jobs_question_details(question))}</td>"
                 "</tr>"
@@ -1074,9 +1107,7 @@ class Jobs(Base):
         return (
             "<table><thead><tr>"
             "<th>#</th><th>Name</th><th>Type</th><th>Text</th><th>Details</th>"
-            "</tr></thead><tbody>"
-            + "".join(rows)
-            + "</tbody></table>"
+            "</tr></thead><tbody>" + "".join(rows) + "</tbody></table>"
         )
 
     @staticmethod
@@ -1292,6 +1323,19 @@ class Jobs(Base):
     ) -> Tuple[Optional["Results"], Optional[str]]:
         from .remote_inference import RemoteJobInfo
 
+        if any(
+            model.parameters.get("tools") or getattr(model, "tools", None)
+            for model in self._models_with_question_models()
+        ):
+            from .exceptions import JobsRunError
+
+            raise JobsRunError(
+                "Models configured with provider tools must run directly through "
+                "the provider API for now. Set offload_execution=False and "
+                "disable_remote_inference=True; "
+                "remote worker support is not available yet."
+            )
+
         background = config.parameters.background
 
         jh = self._create_remote_inference_handler()
@@ -1341,6 +1385,15 @@ class Jobs(Base):
                 "disable_remote_inference=True or offload_execution=False."
             )
 
+    def _models_with_question_models(self):
+        """Return all job models, including models attached to questions."""
+        models = list(self.models)
+        for question in getattr(self.survey, "questions", []):
+            question_model = getattr(question, "_model", None)
+            if question_model is not None:
+                models.append(question_model)
+        return models
+
     @staticmethod
     def _remote_results_are_invalid(results: "Results") -> bool:
         """Detect remote result payloads that look structurally complete but empty.
@@ -1356,7 +1409,9 @@ class Jobs(Base):
 
         task_history = getattr(results, "task_history", None)
         task_history_dict = (
-            task_history.to_dict() if task_history and hasattr(task_history, "to_dict") else {}
+            task_history.to_dict()
+            if task_history and hasattr(task_history, "to_dict")
+            else {}
         )
         interviews = task_history_dict.get("interviews") or []
         if interviews:
@@ -1366,7 +1421,9 @@ class Jobs(Base):
         saw_any_raw_payload = False
         for row in results:
             answer_dict = getattr(row, "answer", None)
-            if isinstance(answer_dict, dict) and any(value is not None for value in answer_dict.values()):
+            if isinstance(answer_dict, dict) and any(
+                value is not None for value in answer_dict.values()
+            ):
                 saw_any_non_null_answer = True
                 break
 
@@ -1374,7 +1431,9 @@ class Jobs(Base):
                 raw_payload = row["raw_model_response"]
             except Exception:
                 raw_payload = None
-            if isinstance(raw_payload, dict) and any(value not in (None, {}, "") for value in raw_payload.values()):
+            if isinstance(raw_payload, dict) and any(
+                value not in (None, {}, "") for value in raw_payload.values()
+            ):
                 saw_any_raw_payload = True
                 break
 
@@ -1673,6 +1732,18 @@ class Jobs(Base):
         # Handle mutual exclusivity between use_api_proxy and offload_execution
         # If user explicitly sets use_api_proxy=True, it takes priority and disables offload_execution
         if self.run_config.parameters.use_api_proxy:
+            if any(
+                model.parameters.get("tools") or getattr(model, "tools", None)
+                for model in self._models_with_question_models()
+            ):
+                from .exceptions import JobsRunError
+
+                raise JobsRunError(
+                    "Models configured with provider tools cannot use the API proxy "
+                    "yet. Set use_api_proxy=False, offload_execution=False, and "
+                    "disable_remote_inference=True to run directly through the "
+                    "provider API."
+                )
             # User explicitly wants API proxy mode - disable offload_execution no matter what
             self.run_config.parameters.offload_execution = False
             self._logger.info(
@@ -1682,6 +1753,19 @@ class Jobs(Base):
             # offload_execution is True (from defaults or deprecated params) - ensure use_api_proxy is False
             self.run_config.parameters.use_api_proxy = False
             self._logger.info("offload_execution=True - using full remote execution")
+
+        if (
+            getattr(self.survey, "scale_direction_randomization", None) is not None
+            and self.run_config.parameters.offload_execution
+            and not self.run_config.parameters.disable_remote_inference
+        ):
+            from .exceptions import JobsRunError
+
+            raise JobsRunError(
+                "Scale-direction randomization is not supported by full remote job "
+                "offload yet. Run locally with disable_remote_inference=True or "
+                "offload_execution=False."
+            )
 
         # Use new parameter (use_api_proxy) to determine if we should enable proxy mode
         if self.run_config.parameters.use_api_proxy:
@@ -1953,7 +2037,9 @@ class Jobs(Base):
                     found.extend(descendants(child))
                 return found
 
-            service_classes = list(dict.fromkeys(descendants(OpenAIService) + descendants(OpenAIServiceV2)))
+            service_classes = list(
+                dict.fromkeys(descendants(OpenAIService) + descendants(OpenAIServiceV2))
+            )
             for svc_cls in service_classes:
                 for client in list(svc_cls._async_client_instances.values()):
                     try:
@@ -1974,15 +2060,23 @@ class Jobs(Base):
         """Execute job locally using the Runner engine."""
         from ..runner.runner import Runner
 
+        schedule = self.run_config.parameters.interview_schedule
+        from .interview_schedule import validate_interview_schedule
+
+        validate_interview_schedule(self, schedule, self.run_config.parameters.n)
         runner = Runner(
-            max_workers=self.run_config.parameters.max_concurrency or 400
+            max_workers=self.run_config.parameters.max_concurrency or 400,
+            interview_schedule=schedule,
         )
         handle = runner.submit(
             self,
-            n=self.run_config.parameters.n,
+            n=(
+                schedule.count
+                if getattr(schedule, "kind", None) == "rounds"
+                else self.run_config.parameters.n
+            ),
             cache=self.run_config.environment.cache,
             stop_on_exception=self.run_config.parameters.stop_on_exception,
-            stream_to_cas=True,
         )
         return handle.results(
             show_progress=self.run_config.parameters.progress_bar,
@@ -2204,6 +2298,8 @@ class Jobs(Base):
             - Interviews are shuffled before splitting to ensure even distribution across batches
             - The final results maintain the original interview ordering regardless of batch execution order
             - Each batch runs as a completely separate job, allowing for different execution environments
+            - Shared-state or ordered jobs must use run(), or num_batches=1,
+              because splitting them would change state scope and execution order
 
         Example:
             >>> from edsl.jobs import Jobs
@@ -2221,6 +2317,25 @@ class Jobs(Base):
 
         if num_batches <= 0:
             raise ValueError("num_batches must be greater than 0")
+
+        schedule = kwargs.get(
+            "interview_schedule", self.run_config.parameters.interview_schedule
+        )
+        has_state = bool(
+            self.survey._state_reads
+            or self.survey._state_writes
+            or self.survey._state_before_writes
+        )
+        if has_state or schedule != "concurrent":
+            if num_batches == 1:
+                return self.run(**kwargs)
+            from .exceptions import JobsValueError
+
+            raise JobsValueError(
+                "run_batch() cannot split shared-state or ordered jobs into "
+                "independent batches. Use run() or num_batches=1 to preserve "
+                "shared state and the interview schedule."
+            )
 
         # Manually create config from kwargs like @with_config would do
         parameter_fields = {
@@ -2296,7 +2411,7 @@ class Jobs(Base):
                 continue
 
             self._logger.info(
-                f"Running batch {i+1}/{num_batches} with {len(batch)} interviews"
+                f"Running batch {i + 1}/{num_batches} with {len(batch)} interviews"
             )
 
             # Extract just the interviews (without original indices) for this batch
@@ -2316,15 +2431,15 @@ class Jobs(Base):
                         result.order = original_index
                     else:
                         self._logger.warning(
-                            f"Batch {i+1}: more results ({len(batch_result.data)}) than expected ({len(batch)})"
+                            f"Batch {i + 1}: more results ({len(batch_result.data)}) than expected ({len(batch)})"
                         )
 
                 batch_results.append(batch_result)
                 self._logger.info(
-                    f"Batch {i+1} completed with {len(batch_result)} results"
+                    f"Batch {i + 1} completed with {len(batch_result)} results"
                 )
             else:
-                self._logger.warning(f"Batch {i+1} returned None results")
+                self._logger.warning(f"Batch {i + 1} returned None results")
 
         if not batch_results:
             self._logger.warning("No batch results to merge")
@@ -2783,6 +2898,16 @@ class Jobs(Base):
             ],
         }
 
+        schedule = self.run_config.parameters.interview_schedule
+        if schedule != "concurrent":
+            from .interview_schedule import InterviewSchedule
+
+            d["interview_schedule"] = (
+                schedule.to_dict()
+                if isinstance(schedule, InterviewSchedule)
+                else schedule
+            )
+
         # Add _post_run_methods if not empty
         if self._post_run_methods:
             d["_post_run_methods"] = self._post_run_methods
@@ -2794,6 +2919,9 @@ class Jobs(Base):
             )
 
         d.update(assignment_metadata)
+
+        if self._treatment_assignment is not None:
+            d["treatment_assignment"] = self._treatment_assignment.to_dict()
 
         if add_edsl_version:
             from .. import __version__
@@ -2830,6 +2958,14 @@ class Jobs(Base):
             scenarios=[Scenario.from_dict(scenario) for scenario in data["scenarios"]],
         )
 
+        if "interview_schedule" in data:
+            from .interview_schedule import InterviewSchedule
+
+            schedule = data["interview_schedule"]
+            if isinstance(schedule, dict):
+                schedule = InterviewSchedule.from_dict(schedule)
+            job.run_config.parameters.interview_schedule = schedule
+
         # Restore _post_run_methods if present
         if "_post_run_methods" in data:
             job._post_run_methods = data["_post_run_methods"]
@@ -2839,6 +2975,9 @@ class Jobs(Base):
             job._depends_on = cls.from_dict(data["_depends_on"])
 
         job._restore_assignment_metadata(data)
+
+        if "treatment_assignment" in data:
+            job.set_treatment_assignment(data["treatment_assignment"])
 
         return job
 
@@ -2969,6 +3108,12 @@ class Jobs(Base):
         from edsl.coop.exceptions import CoopValueError
         from ..scenarios import Scenario
         from ..surveys import Survey
+
+        if self._treatment_assignment is not None:
+            raise CoopValueError(
+                "Humanize does not support treatment assignment schedules. "
+                "Clear the schedule before publishing this job."
+            )
 
         if len(self.models) > 0:
             raise CoopValueError("We don't support humanize with models yet.")

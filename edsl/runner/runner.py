@@ -58,14 +58,14 @@ class TimingStats:
             "=" * 50,
             "TIMING BREAKDOWN",
             "=" * 50,
-            f"Job creation:        {self.job_creation*1000:8.1f} ms",
-            f"Rendering:           {self.rendering*1000:8.1f} ms ({self.render_calls} calls, {self.tasks_rendered} tasks)",
-            f"Enqueueing:          {self.enqueueing*1000:8.1f} ms ({self.enqueue_calls} enqueues)",
-            f"Waiting for workers: {self.waiting_for_workers*1000:8.1f} ms ({self.loop_iterations} iterations)",
-            f"Results assembly:    {self.results_assembly*1000:8.1f} ms",
-            f"Loop overhead:       {self.loop_overhead*1000:8.1f} ms",
+            f"Job creation:        {self.job_creation * 1000:8.1f} ms",
+            f"Rendering:           {self.rendering * 1000:8.1f} ms ({self.render_calls} calls, {self.tasks_rendered} tasks)",
+            f"Enqueueing:          {self.enqueueing * 1000:8.1f} ms ({self.enqueue_calls} enqueues)",
+            f"Waiting for workers: {self.waiting_for_workers * 1000:8.1f} ms ({self.loop_iterations} iterations)",
+            f"Results assembly:    {self.results_assembly * 1000:8.1f} ms",
+            f"Loop overhead:       {self.loop_overhead * 1000:8.1f} ms",
             "-" * 50,
-            f"TOTAL:               {self.total*1000:8.1f} ms",
+            f"TOTAL:               {self.total * 1000:8.1f} ms",
             "=" * 50,
         ]
         return "\n".join(lines)
@@ -189,11 +189,6 @@ class JobHandle:
         state = self._service.jobs.get_state(self._job_id)
         if state == JobState.CANCELLED:
             raise RuntimeError(f"Job {self._job_id} was cancelled")
-
-        # Finalize CAS streaming (flush pending results)
-        cas = self._runner._job_cas.get(self._job_id)
-        if cas is not None:
-            cas.finalize()
 
         # Time results assembly
         t0 = time.time()
@@ -346,6 +341,7 @@ class Runner:
         heartbeat_interval: float = 10.0,
         dead_worker_timeout: int = 60,
         max_workers: int = 400,
+        interview_schedule: str = "concurrent",
     ):
         """
         Initialize a Runner for local execution.
@@ -365,6 +361,7 @@ class Runner:
         self._heartbeat_interval = heartbeat_interval
         self._dead_worker_timeout = dead_worker_timeout
         self._max_workers = max_workers
+        self._interview_schedule = interview_schedule
 
         # Initialize storage
         self._storage = self._create_storage(storage)
@@ -399,9 +396,6 @@ class Runner:
         # Client-side registry for direct answer tasks
         self._direct_registry = DirectAnswerRegistry(job_service=self._service)
 
-        # CAS streaming integrations per job
-        self._job_cas: dict[str, Any] = {}
-
     def _create_storage(self, storage: StorageProtocol | str | None) -> StorageProtocol:
         """Create storage from URL string or return existing protocol."""
         if storage is None:
@@ -433,8 +427,6 @@ class Runner:
         n: int = 1,
         cache: Any = None,
         stop_on_exception: bool = False,
-        stream_to_cas: bool = False,
-        cas_batch_size: int = 1,
     ) -> JobHandle:
         """
         Submit a job for execution.
@@ -448,16 +440,15 @@ class Runner:
                    - False: no caching.
                    - Cache: shared across all workers.
             stop_on_exception: If True, cancels the job and raises on first failure.
-            stream_to_cas: If True, incrementally persist results to CAS
-                           as each interview completes.
-            cas_batch_size: Number of completed interviews to accumulate
-                           before writing a CAS commit (default 1).
-
         Returns:
             JobHandle to track and retrieve results.
         """
         job_id, direct_task_info, _job_data = self._service.submit_job(
-            job, user_id=user_id, n=n, stop_on_exception=stop_on_exception
+            job,
+            user_id=user_id,
+            n=n,
+            stop_on_exception=stop_on_exception,
+            interview_schedule=self._interview_schedule,
         )
 
         # Register queues for models used in this job
@@ -483,18 +474,6 @@ class Runner:
 
         # Store stop_on_exception setting
         self._job_stop_on_exception[job_id] = stop_on_exception
-
-        # Opt-in CAS streaming
-        if stream_to_cas:
-            from .cas_integration import RunnerCASIntegration
-
-            survey = (
-                job.survey if hasattr(job, "survey") else getattr(job, "_survey", None)
-            )
-            if survey is not None:
-                self._job_cas[job_id] = RunnerCASIntegration(
-                    job_id, survey, self._service, batch_size=cas_batch_size
-                )
 
         return JobHandle(job_id, self)
 
@@ -860,6 +839,15 @@ class Runner:
                 continue
 
             try:
+                entry = self._direct_registry.get_entry(task_id)
+                if entry is not None:
+                    state_view, entry.shared_state_reads = (
+                        self._service.state_for_direct_answer(
+                            job_id, interview_id, task_id
+                        )
+                    )
+                    if state_view:
+                        entry.scenario = entry.scenario | {"shared_state": state_view}
                 result = await self._direct_registry.execute(task_id)
 
                 from .models import generate_id
@@ -890,6 +878,7 @@ class Runner:
                     resolution_draw=result.get("resolution_draw"),
                     resolution_seed=result.get("resolution_seed"),
                     resolution_method=result.get("resolution_method"),
+                    question_presentation=result.get("question_presentation"),
                 )
 
                 self._direct_registry.remove(task_id)
