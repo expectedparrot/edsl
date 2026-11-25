@@ -1,0 +1,4 @@
+Respond with just one calendar date on a single line in ISO 8601 YYYY-MM-DD format, for example: 2026-05-20.
+{% if min_date %}The date must be on or after {{ min_date }}.
+{% endif %}{% if max_date %}The date must be on or before {{ max_date }}.
+{% endif %}{% if include_comment %}After the date, you may put a brief comment on the next line.{% endif %}

@@ -226,6 +226,41 @@ row order is recorded with the result under
 what each respondent saw. Randomization changes presentation order, not answer
 keys. Decide it before fielding and preview pinned positions.
 
+### Date, datetime, and numerical range questions
+
+`QuestionDate` validates ISO calendar dates and optional inclusive date bounds.
+`QuestionDateTime` requires an ISO 8601 timezone offset and can enforce inclusive
+datetime bounds. `QuestionNumericalRange` returns both endpoints of an inclusive
+interval as a `{ "min": number, "max": number }` object.
+
+```python
+from edsl import QuestionDate, QuestionDateTime, QuestionNumericalRange
+
+q_date = QuestionDate(
+    question_name="start_date",
+    question_text="What date should work begin?",
+    min_date="2026-01-01",
+    max_date="2026-12-31",
+)
+q_datetime = QuestionDateTime(
+    question_name="appointment",
+    question_text="When should the appointment start? Include the timezone.",
+    min_datetime="2026-05-20T09:00:00-04:00",
+    max_datetime="2026-05-20T17:00:00-04:00",
+)
+q_range = QuestionNumericalRange(
+    question_name="price_range",
+    question_text="What price range is acceptable?",
+    min_value=0,
+    max_value=1000,
+)
+```
+
+The respective answer values look like `"2026-05-20"`,
+`"2026-05-20T14:30:00-04:00"`, and `{"min": 25, "max": 60}`. For date-time
+questions, an answer without an offset (for example, `2026-05-20T14:30:00`) is
+invalid.
+
 ### QuestionBudget
 
 Allocating a fixed budget across multiple options.

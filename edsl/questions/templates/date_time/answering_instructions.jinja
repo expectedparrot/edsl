@@ -1,0 +1,4 @@
+Respond with just one datetime on a single line as an ISO 8601 string with a timezone offset, for example: 2026-05-20T14:30:00-04:00. Do not omit the timezone.
+{% if min_datetime %}The datetime must be on or after {{ min_datetime }}.
+{% endif %}{% if max_datetime %}The datetime must be on or before {{ max_datetime }}.
+{% endif %}{% if include_comment %}After the datetime, you may put a brief comment on the next line.{% endif %}
