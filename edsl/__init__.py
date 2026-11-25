@@ -95,6 +95,8 @@ _EXPORT_TO_MODULE = {
     "DetectAI": "questions",
     "QuestionBase": "questions",
     "QuestionDiagram": "questions",
+    "Stem": "stem",
+    "literal": "stem",
     "QuestionImageGeneration": "questions",
     "SurveyMessage": "questions",
     # surveys
