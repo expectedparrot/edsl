@@ -177,6 +177,257 @@ def test_QuestionNumerical_answers():
     assert q._translate_answer_code_to_answer(response_good, None) == response_good
 
 
+def test_numerical_repair_prefers_a_structured_answer():
+    q = QuestionNumerical(
+        question_name="probability",
+        question_text="Return one probability.",
+        min_value=0,
+        max_value=1,
+    )
+    generated_tokens = "I saw 12 events on day 3; final answer: 0.7"
+
+    result = q.response_validator.validate(
+        {"answer": 0.4, "generated_tokens": generated_tokens}
+    )
+
+    assert result["answer"] == 0.4
+    assert result["answer_source"] == "structured"
+    assert result["generated_tokens"] == generated_tokens
+
+
+def test_numerical_repair_provenance_resets_between_responses():
+    q = QuestionNumerical(
+        question_name="probability",
+        question_text="Return one probability.",
+        min_value=0,
+        max_value=1,
+    )
+    validator = q.response_validator
+
+    repaired = validator.validate({"answer": "Final answer: 0.4"})
+    structured = validator.validate({"answer": 0.6})
+
+    assert repaired["answer_source"] == "repaired"
+    assert structured["answer_source"] == "structured"
+
+
+def test_numerical_repair_uses_final_answer_marker():
+    q = QuestionNumerical(
+        question_name="probability",
+        question_text="Return one probability.",
+        min_value=0,
+        max_value=1,
+    )
+    response = {
+        "answer": "I counted 1 observation on day 12. The final probability is 0.1667.",
+        "generated_tokens": "I counted 1 observation on day 12.\nFinal answer: 0.1667",
+        "comment": "Estimated from the observations.",
+    }
+
+    result = q.response_validator.validate(response)
+
+    assert result["answer"] == pytest.approx(0.1667)
+    assert result["answer_source"] == "repaired"
+    assert result["generated_tokens"] == response["generated_tokens"]
+    assert result["comment"] == response["comment"]
+
+
+def test_numerical_repair_uses_a_final_standalone_numeric_line():
+    q = QuestionNumerical(
+        question_name="probability",
+        question_text="Return one probability.",
+        min_value=0,
+        max_value=1,
+    )
+
+    result = q.response_validator.validate(
+        {"answer": "I considered 0.2 and 0.3.\n0.1667"}
+    )
+
+    assert result["answer"] == pytest.approx(0.1667)
+
+
+@pytest.mark.parametrize("answer", [0, 1])
+def test_numerical_repair_accepts_zero_and_one(answer):
+    q = QuestionNumerical(
+        question_name="probability",
+        question_text="Return one probability.",
+        min_value=0,
+        max_value=1,
+    )
+
+    result = q.response_validator.validate({"answer": f"Final answer: {answer}."})
+
+    assert result["answer"] == answer
+    assert result["answer_source"] == "repaired"
+
+
+def test_numerical_repair_ignores_intermediate_dates_currency_and_percentages():
+    q = QuestionNumerical(
+        question_name="probability",
+        question_text="Return one probability.",
+        min_value=0,
+        max_value=1,
+    )
+
+    result = q.response_validator.validate(
+        {"answer": "On day 12 in 2024, $50 was 50%; final probability is 0.1667."}
+    )
+
+    assert result["answer"] == pytest.approx(0.1667)
+
+
+def test_numerical_repair_supports_signed_scientific_notation():
+    q = QuestionNumerical(
+        question_name="measurement",
+        question_text="Return a measurement.",
+        min_value=-1,
+        max_value=1,
+    )
+
+    result = q.response_validator.validate({"answer": "Final answer: -1.25e-3"})
+
+    assert result["answer"] == pytest.approx(-0.00125)
+
+
+def test_numerical_repair_supports_thousands_separators():
+    q = QuestionNumerical(
+        question_name="count",
+        question_text="Return a count.",
+        min_value=0,
+        max_value=2000,
+    )
+
+    result = q.response_validator.validate({"answer": "Final answer: 1,234."})
+
+    assert result["answer"] == 1234
+
+
+def test_numerical_repair_fails_when_multiple_values_are_plausible():
+    q = QuestionNumerical(
+        question_name="probability",
+        question_text="Return one probability.",
+        min_value=0,
+        max_value=1,
+    )
+
+    with pytest.raises(QuestionAnswerValidationError):
+        q.response_validator.validate({"answer": "I compared 0.2 with 0.8."})
+
+
+def test_numerical_repair_does_not_fall_back_to_an_in_range_value():
+    q = QuestionNumerical(
+        question_name="probability",
+        question_text="Return one probability.",
+        min_value=0,
+        max_value=1,
+    )
+
+    with pytest.raises(QuestionAnswerValidationError):
+        q.response_validator.validate(
+            {"answer": "Final answer: 1.5; an earlier candidate was 0.5."}
+        )
+
+
+def test_numerical_repair_does_not_hide_out_of_range_candidates():
+    q = QuestionNumerical(
+        question_name="probability",
+        question_text="Return one probability.",
+        min_value=0,
+        max_value=1,
+    )
+
+    with pytest.raises(QuestionAnswerValidationError):
+        q.response_validator.validate(
+            {"answer": "I started at 0.5 but settled on 1.5."}
+        )
+
+
+def test_numerical_repair_rejects_alternatives_after_answer_marker():
+    q = QuestionNumerical(
+        question_name="probability",
+        question_text="Return one probability.",
+        min_value=0,
+        max_value=1,
+    )
+
+    with pytest.raises(QuestionAnswerValidationError):
+        q.response_validator.validate({"answer": "Final answer: 0.2 or 0.8"})
+
+
+def test_numerical_repair_does_not_prioritize_an_earlier_standalone_number():
+    q = QuestionNumerical(
+        question_name="probability",
+        question_text="Return one probability.",
+        min_value=0,
+        max_value=1,
+    )
+
+    with pytest.raises(QuestionAnswerValidationError):
+        q.response_validator.validate(
+            {"answer": "0.2\nAfter recalculating, I get 0.8."}
+        )
+
+
+def test_numerical_repair_rejects_multiline_alternatives_before_final_number():
+    q = QuestionNumerical(
+        question_name="probability",
+        question_text="Return one probability.",
+        min_value=0,
+        max_value=1,
+    )
+
+    with pytest.raises(QuestionAnswerValidationError):
+        q.response_validator.validate({"answer": "Either\n0.2\nor\n0.8"})
+
+
+def test_numerical_repair_preserves_large_integers():
+    q = QuestionNumerical(
+        question_name="count",
+        question_text="Return a count.",
+    )
+    large_integer = 9_007_199_254_740_993
+
+    result = q.response_validator.validate(
+        {"answer": "Final answer: 9,007,199,254,740,993"}
+    )
+
+    assert result["answer"] == large_integer
+    assert isinstance(result["answer"], int)
+
+
+def test_numerical_repair_uses_generated_tokens_only_without_an_answer():
+    q = QuestionNumerical(
+        question_name="probability",
+        question_text="Return one probability.",
+        min_value=0,
+        max_value=1,
+    )
+    generated_tokens = "I estimated several values.\nFinal answer: 0.25"
+
+    result = q.response_validator.validate(
+        {"answer": None, "generated_tokens": generated_tokens}
+    )
+
+    assert result["answer"] == 0.25
+    assert result["answer_source"] == "repaired"
+    assert result["generated_tokens"] == generated_tokens
+
+
+def test_numerical_repair_does_not_search_generated_tokens_when_answer_exists():
+    q = QuestionNumerical(
+        question_name="probability",
+        question_text="Return one probability.",
+        min_value=0,
+        max_value=1,
+    )
+
+    with pytest.raises(QuestionAnswerValidationError):
+        q.response_validator.validate(
+            {"answer": "No numerical answer was supplied.", "generated_tokens": "0.5"}
+        )
+
+
 def test_test_QuestionNumerical_extras():
     """Test QuestionNumerical extra functionalities."""
     q = QuestionNumerical(**valid_question)

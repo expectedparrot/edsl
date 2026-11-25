@@ -609,6 +609,7 @@ class Answer:
     # Cache and validation info
     cache_key: str | None = None
     validated: bool | None = None
+    answer_source: str | None = None
     reasoning_summary: str | None = None
     distribution: list[float] | None = None
     resolution_draw: Any = None
@@ -647,6 +648,7 @@ class Answer:
             "output_price_per_million_tokens": self.output_price_per_million_tokens,
             "cache_key": self.cache_key,
             "validated": self.validated,
+            "answer_source": self.answer_source,
             "reasoning_summary": self.reasoning_summary,
             "distribution": self.distribution,
             "resolution_draw": self.resolution_draw,
@@ -685,6 +687,7 @@ class Answer:
             output_price_per_million_tokens=data.get("output_price_per_million_tokens"),
             cache_key=data.get("cache_key"),
             validated=data.get("validated"),
+            answer_source=data.get("answer_source"),
             reasoning_summary=data.get("reasoning_summary"),
             distribution=data.get("distribution"),
             resolution_draw=data.get("resolution_draw"),

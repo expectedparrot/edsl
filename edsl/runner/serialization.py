@@ -491,6 +491,7 @@ def serialize_execution_result(result: Any) -> dict:
             "resolution_draw": result.resolution_draw,
             "resolution_seed": result.resolution_seed,
             "resolution_method": result.resolution_method,
+            "answer_source": result.answer_source,
         }
 
     if isinstance(result, dict):

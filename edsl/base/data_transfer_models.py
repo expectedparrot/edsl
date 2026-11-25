@@ -68,6 +68,7 @@ class EDSLResultObjectInput(NamedTuple):
     resolution_draw: Optional[Any] = None
     resolution_seed: Optional[int] = None
     resolution_method: Optional[str] = None
+    answer_source: Optional[str] = None
 
 
 @dataclass
