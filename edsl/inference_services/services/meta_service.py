@@ -155,6 +155,7 @@ class MetaService(OpenAIService):
                 payload = {
                     "model": self.model,
                     "input": input_messages,
+                    "max_output_tokens": self.max_tokens,
                     "stream": False,
                 }
                 tools = self.parameters.get("tools")

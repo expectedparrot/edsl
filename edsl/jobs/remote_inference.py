@@ -680,6 +680,7 @@ class JobsRemoteInferenceHandler:
 
         results.job_uuid = job_info.job_uuid
         results.results_uuid = results_uuid
+        results.reconcile_job_cost(remote_job_data)
         return results
 
     def _fetch_results_streamed(
@@ -701,6 +702,7 @@ class JobsRemoteInferenceHandler:
         from ..agents import Agent
         from ..scenarios import Scenario
         from ..language_models import LanguageModel
+        from ..language_models.response_metadata import response_metadata
         from copy import deepcopy
 
         coop = Coop(api_key=self.api_key)
@@ -779,6 +781,10 @@ class JobsRemoteInferenceHandler:
                     raw_model_response_dict[f"{qname}_raw_model_response"] = a.get(
                         "raw_model_response"
                     )
+                    raw_model_response_dict[f"{qname}_response_metadata"] = {
+                        **response_metadata(a.get("raw_model_response")),
+                        **(a.get("response_metadata") or {}),
+                    }
                     raw_model_response_dict[f"{qname}_input_tokens"] = a.get(
                         "input_tokens"
                     )
@@ -929,6 +935,7 @@ class JobsRemoteInferenceHandler:
         results_uuid = getattr(job_info.logger.jobs_info, "results_uuid", None)
         if results_uuid:
             results.results_uuid = results_uuid
+        results.reconcile_job_cost(remote_job_data)
         return results
 
     def _attempt_fetch_job(

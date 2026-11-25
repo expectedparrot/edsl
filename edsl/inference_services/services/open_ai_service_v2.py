@@ -163,7 +163,7 @@ class OpenAIServiceV2(InferenceServiceABC):
             _is_reasoning = is_openai_reasoning_model(model_name)
             _parameters_ = {
                 "temperature": 0.5,
-                "max_tokens": 16000 if _is_reasoning else 2000,
+                "max_tokens": None,  # Resolved by LanguageModel's shared policy.
                 "top_p": 1,
                 "frequency_penalty": 0,
                 "presence_penalty": 0,

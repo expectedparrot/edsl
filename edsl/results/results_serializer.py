@@ -123,6 +123,8 @@ class ResultsSerializer:
                     )
                 }
             )
+        if self.results._total_results is not None:
+            d["total_results"] = self.results._total_results
         if self.results.name is not None:
             d["name"] = self.results.name
 
@@ -193,6 +195,7 @@ class ResultsSerializer:
             "cache": cache,
             "task_history": task_history,
             "name": name,
+            "total_results": data.get("total_results"),
             "shared_state": data.get("shared_state"),
         }
 
@@ -250,6 +253,7 @@ class ResultsSerializer:
         yield json.dumps({
             "created_columns": self.results.created_columns,
             "name": self.results.name,
+            "total_results": self.results._total_results,
             "shared_state": self.results.shared_state,
             "n_survey_lines": len(survey_rows),
             "n_task_history_lines": len(task_history_rows),
@@ -357,6 +361,7 @@ class ResultsSerializer:
             cache=cache,
             task_history=task_history,
             name=name,
+            total_results=manifest.get("total_results"),
             shared_state=shared_state,
         )
         for result in results_data:

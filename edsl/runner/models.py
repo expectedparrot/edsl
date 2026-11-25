@@ -113,6 +113,9 @@ class RetryPolicy:
 
 # Default retry policies by error type
 DEFAULT_RETRY_POLICIES = {
+    "output_token_limit": RetryPolicy(
+        max_attempts=1, base_delay_seconds=0, retryable=False
+    ),
     "network_timeout": RetryPolicy(
         max_attempts=3, base_delay_seconds=1.0, retryable=True
     ),
@@ -615,6 +618,7 @@ class Answer:
     resolution_draw: Any = None
     resolution_seed: int | None = None
     resolution_method: str | None = None
+    response_metadata: dict | None = None
     # Captured before execution; absent for older answers or non-presented tasks.
     question_presentation: dict[str, Any] | None = None
 
@@ -654,6 +658,7 @@ class Answer:
             "resolution_draw": self.resolution_draw,
             "resolution_seed": self.resolution_seed,
             "resolution_method": self.resolution_method,
+            "response_metadata": self.response_metadata,
             **(
                 {"question_presentation": deepcopy(self.question_presentation)}
                 if self.question_presentation is not None
@@ -693,6 +698,7 @@ class Answer:
             resolution_draw=data.get("resolution_draw"),
             resolution_seed=data.get("resolution_seed"),
             resolution_method=data.get("resolution_method"),
+            response_metadata=data.get("response_metadata"),
             question_presentation=deepcopy(data.get("question_presentation")),
         )
 
