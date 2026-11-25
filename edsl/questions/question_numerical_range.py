@@ -48,6 +48,7 @@ def create_numerical_range_response(
         answer=(NumericalInterval, ...),
         comment=(Optional[str], None),
         generated_tokens=(Optional[str], None),
+        reasoning_summary=(Optional[str], None),
         __config__=ConfigDict(extra="forbid"),
     )
 

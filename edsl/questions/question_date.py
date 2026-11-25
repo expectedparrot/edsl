@@ -87,6 +87,7 @@ def create_date_response(min_date: Optional[str], max_date: Optional[str]):
         answer: StrictStr
         comment: Optional[str] = None
         generated_tokens: Optional[str] = None
+        reasoning_summary: Optional[str] = None
         model_config = ConfigDict(extra="forbid")
 
         @field_validator("answer")
@@ -118,6 +119,7 @@ def create_datetime_response(min_datetime: Optional[str], max_datetime: Optional
         answer: StrictStr
         comment: Optional[str] = None
         generated_tokens: Optional[str] = None
+        reasoning_summary: Optional[str] = None
         model_config = ConfigDict(extra="forbid")
 
         @field_validator("answer")
@@ -166,14 +168,22 @@ class QuestionDate(QuestionBase):
             raise QuestionCreationValidationError("min_date cannot be after max_date.")
         self.question_name = question_name
         self.question_text = question_text
-        self.min_date = lower.isoformat() if lower else None
-        self.max_date = upper.isoformat() if upper else None
+        self._min_date = lower.isoformat() if lower else None
+        self._max_date = upper.isoformat() if upper else None
         self.include_comment = include_comment
         self.answering_instructions = answering_instructions
         self.question_presentation = question_presentation
 
     def create_response_model(self):
         return create_date_response(self.min_date, self.max_date)
+
+    @property
+    def min_date(self) -> Optional[str]:
+        return self._min_date
+
+    @property
+    def max_date(self) -> Optional[str]:
+        return self._max_date
 
     def _simulate_answer(self) -> dict:
         lower = _date_bound(self.min_date, "min_date") or date(2000, 1, 1)
@@ -243,14 +253,22 @@ class QuestionDateTime(QuestionBase):
             )
         self.question_name = question_name
         self.question_text = question_text
-        self.min_datetime = lower.isoformat() if lower else None
-        self.max_datetime = upper.isoformat() if upper else None
+        self._min_datetime = lower.isoformat() if lower else None
+        self._max_datetime = upper.isoformat() if upper else None
         self.include_comment = include_comment
         self.answering_instructions = answering_instructions
         self.question_presentation = question_presentation
 
     def create_response_model(self):
         return create_datetime_response(self.min_datetime, self.max_datetime)
+
+    @property
+    def min_datetime(self) -> Optional[str]:
+        return self._min_datetime
+
+    @property
+    def max_datetime(self) -> Optional[str]:
+        return self._max_datetime
 
     def _simulate_answer(self) -> dict:
         from datetime import timedelta, timezone
