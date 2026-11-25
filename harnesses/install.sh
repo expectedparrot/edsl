@@ -93,8 +93,15 @@ if ! command -v python3 >/dev/null 2>&1; then
 fi
 
 printf 'Installing EDSL from feat/edsl-harness-guidance...\n'
-python3 -m pip install --upgrade \
-  'edsl @ git+https://github.com/expectedparrot/edsl.git@feat/edsl-harness-guidance'
+python3_path=$(command -v python3)
+edsl_requirement='edsl @ git+https://github.com/expectedparrot/edsl.git@feat/edsl-harness-guidance'
+if command -v uv >/dev/null 2>&1; then
+  printf 'Using uv for the package install.\n'
+  uv pip install --python "$python3_path" --upgrade "$edsl_requirement"
+else
+  printf 'uv is not installed; using pip.\n'
+  "$python3_path" -m pip install --upgrade "$edsl_requirement"
+fi
 
 run_ep() {
   python3 -m edsl "$@"

@@ -9,14 +9,14 @@ CLI.
 The copyable prompts in the main README are for a harness that is already
 installed and open. For a first-time setup, run the bootstrap script from a
 terminal. It installs the selected harness if missing, installs EDSL from the
-current branch into the active Python environment, checks Expected Parrot
-authentication, and installs the `edsl-harness` skill in that harness's user
-skill directory. Add `--launch` to start the harness in the current directory
-after setup. Activate the Python environment where EDSL should be installed
-first. The bootstrap
-script supports macOS, Linux, and WSL. On
-native Windows, install the harness from its official guide first, then run
-the EDSL and skill setup steps in that environment.
+current branch into the active Python environment (using uv when available,
+otherwise pip), checks Expected Parrot authentication, and installs the
+`edsl-harness` skill in that harness's user skill directory. Add `--launch` to
+start the harness in the current directory after setup. Activate the Python
+environment where EDSL should be installed first. uv installs into the
+interpreter selected by `python3`. The bootstrap script supports macOS, Linux,
+and WSL. On native Windows, install the harness from its official guide first,
+then run the EDSL and skill setup steps in that environment.
 
 ```bash
 bash harnesses/install.sh pi --launch

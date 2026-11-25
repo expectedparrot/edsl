@@ -23,10 +23,11 @@ EDSL makes it easy to conduct computational social science and market research w
 The copyable prompts below are for a harness you can already open. If you do
 not have that harness installed yet, run its bootstrap command in a terminal
 first. The script installs the selected harness when missing, installs EDSL
-from this branch, logs in to Expected Parrot if needed, and installs the
-harness-specific `edsl-harness` skill. Add `--launch` to the bootstrap command
-to open the harness in the current directory when setup finishes. Activate the Python environment where you want EDSL installed
-before running it.
+from this branch using uv when available (pip otherwise), logs in to Expected
+Parrot if needed, and installs the harness-specific `edsl-harness` skill. Add
+`--launch` to the bootstrap command to open the harness in the current
+directory when setup finishes. Activate the Python environment where you want
+EDSL installed before running it.
 
 From a local EDSL checkout:
 
@@ -51,8 +52,11 @@ curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harne
 
 ```text
 Set up EDSL for Codex:
-1. Install EDSL from this branch in the active Python environment:
-   python -m pip install --upgrade "edsl @ git+https://github.com/expectedparrot/edsl.git@feat/edsl-harness-guidance"
+1. Install EDSL from this branch into the active Python environment. If uv is
+   installed, run:
+   `uv pip install --python "$(command -v python3)" --upgrade "edsl @ git+https://github.com/expectedparrot/edsl.git@feat/edsl-harness-guidance"`
+   Otherwise run:
+   `python3 -m pip install --upgrade "edsl @ git+https://github.com/expectedparrot/edsl.git@feat/edsl-harness-guidance"`
 2. Run `ep auth status`. If no Expected Parrot key is configured, run `ep auth login`.
    Never print or expose the key.
 3. Install only the EDSL harness skill:
@@ -70,8 +74,11 @@ curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harne
 
 ```text
 Set up EDSL for Claude Code:
-1. Install EDSL from this branch in the active Python environment:
-   python -m pip install --upgrade "edsl @ git+https://github.com/expectedparrot/edsl.git@feat/edsl-harness-guidance"
+1. Install EDSL from this branch into the active Python environment. If uv is
+   installed, run:
+   `uv pip install --python "$(command -v python3)" --upgrade "edsl @ git+https://github.com/expectedparrot/edsl.git@feat/edsl-harness-guidance"`
+   Otherwise run:
+   `python3 -m pip install --upgrade "edsl @ git+https://github.com/expectedparrot/edsl.git@feat/edsl-harness-guidance"`
 2. Run `ep auth status`. If no Expected Parrot key is configured, run `ep auth login`.
    Never print or expose the key.
 3. Install only the EDSL harness skill:
@@ -89,8 +96,11 @@ curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harne
 
 ```text
 Set up EDSL for OpenCode:
-1. Install EDSL from this branch in the active Python environment:
-   python -m pip install --upgrade "edsl @ git+https://github.com/expectedparrot/edsl.git@feat/edsl-harness-guidance"
+1. Install EDSL from this branch into the active Python environment. If uv is
+   installed, run:
+   `uv pip install --python "$(command -v python3)" --upgrade "edsl @ git+https://github.com/expectedparrot/edsl.git@feat/edsl-harness-guidance"`
+   Otherwise run:
+   `python3 -m pip install --upgrade "edsl @ git+https://github.com/expectedparrot/edsl.git@feat/edsl-harness-guidance"`
 2. Run `ep auth status`. If no Expected Parrot key is configured, run `ep auth login`.
    Never print or expose the key.
 3. Install only the EDSL harness skill:
@@ -108,8 +118,11 @@ curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harne
 
 ```text
 Set up EDSL for Pi:
-1. Install EDSL from this branch in the active Python environment:
-   python -m pip install --upgrade "edsl @ git+https://github.com/expectedparrot/edsl.git@feat/edsl-harness-guidance"
+1. Install EDSL from this branch into the active Python environment. If uv is
+   installed, run:
+   `uv pip install --python "$(command -v python3)" --upgrade "edsl @ git+https://github.com/expectedparrot/edsl.git@feat/edsl-harness-guidance"`
+   Otherwise run:
+   `python3 -m pip install --upgrade "edsl @ git+https://github.com/expectedparrot/edsl.git@feat/edsl-harness-guidance"`
 2. Run `ep auth status`. If no Expected Parrot key is configured, run `ep auth login`.
    Never print or expose the key.
 3. Install only the EDSL harness skill:
@@ -127,8 +140,11 @@ curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harne
 
 ```text
 Set up EDSL for Google Antigravity CLI:
-1. Install EDSL from this branch in the active Python environment:
-   python -m pip install --upgrade "edsl @ git+https://github.com/expectedparrot/edsl.git@feat/edsl-harness-guidance"
+1. Install EDSL from this branch into the active Python environment. If uv is
+   installed, run:
+   `uv pip install --python "$(command -v python3)" --upgrade "edsl @ git+https://github.com/expectedparrot/edsl.git@feat/edsl-harness-guidance"`
+   Otherwise run:
+   `python3 -m pip install --upgrade "edsl @ git+https://github.com/expectedparrot/edsl.git@feat/edsl-harness-guidance"`
 2. Run `ep auth status`. If no Expected Parrot key is configured, run `ep auth login`.
    Never print or expose the key.
 3. Install only the EDSL harness skill:
@@ -146,8 +162,11 @@ curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harne
 
 ```text
 Set up EDSL for Vercel fx:
-1. Install EDSL from this branch in the active Python environment:
-   python -m pip install --upgrade "edsl @ git+https://github.com/expectedparrot/edsl.git@feat/edsl-harness-guidance"
+1. Install EDSL from this branch into the active Python environment. If uv is
+   installed, run:
+   `uv pip install --python "$(command -v python3)" --upgrade "edsl @ git+https://github.com/expectedparrot/edsl.git@feat/edsl-harness-guidance"`
+   Otherwise run:
+   `python3 -m pip install --upgrade "edsl @ git+https://github.com/expectedparrot/edsl.git@feat/edsl-harness-guidance"`
 2. Run `ep auth status`. If no Expected Parrot key is configured, run `ep auth login`.
    Never print or expose the key.
 3. Install only the EDSL harness skill:
