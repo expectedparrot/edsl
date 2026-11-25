@@ -198,11 +198,14 @@ def register(jobs_group: click.Group) -> None:
                 "status": status.get("status") if status else None,
                 "result_count": len(results_obj) if hasattr(results_obj, "__len__") else None,
             }
+            if status is not None:
+                data["cost_reconciliation"] = results_obj.reconcile_job_cost(status, notify=False)
             if output_path:
                 data["saved"] = save_results(results_obj, output_path)
                 if raw_output_written(data["saved"]):
                     return
-            output(data)
+            reconciliation = data.get("cost_reconciliation", {})
+            output(data, warnings=[reconciliation["message"]] if reconciliation.get("status") == "mismatch" else [])
         except SystemExit:
             raise
         except Exception as e:

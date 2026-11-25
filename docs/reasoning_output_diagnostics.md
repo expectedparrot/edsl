@@ -100,3 +100,18 @@ the repository-wide service-startup and cleanup hooks.
 Provider format references: [DeepSeek termination reasons](https://api-docs.deepseek.com/api/create-chat-completion/),
 [Gemini thinking/token usage](https://ai.google.dev/gemini-api/docs/generate-content/thinking),
 and [QwQ's model card](https://huggingface.co/Qwen/QwQ-32B/blob/main/README.md).
+
+## Reconcile downloaded Results with remote cost
+
+A completed remote job can compare finalized server accounting with the cost
+computed from downloaded Results using `Results.reconcile_job_cost(status)` or
+`ep jobs results JOB_UUID --output results.ep`. This check does not fetch or
+rerun inference. It returns `matched`, `mismatch`, or `not_comparable`; missing
+cost/cache evidence, incomplete result scopes, and known retries stay
+`not_comparable`. A mismatch is a diagnostic, not proof which ledger is right,
+and it preserves the Results so a billing discrepancy cannot trigger another
+paid run.
+
+The tolerance is the greater of $0.0001 and 1% of remote cost. Provider-call
+metadata is used to avoid comparing only the final attempt when retries may
+have incurred separate charges.
