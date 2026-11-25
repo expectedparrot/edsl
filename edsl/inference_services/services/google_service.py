@@ -267,6 +267,11 @@ class GoogleService(InferenceServiceABC):
                 # Apply Gemini 3's HIGH default at request time so a caller's
                 # explicit thinking_budget can still take precedence.
                 "thinking_level": None,
+                # Ask Google to return optional thought-summary parts by
+                # default. This is not a full private chain of thought; it is
+                # provider-generated summary text that remains in raw response
+                # data and is also exposed through EDSL's reasoning summary.
+                "include_thoughts": True,
                 # Backend selection (Vertex AI vs Gemini Developer API). These
                 # are model parameters so they travel with the serialized model:
                 # a job built with use_vertex=True runs on Vertex through coopr's
@@ -462,6 +467,16 @@ class GoogleService(InferenceServiceABC):
                     system_instruction=system_instruction,
                 )
 
+                # Provider-hosted tools (Google Search, code execution, URL
+                # context, etc.) are supplied as Google Gen AI Tool dictionaries.
+                # The SDK validates/converts them when building the request config.
+                tools = self.parameters.get("tools")
+                if tools is not None:
+                    config_kwargs["tools"] = tools
+                tool_config = self.parameters.get("tool_config")
+                if tool_config is not None:
+                    config_kwargs["tool_config"] = tool_config
+
                 # Gemini 3+ is tuned for its sampling defaults; Google advises
                 # omitting temperature/top-p/top-k for these models.
                 if not model_uses_thinking_level:
@@ -487,12 +502,14 @@ class GoogleService(InferenceServiceABC):
                         thinking_config = {"thinking_budget": self.thinking_budget}
                     else:
                         thinking_config = {"thinking_level": "HIGH"}
+                    thinking_config["include_thoughts"] = self.include_thoughts
                     config_kwargs["thinking_config"] = types.ThinkingConfig(
                         **thinking_config,
                     )
                 elif self.thinking_budget is not None:
                     config_kwargs["thinking_config"] = types.ThinkingConfig(
                         thinking_budget=self.thinking_budget,
+                        include_thoughts=self.include_thoughts,
                     )
 
                 generation_config = types.GenerateContentConfig(**config_kwargs)

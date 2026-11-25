@@ -1,0 +1,12 @@
+{
+  "status": "ok",
+  "full_final_state_exact_match": true,
+  "decisions": 360,
+  "settlements": 30,
+  "completed_work_items": 390,
+  "new_model_calls": 0,
+  "source_sha256": "37a46ff3a2b3cba703f72ff5f325464d4871d4c1ad987be1e751452c0a196490",
+  "responses_sha256": "c0db3b8cef496e7f7a96897da81f72b56e154cd41cc2a9fdedec98c41bd6c57c",
+  "market_sha256": "572d6ae660d784df535857908c32d82cd0cf9c7561fc2a8c0a451cbea79a21c7",
+  "command": "python -m examples.asset_market.full_market_experiment --output /private/tmp/asset-full-note-replay --responses examples/asset_market/runs/gpt5-full-30-native/responses.json"
+}

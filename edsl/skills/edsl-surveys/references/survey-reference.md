@@ -592,6 +592,15 @@ The locked EDSL revision preserves pins through Runner execution and JSONL
 round trips. Inspect each result's recorded `question_options` when interpreting
 coded answers. This randomizes answer options, not question order within blocks.
 
+Whole option lists may also come from a scenario or a prior answer. EDSL resolves
+the list before shuffling and reuses that interview's order for rendering,
+validation, and result metadata. Configure this policy from the CLI with
+`ep surveys set-option-randomization survey.ep --question brand_preference`
+(add `--pin-options '{"brand_preference":["Other"]}'` to keep a value in its
+source position); inspect settings with `ep surveys show survey.ep` and realized
+orders with `ep results select --file results.ep --column
+question_options.brand_preference`.
+
 Do **not** randomize options that have an inherent order (Likert scales, numeric
 ranges, yes/no).
 

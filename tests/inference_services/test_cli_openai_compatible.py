@@ -155,7 +155,7 @@ def test_run_reports_partial_results(tmp_path, monkeypatch):
 
     # The command only needs a sized result collection here; avoid invoking an
     # example model run as part of this CLI metadata test.
-    fake_results = Results(data=[object()])
+    fake_results = Results(data=[{}])
     fake_results.task_history = SimpleNamespace(
         unfixed_exceptions=[{"q0": "failed"}]
     )
@@ -188,7 +188,7 @@ def test_run_fails_before_saving_zero_success_remote_results(tmp_path, monkeypat
     from edsl.results import Results
     import edsl.cli_commands.run as run_command
 
-    fake_results = Results(data=[object(), object()])
+    fake_results = Results(data=[{}, {}])
     fake_results.results_uuid = "results-uuid"
     monkeypatch.setattr(Jobs, "run", lambda self, **kwargs: fake_results)
     monkeypatch.setattr(
@@ -233,7 +233,7 @@ def test_run_allows_and_reports_genuine_partial_remote_results(tmp_path, monkeyp
     from edsl.results import Results
     import edsl.cli_commands.run as run_command
 
-    fake_results = Results(data=[object(), object()])
+    fake_results = Results(data=[{}, {}])
     fake_results.results_uuid = "results-uuid"
     monkeypatch.setattr(Jobs, "run", lambda self, **kwargs: fake_results)
     monkeypatch.setattr(
@@ -291,7 +291,7 @@ def test_run_checks_streamed_results_by_job_uuid(tmp_path, monkeypatch):
     from edsl.results import Results
     import edsl.cli_commands.run as run_command
 
-    fake_results = Results(data=[object()])
+    fake_results = Results(data=[{}])
     fake_results.job_uuid = "job-uuid"
     monkeypatch.setattr(Jobs, "run", lambda self, **kwargs: fake_results)
 
@@ -328,7 +328,7 @@ def test_run_preserves_results_when_remote_status_lookup_fails(tmp_path, monkeyp
     from edsl.results import Results
     import edsl.cli_commands.run as run_command
 
-    fake_results = Results(data=[object()])
+    fake_results = Results(data=[{}])
     fake_results.results_uuid = "results-uuid"
     monkeypatch.setattr(Jobs, "run", lambda self, **kwargs: fake_results)
     monkeypatch.setattr(

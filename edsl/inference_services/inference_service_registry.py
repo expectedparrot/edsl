@@ -34,6 +34,8 @@ def discover_service_modules():
         # Handle special case for open_ai_service_v2 first (doesn't end with _service)
         if module_basename == "open_ai_service_v2":
             service_name = "openai_v2"
+        elif module_basename == "xai_responses_service":
+            service_name = "xai_responses"
         elif module_basename.endswith("_service"):
             service_name = module_basename[:-8]  # Remove "_service" suffix
             # Handle special naming cases for modules ending with _service

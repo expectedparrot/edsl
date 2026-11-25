@@ -529,17 +529,17 @@ class JobsRemoteInferenceHandler:
                 expenses_by_model[model_key]["input_cost_usd"] += expense_usage[
                     "cost_usd"
                 ]
-                expenses_by_model[model_key][
-                    "input_cost_usd_with_cache"
-                ] += expense_usage["cost_usd_with_cache"]
+                expenses_by_model[model_key]["input_cost_usd_with_cache"] += (
+                    expense_usage["cost_usd_with_cache"]
+                )
             elif token_type == "output":
                 expenses_by_model[model_key]["output_tokens"] += expense_usage["tokens"]
                 expenses_by_model[model_key]["output_cost_usd"] += expense_usage[
                     "cost_usd"
                 ]
-                expenses_by_model[model_key][
-                    "output_cost_usd_with_cache"
-                ] += expense_usage["cost_usd_with_cache"]
+                expenses_by_model[model_key]["output_cost_usd_with_cache"] += (
+                    expense_usage["cost_usd_with_cache"]
+                )
 
         from ..coop.utils import CostConverter
 
@@ -566,9 +566,9 @@ class JobsRemoteInferenceHandler:
             model_cost_dict["input_cost_credits_with_cache"] = converter.usd_to_credits(
                 input_cost_with_cache
             )
-            model_cost_dict[
-                "output_cost_credits_with_cache"
-            ] = converter.usd_to_credits(output_cost_with_cache)
+            model_cost_dict["output_cost_credits_with_cache"] = (
+                converter.usd_to_credits(output_cost_with_cache)
+            )
         return list(expenses_by_model.values())
 
     def _normalize_results_url(self, results_url: Optional[str]) -> Optional[str]:
@@ -680,6 +680,7 @@ class JobsRemoteInferenceHandler:
 
         results.job_uuid = job_info.job_uuid
         results.results_uuid = results_uuid
+        results.reconcile_job_cost(remote_job_data)
         return results
 
     def _fetch_results_streamed(
@@ -701,6 +702,8 @@ class JobsRemoteInferenceHandler:
         from ..agents import Agent
         from ..scenarios import Scenario
         from ..language_models import LanguageModel
+        from ..language_models.response_metadata import response_metadata
+        from copy import deepcopy
 
         coop = Coop(api_key=self.api_key)
 
@@ -750,9 +753,21 @@ class JobsRemoteInferenceHandler:
                 cache_used_dict = {}
                 cache_keys = {}
                 validated_dict = {}
+                question_to_attributes = deepcopy(
+                    self.jobs.survey.question_to_attributes() if self.jobs else {}
+                )
 
                 for a in answers_raw:
                     qname = a["question_name"]
+                    # Options/text may have changed with shared state since
+                    # this answer was requested. Use the captured presentation.
+                    captured = a.get("question_presentation")
+                    if captured is not None:
+                        attributes = question_to_attributes.setdefault(qname, {})
+                        attributes.update(deepcopy(captured["attributes"]))
+                        attributes["presentation"] = deepcopy(
+                            {k: v for k, v in captured.items() if k != "attributes"}
+                        )
                     # Answers cross the wire as JSON, so EDSL-object answers
                     # (image_generation returns a FileStore) arrive as dicts and
                     # have to be rebuilt into live objects.
@@ -766,6 +781,10 @@ class JobsRemoteInferenceHandler:
                     raw_model_response_dict[f"{qname}_raw_model_response"] = a.get(
                         "raw_model_response"
                     )
+                    raw_model_response_dict[f"{qname}_response_metadata"] = {
+                        **response_metadata(a.get("raw_model_response")),
+                        **(a.get("response_metadata") or {}),
+                    }
                     raw_model_response_dict[f"{qname}_input_tokens"] = a.get(
                         "input_tokens"
                     )
@@ -811,6 +830,10 @@ class JobsRemoteInferenceHandler:
                     cache_used_dict[qname] = a.get("cached", False)
                     cache_keys[qname] = a.get("cache_key")
                     validated_dict[f"{qname}_validated"] = a.get("validated")
+                    if a.get("answer_source") is not None:
+                        validated_dict[f"{qname}_answer_source"] = a.get(
+                            "answer_source"
+                        )
 
                 result = Result(
                     agent=agent,
@@ -828,6 +851,7 @@ class JobsRemoteInferenceHandler:
                     cache_keys=cache_keys,
                     validated_dict=validated_dict,
                     metadata=interview.get("metadata", {}),
+                    question_to_attributes=question_to_attributes,
                 )
                 result_list.append(result)
                 fetched += 1
@@ -844,6 +868,7 @@ class JobsRemoteInferenceHandler:
         results = Results(
             survey=self.jobs.survey if self.jobs else None,
             data=result_list,
+            shared_state=manifest.get("shared_state"),
         )
 
         # Runner streaming can finish before Coop assigns results_uuid; poll briefly.
@@ -911,6 +936,7 @@ class JobsRemoteInferenceHandler:
         results_uuid = getattr(job_info.logger.jobs_info, "results_uuid", None)
         if results_uuid:
             results.results_uuid = results_uuid
+        results.reconcile_job_cost(remote_job_data)
         return results
 
     def _attempt_fetch_job(

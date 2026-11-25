@@ -101,6 +101,7 @@ def test_serialized_spec_preserves_outgoing_settings(
     assert params[token_field] == limit
 
 
+
 @pytest.mark.parametrize(
     "name", ["gpt-6", "gpt-6-astra", "gpt-5", "o3", "gpt-4o", "gpt-7"]
 )
@@ -113,13 +114,13 @@ def test_unspecified_effort_and_defaults(monkeypatch, service, name, options):
     known_reasoning = name != "gpt-4o"
     if service is OpenAIService:
         assert request_effort(service, params) == ("high" if known_reasoning else None)
-        assert params["max_completion_tokens"] == (16000 if known_reasoning else 1000)
+        assert params["max_completion_tokens"] == model.max_tokens
     else:
         assert request_effort(service, params) == ("high" if known_reasoning else None)
         assert params.get("reasoning") == (
             {"summary": "auto", "effort": "high"} if known_reasoning else None
         )
-        assert params["max_output_tokens"] == (16000 if known_reasoning else 2000)
+        assert params["max_output_tokens"] == (2000 if name == "gpt-4o" else 16000)
     if not known_reasoning:
         assert "reasoning_effort" not in params
         assert "reasoning" not in params

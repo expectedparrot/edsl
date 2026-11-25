@@ -58,7 +58,8 @@ class DataTypeCacheManager:
         if self._key_to_data_type_cache is None or self._cache_dirty:
             d: dict = {}
             for result in self.results.data:
-                d.update(result.key_to_data_type)
+                for key, data_type in result.key_to_data_type.items():
+                    d.setdefault(key, data_type)
             for column in self.results.created_columns:
                 d[column] = "answer"
             self._key_to_data_type_cache = d

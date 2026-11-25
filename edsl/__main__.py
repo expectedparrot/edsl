@@ -20,6 +20,7 @@ from edsl.cli_commands import jobs as jobs_commands
 from edsl.cli_commands import models as models_commands
 from edsl.cli_commands import objects as objects_commands
 from edsl.cli_commands import open as open_commands
+from edsl.cli_commands import orchestration as orchestration_commands
 from edsl.cli_commands import packages as package_commands
 from edsl.cli_commands import playbooks as playbooks_commands
 from edsl.cli_commands import profiles as profiles_commands
@@ -31,10 +32,12 @@ from edsl.cli_commands import run as run_commands
 from edsl.cli_commands import run_manifest as run_manifest_commands
 from edsl.cli_commands import schema as schema_commands
 from edsl.cli_commands import scenarios as scenarios_commands
+from edsl.cli_commands import state as state_commands
 from edsl.cli_commands import surveys as surveys_commands
 from edsl.cli_commands import study as study_commands
 from edsl.skills.cli import skills as skills_commands
 from edsl.cli_commands import validate as validate_commands
+from edsl.skills.cli import skills as skills_commands
 from ep_workflow import cli as workflow_commands
 from edsl.cli_shared import (
     EXIT_AUTH,
@@ -89,6 +92,8 @@ def app(ctx):
                 "humanize",
                 "research-agent",
                 "schema",
+                "state",
+                "orchestration",
                 "agents",
                 "scenarios",
                 "auth",
@@ -205,7 +210,7 @@ def results(ctx):
     """
     if ctx.invoked_subcommand is None:
         _output({
-            "commands": ["columns", "select", "head", "sample", "values", "first", "export", "summary", "cost"],
+            "commands": ["columns", "select", "head", "sample", "values", "first", "export", "summary", "cost", "state"],
             "help": "Use 'ep results <command> --help' for details.",
         })
 
@@ -218,6 +223,7 @@ def jobs(ctx):
     \b
     Examples:
       ep jobs build --survey survey.ep --agents agents.ep --scenarios scenarios.ep --models models.ep --output jobs.ep
+      ep jobs set-treatment-assignment jobs.ep --policy treatment-policy.json
       ep run --jobs jobs.ep --background
       ep jobs list --status completed --page_size 20
       ep jobs status <job_uuid>
@@ -227,7 +233,7 @@ def jobs(ctx):
     """
     if ctx.invoked_subcommand is None:
         _output({
-            "commands": ["build", "list", "status", "wait", "results", "errors", "manifest", "page", "cancel", "cost"],
+            "commands": ["build", "set-treatment-assignment", "list", "status", "wait", "results", "errors", "manifest", "page", "cancel", "cost"],
             "help": "Use 'ep jobs <command> --help' for details.",
         })
 
@@ -294,6 +300,7 @@ def surveys(ctx):
             "commands": [
                 "create", "add-question", "drop-question", "move-question",
                 "show", "questions", "add-skip-rule", "add-stop-rule",
+                "set-scale-direction-randomization",
             ],
             "help": "Use 'ep surveys <command> --help' for details.",
         })
@@ -418,6 +425,8 @@ profiles_commands.register(app, profiles)
 present_commands.register(app)
 report_commands.register(report)
 results_commands.register(results)
+state_commands.register(app, results)
+orchestration_commands.register(app)
 run_commands.register(app)
 run_manifest_commands.register(app)
 schema_commands.register(schema)

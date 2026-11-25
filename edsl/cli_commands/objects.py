@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import contextlib
 from pathlib import Path
+import sys
 
 import click
 
@@ -246,10 +248,16 @@ def register(app: click.Group) -> None:
         """Push or patch an EDSL object on Expected Parrot.
 
         OBJECT_PATH is a git-backed .ep package, or a .json/.json.gz file for
-        objects that have no package format, such as prompts. A package goes
-        to Coop, which picks its uuid on the first push; the package records
-        it, then its history goes to the obj-<uuid> git repo Coop hands out,
-        unless Coop has no git host.
+objects that have no package format, such as prompts. Other regular files
+        are published as FileStore objects. A package goes to Coop, which picks
+        its uuid on the first push; the package records it, then its history goes
+        to the obj-<uuid> git repo Coop hands out, unless Coop has no git host.
+
+        \b
+        Examples:
+          ep push survey.ep
+          ep push prompt.json --alias my-prompt
+          ep push report.html --alias my-report --visibility unlisted
         """
         source_path = Path(object_path)
         try:
@@ -257,11 +265,23 @@ def register(app: click.Group) -> None:
                 _push_json_object(source_path, alias, description, visibility, force)
                 return
 
+            if source_path.is_file() and source_path.suffix != ".ep":
+                _push_raw_file(source_path, alias, description, visibility, force)
+                return
+
             if not (source_path.is_dir() or source_path.suffix == ".ep"):
                 error(
                     "USAGE_ERROR",
-                    f"Push requires a git-backed .ep package or a .json file: {object_path}",
-                    suggestion="Save the object as a .ep package (or .json for prompts), then run 'ep push <path>'.",
+                    f"Push requires an existing file or a git-backed .ep package: {object_path}",
+                    suggestion="Pass a regular file to publish it as a FileStore, or pass an EDSL .ep package.",
+                    exit_code=EXIT_USAGE,
+                )
+
+            if source_path.is_dir() and not (source_path / "manifest.json").is_file():
+                error(
+                    "USAGE_ERROR",
+                    f"Directory is not an EDSL .ep package: {object_path}",
+                    suggestion="Pass a regular file to publish it as a FileStore, or pass a directory containing an EDSL package manifest.",
                     exit_code=EXIT_USAGE,
                 )
 
@@ -318,6 +338,51 @@ def register(app: click.Group) -> None:
                 suggestion="Check the object path, alias, visibility, and Expected Parrot API key.",
                 exit_code=EXIT_REMOTE,
             )
+
+
+    def _push_raw_file(source_path: Path, alias, description, visibility, force):
+        """Wrap a regular file in FileStore and publish it as a new object."""
+        import base64
+
+        from edsl.coop import Coop
+        from edsl.scenarios import FileStore
+
+        try:
+            source_bytes = source_path.read_bytes()
+            try:
+                source_bytes.decode("utf-8")
+                binary = False
+            except UnicodeDecodeError:
+                binary = True
+            file_store = FileStore(
+                str(source_path),
+                binary=binary,
+                base64_string=base64.b64encode(source_bytes).decode("ascii"),
+            )
+        except Exception:
+            error(
+                "FILE_READ_ERROR",
+                f"Could not read file for publishing: {source_path.name}",
+                suggestion="Check that the file is readable and is a supported FileStore input.",
+                exit_code=EXIT_VALIDATION,
+            )
+
+        push_kwargs = {"description": description, "alias": alias, "force": force}
+        if visibility is not None:
+            push_kwargs["visibility"] = visibility
+
+        # Coop's FileStore upload helper prints progress directly to stdout.
+        # Keep the CLI's stdout reserved for its JSON response.
+        with contextlib.redirect_stdout(sys.stderr):
+            info = Coop().push(file_store, **push_kwargs)
+        output(
+            {
+                "object_type": "FileStore",
+                "source": str(source_path),
+                "operation": "push",
+                "coop_info": jsonable(info),
+            }
+        )
 
 
     def _push_json_object(source_path: Path, alias, description, visibility, force):

@@ -1,0 +1,74 @@
+[
+  {
+    "accepted_quantity": 3,
+    "decision": {
+      "forecast_0": 25.0,
+      "forecast_10": 36.0,
+      "forecast_2": 30.0,
+      "forecast_5": 34.0,
+      "price": 30.0,
+      "quantity": 3,
+      "rationale": "I remain an overconfident contrarian: fundamentals (26 remaining periods \u00d7 expected dividend 0.7 = 18.2 plus $14 redemption \u2248 $32.2) imply mid-30s fair value, but short-run liquidity is thin so I expect a depressed trade now (~$25) with recovery toward $30 in 2 periods and mid-30s by periods 5\u201310 (forecasts above). I will be aggressive early to build my position: submit a buy limit at $30 for 3 shares (as in my precommitted plan) to increase exposure while leaving some cash. I will track the $30 purchase price and avoid realizing losses \u2014 if prices fall I'll consider averaging in rather than selling; I will take profits by selling portions once the market reliably trades above my cost in the mid-30s.",
+      "side": "buy"
+    },
+    "limit_cents": 3000,
+    "period": 5,
+    "rejection": null,
+    "side": "buy",
+    "trader": "trader-05"
+  },
+  {
+    "accepted_quantity": 2,
+    "decision": {
+      "forecast_0": 29.5,
+      "forecast_10": 14.0,
+      "forecast_2": 31.5,
+      "forecast_5": 33.5,
+      "price": 30.0,
+      "quantity": 2,
+      "rationale": "Momentum chaser: last executed price jumped to $29.00 (period 24) and I fear missing a continuing rally, so I extrapolate near-term upside (now ~$29.5, ~31.5 in 2, ~33.5 in 5). Cash is limited ($60.03) so I place a modest chase order (buy 2 at $30) to add exposure while staying within my cash constraint. I retain my precommitted rules: sell to cut losses if prices dip below $16 and trim/take profits if price reaches my profit target (>= $32).",
+      "side": "buy"
+    },
+    "limit_cents": 3000,
+    "period": 25,
+    "rejection": null,
+    "side": "buy",
+    "trader": "trader-00"
+  },
+  {
+    "accepted_quantity": 1,
+    "decision": {
+      "forecast_0": 30.5,
+      "forecast_10": 14.0,
+      "forecast_2": 14.0,
+      "forecast_5": 14.0,
+      "price": 31.5,
+      "quantity": 1,
+      "rationale": "Momentum chaser: last executed price was $29.50 and I fear missing a late rally, so I extrapolate modest near-term upside (now ~$30.5). With only two trading periods left, forecasts beyond the final trading period use the $14 terminal redemption. I have limited cash, so I place a small chase buy (1 share at $31.50) to add exposure if momentum resumes. I retain my precommitted rules: I will trim/take profits if price reaches >= $32 and I will sell immediately only if prices dip below my stop-loss ($16).",
+      "side": "buy"
+    },
+    "limit_cents": 3150,
+    "period": 29,
+    "rejection": null,
+    "side": "buy",
+    "trader": "trader-00"
+  },
+  {
+    "accepted_quantity": 1,
+    "decision": {
+      "forecast_0": 29.5,
+      "forecast_10": 14.0,
+      "forecast_2": 14.0,
+      "forecast_5": 14.0,
+      "price": 16.0,
+      "quantity": 1,
+      "rationale": "I remain an overconfident contrarian: the near\u2011term transaction I expect now is ~29.50 (last observed trade), but I expect a contrarian correction and eventual redemption at $14. Per my precommitted plan I take profits when price \u2265 $16 by trimming roughly 50% of holdings. With only 1 share remaining and two periods left, I will lock in gains now by submitting a sell (limit $16) rather than risk the expected reversion. I continue to avoid realizing losses on dips and would add aggressively only if price \u2264 $12, but here I follow my profit\u2011taking rule to maximize final cash.",
+      "side": "sell"
+    },
+    "limit_cents": 1600,
+    "period": 29,
+    "rejection": null,
+    "side": "sell",
+    "trader": "trader-11"
+  }
+]

@@ -24,6 +24,7 @@ consistent interface regardless of which model provider is being used.
 """
 
 from __future__ import annotations
+import copy
 from functools import wraps
 import asyncio
 import json
@@ -246,6 +247,18 @@ class LanguageModel(
         # Set up model parameters by combining defaults with provided values
         default_parameters = getattr(self, "_parameters_", None)
         parameters = self._overide_default_parameters(kwargs, default_parameters)
+        from .output_token_policy import (
+            TOKEN_LIMIT_PARAMETERS,
+            resolve_output_token_limit,
+        )
+
+        supplied = kwargs.get("parameters", kwargs)
+        if self._inference_service_ != "test":
+            for name in TOKEN_LIMIT_PARAMETERS:
+                if name in parameters and name not in supplied:
+                    parameters[name] = resolve_output_token_limit(
+                        self.model, parameters=parameters
+                    )
         self.parameters = parameters
 
         # Warn about unknown parameters
@@ -568,6 +581,72 @@ class LanguageModel(
         """
         return getattr(self, key)
 
+    def with_tools(
+        self, *tools: dict[str, Any], tool_choice: Any = None
+    ) -> "LanguageModel":
+        """Return a copy configured with provider-native tool declarations.
+
+        Tool schemas are sent to the configured provider and serialized with the
+        model, so they participate in Jobs and cache identity. This initial
+        implementation supports provider-hosted tools through OpenAI Responses
+        (``service_name="openai_v2"``), Anthropic Messages
+        (``service_name="anthropic"``), Google Gemini
+        (``service_name="google"``), and Meta's Responses API
+        (``service_name="meta"``); it does not execute application function
+        tools returned by the provider.
+
+        Example:
+            ``Model("gpt-4.1", service_name="openai_v2").with_tools(
+                {"type": "web_search"}
+            )``
+        """
+        if self._inference_service_ not in {
+            "openai_v2",
+            "xai_responses",
+            "anthropic",
+            "google",
+            "meta",
+        }:
+            raise LanguageModelValueError(
+                "Provider-hosted tools are currently supported for "
+                "service_name='openai_v2' (OpenAI Responses), "
+                "service_name='xai_responses' (xAI Responses), "
+                "service_name='anthropic' (Anthropic Messages), and "
+                "service_name='google' (Google Gemini), and "
+                "service_name='meta' (Meta Responses)."
+            )
+        if not tools:
+            raise LanguageModelValueError("with_tools() requires at least one tool.")
+
+        if len(tools) == 1 and isinstance(tools[0], (list, tuple)):
+            tools = tuple(tools[0])
+        normalized_tools = []
+        for tool in tools:
+            if not isinstance(tool, dict) or not tool:
+                raise LanguageModelValueError(
+                    "Each tool must be a non-empty provider tool dictionary."
+                )
+            normalized_tools.append(copy.deepcopy(tool))
+
+        try:
+            json.dumps(normalized_tools)
+            json.dumps(tool_choice)
+        except TypeError as exc:
+            raise LanguageModelValueError(
+                "Provider tool declarations and tool_choice must be JSON serializable."
+            ) from exc
+
+        configured_model = self.copy()
+        configured_model.parameters = dict(configured_model.parameters)
+        configured_model.tools = normalized_tools
+        configured_model.parameters["tools"] = normalized_tools
+        configured_model.tool_choice = tool_choice
+        if tool_choice is None:
+            configured_model.parameters.pop("tool_choice", None)
+        else:
+            configured_model.parameters["tool_choice"] = tool_choice
+        return configured_model
+
     def hello(self, verbose=False):
         """Run a simple test to verify the model connection is working.
 
@@ -624,7 +703,7 @@ class LanguageModel(
         Examples:
             >>> m = LanguageModel.example()
             >>> hash(m)  # Actual value may vary
-            1865859436931396641
+            1782250594623006057
         """
         return dict_hash(self.to_dict(add_edsl_version=False))
 
@@ -979,7 +1058,12 @@ class LanguageModel(
             TIMEOUT = self._compute_timeout(files_list)
 
             # Execute the model call with timeout
-            response = await asyncio.wait_for(f(**params), timeout=TIMEOUT)
+            try:
+                response = await asyncio.wait_for(f(**params), timeout=TIMEOUT)
+            except Exception as exc:
+                exc.provider_call_attempted = True
+                exc.cache_key = cache_key
+                raise
 
             # Store the response in the cache
             new_cache_key = cache.store(
@@ -1102,10 +1186,17 @@ class LanguageModel(
         )
 
         # Parse the response into EDSL's standard format
-        edsl_dict: EDSLOutput = self.parse_response(
-            model_outputs.response,
-            is_free_text=is_free_text,
-        )
+        try:
+            edsl_dict: EDSLOutput = self.parse_response(
+                model_outputs.response,
+                is_free_text=is_free_text,
+            )
+        except Exception as exc:
+            # Parsing can fail after a billable response. Keep evidence for the
+            # runner rather than letting the failed interview become an empty row.
+            exc.model_outputs = model_outputs
+            exc.provider_call_attempted = not model_outputs.cache_used
+            raise
 
         # Combine everything into a complete response object
         agent_response_dict = AgentResponseDict(

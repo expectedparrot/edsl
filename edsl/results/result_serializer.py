@@ -177,6 +177,7 @@ class ResultSerializer:
             # Metadata is intentionally opaque JSON. Do not interpret dicts that
             # happen to resemble serialized EDSL objects.
             metadata=json_dict.get("metadata", {}),
+            randomization=json_dict.get("randomization", {}),
         )
 
         if "interview_hash" in json_dict:

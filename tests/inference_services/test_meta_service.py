@@ -33,7 +33,9 @@ def test_meta_get_model_info_uses_models_endpoint(monkeypatch):
 
 def test_meta_payload_uses_responses_input_text_shape():
     model_class = MetaService.create_model("muse-spark-1.1")
-    model = model_class(skip_api_key_check=True)
+    model = model_class(skip_api_key_check=True).with_tools(
+        {"type": "web_search"}, tool_choice="auto"
+    )
 
     payload = model._payload(
         user_prompt="Write a haiku.",
@@ -42,6 +44,8 @@ def test_meta_payload_uses_responses_input_text_shape():
 
     assert payload["model"] == "muse-spark-1.1"
     assert payload["stream"] is False
+    assert payload["tools"] == [{"type": "web_search"}]
+    assert payload["tool_choice"] == "auto"
     assert payload["input"] == [
         {
             "role": "system",
@@ -63,6 +67,7 @@ def test_meta_response_text_extracts_output_text():
             {
                 "output": [
                     {
+                        "type": "message",
                         "content": [
                             {"type": "output_text", "text": "hello"},
                             {"type": "output_text", "text": "world"},
@@ -90,7 +95,12 @@ def test_meta_async_call_normalizes_response(monkeypatch):
 
         async def json(self):
             return {
-                "output": [{"content": [{"type": "output_text", "text": "ok"}]}],
+                "output": [
+                    {
+                        "type": "message",
+                        "content": [{"type": "output_text", "text": "ok"}],
+                    }
+                ],
                 "usage": {"input_tokens": 3, "output_tokens": 2, "total": 5},
             }
 

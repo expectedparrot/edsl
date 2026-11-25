@@ -511,6 +511,7 @@ class InvigilatorAI(InvigilatorBase):
                 )
             )
             validated_edsl_dict = question_with_validators._validate_answer(edsl_dict)
+            answer_source = validated_edsl_dict.get("answer_source")
             answer = self._determine_answer(
                 validated_edsl_dict["answer"], question=question_with_validators
             )
@@ -567,6 +568,7 @@ class InvigilatorAI(InvigilatorBase):
                 "resolution_draw": resolution_draw,
                 "resolution_seed": resolution_seed,
                 "resolution_method": resolution_method,
+                "answer_source": locals().get("answer_source"),
             }
             result = EDSLResultObjectInput(**data)
             return result
