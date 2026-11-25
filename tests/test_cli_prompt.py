@@ -160,6 +160,28 @@ def test_push_raw_file_uses_filestore_and_keeps_stdout_json(tmp_path, monkeypatc
     }
 
 
+def test_push_raw_file_preserves_exact_source_bytes(tmp_path, monkeypatch):
+    import base64
+
+    path = tmp_path / "windows-notes.txt"
+    source_bytes = b"first line\r\nsecond line\r\n"
+    path.write_bytes(source_bytes)
+    uploaded = []
+
+    class FakeCoop:
+        def push(self, obj, **kwargs):
+            uploaded.append(obj)
+            return {"uuid": "created-uuid", "object_type": "filestore"}
+
+    import edsl.coop as coop_module
+
+    monkeypatch.setattr(coop_module, "Coop", FakeCoop)
+    result = CliRunner().invoke(cli_module.app, ["push", str(path)])
+
+    assert result.exit_code == 0, result.output
+    assert base64.b64decode(uploaded[0].base64_string) == source_bytes
+
+
 def test_inspect_prompt(tmp_path):
     path = write_json(tmp_path / "prompt.json", Prompt(TEXT + "\n{{ topic }}").to_dict())
     result, out = invoke("inspect", str(path))

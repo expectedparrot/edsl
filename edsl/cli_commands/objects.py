@@ -342,11 +342,23 @@ objects that have no package format, such as prompts. Other regular files
 
     def _push_raw_file(source_path: Path, alias, description, visibility, force):
         """Wrap a regular file in FileStore and publish it as a new object."""
+        import base64
+
         from edsl.coop import Coop
         from edsl.scenarios import FileStore
 
         try:
-            file_store = FileStore(str(source_path))
+            source_bytes = source_path.read_bytes()
+            try:
+                source_bytes.decode("utf-8")
+                binary = False
+            except UnicodeDecodeError:
+                binary = True
+            file_store = FileStore(
+                str(source_path),
+                binary=binary,
+                base64_string=base64.b64encode(source_bytes).decode("ascii"),
+            )
         except Exception:
             error(
                 "FILE_READ_ERROR",
