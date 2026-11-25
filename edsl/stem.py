@@ -6,12 +6,42 @@ ordinary Jinja string consumed by existing EDSL question renderers.
 
 from __future__ import annotations
 
-import json
+import base64
+import math
+import re
 import string
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any
+from uuid import uuid4
 
 from edsl.sharedstate.refs import AnswerRef, ContextRef
+
+
+_LITERAL_PATTERN = re.compile(
+    r"\ue000EDSL_STEM_([0-9a-f]{32})_([A-Za-z0-9_-]*)\ue001"
+)
+
+
+def _encode_literal(value: str) -> str:
+    """Protect authored text from EDSL's repeated Jinja rendering passes."""
+    payload = (
+        base64.urlsafe_b64encode(value.encode("utf-8"))
+        .decode("ascii")
+        .rstrip("=")
+    )
+    return f"\ue000EDSL_STEM_{uuid4().hex}_{payload}\ue001"
+
+
+def restore_stem_literals(value: str) -> str:
+    """Restore protected Stem text after all template rendering is complete."""
+
+    def restore(match: re.Match) -> str:
+        payload = match.group(2)
+        payload += "=" * (-len(payload) % 4)
+        return base64.urlsafe_b64decode(payload.encode("ascii")).decode("utf-8")
+
+    return _LITERAL_PATTERN.sub(restore, value)
 
 
 class StemError(ValueError):
@@ -29,6 +59,8 @@ def literal(value: str | int | float | bool) -> Literal:
     """Mark a scalar value for explicit literal interpolation."""
     if not isinstance(value, (str, int, float, bool)):
         raise TypeError("Stem literals must be strings, numbers, or booleans")
+    if isinstance(value, float) and not math.isfinite(value):
+        raise ValueError("Stem numeric literals must be finite")
     return Literal(value)
 
 
@@ -42,7 +74,11 @@ def _ref_expression(value: Any) -> str:
         if not value.path:
             raise StemError("Use a specific current context field, such as current.agent.name")
         root, *parts = value.path
-        if root not in {"agent", "scenario", "run", "interview_id"}:
+        if root not in {"agent", "scenario", "run"}:
+            if root == "interview_id":
+                raise StemError(
+                    "current.interview_id is not available in question prompts yet"
+                )
             raise StemError(f"Unsupported current context root {root!r}")
         if not all(part.isidentifier() for part in parts):
             raise StemError(f"Invalid current context path {'.'.join(value.path)!r}")
@@ -55,6 +91,19 @@ def _ref_expression(value: Any) -> str:
 
 class CompiledStem(str):
     """A lowered Stem, represented as a normal Jinja-compatible string."""
+
+    def __new__(cls, text: str, question_reads=()):
+        instance = str.__new__(cls, text)
+        instance._stem_question_reads = tuple(question_reads)
+        return instance
+
+    def __copy__(self):
+        return type(self)(str(self), self._stem_question_reads)
+
+    def __deepcopy__(self, memo):
+        copied = type(self)(str(self), deepcopy(self._stem_question_reads, memo))
+        memo[id(self)] = copied
+        return copied
 
 
 class Stem(str):
@@ -85,23 +134,25 @@ class Stem(str):
                 details.append(f"missing bindings: {', '.join(missing)}")
             if unused:
                 details.append(f"unused bindings: {', '.join(unused)}")
-            raise StemError("Stem placeholders and bindings must match (" + "; ".join(details) + ")")
+            raise StemError(
+                "Stem placeholders and bindings must match ("
+                + "; ".join(details)
+                + ")"
+            )
 
         pieces = []
         for text, field, format_spec, conversion in parsed:
             if format_spec or conversion:
                 raise StemError("Stem placeholders do not support conversions or format specs")
             if text:
-                # JSON string quoting is valid Jinja string syntax and prevents
-                # braces or template delimiters in authored text becoming code.
-                pieces.append("{{ " + json.dumps(text, ensure_ascii=False) + " }}")
+                pieces.append(_encode_literal(text))
             if field is not None:
                 value = bindings[field]
                 if isinstance(value, Literal):
-                    expression = json.dumps(value.value, ensure_ascii=False)
+                    pieces.append(_encode_literal(str(value.value)))
                 else:
                     expression = _ref_expression(value)
-                pieces.append("{{ " + expression + " }}")
+                    pieces.append("{{ " + expression + " }}")
         result = str.__new__(cls, "".join(pieces))
         result._stem_question_reads = tuple(
             sorted(
@@ -116,9 +167,15 @@ class Stem(str):
 
     def compile(self) -> CompiledStem:
         """Return the ordinary Jinja string for a question's ``question_text``."""
-        compiled = CompiledStem(self)
-        compiled._stem_question_reads = self._stem_question_reads
-        return compiled
+        return CompiledStem(str(self), self._stem_question_reads)
+
+    def __copy__(self):
+        return self.compile()
+
+    def __deepcopy__(self, memo):
+        copied = self.compile()
+        memo[id(self)] = copied
+        return copied
 
     def __str__(self) -> str:
         return str.__str__(self)

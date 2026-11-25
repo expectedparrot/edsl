@@ -26,15 +26,17 @@ q_followup = QuestionFreeText(
 ```
 
 Question answers use `question.answer`; context fields use `current.agent.*`,
-`current.scenario.*`, or `current.run.*`. Each `{placeholder}` must have exactly
-one binding. Placeholders are simple identifiers; attribute access, format
-specifiers, and conversions belong on the reference object or in application
-logic, not in the template.
+`current.scenario.*`, or `current.run.*`. `current.interview_id` is not available
+in question prompts yet. Each `{placeholder}` must have exactly one binding.
+Placeholders are simple identifiers; attribute access, format specifiers, and
+conversions belong on the reference object or in application logic, not in the
+template.
 
-Static braces are escaped with Python formatting syntax (`{{` and `}}`). Static
-text is safely quoted when lowered, so Jinja-looking content in that text stays
-literal. Use `literal(value)` to opt in to rendering a string, number, or
-boolean value; arbitrary objects are rejected.
+Static braces are escaped with Python formatting syntax (`{{` and `}}`). Stem
+protects static text and `literal(value)` content through EDSL's repeated Jinja
+rendering passes, so Jinja-looking text stays literal in the final question
+prompt. Scalar values are rendered as text; arbitrary objects and non-finite
+numbers are rejected.
 
 ```python
 from edsl import Stem, literal
