@@ -7,6 +7,41 @@ A background job starts a remote study and returns control to your notebook or s
 
 The workflow has three steps: submit the job, keep its identifier, and retrieve the completed Results. The examples use Python's `Coop` client; CLI equivalents follow at the end. Remote execution requires [Expected Parrot access](/en/latest/api_keys).
 
+## Coordinate several remote jobs
+
+Use `RemoteJobQueue` when one process needs to submit independent remote jobs
+with bounded concurrency and consume their results in completion order. Each
+worker submits a job with `background=True`, then waits for that remote job's
+Results. The helper does not change `Jobs.run()` or persist queue state across
+process restarts.
+
+```python
+from edsl import Model, QuestionFreeText
+from edsl.jobs import RemoteJobQueue
+
+model = Model("gpt-4o-mini")
+with RemoteJobQueue(max_workers=2, polling_interval=5.0) as queue:
+    for i in range(10):
+        job = QuestionFreeText(
+            question_name="message",
+            question_text=f"Say hello #{i} in one short sentence.",
+        ).by(model)
+        queue.submit(job, job_id=f"job-{i}")
+
+    for job_id, results, error in queue.results():
+        if error is not None:
+            print("failed", job_id, error)
+        else:
+            print("completed", job_id)
+            results.select("answer.*").print()
+```
+
+`max_workers` bounds the number of jobs submitted and polled at once. Successful
+and failed jobs each produce one completion tuple `(job_id, results, error)`;
+an error for one job does not stop others. `shutdown()` waits for submitted work
+by default. It does not cancel jobs already running remotely. This helper is
+in-process orchestration, not a durable queue or retry system.
+
 ## Submit from Python
 
 Start with a Jobs object containing your survey, agents, scenarios, and models. You can construct it with `survey.by(...)` or load a saved package:
