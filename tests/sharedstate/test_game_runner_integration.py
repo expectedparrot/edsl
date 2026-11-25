@@ -152,7 +152,7 @@ def test_ultimatum_game_runs_in_role_order_and_finalizes_each_pair():
 
 
 def test_sealed_auction_uses_snapshot_visibility_then_finalizes():
-    from edsl.examples.shared_state.dsl.shared_sealed_auction import SPEC
+    from tests.fixtures.shared_state.dsl.shared_sealed_auction import SPEC
 
     states = SharedStateMap(
         SharedState(auction=SPEC), state_id=f"runner-auction-{uuid4()}"
@@ -212,7 +212,7 @@ def test_sealed_auction_uses_snapshot_visibility_then_finalizes():
 
 
 def test_before_question_write_is_visible_to_live_private_read():
-    from edsl.examples.shared_state.shared_state_gemini_game_smoke import private_signal
+    from tests.fixtures.shared_state.shared_state_gemini_game_smoke import private_signal
 
     survey, people, schedule = private_signal()
     expected = {
@@ -319,7 +319,7 @@ def test_sequential_is_a_checked_alias_for_serial_rounds():
 
 def test_concurrent_snapshot_rejects_before_question_writes():
     from edsl.jobs.exceptions import JobsValueError
-    from edsl.examples.shared_state.shared_state_gemini_game_smoke import private_signal
+    from tests.fixtures.shared_state.shared_state_gemini_game_smoke import private_signal
 
     survey, people, _ = private_signal()
     unsafe = InterviewSchedule.rounds(

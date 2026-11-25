@@ -51,7 +51,7 @@ def _simultaneous(spec, target, question, write, agents):
 
 
 def dictator():
-    from edsl.examples.shared_state.dsl.shared_dictator_game import SPEC
+    from tests.fixtures.shared_state.dsl.shared_dictator_game import SPEC
 
     states = SharedStateMap(
         SharedState(game=SPEC), state_id=f"gemini-dictator-{uuid4()}"
@@ -86,7 +86,7 @@ def dictator():
 
 
 def trust():
-    from edsl.examples.shared_state.dsl.shared_trust_game import SPEC
+    from tests.fixtures.shared_state.dsl.shared_trust_game import SPEC
 
     states = SharedStateMap(
         SharedState(game=SPEC), state_id=f"gemini-trust-{uuid4()}"
@@ -134,7 +134,7 @@ def trust():
 
 
 def matrix():
-    from edsl.examples.shared_state.dsl.shared_matrix_game import SPEC
+    from tests.fixtures.shared_state.dsl.shared_matrix_game import SPEC
 
     q = QuestionMultipleChoice(
         question_name="action",
@@ -159,7 +159,7 @@ def matrix():
 
 
 def beauty():
-    from edsl.examples.shared_state.dsl.shared_beauty_contest import SPEC
+    from tests.fixtures.shared_state.dsl.shared_beauty_contest import SPEC
 
     q = QuestionNumerical(
         question_name="choice",
@@ -182,7 +182,7 @@ def beauty():
 
 
 def market_entry():
-    from edsl.examples.shared_state.dsl.shared_market_entry_game import SPEC
+    from tests.fixtures.shared_state.dsl.shared_market_entry_game import SPEC
 
     q = QuestionMultipleChoice(
         question_name="action",
@@ -204,7 +204,7 @@ def market_entry():
 
 
 def nash_demand():
-    from edsl.examples.shared_state.dsl.shared_nash_demand_game import SPEC
+    from tests.fixtures.shared_state.dsl.shared_nash_demand_game import SPEC
 
     q = QuestionNumerical(
         question_name="amount",
@@ -229,7 +229,7 @@ def nash_demand():
 
 
 def money_request():
-    from edsl.examples.shared_state.dsl.shared_money_request_game import SPEC
+    from tests.fixtures.shared_state.dsl.shared_money_request_game import SPEC
 
     q = QuestionMultipleChoice(
         question_name="request",
@@ -252,7 +252,7 @@ def money_request():
 
 
 def common_pool():
-    from edsl.examples.shared_state.dsl.shared_common_pool_game import SPEC
+    from tests.fixtures.shared_state.dsl.shared_common_pool_game import SPEC
 
     q = QuestionNumerical(
         question_name="amount",
@@ -276,7 +276,7 @@ def common_pool():
 
 
 def bilateral_trade():
-    from edsl.examples.shared_state.dsl.shared_bilateral_trade import SPEC
+    from tests.fixtures.shared_state.dsl.shared_bilateral_trade import SPEC
 
     states = SharedStateMap(
         SharedState(game=SPEC), state_id=f"gemini-bilateral-{uuid4()}"
@@ -327,7 +327,7 @@ def bilateral_trade():
 
 
 def centipede():
-    from edsl.examples.shared_state.dsl.shared_centipede_game import SPEC
+    from tests.fixtures.shared_state.dsl.shared_centipede_game import SPEC
 
     states = SharedStateMap(
         SharedState(game=SPEC), state_id=f"gemini-centipede-{uuid4()}"
@@ -367,7 +367,7 @@ def centipede():
 
 
 def cheap_talk():
-    from edsl.examples.shared_state.dsl.shared_cheap_talk_game import SPEC
+    from tests.fixtures.shared_state.dsl.shared_cheap_talk_game import SPEC
 
     states = SharedStateMap(
         SharedState(game=SPEC), state_id=f"gemini-cheap-talk-{uuid4()}"
@@ -418,7 +418,7 @@ def cheap_talk():
 
 
 def signaling():
-    from edsl.examples.shared_state.dsl.shared_signaling_game import SPEC
+    from tests.fixtures.shared_state.dsl.shared_signaling_game import SPEC
 
     states = SharedStateMap(
         SharedState(game=SPEC), state_id=f"gemini-signaling-{uuid4()}"
@@ -471,7 +471,7 @@ def signaling():
 
 
 def principal_agent():
-    from edsl.examples.shared_state.dsl.shared_principal_agent_game import SPEC
+    from tests.fixtures.shared_state.dsl.shared_principal_agent_game import SPEC
 
     states = SharedStateMap(
         SharedState(game=SPEC), state_id=f"gemini-principal-agent-{uuid4()}"
@@ -520,7 +520,7 @@ def principal_agent():
 
 
 def sealed_auction():
-    from edsl.examples.shared_state.dsl.shared_sealed_auction import SPEC
+    from tests.fixtures.shared_state.dsl.shared_sealed_auction import SPEC
 
     q = QuestionNumerical(
         question_name="bid",
@@ -550,7 +550,7 @@ def sealed_auction():
 
 
 def ultimatum():
-    from edsl.examples.shared_state.dsl.shared_ultimatum_game import SPEC
+    from tests.fixtures.shared_state.dsl.shared_ultimatum_game import SPEC
 
     states = SharedStateMap(
         SharedState(game=SPEC), state_id=f"gemini-ultimatum-{uuid4()}"
@@ -616,7 +616,7 @@ def ultimatum():
 
 
 def negotiation():
-    from edsl.examples.shared_state.dsl.shared_negotiation import SPEC
+    from tests.fixtures.shared_state.dsl.shared_negotiation import SPEC
 
     states = SharedStateMap(
         SharedState(game=SPEC), state_id=f"gemini-negotiation-{uuid4()}"
@@ -675,7 +675,7 @@ def negotiation():
 
 
 def double_auction():
-    from edsl.examples.shared_state.dsl.shared_double_auction import SPEC
+    from tests.fixtures.shared_state.dsl.shared_double_auction import SPEC
 
     states = SharedStateMap(
         SharedState(game=SPEC), state_id=f"gemini-double-auction-{uuid4()}"
@@ -722,7 +722,7 @@ def double_auction():
 
 
 def voting():
-    from edsl.examples.shared_state.dsl.shared_voting_game import SPEC
+    from tests.fixtures.shared_state.dsl.shared_voting_game import SPEC
 
     q = QuestionRank(
         question_name="ranking",
@@ -750,7 +750,7 @@ def voting():
 
 
 def deferred_acceptance():
-    from edsl.examples.shared_state.dsl.shared_deferred_acceptance import SPEC
+    from tests.fixtures.shared_state.dsl.shared_deferred_acceptance import SPEC
 
     states = SharedStateMap(
         SharedState(game=SPEC), state_id=f"gemini-matching-{uuid4()}"
@@ -784,7 +784,7 @@ def deferred_acceptance():
 
 
 def binary_market():
-    from edsl.examples.shared_state.dsl.shared_binary_market import SPEC
+    from tests.fixtures.shared_state.dsl.shared_binary_market import SPEC
 
     states = SharedStateMap(
         SharedState(game=SPEC), state_id=f"gemini-binary-market-{uuid4()}"
@@ -840,7 +840,7 @@ def binary_market():
 
 
 def resource_allocation():
-    from edsl.examples.shared_state.dsl.shared_resource_board import SPEC
+    from tests.fixtures.shared_state.dsl.shared_resource_board import SPEC
 
     states = SharedStateMap(
         SharedState(game=SPEC), state_id=f"gemini-resource-{uuid4()}"
@@ -875,7 +875,7 @@ def resource_allocation():
 
 
 def delphi():
-    from edsl.examples.shared_state.dsl.shared_delphi_panel import SPEC
+    from tests.fixtures.shared_state.dsl.shared_delphi_panel import SPEC
 
     states = SharedStateMap(
         SharedState(game=SPEC), state_id=f"gemini-delphi-{uuid4()}"
@@ -921,7 +921,7 @@ def delphi():
 
 
 def agenda():
-    from edsl.examples.shared_state.dsl.shared_agenda import SPEC
+    from tests.fixtures.shared_state.dsl.shared_agenda import SPEC
 
     states = SharedStateMap(
         SharedState(game=SPEC), state_id=f"gemini-agenda-{uuid4()}"
@@ -1016,7 +1016,7 @@ def agenda():
 
 
 def budget():
-    from edsl.examples.shared_state.dsl.shared_budget_pool import SPEC
+    from tests.fixtures.shared_state.dsl.shared_budget_pool import SPEC
 
     states = SharedStateMap(
         SharedState(game=SPEC), state_id=f"gemini-budget-{uuid4()}"
@@ -1055,7 +1055,7 @@ def budget():
 
 
 def coalition():
-    from edsl.examples.shared_state.dsl.shared_coalition_pool import SPEC
+    from tests.fixtures.shared_state.dsl.shared_coalition_pool import SPEC
 
     states = SharedStateMap(
         SharedState(game=SPEC), state_id=f"gemini-coalition-{uuid4()}"
@@ -1089,7 +1089,7 @@ def coalition():
 
 
 def serial_matching():
-    from edsl.examples.shared_state.dsl.shared_match_pool import SPEC
+    from tests.fixtures.shared_state.dsl.shared_match_pool import SPEC
 
     states = SharedStateMap(
         SharedState(game=SPEC), state_id=f"gemini-serial-matching-{uuid4()}"
@@ -1128,7 +1128,7 @@ def serial_matching():
 
 
 def forecast():
-    from edsl.examples.shared_state.dsl.shared_forecast import SPEC
+    from tests.fixtures.shared_state.dsl.shared_forecast import SPEC
 
     states = SharedStateMap(
         SharedState(game=SPEC), state_id=f"gemini-forecast-{uuid4()}"
@@ -1172,7 +1172,7 @@ def forecast():
 
 
 def private_signal():
-    from edsl.examples.shared_state.dsl.shared_signal_schedule import SPEC
+    from tests.fixtures.shared_state.dsl.shared_signal_schedule import SPEC
 
     states = SharedStateMap(
         SharedState(game=SPEC), state_id=f"gemini-private-signal-{uuid4()}"
@@ -1207,7 +1207,7 @@ def private_signal():
 
 
 def ascending_auction():
-    from edsl.examples.shared_state.dsl.shared_auction import SPEC
+    from tests.fixtures.shared_state.dsl.shared_auction import SPEC
     states = SharedStateMap(SharedState(game=SPEC), state_id=f"gemini-ascending-{uuid4()}")
     game = states.by("auction").game
     bid = QuestionNumerical(
@@ -1226,7 +1226,7 @@ def ascending_auction():
 
 
 def counter():
-    from edsl.examples.shared_state.dsl.shared_counter_map import SPEC
+    from tests.fixtures.shared_state.dsl.shared_counter_map import SPEC
     states = SharedStateMap(SharedState(game=SPEC), state_id=f"gemini-counter-{uuid4()}")
     game = states.by("group").game
     q = QuestionMultipleChoice(
@@ -1241,7 +1241,7 @@ def counter():
 
 
 def document():
-    from edsl.examples.shared_state.dsl.shared_document import SPEC
+    from tests.fixtures.shared_state.dsl.shared_document import SPEC
     states = SharedStateMap(SharedState(game=SPEC), state_id=f"gemini-document-{uuid4()}")
     game = states.by("plan").game
     text = QuestionFreeText(
@@ -1275,7 +1275,7 @@ def document():
 
 
 def log():
-    from edsl.examples.shared_state.dsl.shared_log import SPEC
+    from tests.fixtures.shared_state.dsl.shared_log import SPEC
     states = SharedStateMap(SharedState(game=SPEC), state_id=f"gemini-log-{uuid4()}")
     game = states.by("field-study").game
     note = QuestionFreeText(
@@ -1290,7 +1290,7 @@ def log():
 
 
 def message_board():
-    from edsl.examples.shared_state.dsl.shared_message_board import SPEC
+    from tests.fixtures.shared_state.dsl.shared_message_board import SPEC
     states = SharedStateMap(SharedState(game=SPEC), state_id=f"gemini-board-{uuid4()}")
     game = states.by("board").game
     message = QuestionFreeText(
@@ -1315,7 +1315,7 @@ def message_board():
 
 
 def register():
-    from edsl.examples.shared_state.dsl.shared_register import SPEC
+    from tests.fixtures.shared_state.dsl.shared_register import SPEC
     states = SharedStateMap(SharedState(game=SPEC), state_id=f"gemini-register-{uuid4()}")
     game = states.by("preferences").game
     q = QuestionMultipleChoice(
@@ -1329,7 +1329,7 @@ def register():
 
 
 def meeting_poll():
-    from edsl.examples.shared_state.dsl.shared_meeting_poll import SLOTS, SPEC
+    from tests.fixtures.shared_state.dsl.shared_meeting_poll import SLOTS, SPEC
 
     states = SharedStateMap(
         SharedState(poll=SPEC), state_id=f"gemini-meeting-poll-{uuid4()}"
@@ -1401,7 +1401,7 @@ def meeting_poll():
 
 
 def repeated_matrix():
-    from edsl.examples.shared_state.dsl.shared_repeated_matrix_game import SPEC
+    from tests.fixtures.shared_state.dsl.shared_repeated_matrix_game import SPEC
     states = SharedStateMap(SharedState(game=SPEC), state_id=f"gemini-repeated-matrix-{uuid4()}")
     game = states.by("match").game
     action = QuestionMultipleChoice(
@@ -1423,7 +1423,7 @@ def repeated_matrix():
 
 
 def work_pool():
-    from edsl.examples.shared_state.dsl.shared_work_pool import SPEC
+    from tests.fixtures.shared_state.dsl.shared_work_pool import SPEC
     states = SharedStateMap(SharedState(game=SPEC), state_id=f"gemini-work-{uuid4()}")
     game = states.by("queue").game
     result = QuestionFreeText(

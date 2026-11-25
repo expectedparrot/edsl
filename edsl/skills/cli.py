@@ -18,8 +18,6 @@ from edsl.cli_shared import EXIT_NOT_FOUND, EXIT_USAGE, error, output
 
 
 SKILLS_ROOT = Path(__file__).resolve().parent
-EXAMPLES_ROOT = SKILLS_ROOT.parent / "examples"
-EXAMPLES_MANIFEST = SKILLS_ROOT / "examples.json"
 _LINK = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 _LABELED_LINK = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
 _SCRIPT_SUFFIXES = {".py", ".sh", ".bash", ".js", ".mjs", ".ts", ".r"}
@@ -37,28 +35,6 @@ def _script_paths(skill: dict) -> list[Path]:
         and path.suffix.lower() in _SCRIPT_SUFFIXES
         and path.resolve().is_relative_to(bundle_root)
     )
-
-
-def _example_paths(skill: dict) -> dict[str, Path]:
-    """Return example sources explicitly assigned to this skill."""
-    if not EXAMPLES_MANIFEST.is_file():
-        return {}
-    manifest = json.loads(EXAMPLES_MANIFEST.read_text(encoding="utf-8"))
-    result: dict[str, Path] = {}
-    root = EXAMPLES_ROOT.resolve()
-    for directory in manifest.get(skill["name"], []):
-        base = (EXAMPLES_ROOT / directory).resolve()
-        if not base.is_relative_to(root) or not base.is_dir():
-            continue
-        for path in sorted(base.rglob("*")):
-            if not path.is_file() or path.name == "__init__.py":
-                continue
-            if path.suffix.lower() not in {".py", ".md"}:
-                continue
-            resolved = path.resolve()
-            if resolved.is_relative_to(root):
-                result[resolved.relative_to(root).as_posix()] = resolved
-    return result
 
 
 def _skills() -> list[dict]:
@@ -106,8 +82,7 @@ def _read_skill_files(skill: dict) -> list[dict]:
 
 def _searchable_files(skill: dict) -> list[Path]:
     markdown = list(skill["path"].rglob("*.md"))
-    examples = list(_example_paths(skill).values())
-    return sorted(set(markdown + _script_paths(skill) + examples))
+    return sorted(set(markdown + _script_paths(skill)))
 
 
 def _find_snippet(skill: dict, query: str, context_lines: int = 1, max_chars: int = 360) -> dict | None:
@@ -131,10 +106,7 @@ def _find_snippet(skill: dict, query: str, context_lines: int = 1, max_chars: in
                 passage = " ".join(part.strip() for part in lines[start:end] if part.strip())
                 if len(passage) > max_chars:
                     passage = passage[: max_chars - 1].rstrip() + "…"
-                try:
-                    label = path.relative_to(skill["path"]).as_posix()
-                except ValueError:
-                    label = f"edsl/examples/{path.relative_to(EXAMPLES_ROOT).as_posix()}"
+                label = path.relative_to(skill["path"]).as_posix()
                 return {
                     "path": label,
                     "line": start + 1,
@@ -247,15 +219,12 @@ def list_skills(human: bool, routing: bool):
                 if file["path"] != "SKILL.md" and file["path"].endswith(".md")
             ]
             scripts = [path.relative_to(skill["path"]).as_posix() for path in _script_paths(skill)]
-            examples = sorted(_example_paths(skill))
             item.update({
                 "tags": skill["tags"],
                 "references": linked_references,
                 "reference_count": len(linked_references),
                 "scripts": scripts,
                 "script_count": len(scripts),
-                "examples": examples,
-                "example_count": len(examples),
                 "show_command": f"ep skills show {skill['name']}",
                 "reference_commands": {
                     reference: f"ep skills show {skill['name']} --reference {reference}"
@@ -264,10 +233,6 @@ def list_skills(human: bool, routing: bool):
                 "script_commands": {
                     script: f"ep skills show {skill['name']} --script {script}"
                     for script in scripts
-                },
-                "example_commands": {
-                    example: f"ep skills show {skill['name']} --example {example}"
-                    for example in examples
                 },
             })
         items.append(item)
@@ -284,9 +249,6 @@ def list_skills(human: bool, routing: bool):
                 click.echo(f"  scripts: {len(item['scripts'])}")
                 for script in item["scripts"]:
                     click.echo(f"    - {script}: {item['script_commands'][script]}")
-                click.echo(f"  examples: {len(item['examples'])}")
-                for example in item["examples"]:
-                    click.echo(f"    - {example}: {item['example_commands'][example]}")
                 click.echo(f"  fetch: {item['show_command']}")
     else:
         output({"skills": items})
@@ -337,38 +299,18 @@ def search_skills(query: str, limit: int, human: bool, snippets: bool):
 @click.argument("name")
 @click.option("--reference", "reference_path", help="Return one linked reference by its bundle-relative path.")
 @click.option("--script", "script_path", help="Return one bundled script by its bundle-relative path.")
-@click.option("--example", "example_path", help="Return one version-matched EDSL example by its examples-relative path.")
 @click.option("--human", is_flag=True, help="Print fetched content as readable text instead of JSON.")
 @click.option("--html", "html_output", is_flag=True, help="Render linked skill Markdown to a temporary HTML file and open it.")
-def show_skill(name: str, reference_path: str | None, script_path: str | None, example_path: str | None, human: bool, html_output: bool):
-    """Show a skill, linked reference, bundled script, or version-matched example."""
+def show_skill(name: str, reference_path: str | None, script_path: str | None, human: bool, html_output: bool):
+    """Show a skill, linked reference, or bundled script."""
     skill = next((s for s in _skills() if s["name"] == name), None)
     if skill is None:
         error("SKILL_NOT_FOUND", f"No bundled skill named '{name}'.", "Run 'ep skills list' or 'ep skills search <query>'.", EXIT_NOT_FOUND)
     if human and html_output:
         error("USAGE_ERROR", "--human and --html cannot be used together.", "Choose one output format.", EXIT_USAGE)
-    selected_options = [reference_path, script_path, example_path]
+    selected_options = [reference_path, script_path]
     if sum(value is not None for value in selected_options) > 1:
-        error("USAGE_ERROR", "--reference, --script, and --example cannot be combined.", "Choose one skill resource.", EXIT_USAGE)
-    if example_path is not None:
-        example = _example_paths(skill).get(example_path)
-        if example is None:
-            available = sorted(_example_paths(skill))
-            error(
-                "EXAMPLE_NOT_FOUND",
-                f"No bundled example '{example_path}' for skill '{name}'.",
-                "Use 'ep skills list --routing' to see fetchable examples.",
-                EXIT_NOT_FOUND,
-                details=[{"available_examples": available}],
-            )
-        if html_output:
-            error("USAGE_ERROR", "--html cannot render a source example.", "Fetch the source as text or use --html for skill Markdown.", EXIT_USAGE)
-        content = example.read_text(encoding="utf-8")
-        if human:
-            click.echo(content, nl=not content.endswith("\n"))
-        else:
-            output({"name": name, "example": example_path, "content": content})
-        return
+        error("USAGE_ERROR", "--reference and --script cannot be combined.", "Choose one skill resource.", EXIT_USAGE)
     if script_path is not None:
         scripts = {
             path.relative_to(skill["path"]).as_posix(): path
@@ -409,7 +351,6 @@ def show_skill(name: str, reference_path: str | None, script_path: str | None, e
         "name": skill["name"],
         "description": skill["description"],
         "files": files,
-        "examples": sorted(_example_paths(skill)),
     }
     if reference_path is not None:
         data["reference"] = reference_path

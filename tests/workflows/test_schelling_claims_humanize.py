@@ -1,5 +1,5 @@
 from edsl.workflows import HumanWorkflow, SQLiteWorkflowStore, WorkflowCoordinator
-from edsl.examples.workflows.workflow_schelling_claims_humanize import build_workflow, participants
+from tests.fixtures.workflows.workflow_schelling_claims_humanize import build_workflow, participants
 
 
 def test_schelling_email_workflow_round_trips_and_releases_two_claims(tmp_path):

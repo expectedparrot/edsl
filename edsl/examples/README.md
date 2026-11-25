@@ -1,33 +1,11 @@
-# EDSL examples
+# Runnable EDSL examples
 
-These examples are version-matched to the installed EDSL package. The examples
-here are executable source and are also used by the local test suite.
+This package contains user-facing examples that can be imported or run with an
+installed EDSL distribution. The skill bundles provide the supported
+agent-facing guidance and worked patterns in their linked Markdown references.
 
-## Shared state
-
-- `shared_state/machine_primitives/` contains portable Machine definitions
-  that run with the general interpreter and an empty algorithm registry.
-- `shared_state/dsl/` contains stateful study and game definitions used to
-  exercise the shared-state language across multiple patterns.
-- `shared_state/*.py` contains complete Survey integrations, local acceptance
-  exercises, and analysis adapters built on those definitions.
-
-Run the deterministic primitive corpus without model calls:
-
-```bash
-python -m edsl.examples.shared_state.machine_primitives
-python -m edsl.examples.shared_state.dsl.validate
-```
-
-Examples that call a model provider or send Humanize deliveries say so in their
-module docstring. Run only the deterministic commands when validating a local
-checkout without remote credentials.
-
-## Respondent workflows
-
-`workflows/` contains authoring and execution examples for durable respondent
-workflows. The stress gallery and Humanize examples can create local run state;
-their generated outputs belong under the ignored `artifacts/` directory.
-
-The detailed shared-state and orchestration instructions, including individual
-examples fetchable through `ep skills show`, live in the matching skill bundles.
+The large shared-state DSL corpus and respondent-workflow simulations are
+maintained as test support under `tests/fixtures/`; they are not part of the
+installed `edsl.examples` namespace. The test suite exercises those fixtures
+alongside the core APIs. Public shared-state examples and the portable Machine
+primitive corpus remain under `edsl/examples/shared_state/`.

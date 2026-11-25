@@ -38,7 +38,7 @@ from edsl.cli_commands import study as study_commands
 from edsl.skills.cli import skills as skills_commands
 from edsl.cli_commands import validate as validate_commands
 from edsl.skills.cli import skills as skills_commands
-from ep_workflow import cli as workflow_commands
+from edsl.cli_commands.workflow_gates import cli as workflow_commands
 from edsl.cli_shared import (
     EXIT_AUTH,
     EXIT_ERROR,

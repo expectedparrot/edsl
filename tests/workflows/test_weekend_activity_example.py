@@ -1,4 +1,4 @@
-from edsl.examples.workflows.workflow_weekend_activity_approval import (
+from tests.fixtures.workflows.workflow_weekend_activity_approval import (
     APPROVER_EMAIL,
     PROPOSER_EMAIL,
     run_demo,
@@ -51,7 +51,7 @@ def test_weekend_activity_is_proposed_before_approval(tmp_path):
 
 
 def test_humanize_adapter_delivers_second_email_only_after_first_response(tmp_path):
-    from edsl.examples.workflows.workflow_weekend_activity_approval import build_workflow, participants
+    from tests.fixtures.workflows.workflow_weekend_activity_approval import build_workflow, participants
     from edsl.sharedstate import SQLiteStateBackend
     from edsl.workflows import SQLiteWorkflowStore, WorkflowCoordinator
 

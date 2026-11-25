@@ -20,7 +20,7 @@ def test_packaged_machine_primitive_command_runs_offline():
     assert all(item for item in output.values())
 
 
-def test_packaged_shared_state_dsl_validator_runs_offline():
-    output = _run_example_module("edsl.examples.shared_state.dsl.validate")
+def test_shared_state_dsl_fixture_corpus_validates_offline():
+    output = _run_example_module("tests.fixtures.shared_state.dsl.validate")
 
     assert output["target_count"] == 38

@@ -14,7 +14,7 @@ def validate_all() -> dict:
     )
     specs = {}
     for target in targets:
-        spec = import_module(f"edsl.examples.shared_state.dsl.{target}").SPEC
+        spec = import_module(f"tests.fixtures.shared_state.dsl.{target}").SPEC
         spec.validate()
         specs[spec.name] = spec.to_dict()
     return {"target_count": len(specs), "targets": sorted(specs), "specs": specs}
