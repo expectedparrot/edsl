@@ -42,7 +42,11 @@ curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harne
 
 <h3><img src="docs/assets/harness-icons/codex.svg" width="22" height="22" alt=""> Codex</h3>
 
-If Codex is not installed, run in a terminal: `curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- codex`
+If Codex is not installed, run this in a terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- codex
+```
 
 ```text
 Set up EDSL for Codex:
@@ -57,7 +61,11 @@ Check the JSON status and warnings from each EDSL CLI command.
 
 <h3><img src="docs/assets/harness-icons/claude-code.svg" width="22" height="22" alt=""> Claude Code</h3>
 
-If Claude Code is not installed, run in a terminal: `curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- claude-code`
+If Claude Code is not installed, run this in a terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- claude-code
+```
 
 ```text
 Set up EDSL for Claude Code:
@@ -72,7 +80,11 @@ Check the JSON status and warnings from each EDSL CLI command.
 
 <h3><img src="docs/assets/harness-icons/opencode.svg" width="22" height="22" alt=""> OpenCode</h3>
 
-If OpenCode is not installed, run in a terminal: `curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- opencode`
+If OpenCode is not installed, run this in a terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- opencode
+```
 
 ```text
 Set up EDSL for OpenCode:
@@ -87,7 +99,11 @@ Check the JSON status and warnings from each EDSL CLI command.
 
 <h3><img src="docs/assets/harness-icons/pi.svg" width="22" height="22" alt=""> Pi</h3>
 
-If Pi is not installed, run in a terminal: `curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- pi`
+If Pi is not installed, run this in a terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- pi
+```
 
 ```text
 Set up EDSL for Pi:
@@ -102,7 +118,11 @@ Check the JSON status and warnings from each EDSL CLI command.
 
 <h3><img src="docs/assets/harness-icons/antigravity.png" width="22" height="22" alt=""> Google Antigravity CLI</h3>
 
-If Google Antigravity CLI is not installed, run in a terminal: `curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- antigravity`
+If Google Antigravity CLI is not installed, run this in a terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- antigravity
+```
 
 ```text
 Set up EDSL for Google Antigravity CLI:
@@ -117,7 +137,11 @@ Check the JSON status and warnings from each EDSL CLI command.
 
 <h3><img src="docs/assets/harness-icons/vercel-fx.svg" width="22" height="22" alt=""> Vercel fx</h3>
 
-If Vercel fx is not installed, run in a terminal: `curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- fx`
+If Vercel fx is not installed, run this in a terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- fx
+```
 
 ```text
 Set up EDSL for Vercel fx:
