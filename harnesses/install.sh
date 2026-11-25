@@ -90,15 +90,17 @@ python3 -m pip install --upgrade \
   'edsl @ git+https://github.com/expectedparrot/edsl.git@feat/edsl-harness-guidance'
 
 run_ep() {
-  if command -v ep >/dev/null 2>&1; then
-    ep "$@"
-  else
-    python3 -m edsl "$@"
-  fi
+  python3 -m edsl "$@"
 }
 
 printf 'Checking Expected Parrot authentication...\n'
-auth_status=$(run_ep auth status)
+if auth_status=$(run_ep auth status); then
+  :
+else
+  printf '%s\n' "$auth_status" >&2
+  printf 'Could not check Expected Parrot authentication.\n' >&2
+  exit 1
+fi
 if printf '%s' "$auth_status" | python3 -c '
 import json, sys
 try:
@@ -121,7 +123,13 @@ else
 fi
 
 printf 'Installing edsl-harness for %s...\n' "$harness"
-skill_install=$(run_ep skills install --target "$skill_dir" --skill edsl-harness)
+if skill_install=$(run_ep skills install --target "$skill_dir" --skill edsl-harness); then
+  :
+else
+  printf '%s\n' "$skill_install" >&2
+  printf 'Could not install edsl-harness.\n' >&2
+  exit 1
+fi
 printf '%s' "$skill_install" | python3 -c '
 import json, sys
 try:
