@@ -6,36 +6,39 @@ harness does not need a second copy of every EDSL skill. Install the small
 EDSL guidance that matches the current task, using the active package's `ep`
 CLI.
 
-In the Python environment the harness will use, install EDSL from GitHub,
-check the Expected Parrot key, and log in if it is not configured:
+The copyable prompts in the main README are for a harness that is already
+installed and open. For a first-time setup, run the bootstrap script from a
+terminal. It installs the selected harness if missing, installs EDSL from the
+current branch into the active Python environment, checks Expected Parrot
+authentication, and installs the `edsl-harness` skill in that harness's user
+skill directory. Activate the Python environment where EDSL should be
+installed first. The bootstrap script supports macOS, Linux, and WSL. On
+native Windows, install the harness from its official guide first, then run
+the EDSL and skill setup steps in that environment.
 
 ```bash
-python -m pip install --upgrade "edsl @ git+https://github.com/expectedparrot/edsl.git@feat/edsl-harness-guidance"
-ep auth status
-# If no key is configured, run:
-ep auth login
+bash harnesses/install.sh pi
 ```
 
-Then install the router from that same environment. `--skill` is repeatable
-and leaves other EDSL skills out of the harness directory:
+Replace `pi` with a name from the table below. To run the script without
+cloning EDSL:
 
 ```bash
-ep skills install --target .agents/skills --skill edsl-harness
+curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- pi
 ```
 
-For user-wide installation, use the harness's user skill directory instead of
-`.agents/skills`. Current common targets are listed below. Harness conventions
-can change; check the linked setup guide if the target does not discover the
-skill.
+The bootstrap installs the skill in the harness's user directory. Current
+common targets are listed below. Harness conventions can change; check the
+linked setup guide if the target does not discover the skill.
 
-| Harness | Suggested skill directory | Setup guide |
+| Harness | Script name | Suggested skill directory | Setup guide |
 | --- | --- | --- |
-| Codex | `.agents/skills` or `~/.agents/skills` | [EP Agent Codex guide](https://github.com/expectedparrot/ep-ra/tree/main/harnesses/codex) |
-| Claude Code | `.claude/skills` or `~/.claude/skills` | [EP Agent Claude Code guide](https://github.com/expectedparrot/ep-ra/tree/main/harnesses/claude-code) |
-| OpenCode | `.agents/skills` or `~/.config/opencode/skills` | [EP Agent OpenCode guide](https://github.com/expectedparrot/ep-ra/tree/main/harnesses/opencode) |
-| Pi | `.agents/skills` or `~/.pi/agent/skills` | [EP Agent Pi guide](https://github.com/expectedparrot/ep-ra/tree/main/harnesses/pi) |
-| Antigravity CLI | `.agents/skills` or `~/.gemini/config/skills` | [EP Agent Antigravity guide](https://github.com/expectedparrot/ep-ra/tree/main/harnesses/antigravity) |
-| Vercel fx | `.agents/skills` or `~/.fx/skills` | [EP Agent fx guide](https://github.com/expectedparrot/ep-ra/tree/main/harnesses/fx) |
+| Codex | `codex` | `~/.agents/skills` | [EP Agent Codex guide](https://github.com/expectedparrot/ep-ra/tree/main/harnesses/codex) |
+| Claude Code | `claude-code` | `~/.claude/skills` | [EP Agent Claude Code guide](https://github.com/expectedparrot/ep-ra/tree/main/harnesses/claude-code) |
+| OpenCode | `opencode` | `~/.config/opencode/skills` | [EP Agent OpenCode guide](https://github.com/expectedparrot/ep-ra/tree/main/harnesses/opencode) |
+| Pi | `pi` | `~/.pi/agent/skills` | [EP Agent Pi guide](https://github.com/expectedparrot/ep-ra/tree/main/harnesses/pi) |
+| Antigravity CLI | `antigravity` | `~/.gemini/config/skills` | [EP Agent Antigravity guide](https://github.com/expectedparrot/ep-ra/tree/main/harnesses/antigravity) |
+| Vercel fx | `fx` | `~/.fx/skills` | [EP Agent fx guide](https://github.com/expectedparrot/ep-ra/tree/main/harnesses/fx) |
 
 If the harness accepts project instructions, add a short pointer such as:
 
