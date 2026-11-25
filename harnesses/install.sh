@@ -6,7 +6,7 @@ usage() {
 Install EDSL from the harness-guidance branch, authenticate with Expected Parrot,
 and install the EDSL harness skill for one coding harness.
 
-Usage: bash harnesses/install.sh <harness>
+Usage: bash harnesses/install.sh <harness> [--launch]
 
 Harnesses: codex, claude-code, opencode, pi, antigravity, fx
 
@@ -14,12 +14,19 @@ Activate the Python environment you want EDSL installed into before running.
 USAGE
 }
 
-if [[ $# -ne 1 ]]; then
+if [[ $# -lt 1 || $# -gt 2 ]]; then
   usage >&2
   exit 2
 fi
 
 harness=$1
+launch=false
+if [[ ${2:-} == --launch ]]; then
+  launch=true
+elif [[ $# -eq 2 ]]; then
+  usage >&2
+  exit 2
+fi
 case "$harness" in
   codex)
     command_name=codex
@@ -142,5 +149,12 @@ if result.get("status") != "ok":
     raise SystemExit(1)
 '
 printf '%s\n' "$skill_install"
-printf 'Setup complete. Launching %s in %s...\n' "$command_name" "$PWD"
-exec "$command_name"
+if [[ "$launch" == true ]]; then
+  if [[ ! -r /dev/tty ]]; then
+    printf 'Setup complete. No terminal is available to launch %s. Start it from a terminal in %s.\n' "$command_name" "$PWD"
+    exit 0
+  fi
+  printf 'Setup complete. Launching %s in %s...\n' "$command_name" "$PWD"
+  exec "$command_name" < /dev/tty
+fi
+printf 'Setup complete. Start %s in your project when ready.\n' "$command_name"
