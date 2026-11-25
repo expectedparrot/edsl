@@ -70,6 +70,7 @@ class CheckSurveyScenarioCompatibility:
         except TypeError:
             # Empty survey - no questions to check
             survey_parameters = set()
+        survey_parameters = survey_parameters - {"run", "shared_state"}
 
         scenario_parameters: set = self.scenarios.parameters
 

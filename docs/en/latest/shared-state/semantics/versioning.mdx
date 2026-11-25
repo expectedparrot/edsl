@@ -1,0 +1,100 @@
+---
+title: "Versioning and compatibility"
+description: "Shared-state language specification: versioning and compatibility."
+---
+
+<Note>
+This is the Draft 0.1 language specification. Its conformance requirements include targets beyond the current implementation, such as complete static typing and resource bounds. The [execution contracts](/en/latest/coordinated-research/execution-contracts) describe the guarantees implemented today.
+</Note>
+
+## Envelope
+
+Every serialized definition MUST declare:
+
+```json
+{
+  "dsl_version": "0.1",
+  "requires": {
+    "operators": {},
+    "reducers": {},
+    "algorithms": {}
+  },
+  "limits": {},
+  "machine": {}
+}
+```
+
+The server MUST reject unsupported versions. It MUST NOT silently reinterpret a
+recipe under newer semantics.
+
+## Semantic versioning
+
+Changing any of the following requires a new semantic version:
+
+- effect no-op or ordering behavior;
+- lazy versus eager evaluation;
+- empty-reducer behavior;
+- tie-breaking or sort stability;
+- numeric coercion or precision;
+- retry or close behavior;
+- algorithm matching or settlement behavior;
+- context disclosure rules.
+
+Adding a backward-compatible optional envelope field does not necessarily
+change expression semantics.
+
+## Capability manifest
+
+Every non-core operator, reducer, and algorithm SHOULD be listed with an exact
+integer semantic version. A runtime may derive core operator requirements from
+the AST, but explicit manifests improve inspection and admission control.
+
+Recipes MUST NOT invoke an algorithm absent from their declared manifest.
+
+The draft prototype's inner `machine.algorithms` list MAY contain legacy
+references such as `lmsr_trade@1`. The normative version is the outer manifest.
+A validator MUST normalize legacy references and reject any disagreement. A
+future schema version SHOULD remove the redundant inner list.
+
+## State migration
+
+Changing field names, field types, initial values for existing scopes, or
+meaningful constants may require a state migration. A migration is a separate,
+versioned, audited transition; loading old state into a new machine definition
+without validation is prohibited.
+
+## Compatibility identity
+
+A machine compatibility identity SHOULD hash the canonicalized DSL version,
+machine definition, capability manifest, and relevant limits. Results and state
+snapshots SHOULD record this identity.
+
+Two definitions with different diagnostic names but identical canonical
+semantics MAY share a compatibility identity. Implementations must not depend on
+this optimization.
+
+## Current implementation: derived manifests
+
+The current Python interpreter keeps the existing Machine `version: 1` JSON
+rather than implementing the proposed outer envelope above. It derives exact
+requirements with `machine.required_capabilities()` and advertises support with
+`runtime.capability_manifest()`. These use manifest schema version 1 and cover
+expressions, effects, reducers, types, optional loop contracts, and registered
+implementations. Destination preflight checks every branch before execution.
+
+The derived manifests are not inserted into persisted Machine definitions or
+their fingerprints. Runtime quotas remain host policy. Thus the proposed outer
+envelope and broader compatibility identity above remain specification targets;
+existing definitions require no migration just to use preflight. See
+[Interpreter capabilities](/en/latest/shared-state/machines#interpreter-capabilities)
+for the supported API, legacy algorithm handling, and transport guarantees.
+
+
+The exact capabilities `expression:seeded_integer@1`,
+`expression:seeded_order@1`, `expression:decimal_units@1`, and
+`expression:round_ratio@1` fix the implemented
+[random byte protocol and rounding rules](/en/latest/shared-state/randomization-and-money).
+They add no persisted envelope fields. A future interpreter must not advertise
+these capabilities while substituting another RNG, string encoding, tie rule,
+or rounding policy. Registered legacy market algorithms remain separately
+versioned and retain their existing behavior.

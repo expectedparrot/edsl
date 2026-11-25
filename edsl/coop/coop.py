@@ -2944,11 +2944,19 @@ class Coop(CoopFunctionsMixin):
         Create a human survey on Coop, first creating any linked agent list,
         then the survey and scenario list (if scenarios are used).
         """
+        if getattr(survey, "question_sampling", None) is not None:
+            raise CoopValueError("Humanize does not yet support question sampling. Remove the question_sampling policy before publishing this survey.")
+        if getattr(survey, "question_order", {}).get("blocks"):
+            raise CoopValueError("Humanize does not yet support question-order randomization. Remove the question_order blocks before publishing this survey.")
         if scenario_list is None and scenario_list_method is not None:
             raise CoopValueError(
                 "You must specify both a scenario list and a scenario list method to use scenarios with your survey."
             )
-        elif scenario_list is not None and scenario_list_method is None:
+        if getattr(survey, "scale_direction_randomization", None) is not None:
+            raise CoopValueError(
+                "Scale-direction randomization is currently supported for model runs only; clear the policy before creating a human survey."
+            )
+        if scenario_list is not None and scenario_list_method is None:
             raise CoopValueError(
                 "You must specify both a scenario list and a scenario list method to use scenarios with your survey."
             )
@@ -5808,6 +5816,10 @@ class Coop(CoopFunctionsMixin):
 
         if not isinstance(survey, Survey):
             raise CoopObjectTypeError("This is not a survey.")
+        if getattr(survey, "scale_direction_randomization", None) is not None:
+            raise CoopValueError(
+                "Scale-direction randomization is currently supported for model runs only; clear the policy before previewing a human survey."
+            )
         if humanize_schema is not None:
             self.validate_human_survey_humanize_schema(survey, humanize_schema)
         survey_dict = survey.to_dict()

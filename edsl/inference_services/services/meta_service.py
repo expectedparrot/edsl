@@ -80,12 +80,15 @@ class MetaService(OpenAIService):
 
             @staticmethod
             def _response_text(response: dict[str, Any]) -> str:
-                if isinstance(response.get("output_text"), str):
-                    return response["output_text"]
-
                 text_parts = []
                 for item in response.get("output", []) or []:
                     if not isinstance(item, dict):
+                        continue
+                    # Meta Responses can include user-facing commentary before a
+                    # server tool call. EDSL's answer field should contain the
+                    # final (unphased) assistant message, while the raw response
+                    # below retains the full tool trace and commentary.
+                    if item.get("type") != "message" or item.get("phase") == "commentary":
                         continue
                     for content in item.get("content", []) or []:
                         if not isinstance(content, dict):
@@ -93,7 +96,10 @@ class MetaService(OpenAIService):
                         text = content.get("text")
                         if isinstance(text, str):
                             text_parts.append(text)
-                return "\n".join(text_parts)
+                if text_parts:
+                    return "\n".join(text_parts)
+                output_text = response.get("output_text")
+                return output_text if isinstance(output_text, str) else ""
 
             @staticmethod
             def _normalized_usage(response: dict[str, Any]) -> dict[str, Any]:
@@ -146,12 +152,19 @@ class MetaService(OpenAIService):
                         }
                     )
 
-                return {
+                payload = {
                     "model": self.model,
                     "input": input_messages,
                     "max_output_tokens": self.max_tokens,
                     "stream": False,
                 }
+                tools = self.parameters.get("tools")
+                if tools is not None:
+                    payload["tools"] = tools
+                tool_choice = self.parameters.get("tool_choice")
+                if tool_choice is not None:
+                    payload["tool_choice"] = tool_choice
+                return payload
 
             @report_errors_async
             async def async_execute_model_call(

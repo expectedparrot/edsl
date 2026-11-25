@@ -16,6 +16,7 @@ from .coordinator import ExecutionCoordinator, WorkAssignment, WorkCompletion
 from .service import JobService
 from .models import TaskStatus, generate_id
 from .question_resolution import resolve_question_for_validation
+from .render import _question_from_data_with_presentation_order
 
 # EDSL imports - relative since this module lives inside edsl package
 from ..caching import Cache
@@ -63,6 +64,7 @@ class ExecutionResult:
     resolution_seed: int | None = None
     resolution_method: str | None = None
     response_metadata: dict | None = None
+    question_presentation: dict[str, Any] | None = None
 
 
 class ExecutionWorker:
@@ -191,6 +193,7 @@ class ExecutionWorker:
                         resolution_seed=result.resolution_seed,
                         resolution_method=result.resolution_method,
                         response_metadata=result.response_metadata,
+                        question_presentation=result.question_presentation,
                     )
                 else:
                     self._job_service.on_task_failed(
@@ -349,6 +352,7 @@ class ExecutionWorker:
                 job_id=task.job_id,
                 interview_id=task.interview_id,
                 success=True,
+                question_presentation=getattr(task, "question_presentation", None),
                 answer=answer,
                 comment=comment,
                 input_tokens=input_tokens,
@@ -462,7 +466,7 @@ class ExecutionWorker:
         question_data = self._resolve_question_templates(
             question_data, task.job_id, task.interview_id
         )
-        question = QuestionBase.from_dict(question_data)
+        question = _question_from_data_with_presentation_order(question_data)
 
         interview_def = self._job_service._interviews.get_definition(
             task.job_id, task.interview_id
@@ -544,7 +548,7 @@ class ExecutionWorker:
             survey = Survey([question])
             return survey, MemoryPlan(survey=survey), question
 
-        survey = Survey.from_dict(survey_data)
+        survey = self._job_service._survey_cache.get(survey_data)
         for index, survey_question in enumerate(survey.questions):
             if survey_question.question_name == question.question_name:
                 survey.questions[index] = question
@@ -569,20 +573,23 @@ class ExecutionWorker:
         if task.question_id is None:
             return answer, comment, True, None, None, None, None
 
-        question_data = self._job_service._jobs.get_question(
-            task.job_id, task.question_id
-        )
+        question_data = task.resolved_question
+        if question_data is None:
+            question_data = self._job_service._jobs.get_question(
+                task.job_id, task.question_id
+            )
 
         if not question_data:
             return answer, comment, True, None, None, None, None
 
-        # Resolve template strings in question data before validation.
-        # This handles question_options, min_value, max_value, etc.
-        question_data = self._resolve_question_templates(
-            question_data, task.job_id, task.interview_id
-        )
+        # Compatibility fallback for execution paths that do not retain the
+        # exact question schema used during prompt construction.
+        if task.resolved_question is None:
+            question_data = self._resolve_question_templates(
+                question_data, task.job_id, task.interview_id
+            )
 
-        question = QuestionBase.from_dict(question_data)
+        question = _question_from_data_with_presentation_order(question_data)
         from ..questions.probabilistic_response import ProbabilisticResponse
 
         task_definition = self._job_service._tasks.get_definition(

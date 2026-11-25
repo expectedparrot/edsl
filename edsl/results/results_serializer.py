@@ -109,6 +109,8 @@ class ResultsSerializer:
             "survey": self.results.survey.to_dict(add_edsl_version=add_edsl_version),
             "created_columns": self.results.created_columns,
         }
+        if self.results.shared_state is not None:
+            d["shared_state"] = self.results.shared_state
         if include_cache:
             d.update(
                 {
@@ -194,6 +196,7 @@ class ResultsSerializer:
             "task_history": task_history,
             "name": name,
             "total_results": data.get("total_results"),
+            "shared_state": data.get("shared_state"),
         }
 
         try:
@@ -247,15 +250,14 @@ class ResultsSerializer:
         })
 
         # Manifest
-        yield json.dumps(
-            {
-                "created_columns": self.results.created_columns,
-                "name": self.results.name,
-                "n_survey_lines": len(survey_rows),
-                "total_results": self.results._total_results,
-                "n_task_history_lines": len(task_history_rows),
-            }
-        )
+        yield json.dumps({
+            "created_columns": self.results.created_columns,
+            "name": self.results.name,
+            "total_results": self.results._total_results,
+            "shared_state": self.results.shared_state,
+            "n_survey_lines": len(survey_rows),
+            "n_task_history_lines": len(task_history_rows),
+        })
 
         # Survey lines
         yield from survey_rows
@@ -320,6 +322,7 @@ class ResultsSerializer:
 
         created_columns = manifest.get("created_columns", [])
         name = manifest.get("name", None)
+        shared_state = manifest.get("shared_state")
 
         # Task-history section.  Older inline packages have no count and retain
         # the legacy empty-history behavior.
@@ -359,6 +362,7 @@ class ResultsSerializer:
             task_history=task_history,
             name=name,
             total_results=manifest.get("total_results"),
+            shared_state=shared_state,
         )
         for result in results_data:
             results.append(result)

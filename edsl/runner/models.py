@@ -11,7 +11,7 @@ Defines the core domain objects:
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, TypedDict
 import uuid
 
 
@@ -166,6 +166,7 @@ class JobDefinition:
     # Iterations - number of times to run each interview
     n_iterations: int = 1
     preserve_interview_order: bool = False
+    interview_schedule: str | dict = "concurrent"
 
     def storage_key(self) -> str:
         return f"job:{self.job_id}:meta"
@@ -184,6 +185,7 @@ class JobDefinition:
             "question_ids": self.question_ids,
             "n_iterations": self.n_iterations,
             "preserve_interview_order": self.preserve_interview_order,
+            "interview_schedule": self.interview_schedule,
         }
 
     @classmethod
@@ -204,6 +206,7 @@ class JobDefinition:
             question_ids=data["question_ids"],
             n_iterations=data.get("n_iterations", 1),
             preserve_interview_order=data.get("preserve_interview_order", False),
+            interview_schedule=data.get("interview_schedule", "concurrent"),
         )
 
 
@@ -256,6 +259,13 @@ class JobStatus:
 # =============================================================================
 
 
+class OptionRandomization(TypedDict):
+    """Persisted draw parameters for an option list resolved at interview time."""
+
+    seed: int
+    pin_options: list
+
+
 @dataclass
 class InterviewDefinition:
     """
@@ -278,7 +288,23 @@ class InterviewDefinition:
     # Only populated for questions in survey.questions_to_randomize
     question_option_permutations: dict[str, list] = field(default_factory=dict)
     question_item_randomization_seeds: dict[str, int] = field(default_factory=dict)
+    treatment_assignment: dict | None = None
+
+    scale_directions: dict[str, str] = field(default_factory=dict)
+    scale_direction_seeds: dict[str, int] = field(default_factory=dict)
+    scale_direction_assignment_id: str | None = None
+    sampled_questions: list[str] = field(default_factory=list)
+    unselected_questions: list[str] = field(default_factory=list)
+    question_sampling_seed: int | None = None
+    question_sampling_assignment_id: str | None = None
+    question_order: list[str] = field(default_factory=list)
+    question_order_seeds: dict[str, int] = field(default_factory=dict)
+    question_order_blocks: dict[str, list[str]] = field(default_factory=dict)
+    randomization_assignment_id: str | None = None
     indices: dict[str, int] | None = None
+    question_option_randomizations: dict[str, OptionRandomization] = field(
+        default_factory=dict
+    )
 
     def storage_key(self) -> str:
         return f"job:{self.job_id}:interview:{self.interview_id}"
@@ -293,7 +319,21 @@ class InterviewDefinition:
             "iteration": self.iteration,
             "question_option_permutations": self.question_option_permutations,
             "question_item_randomization_seeds": self.question_item_randomization_seeds,
+            "treatment_assignment": self.treatment_assignment,
+
+            "scale_directions": self.scale_directions,
+            "scale_direction_seeds": self.scale_direction_seeds,
+            "scale_direction_assignment_id": self.scale_direction_assignment_id,
+            "sampled_questions": self.sampled_questions,
+            "unselected_questions": self.unselected_questions,
+            "question_sampling_seed": self.question_sampling_seed,
+            "question_sampling_assignment_id": self.question_sampling_assignment_id,
+            "question_order": self.question_order,
+            "question_order_seeds": self.question_order_seeds,
+            "question_order_blocks": self.question_order_blocks,
+            "randomization_assignment_id": self.randomization_assignment_id,
             "indices": self.indices,
+            "question_option_randomizations": self.question_option_randomizations,
         }
 
     @classmethod
@@ -313,7 +353,25 @@ class InterviewDefinition:
             question_item_randomization_seeds=data.get(
                 "question_item_randomization_seeds", {}
             ),
+            treatment_assignment=data.get("treatment_assignment"),
+
+            scale_directions=data.get("scale_directions", {}),
+            scale_direction_seeds=data.get("scale_direction_seeds", {}),
+            scale_direction_assignment_id=data.get("scale_direction_assignment_id"),
+            sampled_questions=data.get("sampled_questions", []),
+            unselected_questions=data.get("unselected_questions", []),
+            question_sampling_seed=data.get("question_sampling_seed"),
+            question_sampling_assignment_id=data.get(
+                "question_sampling_assignment_id"
+            ),
+            question_order=data.get("question_order", []),
+            question_order_seeds=data.get("question_order_seeds", {}),
+            question_order_blocks=data.get("question_order_blocks", {}),
+            randomization_assignment_id=data.get("randomization_assignment_id"),
             indices=data.get("indices"),
+            question_option_randomizations=data.get(
+                "question_option_randomizations", {}
+            ),
         )
 
 
@@ -560,6 +618,8 @@ class Answer:
     resolution_seed: int | None = None
     resolution_method: str | None = None
     response_metadata: dict | None = None
+    # Captured before execution; absent for older answers or non-presented tasks.
+    question_presentation: dict[str, Any] | None = None
 
     def storage_key(self) -> str:
         return f"job:{self.job_id}:interview:{self.interview_id}:answer:{self.question_name}"
@@ -572,6 +632,8 @@ class Answer:
         return (self.input_tokens or 0) + (self.output_tokens or 0)
 
     def to_dict(self) -> dict:
+        from copy import deepcopy
+
         return {
             "answer": _encode_answer_value(self.answer),
             "created_at": self.created_at.isoformat(),
@@ -595,12 +657,19 @@ class Answer:
             "resolution_seed": self.resolution_seed,
             "resolution_method": self.resolution_method,
             "response_metadata": self.response_metadata,
+            **(
+                {"question_presentation": deepcopy(self.question_presentation)}
+                if self.question_presentation is not None
+                else {}
+            ),
         }
 
     @classmethod
     def from_dict(
         cls, job_id: str, interview_id: str, question_name: str, data: dict
     ) -> "Answer":
+        from copy import deepcopy
+
         return cls(
             job_id=job_id,
             interview_id=interview_id,
@@ -627,6 +696,7 @@ class Answer:
             resolution_seed=data.get("resolution_seed"),
             resolution_method=data.get("resolution_method"),
             response_metadata=data.get("response_metadata"),
+            question_presentation=deepcopy(data.get("question_presentation")),
         )
 
 

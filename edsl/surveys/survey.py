@@ -8,8 +8,10 @@ Surveys can include skip logic, memory management, and question groups.
 """
 
 from __future__ import annotations
+import copy
 import re
 import random
+import re
 from uuid import uuid4
 from pathlib import Path
 
@@ -170,6 +172,9 @@ class Survey(Base):
         name: Optional[str] = None,
         questions_to_randomize: Optional[List[str]] = None,
         options_to_pin: Optional[Dict[str, List]] = None,
+        scale_direction_randomization: Optional[dict] = None,
+        question_sampling: Optional[dict] = None,
+        question_order: Optional[dict] = None,
         _internal_copy: bool = False,
     ):
         """Initialize a new Survey instance.
@@ -189,6 +194,10 @@ class Survey(Base):
             name: DEPRECATED. The name of the survey.
             questions_to_randomize: A list of question names to randomize when the
                 survey is drawn. This affects the order of options in these questions.
+            question_sampling: Versioned policy for exact-count sampling from
+                explicitly named eligible questions. Prefer ``sample_questions``.
+            question_order: Versioned plan of named question blocks. Prefer
+                ``randomize_question_order`` to validate and add blocks.
 
         Examples:
             Create a basic survey with three questions:
@@ -241,6 +250,26 @@ class Survey(Base):
         self.questions_to_randomize = questions_to_randomize
 
         self.options_to_pin: Dict[str, List] = options_to_pin or {}
+        self._scale_direction_randomization = None
+        if scale_direction_randomization is not None:
+            self._validate_scale_direction_randomization(
+                scale_direction_randomization
+            )
+            self._scale_direction_randomization = copy.deepcopy(
+                scale_direction_randomization
+            )
+        self._question_sampling = None
+        if question_sampling is not None:
+            self._validate_question_sampling(question_sampling)
+            self._question_sampling = copy.deepcopy(question_sampling)
+        self._question_order = {
+            "version": 1,
+            "blocks": [],
+            "memory": {"mode": "preserve"},
+        }
+        if question_order is not None:
+            self._validate_question_order(question_order)
+            self._question_order = copy.deepcopy(question_order)
 
         self._seed: Optional[int] = None
 
@@ -1160,7 +1189,11 @@ class Survey(Base):
         }
 
     def draw(self) -> "Survey":
-        """Return a new survey with a randomly selected permutation of the options."""
+        """Return a new survey with a randomly selected permutation of the options.
+
+        Scale-direction policies are applied by the Jobs runner, which can persist
+        a per-interview assignment and expose it in Results.
+        """
         if self._seed is None:  # only set once
             self._seed = hash(self)
             random.seed(self._seed)  # type: ignore
@@ -1193,8 +1226,105 @@ class Survey(Base):
 
     def _process_raw_questions(self, questions: Optional[List["QuestionType"]]) -> list:
         """Process the raw questions passed to the survey."""
+        from ..sharedstate.model import StateRead, StateWrite
+        from ..sharedstate.exceptions import SharedStateAuthoringError
+        from ..questions import QuestionBase
+
+        ordinary = []
+        state_reads, state_writes, state_before_writes = {}, {}, {}
+        pending_reads, pending_before_writes = [], []
+        state_definitions = {}
+        step_ids = set()
+        preceding_question = None
+        known_questions = set()
+
+        def register_step(step):
+            previous = state_definitions.setdefault(step.state_id, step.definition)
+            if previous.to_dict() != step.definition.to_dict():
+                raise SharedStateAuthoringError(
+                    f"state_id {step.state_id!r} is used with conflicting definitions"
+                )
+            if step.step_id in step_ids:
+                raise SharedStateAuthoringError(
+                    f"duplicate shared-state step_id {step.step_id!r}"
+                )
+            step_ids.add(step.step_id)
+
+        def answer_refs(value):
+            from ..sharedstate.refs import AnswerRef
+
+            if isinstance(value, AnswerRef):
+                yield value
+            elif isinstance(value, dict):
+                for nested in value.values():
+                    yield from answer_refs(nested)
+            elif isinstance(value, (list, tuple)):
+                for nested in value:
+                    yield from answer_refs(nested)
+
+        for item in questions or []:
+            if isinstance(item, StateRead):
+                register_step(item)
+                pending_reads.append(item)
+                continue
+            if isinstance(item, StateWrite):
+                register_step(item)
+                machine = item.definition.machines[item.target]
+                command = machine.commands.get(item.command)
+                if command is not None and command.timing == "before_question":
+                    unavailable = sorted(
+                        {
+                            ref.question_name
+                            for ref in answer_refs(item.inputs)
+                            if ref.question_name not in known_questions
+                        }
+                    )
+                    if unavailable:
+                        raise SharedStateAuthoringError(
+                            "before-question state write references unavailable "
+                            f"answers {unavailable}"
+                        )
+                    pending_before_writes.append(item)
+                    continue
+                if preceding_question is None:
+                    raise SharedStateAuthoringError(
+                        "a state write must follow a question"
+                    )
+                unavailable = sorted(
+                    {
+                        ref.question_name
+                        for ref in answer_refs(item.inputs)
+                        if ref.question_name not in known_questions
+                    }
+                )
+                if unavailable:
+                    raise SharedStateAuthoringError(
+                        f"state write after {preceding_question!r} references "
+                        f"unavailable answers {unavailable}"
+                    )
+                state_writes.setdefault(preceding_question, []).append(item)
+                continue
+            ordinary.append(item)
+            if isinstance(item, QuestionBase):
+                preceding_question = item.question_name
+                known_questions.add(preceding_question)
+                if pending_before_writes:
+                    state_before_writes.setdefault(preceding_question, []).extend(
+                        pending_before_writes
+                    )
+                    pending_before_writes = []
+                if pending_reads:
+                    state_reads.setdefault(preceding_question, []).extend(pending_reads)
+                    pending_reads = []
+        if pending_reads or pending_before_writes:
+            raise SharedStateAuthoringError(
+                "a before-question state step must be followed by its question"
+            )
+        self._state_reads = state_reads
+        self._state_writes = state_writes
+        self._state_before_writes = state_before_writes
         handler = InstructionHandler(self)
-        result = handler.separate_questions_and_instructions(questions or [])
+        result = handler.separate_questions_and_instructions(ordinary)
 
         # Handle result safely for mypy
         if (
@@ -1203,7 +1333,9 @@ class Survey(Base):
             and hasattr(result, "pseudo_indices")
         ):
             # It's the SeparatedComponents dataclass
-            self._instruction_names_to_instructions = result.instruction_names_to_instructions  # type: ignore
+            self._instruction_names_to_instructions = (
+                result.instruction_names_to_instructions
+            )  # type: ignore
             self._pseudo_indices = PseudoIndices(result.pseudo_indices)  # type: ignore
             return result.true_questions  # type: ignore
         else:
@@ -1428,6 +1560,23 @@ class Survey(Base):
             ),
             "question_groups": self.question_groups,
         }
+        if self._state_reads or self._state_writes or self._state_before_writes:
+            from ..sharedstate.model import step_to_dict
+
+            d["state_steps"] = {
+                "reads": {
+                    anchor: [step_to_dict(step) for step in steps]
+                    for anchor, steps in self._state_reads.items()
+                },
+                "before_writes": {
+                    anchor: [step_to_dict(step) for step in steps]
+                    for anchor, steps in self._state_before_writes.items()
+                },
+                "writes": {
+                    anchor: [step_to_dict(step) for step in steps]
+                    for anchor, steps in self._state_writes.items()
+                },
+            }
         if self.name is not None:
             d["name"] = self.name
 
@@ -1438,6 +1587,15 @@ class Survey(Base):
         # Include pinned options if present
         if self.options_to_pin:
             d["options_to_pin"] = self.options_to_pin
+
+        if self._scale_direction_randomization is not None:
+            d["scale_direction_randomization"] = copy.deepcopy(
+                self._scale_direction_randomization
+            )
+        if self._question_sampling is not None:
+            d["question_sampling"] = copy.deepcopy(self._question_sampling)
+        if self._question_order["blocks"]:
+            d["question_order"] = copy.deepcopy(self._question_order)
 
         # Add version information if requested
         if add_edsl_version:
@@ -1539,6 +1697,30 @@ class Survey(Base):
             cls_type = get_class(q_dict)
             questions.append(cls_type.from_dict(q_dict))
 
+        state_data = data.get("state_steps")
+        if state_data:
+            from ..sharedstate.model import step_from_dict
+
+            rebuilt = []
+            for question in questions:
+                question_name = getattr(question, "question_name", "")
+                rebuilt.extend(
+                    step_from_dict(item)
+                    for item in state_data.get("before_writes", {}).get(
+                        question_name, []
+                    )
+                )
+                rebuilt.extend(
+                    step_from_dict(item)
+                    for item in state_data.get("reads", {}).get(question_name, [])
+                )
+                rebuilt.append(question)
+                rebuilt.extend(
+                    step_from_dict(item)
+                    for item in state_data.get("writes", {}).get(question_name, [])
+                )
+            questions = rebuilt
+
         # Deserialize the memory plan
         memory_plan = MemoryPlan.from_dict(data["memory_plan"])
 
@@ -1550,6 +1732,9 @@ class Survey(Base):
 
         # Get the pinned options if present
         options_to_pin = data.get("options_to_pin", None)
+        scale_direction_randomization = data.get("scale_direction_randomization")
+        question_sampling = data.get("question_sampling")
+        question_order = data.get("question_order")
 
         if "name" in data:
             name = data["name"]
@@ -1561,7 +1746,9 @@ class Survey(Base):
         rule_collection_data = data["rule_collection"]
         if not rule_collection_data.get("question_name_to_index"):
             rule_collection_data["question_name_to_index"] = {
-                q.question_name: i for i, q in enumerate(questions)
+                q.question_name: i
+                for i, q in enumerate(questions)
+                if hasattr(q, "question_name")
             }
 
         # Create and return the reconstructed survey
@@ -1575,6 +1762,9 @@ class Survey(Base):
             questions_to_randomize=questions_to_randomize,
             name=name,
             options_to_pin=options_to_pin,
+            scale_direction_randomization=scale_direction_randomization,
+            question_sampling=question_sampling,
+            question_order=question_order,
             _internal_copy=_internal_copy,
         )
 
@@ -2141,7 +2331,25 @@ class Survey(Base):
                 "Cannot combine two surveys with non-default rules. Please use the 'clear_non_default_rules' method to remove non-default rules from the survey.",
             )
 
-        return Survey(questions=self.questions + other.questions)
+        scale_policies = [policy for policy in (self.scale_direction_randomization, other.scale_direction_randomization) if policy]
+        scale_policy = None
+        if scale_policies:
+            scale_names = [name for policy in scale_policies for name in policy["questions"]]
+            if len(set(scale_names)) != len(scale_names):
+                raise SurveyCreationError("Cannot combine surveys with overlapping scale-direction targets.")
+            scale_policy = {**scale_policies[0], "questions": scale_names}
+        sampling_policies = [policy for policy in (self.question_sampling, other.question_sampling) if policy]
+        if len(sampling_policies) > 1:
+            raise SurveyCreationError("Cannot combine surveys that both define question sampling.")
+        combined = Survey(questions=self.questions + other.questions,
+                          scale_direction_randomization=scale_policy,
+                          question_sampling=sampling_policies[0] if sampling_policies else None)
+        blocks = self.question_order["blocks"] + other.question_order["blocks"]
+        if blocks:
+            plan = {"version": 1, "blocks": blocks, "memory": {"mode": "preserve"}}
+            combined._validate_question_order(plan)
+            combined._question_order = plan
+        return combined
 
     def move_question(self, identifier: Union[str, int], new_index: int) -> Survey:
         """
@@ -2173,6 +2381,324 @@ class Survey(Base):
         0
         """
         return self._editor.delete_question(identifier)
+
+    @property
+    def question_sampling(self) -> Optional[dict]:
+        """Return the optional exact-count question-sampling policy."""
+        return copy.deepcopy(self._question_sampling)
+
+    def _validate_question_sampling(self, policy: dict) -> None:
+        """Validate exact-count sampling over independent eligible questions."""
+        from .exceptions import SurveyError
+
+        expected_keys = {
+            "version",
+            "eligible_questions",
+            "sample_size",
+            "required_questions",
+            "method",
+        }
+        if not isinstance(policy, dict) or set(policy) != expected_keys:
+            raise SurveyError(
+                "question_sampling must contain version, eligible_questions, "
+                "sample_size, required_questions, and method."
+            )
+        if (
+            isinstance(policy["version"], bool)
+            or not isinstance(policy["version"], int)
+            or policy["version"] != 1
+        ):
+            raise SurveyError("Unsupported question_sampling version; supported version is 1.")
+        if policy["method"] != "uniform_without_replacement":
+            raise SurveyError(
+                "Question sampling method must be 'uniform_without_replacement'."
+            )
+        eligible = policy["eligible_questions"]
+        required = policy["required_questions"]
+        sample_size = policy["sample_size"]
+        if not isinstance(eligible, list) or not eligible or not all(
+            isinstance(name, str) for name in eligible
+        ):
+            raise SurveyError("eligible_questions must be a non-empty list of question names.")
+        if len(set(eligible)) != len(eligible):
+            raise SurveyError("eligible_questions cannot contain duplicate names.")
+        if not isinstance(required, list) or not all(
+            isinstance(name, str) for name in required
+        ):
+            raise SurveyError("required_questions must be a list of question names.")
+        if len(set(required)) != len(required):
+            raise SurveyError("required_questions cannot contain duplicate names.")
+        if not set(required).issubset(eligible):
+            raise SurveyError("Every required question must be in eligible_questions.")
+        if isinstance(sample_size, bool) or not isinstance(sample_size, int):
+            raise SurveyError("sample_size must be an integer, not a boolean.")
+        if sample_size < max(1, len(required)) or sample_size > len(eligible):
+            raise SurveyError(
+                "sample_size must be at least one, at least the number of required "
+                "questions, and no greater than the number of eligible questions."
+            )
+
+        names = set(self.question_names)
+        missing = set(eligible) - names
+        if missing:
+            raise SurveyError(
+                f"Question sampling names unknown questions: {sorted(missing)}."
+            )
+        positions = [self.question_names.index(name) for name in eligible]
+        if positions != sorted(positions):
+            raise SurveyError(
+                "eligible_questions must follow the survey's declared question order."
+            )
+
+        if self.rule_collection.non_default_rules:
+            raise SurveyError(
+                "Question sampling does not yet support custom skip, stop, or jump rules."
+            )
+        eligible_set = set(eligible)
+        required_set = set(required)
+        names_by_index = {index: q.question_name for index, q in enumerate(self.questions)}
+        index_by_name = {name: index for index, name in names_by_index.items()}
+        for group_name, (start, end) in self.question_groups.items():
+            grouped = set(self.question_names[start : end + 1])
+            if grouped.intersection(eligible_set):
+                raise SurveyError(
+                    f"Question sampling does not yet support display group {group_name!r}."
+                )
+
+        for child_index, parents in self.dag().items():
+            child = names_by_index.get(child_index)
+            for parent_index in parents:
+                parent = names_by_index.get(parent_index)
+                if (
+                    child in eligible_set
+                    and parent in index_by_name
+                    and index_by_name[parent] > child_index
+                ):
+                    raise SurveyError(
+                        f"Question sampling prerequisite {parent!r} appears after "
+                        f"dependent question {child!r}."
+                    )
+                if parent in eligible_set and parent not in required_set:
+                    raise SurveyError(
+                        f"Question sampling cannot guarantee prerequisite {parent!r} "
+                        f"for dependent question {child!r}; mark it required or remove "
+                        "the dependency."
+                    )
+
+    def sample_questions(
+        self,
+        eligible_questions: list[str],
+        sample_size: int,
+        required_questions: Optional[list[str]] = None,
+    ) -> Survey:
+        """Sample exactly ``sample_size`` eligible questions per assignment.
+
+        Required questions are always included and count toward ``sample_size``.
+        Questions outside the eligible set remain fixed and are always presented.
+        """
+        policy = {
+            "version": 1,
+            "eligible_questions": list(eligible_questions),
+            "sample_size": sample_size,
+            "required_questions": list(required_questions or []),
+            "method": "uniform_without_replacement",
+        }
+        self._validate_question_sampling(policy)
+        self._question_sampling = policy
+        return self
+
+    def _inherit_question_sampling(self, new_survey: Survey) -> None:
+        """Preserve the policy only when a derived survey retains its full pool."""
+        if self._question_sampling is None:
+            return
+        old_eligible = set(self._question_sampling["eligible_questions"])
+        selected = set(new_survey.question_names)
+        overlap = old_eligible.intersection(selected)
+        if overlap and overlap != old_eligible:
+            from .exceptions import SurveyError
+
+            raise SurveyError(
+                "A derived survey cannot contain only part of the question-sampling "
+                "pool; retain the full pool or remove it entirely."
+            )
+        if overlap:
+            new_survey._validate_question_sampling(self._question_sampling)
+            new_survey._question_sampling = copy.deepcopy(self._question_sampling)
+
+
+    @property
+    def question_order(self) -> dict:
+        """Return the versioned random question-order plan."""
+        return copy.deepcopy(self._question_order)
+
+    def _validate_question_order(self, plan: dict) -> None:
+        """Validate the supported v1 fixed-block permutation plan."""
+        from .exceptions import SurveyError
+
+        if not isinstance(plan, dict) or set(plan) != {
+            "version",
+            "blocks",
+            "memory",
+        }:
+            raise SurveyError(
+                "question_order must contain exactly version, blocks, and memory."
+            )
+        if plan["version"] != 1:
+            raise SurveyError(
+                "Unsupported question_order version; supported version is 1."
+            )
+        if plan["memory"] != {"mode": "preserve"}:
+            raise SurveyError(
+                "Question-order randomization currently supports "
+                "memory.mode='preserve' only."
+            )
+        if not isinstance(plan["blocks"], list):
+            raise SurveyError("question_order.blocks must be a list.")
+
+        sequence = self._recombined_questions_and_instructions()
+        sequence_names = [getattr(item, "question_name", None) for item in sequence]
+        all_names = [name for name in sequence_names if name is not None]
+        claimed: set[str] = set()
+        blocks_seen: set[str] = set()
+        for block in plan["blocks"]:
+            if not isinstance(block, dict) or set(block) != {
+                "name",
+                "questions",
+                "method",
+            }:
+                raise SurveyError(
+                    "Each question-order block needs name, questions, and method."
+                )
+            name, members = block["name"], block["questions"]
+            if not isinstance(name, str) or not name.strip() or name in blocks_seen:
+                raise SurveyError(
+                    "Question-order block names must be unique, non-empty strings."
+                )
+            blocks_seen.add(name)
+            if block["method"] != "permute":
+                raise SurveyError("Question-order block method must be 'permute'.")
+            if (
+                not isinstance(members, list)
+                or len(members) < 2
+                or not all(isinstance(q, str) for q in members)
+            ):
+                raise SurveyError(
+                    "Each question-order block must name at least two questions."
+                )
+            if len(set(members)) != len(members):
+                raise SurveyError(f"Question-order block {name!r} repeats a question name.")
+            missing = set(members) - set(all_names)
+            if missing:
+                raise SurveyError(
+                    f"Question-order block {name!r} names unknown questions: "
+                    f"{sorted(missing)}."
+                )
+            overlap = claimed.intersection(members)
+            if overlap:
+                raise SurveyError(
+                    "Question-order blocks must be disjoint; repeated members: "
+                    f"{sorted(overlap)}."
+                )
+            claimed.update(members)
+            positions = [sequence_names.index(q) for q in members]
+            if positions != list(range(min(positions), max(positions) + 1)):
+                raise SurveyError(
+                    f"Question-order block {name!r} must be contiguous in the declared survey."
+                )
+            declared = [
+                q
+                for q in sequence_names[min(positions) : max(positions) + 1]
+                if q is not None
+            ]
+            if declared != members:
+                raise SurveyError(
+                    f"Question-order block {name!r} members must follow "
+                    "declared survey order."
+                )
+
+            for group_name, (start, end) in self.question_groups.items():
+                grouped = set(self.question_names[start : end + 1])
+                intersection = grouped.intersection(members)
+                if intersection and grouped != set(members):
+                    raise SurveyError(
+                        f"Question-order block {name!r} intersects display group "
+                        f"{group_name!r}; the group must contain exactly the block members."
+                    )
+
+        if plan["blocks"] and self.rule_collection.non_default_rules:
+            raise SurveyError(
+                "Question-order blocks do not yet support custom skip, stop, "
+                "or jump rules."
+            )
+
+        # A permutation is valid only when no member depends on another member.
+        names_by_index = {i: q.question_name for i, q in enumerate(self.questions)}
+        position_by_name = {
+            name: index
+            for index, name in enumerate(sequence_names)
+            if name is not None
+        }
+        dependencies = self.dag()
+        for child_index, parents in dependencies.items():
+            child = names_by_index.get(child_index)
+            for parent_index in parents:
+                parent = names_by_index.get(parent_index)
+                if child in claimed and parent in claimed:
+                    raise SurveyError(
+                        "Question-order block cannot be permuted because "
+                        f"{child!r} depends on {parent!r}."
+                    )
+                if child in claimed and parent in position_by_name:
+                    block = next(
+                        item
+                        for item in plan["blocks"]
+                        if child in item["questions"]
+                    )
+                    block_positions = [
+                        position_by_name[name] for name in block["questions"]
+                    ]
+                    if position_by_name[parent] > max(block_positions):
+                        raise SurveyError(
+                            f"Question-order block {block['name']!r} cannot be "
+                            f"permuted because {child!r} depends on later fixed "
+                            f"question {parent!r}."
+                        )
+
+    def randomize_question_order(self, block: str, questions: list[str]) -> Survey:
+        """Add a named contiguous block whose questions may be permuted per interview."""
+        from .exceptions import SurveyError
+
+        if any(existing["name"] == block for existing in self._question_order["blocks"]):
+            raise SurveyError(f"Question-order block {block!r} already exists.")
+        candidate = copy.deepcopy(self._question_order)
+        candidate["blocks"].append(
+            {"name": block, "questions": list(questions), "method": "permute"}
+        )
+        self._validate_question_order(candidate)
+        self._question_order = candidate
+        return self
+
+    def _inherit_question_order(self, new_survey: Survey) -> None:
+        """Carry complete blocks into derived surveys and reject partial blocks."""
+        from .exceptions import SurveyError
+
+        selected = set(new_survey.question_names)
+        blocks = []
+        for block in self._question_order["blocks"]:
+            members = set(block["questions"])
+            overlap = selected.intersection(members)
+            if overlap and overlap != members:
+                raise SurveyError(
+                    f"Subset contains only part of question-order block "
+                    f"{block['name']!r}; retain all block questions or none."
+                )
+            if overlap:
+                blocks.append(copy.deepcopy(block))
+        if blocks:
+            plan = copy.deepcopy(self._question_order)
+            plan["blocks"] = blocks
+            new_survey._validate_question_order(plan)
+            new_survey._question_order = plan
 
     def add_question(
         self, question: QuestionBase, index: Optional[int] = None
@@ -2429,6 +2955,110 @@ class Survey(Base):
             question_name=question_name, question_text=question_text
         )
         return self.add_question(compute_q)
+
+    @property
+    def scale_direction_randomization(self) -> Optional[dict]:
+        """Return a copy of the optional forward/reverse scale policy."""
+        return copy.deepcopy(self._scale_direction_randomization)
+
+    def _validate_scale_direction_randomization(self, policy: dict) -> None:
+        from .exceptions import SurveyError
+
+        expected_keys = {
+            "version",
+            "questions",
+            "method",
+            "assignment_unit",
+            "balance",
+        }
+        if not isinstance(policy, dict) or set(policy) != expected_keys:
+            raise SurveyError(
+                "scale_direction_randomization must contain version, questions, "
+                "method, assignment_unit, and balance."
+            )
+        if (
+            isinstance(policy["version"], bool)
+            or not isinstance(policy["version"], int)
+            or policy["version"] != 1
+        ):
+            raise SurveyError(
+                "Unsupported scale-direction policy version; supported version is 1."
+            )
+        if policy["method"] != "uniform_forward_reverse":
+            raise SurveyError(
+                "Scale-direction method must be 'uniform_forward_reverse'."
+            )
+        if policy["assignment_unit"] != "agent_scenario_iteration":
+            raise SurveyError(
+                "Scale-direction assignment_unit must be 'agent_scenario_iteration'."
+            )
+        if policy["balance"] != "none":
+            raise SurveyError("Scale-direction v1 does not provide balance guarantees.")
+        names = policy["questions"]
+        if not isinstance(names, list) or not names or not all(
+            isinstance(name, str) and name for name in names
+        ):
+            raise SurveyError(
+                "Scale-direction questions must be non-empty question names."
+            )
+        if len(set(names)) != len(names):
+            raise SurveyError("Scale-direction questions cannot contain duplicates.")
+        known = set(self.question_names)
+        unknown = set(names) - known
+        if unknown:
+            raise SurveyError(
+                f"Scale-direction policy references unknown questions: {sorted(unknown)}."
+            )
+        question_by_name = self.question_names_to_questions()
+        non_scales = [
+            name
+            for name in names
+            if getattr(question_by_name[name], "question_type", None)
+            != "linear_scale"
+        ]
+        if non_scales:
+            raise SurveyError(
+                "Scale-direction randomization only supports QuestionLinearScale; "
+                f"unsupported question(s): {non_scales}."
+            )
+        conflicts = set(names).intersection(self.questions_to_randomize or [])
+        if conflicts:
+            raise SurveyError(
+                "Scale-direction questions cannot also use ordinary option shuffling: "
+                f"{sorted(conflicts)}."
+            )
+        for name in names:
+            options = question_by_name[name].question_options
+            if not isinstance(options, list) or len(options) < 2:
+                raise SurveyError(
+                    f"Scale-direction question {name!r} must have at least two options."
+                )
+
+    def randomize_scale_direction(self, *question_names) -> "Survey":
+        """Randomize a linear scale between its declared and reversed order.
+
+        One direction is assigned per agent/scenario/iteration and shared across
+        model variants. V1 uses independent draws and promises no exact balance.
+        Pass question names as arguments or as one list.
+        """
+        if len(question_names) == 1 and not isinstance(question_names[0], str):
+            question_names = tuple(question_names[0])
+        questions = list(question_names)
+        policy = {
+            "version": 1,
+            "questions": questions,
+            "method": "uniform_forward_reverse",
+            "assignment_unit": "agent_scenario_iteration",
+            "balance": "none",
+        }
+        self._validate_scale_direction_randomization(policy)
+        self._scale_direction_randomization = policy
+        return self
+
+    def clear_scale_direction_randomization(self) -> "Survey":
+        """Remove the forward/reverse scale assignment policy."""
+        self._scale_direction_randomization = None
+        return self
 
     def _recombined_questions_and_instructions(
         self,
@@ -3212,9 +3842,9 @@ class Survey(Base):
             q_and_a_dict: A dictionary of question names and answers.
         """
         try:
-            assert set(q_and_a_dict.keys()) == set(
-                self.question_names
-            ), "q_and_a_dict must have the same keys as the survey"
+            assert set(q_and_a_dict.keys()) == set(self.question_names), (
+                "q_and_a_dict must have the same keys as the survey"
+            )
         except AssertionError:
             raise ValueError(
                 "q_and_a_dict must have the same keys as the survey",
@@ -3815,6 +4445,20 @@ class Survey(Base):
             if relevant_randomization:
                 new_survey.questions_to_randomize = relevant_randomization
 
+        scale_policy = self.scale_direction_randomization
+        if scale_policy is not None:
+            relevant_scales = [
+                name
+                for name in scale_policy["questions"]
+                if name in {q.question_name for q in selected_questions}
+            ]
+            if relevant_scales:
+                scale_policy["questions"] = relevant_scales
+                new_survey._validate_scale_direction_randomization(scale_policy)
+                new_survey._scale_direction_randomization = scale_policy
+        self._inherit_question_sampling(new_survey)
+        self._inherit_question_order(new_survey)
+
         return new_survey
 
     def __getitem__(
@@ -3890,7 +4534,10 @@ class Survey(Base):
 
         kept_questions = [self.get(name) for name in question_names]
         assert all(kept_questions), f"Question(s) {question_names} not found in survey"
-        return Survey(questions=kept_questions)
+        new_survey = self._create_subsurvey(kept_questions)
+        self._inherit_question_sampling(new_survey)
+        self._inherit_question_order(new_survey)
+        return new_survey
 
     def drop(self, *question_names) -> "Survey":
         """Create a new Survey with specified questions removed by name.
@@ -4122,7 +4769,21 @@ class Survey(Base):
             if question.question_name in rename_dict:
                 new_question.question_name = rename_dict[question.question_name]
             new_questions.append(new_question)
-        return Survey(questions=new_questions)
+        scale_policy = self.scale_direction_randomization
+        if scale_policy is not None:
+            scale_policy["questions"] = [
+                rename_dict.get(name, name) for name in scale_policy["questions"]
+            ]
+        question_sampling = copy.deepcopy(self._question_sampling)
+        if question_sampling is not None:
+            for key in ("eligible_questions", "required_questions"):
+                question_sampling[key] = [rename_dict.get(name, name) for name in question_sampling[key]]
+        question_order = copy.deepcopy(self._question_order)
+        for block in question_order["blocks"]:
+            block["questions"] = [rename_dict.get(name, name) for name in block["questions"]]
+        return Survey(questions=new_questions, scale_direction_randomization=scale_policy,
+                      question_sampling=question_sampling,
+                      question_order=question_order if question_order["blocks"] else None)
 
     def with_edited_question(
         self,

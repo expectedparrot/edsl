@@ -22,7 +22,7 @@ def test_anthropic_request_uses_temperature_one_for_affected_models(monkeypatch)
     captured_kwargs = {}
 
     class DummyResponse:
-        def model_dump(self):
+        def model_dump(self, mode=None):
             return {"content": [{"type": "text", "text": "ok"}]}
 
     class DummyMessages:
@@ -72,7 +72,7 @@ def test_manual_thinking_uses_valid_temperature_and_fits_output_limit(monkeypatc
     captured_kwargs = {}
 
     class DummyResponse:
-        def model_dump(self):
+        def model_dump(self, mode=None):
             return {"content": [{"type": "text", "text": "ok"}]}
 
     class DummyMessages:
@@ -103,7 +103,7 @@ def test_manual_thinking_is_disabled_when_output_limit_is_too_small(monkeypatch)
     captured_kwargs = {}
 
     class DummyResponse:
-        def model_dump(self):
+        def model_dump(self, mode=None):
             return {"content": [{"type": "text", "text": "ok"}]}
 
     class DummyMessages:
@@ -131,7 +131,7 @@ def test_anthropic_request_omits_temperature_for_fable(monkeypatch):
     captured_kwargs = {}
 
     class DummyResponse:
-        def model_dump(self):
+        def model_dump(self, mode=None):
             return {"content": [{"type": "text", "text": "ok"}]}
 
     class DummyMessages:
@@ -162,7 +162,7 @@ def test_anthropic_request_preserves_temperature_for_legacy_models(monkeypatch):
     captured_kwargs = {}
 
     class DummyResponse:
-        def model_dump(self):
+        def model_dump(self, mode=None):
             return {"content": [{"type": "text", "text": "ok"}]}
 
     class DummyMessages:

@@ -104,6 +104,8 @@ class ExecutionCoordinator:
             "iteration": rendered.iteration,
             "agent_name": rendered.agent_name,
             "question_type": rendered.question_type,
+            "resolved_question": rendered.resolved_question,
+            "question_presentation": rendered.question_presentation,
         }
 
         service = rendered.service_name or "openai"
@@ -279,6 +281,8 @@ class ExecutionCoordinator:
                     iteration=task.get("iteration", 0),
                     agent_name=task.get("agent_name"),
                     question_type=task.get("question_type"),
+                    resolved_question=task.get("resolved_question"),
+                    question_presentation=task.get("question_presentation"),
                 )
 
                 return WorkAssignment(

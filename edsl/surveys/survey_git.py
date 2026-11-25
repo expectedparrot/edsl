@@ -177,9 +177,13 @@ def _read_survey_dict_at_ref(path: Path, ref: str) -> dict:
         ),
     }
     optional_fields = {
+        "state_steps": "metadata/state_steps.json",
         "name": "metadata/name.json",
         "questions_to_randomize": "metadata/questions_to_randomize.json",
         "options_to_pin": "metadata/options_to_pin.json",
+        "scale_direction_randomization": "metadata/scale_direction_randomization.json",
+        "question_sampling": "metadata/question_sampling.json",
+        "question_order": "metadata/question_order.json",
     }
     for key, file_path in optional_fields.items():
         value = _read_optional_json_at_ref(path, file_path, ref, default=None)
@@ -355,9 +359,15 @@ def _write_metadata(path: Path, survey_dict: dict) -> None:
         "question_groups": survey_dict["question_groups"],
     }
     optional = {
+        "state_steps": survey_dict.get("state_steps"),
         "name": survey_dict.get("name"),
         "questions_to_randomize": survey_dict.get("questions_to_randomize"),
         "options_to_pin": survey_dict.get("options_to_pin"),
+        "scale_direction_randomization": survey_dict.get(
+            "scale_direction_randomization"
+        ),
+        "question_sampling": survey_dict.get("question_sampling"),
+        "question_order": survey_dict.get("question_order"),
     }
     for name, value in required.items():
         (metadata_dir / f"{name}.json").write_text(
@@ -438,6 +448,13 @@ def _validate_package(path: Path) -> list[str]:
             json.loads(metadata_path.read_text())
         except json.JSONDecodeError as exc:
             errors.append(f"invalid metadata file metadata/{name}.json: {exc.msg}")
+    for field in ("question_sampling", "question_order"):
+        metadata_path = metadata_dir / f"{field}.json"
+        if metadata_path.exists():
+            try:
+                json.loads(metadata_path.read_text())
+            except json.JSONDecodeError as exc:
+                errors.append(f"invalid metadata file metadata/{field}.json: {exc.msg}")
     n_questions = manifest.get("n_questions")
     if n_questions is not None and n_questions != len(question_order):
         errors.append("manifest n_questions does not match question_order")
