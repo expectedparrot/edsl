@@ -84,7 +84,7 @@ _EXPORT_TO_MODULE = {
     "QuestionCheckBox": "questions",
     "QuestionCheckboxMatrix": "questions",
     "QuestionDate": "questions",
-    "QuestionDateTime": "questions"
+    "QuestionDateTime": "questions",
     "QuestionLinearScale": "questions",
     "QuestionNumerical": "questions",
     "QuestionNumericalRange": "questions",
