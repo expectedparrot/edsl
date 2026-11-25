@@ -104,12 +104,19 @@ def resolve_question_for_validation(
     option_permutation, item_seed = _interview_order(
         interview_def, question_data.get("question_name")
     )
-    if not _needs_resolution(question_data, option_permutation):
+    option_randomizations = (
+        getattr(interview_def, "question_option_randomizations", None) or {}
+        if interview_def
+        else {}
+    )
+    question_name = question_data.get("question_name")
+    has_deferred_draw = question_name in option_randomizations
+    if not _needs_resolution(question_data, option_permutation) and not has_deferred_draw:
         return question_data
 
     answer_dict: dict = {}
     scenario = None
-    if _is_template(option_permutation) or any(
+    if has_deferred_draw or _is_template(option_permutation) or any(
         _is_template(value) for value in question_data.values()
     ):
         answers = job_service._answers.get_all_for_interview(job_id, interview_id)
@@ -117,10 +124,16 @@ def resolve_question_for_validation(
         if interview_def:
             scenario = job_service._jobs.get_scenario(job_id, interview_def.scenario_id)
 
-    return resolve_question_data(
+    resolved = resolve_question_data(
         question_data,
         answer_dict,
         scenario,
         option_permutation=option_permutation,
         item_randomization_seed=item_seed,
     )
+    if has_deferred_draw:
+        resolved = dict(resolved)
+        resolved["question_options"] = job_service._resolve_interview_options(
+            question_data, interview_def, answer_dict, scenario
+        )
+    return resolved

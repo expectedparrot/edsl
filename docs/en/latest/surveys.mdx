@@ -17,6 +17,70 @@ For [data labeling](/en/latest/guides/data_labeling), a survey might ask about e
 
 Construct questions before passing them to `Survey([...])`. Each question must have a unique name. See [Questions](/en/latest/questions) for choosing types; the survey controls how those questions work together.
 
+## Randomize answer-option order
+
+Set `questions_to_randomize` on a survey to shuffle the answer options for selected questions independently for each interview. This also works when a question's entire option list is supplied by a scenario or a prior answer; EDSL resolves the list before drawing and reuses that interview's order for rendering, validation, and result metadata.
+
+```python
+from edsl import Model, QuestionMultipleChoice, ScenarioList, Survey
+
+question = QuestionMultipleChoice(
+    question_name="pick",
+    question_text="Pick one.",
+    question_options="{{ scenario.options }}",
+)
+survey = Survey(
+    [question],
+    questions_to_randomize=["pick"],
+    options_to_pin={"pick": ["Other"]},
+)
+scenarios = ScenarioList.from_list(
+    "options",
+    [["A", "B", "Other"], ["X", "Y", "Other"]],
+)
+results = survey.by(scenarios).by(Model("gpt-4o-mini")).run(n=1)
+
+shown_options = results.select("question_options.pick").to_list()
+audit_orders = results.select("randomization.option_orders.pick").to_list()
+```
+
+Each scenario supplies its own full list; EDSL resolves that list first, then shuffles it independently for each interview. Here `Other` stays last because it is pinned in the source list's last position. `shown_options` and `audit_orders` contain the same realized order, while the answer value continues to refer to that option.
+
+```python
+from edsl import QuestionList, QuestionMultipleChoice, Survey
+
+pool = QuestionList(
+    question_name="pool",
+    question_text="List three possible recommendations.",
+)
+pick_from_pool = QuestionMultipleChoice(
+    question_name="recommendation",
+    question_text="Choose one recommendation.",
+    question_options={"from": "{{ pool.answer }}", "add": ["Other"]},
+)
+survey_from_answer = Survey(
+    [pool, pick_from_pool],
+    questions_to_randomize=["recommendation"],
+    options_to_pin={"recommendation": ["Other"]},
+)
+```
+
+The second pattern builds the choice list from a prior `QuestionList` answer and appends `Other` only if it is not already in the resolved list. The resulting whole list is randomized after it resolves; pinning keeps `Other` at the end.
+
+Results record the realized order in both `question_options.<name>` and `randomization.option_orders.<name>`, with deferred draw seeds in `randomization.option_seeds.<name>`.
+
+For CLI-authored surveys, configure and inspect the same policy with `ep`:
+
+```bash
+ep surveys set-option-randomization survey.ep \
+  --question pick \
+  --pin-options '{"pick":["Other"]}'
+ep surveys show survey.ep
+ep results select --file results.ep --column question_options.pick --column randomization.option_orders.pick --column randomization.option_seeds.pick --limit 5
+```
+
+The pinned values are JSON, so numbers and other typed options can be written as JSON values. Inspect `question_options.<name>` in results to see the order used for each interview. Avoid randomizing ordered scales, numeric ranges, or yes/no choices. This setting randomizes answer options, not question order.
+
 <span id="applying-survey-rules" />
 <span id="survey-rules-logic" />
 <span id="id2" />

@@ -98,6 +98,7 @@ class DirectAnswerRegistry:
         contract = getattr(entry.question, "probabilistic_response", None)
         if contract is None:
             return result
+        question = self._question_for_interview(entry)
 
         iteration = 0
         if self._job_service and entry.job_id and entry.interview_id:
@@ -107,13 +108,13 @@ class DirectAnswerRegistry:
             if definition is not None:
                 iteration = definition.iteration
 
-        entry.question._probabilistic_seed_context = contract.seed_context(
+        question._probabilistic_seed_context = contract.seed_context(
             agent=entry.agent,
             scenario=entry.scenario,
             question_name=entry.question.question_name,
             iteration=iteration,
         )
-        validated = entry.question._validate_answer(
+        validated = question._validate_answer(
             {
                 "answer": result["answer"],
                 "comment": result.get("comment"),
@@ -195,11 +196,8 @@ class DirectAnswerRegistry:
             and hasattr(question, "question_options")
             and question.question_type != "distribution"
         ):
-            options = interview_def.question_option_permutations.get(
-                question.question_name, question_data.get("question_options")
-            )
-            options = self._job_service._resolve_question_options(
-                options, current_answers, entry.scenario
+            options = self._job_service._resolve_interview_options(
+                question_data, interview_def, current_answers, entry.scenario
             )
             if isinstance(options, list):
                 if (

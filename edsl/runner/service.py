@@ -857,6 +857,22 @@ class JobService:
                     for question in interview_questions
                     if self._to_dict(question).get("randomize_items")
                 }
+                # Whole-list templates cannot be permuted until their inputs exist.
+                # Persist the draw now so rendering/retries/validation use one order.
+                question_option_randomizations = {
+                    q_name: {
+                        "seed": random.getrandbits(64),
+                        "pin_options": list(survey.options_to_pin.get(q_name, [])),
+                    }
+                    for question in interview_questions
+                    if (
+                        q_name := self._get_question_name(question)
+                    ) in questions_to_randomize
+                    and isinstance(
+                        self._to_dict(question).get("question_options"), (str, dict)
+                    )
+                }
+
                 question_order, question_order_seeds = self._realize_question_order(
                     survey,
                     questions,
@@ -867,6 +883,7 @@ class JobService:
                 if question_order:
                     for before, after in zip(question_order, question_order[1:]):
                         interview_dag.setdefault(after, set()).add(before)
+
 
                 # Create tasks for this interview
                 # Pass agent and scenario objects for direct answer detection
@@ -950,6 +967,7 @@ class JobService:
                         "scenario": scenario_index,
                         "model": model_index,
                     },
+                    question_option_randomizations=question_option_randomizations,
                 )
                 interview_definitions.append(interview_def)
 
@@ -3211,6 +3229,11 @@ class JobService:
             if interview_def and hasattr(interview_def, "question_option_permutations")
             else {}
         )
+        option_randomizations = (
+            interview_def.question_option_randomizations
+            if interview_def and hasattr(interview_def, "question_option_randomizations")
+            else {}
+        )
         item_randomization_seeds = (
             interview_def.question_item_randomization_seeds
             if interview_def
@@ -3222,16 +3245,9 @@ class JobService:
                 q_data = questions_data.get(q_id)
                 if q_data:
                     q_name = q_data.get("question_name", q_id)
-                    q_options = q_data.get("question_options")
-                    # Resolve template variables in question_options using prior answers
-                    q_options = self._resolve_question_options(
-                        q_options, answer_dict, scenario
+                    q_options = self._resolve_interview_options(
+                        q_data, interview_def, answer_dict, scenario, strict=False
                     )
-                    # Apply per-interview randomized permutation if present
-                    if option_permutations and q_name in option_permutations:
-                        q_options = self._resolve_question_options(
-                            option_permutations[q_name], answer_dict, scenario
-                        )
                     question_to_attributes[q_name] = {
                         "question_text": q_data.get("question_text", ""),
                         "question_type": q_data.get("question_type", ""),
@@ -3277,11 +3293,12 @@ class JobService:
             interview_def.iteration if hasattr(interview_def, "iteration") else 0
         )
 
-        option_orders = {
-            name: question_to_attributes.get(name, {}).get("question_options")
-            for name in option_permutations
-            if question_to_attributes.get(name, {}).get("question_options") is not None
-        }
+        randomized_option_names = set(option_permutations) | set(option_randomizations)
+        option_orders = {}
+        for name in randomized_option_names:
+            options = question_to_attributes.get(name, {}).get("question_options")
+            if isinstance(options, list):
+                option_orders[name] = options
         scale_directions = getattr(interview_def, "scale_directions", {}) or {}
         scale_direction_seeds = (
             getattr(interview_def, "scale_direction_seeds", {}) or {}
@@ -3293,12 +3310,16 @@ class JobService:
         }
         answer_by_name = {a.question_name: a for a in answers}
         completion_order = sorted(answers, key=lambda a: a.created_at)
-        randomized_questions = set(option_orders) | set(matrix_row_orders)
         scale_randomized_questions = set(scale_directions)
         ordinary_option_randomized_questions = (
             set(option_orders) - scale_randomized_questions
         )
-        randomized_questions |= scale_randomized_questions
+        randomized_questions = (
+            set(option_orders)
+            | set(option_randomizations)
+            | set(matrix_row_orders)
+            | scale_randomized_questions
+        )
         sampling_policy = getattr(survey, "question_sampling", None)
         sampled_questions = list(
             getattr(interview_def, "sampled_questions", []) or []
@@ -3330,7 +3351,9 @@ class JobService:
             "scale_direction_assignment_unit": (
                 "agent_scenario_iteration" if scale_directions else None
             ),
-            "option_seeds": {},
+            "option_seeds": {
+                name: draw["seed"] for name, draw in option_randomizations.items()
+            },
             "matrix_row_seeds": dict(item_randomization_seeds),
             "planned_question_order": list(
                 getattr(interview_def, "question_order", []) or []
@@ -3346,10 +3369,14 @@ class JobService:
                     policy
                     for applies, policy in (
                         (
-                            name in ordinary_option_randomized_questions,
+                            name in ordinary_option_randomized_questions
+                            or name in option_randomizations,
                             "randomized_option_order",
                         ),
-                        (name in scale_randomized_questions, "randomized_scale_direction"),
+                        (
+                            name in scale_randomized_questions,
+                            "randomized_scale_direction",
+                        ),
                         (name in matrix_row_orders, "randomized_matrix_row_order"),
                     )
                     if applies
@@ -3366,7 +3393,10 @@ class JobService:
                         or (task_statuses_by_question or {}).get(name)
                         == TaskStatus.SKIPPED
                         else (
-                            True
+                            bool(
+                                answer_by_name[name].system_prompt
+                                or answer_by_name[name].user_prompt
+                            )
                             if name in answer_by_name
                             else None
                         )
@@ -4042,7 +4072,11 @@ class JobService:
                 from_template, answer_dict, scenario
             )
             if isinstance(base, list):
-                return base + additional
+                resolved = list(base)
+                for option in additional:
+                    if option not in resolved:
+                        resolved.append(option)
+                return resolved
             # Couldn't resolve the "from" template
             return additional if additional else options
 
@@ -4172,6 +4206,47 @@ class JobService:
                 )
 
         return permutations
+
+    @staticmethod
+    def _resolve_interview_options(
+        question_data: dict,
+        interview_def: InterviewDefinition | None,
+        answer_dict: dict,
+        scenario: Any,
+        *,
+        strict: bool = True,
+    ) -> Any:
+        """Resolve options and reproduce the interview's static or deferred draw.
+
+        Results may include skipped/failed questions whose inputs never existed;
+        strict=False preserves their unresolved metadata without attempting a draw.
+        """
+        name = question_data.get("question_name")
+        permutations = (
+            interview_def.question_option_permutations if interview_def else {}
+        )
+        options = JobService._resolve_question_options(
+            permutations.get(name, question_data.get("question_options")),
+            answer_dict,
+            scenario,
+        )
+        draw = (
+            interview_def.question_option_randomizations.get(name)
+            if interview_def
+            else None
+        )
+        if draw is None:
+            return options
+        if not isinstance(options, list):
+            if strict:
+                raise ValueError(
+                    f"Randomized options for question {name!r} must resolve to a list; "
+                    f"got {type(options).__name__}."
+                )
+            return options
+        return JobService._shuffle_pinned(
+            options, draw["pin_options"], random.Random(draw["seed"])
+        )
 
     @staticmethod
     def _resolve_question_items(

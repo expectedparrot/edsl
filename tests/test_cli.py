@@ -7386,6 +7386,86 @@ class TestSurveys:
 
         assert result.exit_code == 0, result.output
         assert "review" in result.output
+        assert "set-option-randomization" in result.output
+
+    def test_surveys_set_option_randomization_for_dynamic_options(self, tmp_path):
+        from edsl.questions import QuestionMultipleChoice
+        from edsl.surveys import Survey
+
+        survey_path = tmp_path / "survey.ep"
+        question = QuestionMultipleChoice(
+            question_name="pick",
+            question_text="Pick one.",
+            question_options="{{ scenario.options }}",
+        )
+        Survey([question]).git.save(survey_path)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "surveys",
+                "set-option-randomization",
+                str(survey_path),
+                "--question",
+                "pick",
+                "--pin-options",
+                '{"pick":["Other"]}',
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)["data"]
+        assert data["questions_to_randomize"] == ["pick"]
+        assert data["options_to_pin"] == {"pick": ["Other"]}
+        restored = Survey.git.load(survey_path)
+        assert restored.questions_to_randomize == ["pick"]
+        assert restored.options_to_pin == {"pick": ["Other"]}
+        validation = CliRunner().invoke(
+            cli_module.app, ["validate", "--file", str(survey_path)]
+        )
+        assert validation.exit_code == 0, validation.output
+
+        clear_result = CliRunner().invoke(
+            cli_module.app,
+            ["surveys", "set-option-randomization", str(survey_path), "--clear"],
+        )
+        assert clear_result.exit_code == 0, clear_result.output
+        cleared = Survey.git.load(survey_path)
+        assert cleared.questions_to_randomize == []
+        assert cleared.options_to_pin == {}
+
+    def test_surveys_set_option_randomization_rejects_unknown_pinned_target(
+        self, tmp_path
+    ):
+        from edsl.questions import QuestionMultipleChoice
+        from edsl.surveys import Survey
+
+        survey_path = tmp_path / "survey.ep"
+        Survey(
+            [
+                QuestionMultipleChoice(
+                    question_name="pick",
+                    question_text="Pick one.",
+                    question_options="{{ scenario.options }}",
+                )
+            ]
+        ).git.save(survey_path)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "surveys",
+                "set-option-randomization",
+                str(survey_path),
+                "--question",
+                "pick",
+                "--pin-options",
+                '{"other":["Other"]}',
+            ],
+        )
+
+        assert result.exit_code == cli_module.EXIT_VALIDATION, result.output
+        assert json.loads(result.output)["error"]["code"] == "INVALID_PINNED_OPTIONS"
 
     def test_surveys_create_and_add_question_from_fields(self, tmp_path):
         from edsl.surveys import Survey
