@@ -1,0 +1,84 @@
+---
+title: "Collections"
+description: "Group Expected Parrot objects in a versioned EDSL package using typed UUID references."
+---
+
+An EDSL `Collection` is a named, ordered list of references to objects stored on Expected Parrot. It records each member's object type and UUID; it does **not** copy the member's content into the collection. A collection is useful for grouping related surveys, prompts, results, or other objects while keeping each object separate, with its own access settings. References are by UUID, not frozen versions, so they do not preserve a snapshot of member content.
+
+## Create a collection
+
+Create an empty local `.ep` package, then add the UUIDs returned by `ep push` or shown by `ep metadata`:
+
+```bash
+ep collections create \
+  --name "Customer feedback materials" \
+  --purpose "Survey and prompt for the customer feedback study." \
+  --tag customer-feedback \
+  --output customer-feedback.ep
+
+ep collections add customer-feedback.ep "$SURVEY_UUID" --type survey
+ep collections add customer-feedback.ep "$PROMPT_UUID" --type prompt
+ep collections show customer-feedback.ep
+```
+
+Set `SURVEY_UUID` and `PROMPT_UUID` to the UUIDs of your stored objects. The `--type` value must identify the referenced object type. A UUID alone does not identify its type in a collection.
+
+## Create from search results
+
+`from-search` creates a collection from one page of Expected Parrot search results. It does not download the matching objects. Check the returned pagination metadata and warnings. To add later pages to the same collection, use `ep search` to retrieve each page, then add the returned UUIDs with `ep collections add`.
+
+```bash
+ep collections from-search \
+  --name "Public customer surveys" \
+  --purpose "Public surveys to review for the customer study." \
+  --query "customer feedback" \
+  --type survey \
+  --community \
+  --page 1 \
+  --page-size 50 \
+  --output public-customer-surveys.ep
+```
+
+## Inspect and maintain members
+
+Use `show` to inspect the local collection's name, purpose, tags, and ordered UUID references. Use `metadata` to look up current remote metadata for every member without downloading its content:
+
+```bash
+ep collections show customer-feedback.ep
+ep collections metadata customer-feedback.ep
+```
+
+Metadata lookup requires the authenticated account to be able to access every referenced object. A public collection does not make a private member public and does not grant access to it.
+
+Creating, editing, and showing a local collection does not contact Expected Parrot. Search, metadata lookup, push, clone, and pull are remote operations and require configured access; check it with `ep check`.
+
+Add and remove references locally with `add` and `remove`:
+
+```bash
+ep collections add customer-feedback.ep "$RESULTS_UUID" --type results
+ep collections remove customer-feedback.ep "$PROMPT_UUID" --type prompt
+```
+
+## Push and retrieve a collection
+
+Push the local package to Expected Parrot with a descriptive alias, description, and chosen visibility. Pushing the collection does not change member visibility or upload the members again.
+
+```bash
+ep push customer-feedback.ep \
+  --alias customer-feedback-materials \
+  --description "Survey and prompt references for the customer feedback study." \
+  --visibility private
+```
+
+Clone the collection by the UUID returned by `ep push`, then pull later updates into that package:
+
+```bash
+ep clone "$COLLECTION_UUID" \
+  --path customer-feedback-copy.ep
+ep pull customer-feedback-copy.ep
+ep collections show customer-feedback-copy.ep
+```
+
+Set `COLLECTION_UUID` to the UUID returned by the push command. You can also clone by the collection's owner and alias or its Expected Parrot URL.
+
+`private`, `unlisted`, and `public` control access to the collection itself. Members keep their own visibility and sharing settings. For common object publishing and sharing workflows, see [Expected Parrot objects](/en/latest/coop).

@@ -94,6 +94,20 @@ class StorageProtocol(Protocol):
         """
         ...
 
+    def increment_volatile_once(self, key: str, seen_key: str, token: str) -> bool:
+        """Atomically record a token in a set and increment once. Returns whether new."""
+        ...
+
+    def get_or_set_volatile(self, key: str, value: dict) -> dict:
+        """Atomically retain the first value and return a detached copy of it."""
+        ...
+
+    def satisfy_dependency_once(
+        self, job_id: str, task_id: str, parent_id: str
+    ) -> bool:
+        """Deduplicate an edge, decrement its counter, and enqueue atomically."""
+        ...
+
     def add_to_set(self, key: str, value: str) -> bool:
         """
         Add value to a set. Creates set if it doesn't exist.
@@ -258,6 +272,42 @@ class InMemoryStorage:
             new_value = int(current) + amount
             self._volatile[key] = new_value
             return new_value
+
+    def increment_volatile_once(self, key: str, seen_key: str, token: str) -> bool:
+        with self._lock:
+            if token in self._sets[seen_key]:
+                return False
+            self.increment_volatile(key)
+            self._sets[seen_key].add(token)
+            return True
+
+    def get_or_set_volatile(self, key: str, value: dict) -> dict:
+        from copy import deepcopy
+
+        with self._lock:
+            if key not in self._volatile:
+                self._volatile[key] = deepcopy(value)
+            return deepcopy(self._volatile[key])
+
+    def satisfy_dependency_once(
+        self, job_id: str, task_id: str, parent_id: str
+    ) -> bool:
+        with self._lock:
+            seen = self._sets[f"task:{task_id}:satisfied_dependencies"]
+            if parent_id in seen:
+                return False
+            key = f"task:{task_id}:unmet_deps"
+            remaining = self._volatile.get(key)
+            if type(remaining) is not int or remaining < 1:
+                raise ValueError("missing or exhausted dependency counter")
+            self._volatile[key] = remaining - 1
+            seen.add(parent_id)
+            status_key = f"task:{task_id}:status"
+            if remaining == 1 and self._volatile.get(status_key) == "pending":
+                self._volatile[status_key] = "ready"
+                self._sets[f"job:{job_id}:ready_tasks"].add(task_id)
+                return True
+            return False
 
     def batch_increment_volatile(self, key_amounts: dict[str, int]) -> dict[str, int]:
         with self._lock:

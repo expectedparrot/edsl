@@ -330,6 +330,43 @@ class RedisStorage:
         results = pipe.execute()
         return {key: int(results[i]) for i, key in enumerate(ordered_keys)}
 
+    def increment_volatile_once(self, key: str, seen_key: str, token: str) -> bool:
+        from .accounting_scripts import INCREMENT_ONCE
+
+        script = self._client.register_script(INCREMENT_ONCE)
+        return bool(
+            script(
+                keys=[self._volatile_key(key), self._set_key(seen_key)], args=[token]
+            )
+        )
+
+    def get_or_set_volatile(self, key: str, value: dict) -> dict:
+        from .accounting_scripts import GET_OR_SET
+
+        script = self._client.register_script(GET_OR_SET)
+        result = script(
+            keys=[self._volatile_key(key)], args=[self._encode_volatile(value)]
+        )
+        return self._decode_volatile(result)
+
+    def satisfy_dependency_once(
+        self, job_id: str, task_id: str, parent_id: str
+    ) -> bool:
+        from .accounting_scripts import SATISFY_DEPENDENCY_ONCE
+
+        script = self._client.register_script(SATISFY_DEPENDENCY_ONCE)
+        return bool(
+            script(
+                keys=[
+                    self._volatile_key(f"task:{task_id}:unmet_deps"),
+                    self._set_key(f"task:{task_id}:satisfied_dependencies"),
+                    self._volatile_key(f"task:{task_id}:status"),
+                    self._set_key(f"job:{job_id}:ready_tasks"),
+                ],
+                args=[parent_id, task_id],
+            )
+        )
+
     def scan_keys_volatile(self, pattern: str) -> list[str]:
         """Scan volatile storage for keys matching pattern (glob-style)."""
         redis_pattern = self._volatile_key(pattern)

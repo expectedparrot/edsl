@@ -1,0 +1,31 @@
+{
+  "name": "an unmet requirement commits no state",
+  "envelope": {
+    "dsl_version": "0.1",
+    "requires": {"operators": {"ref": 1, "equals": 1, "set": 1}, "reducers": {}, "algorithms": {}},
+    "limits": {"max_state_bytes": 10000},
+    "machine": {
+      "name": "UnmetRequirement",
+      "constants": {},
+      "fields": {
+        "open": {"type": {"op": "type", "args": ["boolean"], "kwargs": {}}, "initial": false},
+        "value": {"type": {"op": "type", "args": ["text"], "kwargs": {}}, "initial": "original"}
+      },
+      "commands": {
+        "change": {
+          "inputs": {"value": {"op": "type", "args": ["text"], "kwargs": {}}},
+          "effects": [{"op": "set", "target": "value", "args": [{"op": "ref", "args": [], "kwargs": {"namespace": "input", "name": "value"}}], "options": {}}],
+          "require": {"op": "equals", "args": [{"op": "ref", "args": [], "kwargs": {"namespace": "state", "name": "open"}}, true], "kwargs": {}},
+          "timing": "explicit"
+        }
+      },
+      "view": {"value": {"op": "ref", "args": [], "kwargs": {"namespace": "state", "name": "value"}}},
+      "complete_when": null,
+      "close_effects": [],
+      "algorithms": []
+    }
+  },
+  "steps": [{"command": "change", "inputs": {"value": "replacement"}, "expect_changed": false}],
+  "expected_state": {"open": false, "value": "original"},
+  "expected_view": {"value": "original"}
+}

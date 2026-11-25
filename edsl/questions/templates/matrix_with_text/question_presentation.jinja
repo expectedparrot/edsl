@@ -1,0 +1,9 @@
+{{question_text}}
+
+Rows:
+{% for item in question_items %}{{ loop.index0 }}: {{ item }}{% if item in items_with_text %} (also provide optional text) {% endif %}
+{% endfor %}
+Columns:
+{% for option in question_options %}{{ loop.index0 }}: {{ option }}{% if option in option_labels %} ({{ option_labels[option] }}){% endif %}
+{% endfor %}
+Select one column option for each row. Rows marked for text accept an object with `choice` and optional `text`.
