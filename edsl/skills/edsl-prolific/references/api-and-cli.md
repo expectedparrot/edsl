@@ -134,9 +134,8 @@ fields as agent traits, such as `prolific_submission_id` and
 `get_prolific_study_demographics` returns those as Prolific's CSV text, one row
 per submission, and also saves it when given `save_path`. Join the two on the
 CSV's "Submission id" column and the `prolific_submission_id` trait. The columns
-are Prolific's own, such as "Age", "Sex", "Ethnicity simplified", "First
-language", "Current country of residence", "Nationality", and "Employment
-status".
+are Prolific's own, such as "Age", "Sex", "Ethnicity simplified",
+"Nationality", and "Employment status".
 
 `update_prolific_study` accepts the same configuration fields as creation;
 `approval_mode` can only change on an unpublished draft. Pause, resume, and stop

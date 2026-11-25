@@ -6807,9 +6807,8 @@ class Coop(CoopFunctionsMixin):
         There is one row per submission. Join it to the study's responses on the
         "Submission id" column, which matches the ``prolific_submission_id`` trait
         on each result from ``get_prolific_study_responses``. The columns are
-        Prolific's own, such as "Age", "Sex", "Ethnicity simplified", "First
-        language", "Current country of residence", "Nationality" and "Employment
-        status".
+        Prolific's own, such as "Age", "Sex", "Ethnicity simplified",
+        "Nationality" and "Employment status".
 
         Only the survey's owner can download a study's demographics.
 
