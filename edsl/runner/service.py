@@ -630,6 +630,9 @@ class JobService:
         t0 = time.time()
         job.replace_missing_objects()
         assignment_plan = job.assignment_plan
+        treatment_policy = getattr(job, "treatment_assignment", None)
+        if treatment_policy is not None:
+            treatment_policy.validate_for_job(job, iterations=n_iterations)
         logger.info(
             f"[SUBMIT {job_id[:8]}] replace_missing_objects: {(time.time() - t0) * 1000:.1f}ms"
         )
@@ -789,6 +792,14 @@ class JobService:
 
             # Create n_iterations interviews for this combination
             for iteration in range(n_iterations):
+                treatment_realization = None
+                if treatment_policy is not None:
+                    treatment_realization = treatment_policy.realize(
+                        agent_index, agent_obj, model_index, iteration
+                    )
+                    if scenario_index != treatment_realization.scenario_index:
+                        continue
+
                 interview_id = generate_id()
                 interview_ids.append(interview_id)
 
@@ -910,6 +921,11 @@ class JobService:
                     iteration=iteration,
                     question_option_permutations=question_option_permutations,
                     question_item_randomization_seeds=question_item_randomization_seeds,
+                    treatment_assignment=(
+                        treatment_realization.to_dict()
+                        if treatment_realization is not None
+                        else None
+                    ),
                     scale_directions=scale_directions,
                     scale_direction_seeds=scale_direction_seeds,
                     scale_direction_assignment_id=scale_assignment_ids.get(
@@ -3365,6 +3381,35 @@ class JobService:
                 for name in question_to_attributes
             },
         }
+        treatment_assignment = getattr(interview_def, "treatment_assignment", None)
+        if treatment_assignment is not None:
+            randomization["treatment_assignment"] = {
+                **treatment_assignment,
+            }
+            exposure_questions = list(
+                treatment_assignment.get("exposure_questions", [])
+            )
+            exposed_questions = [
+                name
+                for name in exposure_questions
+                if randomization["exposure_events"].get(name, {}).get("presented")
+                is True
+            ]
+            unknown_questions = [
+                name
+                for name in exposure_questions
+                if randomization["exposure_events"].get(name, {}).get("presented")
+                is None
+            ]
+            if not exposure_questions or unknown_questions:
+                treatment_exposed = None
+            else:
+                treatment_exposed = bool(exposed_questions)
+            randomization["treatment_exposure"] = {
+                "questions": exposure_questions,
+                "exposed_questions": exposed_questions,
+                "exposed": treatment_exposed,
+            }
         randomization["not_presented_questions"] = [
             name
             for name, event in randomization["exposure_events"].items()

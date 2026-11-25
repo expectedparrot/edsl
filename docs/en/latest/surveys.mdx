@@ -33,6 +33,46 @@ A stop rule is evaluated after its question. A skip rule can bypass an individua
 
 See [Survey logic and piping](/en/latest/guides/survey_logic) for testing routes and [Survey messages](/en/latest/survey_messages) for instructions shown between questions.
 
+## Assign treatment conditions
+
+A Jobs object can attach an explicit schedule that maps each assignment unit to one of its scenario rows. The schedule is saved with the Jobs package and reused across retries and resumed execution. Its assignment unit controls whether conditions are shared across models and iterations:
+
+- `agent`: one condition per respondent, shared across models and iterations.
+- `agent_model`: one condition per respondent and model, shared across iterations.
+- `agent_iteration`: one condition per respondent and iteration, shared across models.
+- `agent_model_iteration`: one condition for each respondent, model, and iteration.
+
+Use `unit_id_field` to key the schedule by a unique agent trait such as `respondent_id`; otherwise keys use the saved agent positions (`agent:0`, `agent:1`, ...). Condition values point to scenario indices in the saved Jobs object. An `exact` balance promise is checked against the full schedule and rejected unless each condition has the same count.
+
+```json
+{
+  "version": 1,
+  "conditions": {"control": 0, "treatment": 1},
+  "schedule": {"agent:r1": "control", "agent:r2": "treatment"},
+  "unit": "agent",
+  "unit_id_field": "respondent_id",
+  "exposure_questions": ["outcome"],
+  "balance": "exact",
+  "planned_iterations": 1
+}
+```
+
+The `exposure_questions` list identifies survey questions whose presentation indicates that the assigned condition was encountered. Results record the assigned condition and its stable assignment ID separately from whether those questions were presented. Without exposure questions, exposure remains unknown. This first version supports explicit schedules on the default Cartesian Jobs plan; probability-based allocation, stratification, and Humanize schedules are unsupported and fail validation.
+
+Configure a saved Jobs package with `ep jobs set-treatment-assignment`, validate it, and inspect realized assignments in Results:
+
+```bash
+ep jobs set-treatment-assignment jobs.ep --policy treatment-policy.json
+ep validate --file jobs.ep
+ep run jobs.ep --local --output results.ep
+ep results select --file results.ep \
+  --column randomization.treatment_assignment.condition \
+  --column randomization.treatment_assignment.assignment_id \
+  --column randomization.treatment_exposure.exposed
+```
+
+If an assignment unit includes iterations, `planned_iterations` must match the requested run count. Use `--clear` to remove the schedule. See the [CLI Guide](/en/latest/cli#create-and-validate-study-objects) for policy and key examples.
+
 ## Randomize a linear scale's direction
 
 `QuestionLinearScale` displays options in their declared order. For a model-run
@@ -124,9 +164,7 @@ the policy is rejected before either unsupported path starts. The local runner
 can still use an API proxy for model calls.
 
 ## Sample questions per respondent
-
 Use `sample_questions()` when every respondent should receive the same fixed questions plus an exact-size sample from an eligible pool. Sampling is uniform and without replacement. Required questions are included in the sample count; questions outside the eligible pool remain fixed.
-
 ```python
 survey = Survey([consent, q1, q2, q3, q4, debrief])
 survey.sample_questions(
@@ -137,13 +175,16 @@ survey.sample_questions(
 ```
 
 The sample size must be at least one and no larger than the eligible pool; required questions must fit within it. Sampling keeps declared question order among selected questions. A sampled question cannot depend on another eligible question unless that prerequisite is required. Custom skip/stop/jump rules and display groups that overlap the eligible pool are rejected. By default, each agent/scenario/iteration gets one sample shared across its model variants. The realized sample and seed are stored with each assignment, reused on retry/resume, and recorded in `randomization.sampled_questions` and `randomization.unselected_questions`. The latter identifies planned omissions separately from unanswered questions. Humanize does not yet support this policy and rejects it before publishing.
-
 Use `ep surveys set-question-sampling` to configure the policy in a saved package and `ep surveys show` to inspect it. The [CLI Guide](/en/latest/cli#create-and-validate-study-objects) has an example.
 ## Randomize question order within blocks
 Use `randomize_question_order()` to mark a contiguous set of independent questions as a named block. The block moves as a unit among fixed surrounding questions; answer names and question definitions stay the same. `questions_to_randomize` remains the separate setting for answer-option order.
+```python
 survey = Survey([consent, trust, fairness, satisfaction, age])
 survey.randomize_question_order(
     "attitudes", ["trust", "fairness", "satisfaction"]
+)
+```
+
 V1 preserves the named memory plan and rejects internal piping or memory dependencies, custom skip/stop/jump rules, and instructions between block members. Blocks must be disjoint, contain at least two questions, and follow declared survey order. Within a submitted job, a respondent/scenario/iteration assignment gets the same order across models. The realized permutation and per-block seeds are saved with the interview, so retries and resumes reuse it. Results record `randomization.planned_question_order`; model task execution is serialized for surveys using this feature. Humanize does not yet support question-order blocks and rejects them at publication time.
 Use `ep surveys add-question-order-block` to configure a block in a saved survey and `ep surveys show` to inspect it. See the [CLI Guide](/en/latest/cli#create-and-validate-study-objects) for the commands.
 

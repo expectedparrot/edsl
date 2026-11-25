@@ -2750,6 +2750,7 @@ class TestJobsCli:
         out = json.loads(result.output)
         assert out["data"]["commands"] == [
             "build",
+            "set-treatment-assignment",
             "list",
             "status",
             "wait",
@@ -2760,6 +2761,44 @@ class TestJobsCli:
             "cancel",
             "cost",
         ]
+
+    def test_jobs_set_treatment_assignment_and_clear(self, tmp_path):
+        from edsl import Agent, Jobs, Model, QuestionFreeText, Scenario, ScenarioList, Survey
+
+        job_path = tmp_path / "jobs.ep"
+        Jobs(
+            survey=Survey([QuestionFreeText(question_name="q", question_text="{{ condition }}")]),
+            agents=[Agent(traits={"respondent_id": "r1"})],
+            scenarios=ScenarioList(
+                [Scenario({"condition": "control"}), Scenario({"condition": "treatment"})]
+            ),
+            models=[Model("test", canned_response="ok")],
+        ).git.save(job_path)
+        policy = {
+            "version": 1,
+            "conditions": {"control": 0, "treatment": 1},
+            "schedule": {"agent:r1": "control"},
+            "unit": "agent",
+            "unit_id_field": "respondent_id",
+        }
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["jobs", "set-treatment-assignment", str(job_path), "--policy", json.dumps(policy)],
+        )
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["data"]["treatment_assignment"]["unit"] == "agent"
+        assert json.loads(result.output)["data"]["saved"]["format"] == "ep"
+
+        result = CliRunner().invoke(cli_module.app, ["validate", "--file", str(job_path)])
+        assert result.exit_code == 0, result.output
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["jobs", "set-treatment-assignment", str(job_path), "--clear"],
+        )
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["data"]["treatment_assignment"] is None
 
     def test_jobs_list(self, monkeypatch):
         import edsl.coop
