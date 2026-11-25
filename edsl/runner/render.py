@@ -27,6 +27,24 @@ from ..invigilators.prompt_helpers import PromptPlan
 from ..caching import CacheEntry
 
 
+def _question_from_data_with_presentation_order(question_data: dict):
+    """Restore a question while allowing a reversed linear-scale presentation.
+
+    QuestionLinearScale enforces ascending option values at construction time.
+    Randomized presentation changes only the display order, so construct from the
+    canonical ascending values and then set the validated display list directly.
+    """
+    if question_data.get("question_type") == "linear_scale":
+        options = question_data.get("question_options")
+        if isinstance(options, list) and options != sorted(options):
+            canonical = dict(question_data)
+            canonical["question_options"] = sorted(options)
+            question = QuestionBase.from_dict(canonical)
+            question.__dict__["_question_options"] = list(options)
+            return question
+    return QuestionBase.from_dict(question_data)
+
+
 @dataclass
 class RenderedPrompt:
     """The result of rendering a task's prompts."""
@@ -344,7 +362,7 @@ class RenderService:
         ) + (_t.time() - _t0)
 
         _t0 = _t.time()
-        question = QuestionBase.from_dict(question_data)
+        question = _question_from_data_with_presentation_order(question_data)
         question._item_randomization_seed = item_randomization_seed
         self._profile_times["question_from_dict"] = self._profile_times.get(
             "question_from_dict", 0
@@ -1069,7 +1087,9 @@ class RenderWorker:
                         task_def.question_name,
                         interview_def.question_option_permutations,
                     )
-                    _permuted_questions[_perm_key] = QuestionBase.from_dict(q_data)
+                    _permuted_questions[_perm_key] = (
+                        _question_from_data_with_presentation_order(q_data)
+                    )
                 question = _permuted_questions[_perm_key]
 
             if interview_def:

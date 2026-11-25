@@ -1707,6 +1707,19 @@ class Jobs(Base):
             self.run_config.parameters.use_api_proxy = False
             self._logger.info("offload_execution=True - using full remote execution")
 
+        if (
+            getattr(self.survey, "scale_direction_randomization", None) is not None
+            and self.run_config.parameters.offload_execution
+            and not self.run_config.parameters.disable_remote_inference
+        ):
+            from .exceptions import JobsRunError
+
+            raise JobsRunError(
+                "Scale-direction randomization is not supported by full remote job "
+                "offload yet. Run locally with disable_remote_inference=True or "
+                "offload_execution=False."
+            )
+
         # Use new parameter (use_api_proxy) to determine if we should enable proxy mode
         if self.run_config.parameters.use_api_proxy:
             # Enable progress bar by default when using API proxy

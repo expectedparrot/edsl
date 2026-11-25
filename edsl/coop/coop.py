@@ -2939,7 +2939,11 @@ class Coop(CoopFunctionsMixin):
             raise CoopValueError(
                 "You must specify both a scenario list and a scenario list method to use scenarios with your survey."
             )
-        elif scenario_list is not None and scenario_list_method is None:
+        if getattr(survey, "scale_direction_randomization", None) is not None:
+            raise CoopValueError(
+                "Scale-direction randomization is currently supported for model runs only; clear the policy before creating a human survey."
+            )
+        if scenario_list is not None and scenario_list_method is None:
             raise CoopValueError(
                 "You must specify both a scenario list and a scenario list method to use scenarios with your survey."
             )
@@ -5741,6 +5745,10 @@ class Coop(CoopFunctionsMixin):
 
         if not isinstance(survey, Survey):
             raise CoopObjectTypeError("This is not a survey.")
+        if getattr(survey, "scale_direction_randomization", None) is not None:
+            raise CoopValueError(
+                "Scale-direction randomization is currently supported for model runs only; clear the policy before previewing a human survey."
+            )
         if humanize_schema is not None:
             self.validate_human_survey_humanize_schema(survey, humanize_schema)
         survey_dict = survey.to_dict()

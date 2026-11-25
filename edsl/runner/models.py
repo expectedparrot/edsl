@@ -276,6 +276,10 @@ class InterviewDefinition:
     question_option_permutations: dict[str, list] = field(default_factory=dict)
     question_item_randomization_seeds: dict[str, int] = field(default_factory=dict)
     treatment_assignment: dict | None = None
+
+    scale_directions: dict[str, str] = field(default_factory=dict)
+    scale_direction_seeds: dict[str, int] = field(default_factory=dict)
+    scale_direction_assignment_id: str | None = None
     sampled_questions: list[str] = field(default_factory=list)
     unselected_questions: list[str] = field(default_factory=list)
     question_sampling_seed: int | None = None
@@ -300,6 +304,10 @@ class InterviewDefinition:
             "question_option_permutations": self.question_option_permutations,
             "question_item_randomization_seeds": self.question_item_randomization_seeds,
             "treatment_assignment": self.treatment_assignment,
+
+            "scale_directions": self.scale_directions,
+            "scale_direction_seeds": self.scale_direction_seeds,
+            "scale_direction_assignment_id": self.scale_direction_assignment_id,
             "sampled_questions": self.sampled_questions,
             "unselected_questions": self.unselected_questions,
             "question_sampling_seed": self.question_sampling_seed,
@@ -329,6 +337,10 @@ class InterviewDefinition:
                 "question_item_randomization_seeds", {}
             ),
             treatment_assignment=data.get("treatment_assignment"),
+
+            scale_directions=data.get("scale_directions", {}),
+            scale_direction_seeds=data.get("scale_direction_seeds", {}),
+            scale_direction_assignment_id=data.get("scale_direction_assignment_id"),
             sampled_questions=data.get("sampled_questions", []),
             unselected_questions=data.get("unselected_questions", []),
             question_sampling_seed=data.get("question_sampling_seed"),

@@ -16,7 +16,8 @@ class SurveySerializer:
     JSONL format:
       - Line 1: metadata header with ``__header__: true``, class name, count,
         plus ``memory_plan``, ``rule_collection``, ``question_groups``, and
-        optional ``name`` / ``questions_to_randomize`` / ``options_to_pin``.
+        optional ``name`` / ``questions_to_randomize`` / ``options_to_pin`` /
+        ``scale_direction_randomization``.
       - Lines 2+: one question/instruction per line
         (``to_dict(add_edsl_version=False)``).
     """
@@ -44,6 +45,8 @@ class SurveySerializer:
             meta["questions_to_randomize"] = s.questions_to_randomize
         if s.options_to_pin:
             meta["options_to_pin"] = s.options_to_pin
+        if s.scale_direction_randomization is not None:
+            meta["scale_direction_randomization"] = s.scale_direction_randomization
         if s.question_sampling is not None:
             meta["question_sampling"] = s.question_sampling
         if s.question_order["blocks"]:
@@ -160,6 +163,7 @@ class SurveySerializer:
             question_groups=meta.get("question_groups", {}),
             questions_to_randomize=meta.get("questions_to_randomize"),
             options_to_pin=meta.get("options_to_pin"),
+            scale_direction_randomization=meta.get("scale_direction_randomization"),
             question_sampling=meta.get("question_sampling"),
             question_order=meta.get("question_order"),
             name=meta.get("name"),
