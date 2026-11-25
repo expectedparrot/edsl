@@ -28,7 +28,7 @@ the harness-specific command for installing the `edsl-harness` skill.
 
 ```text
 If Codex CLI is missing, install it using https://learn.chatgpt.com/docs/codex/cli.
-Then install EDSL: python -m pip install --upgrade "edsl @ git+https://github.com/expectedparrot/edsl.git"
+Then install EDSL: python -m pip install --upgrade "edsl @ git+https://github.com/expectedparrot/edsl.git@feat/edsl-harness-guidance"
 Run `ep auth status`; if no Expected Parrot key is configured, run `ep auth login`. Never print the key.
 Install the EDSL harness skill: ep skills install --target "$HOME/.agents/skills" --skill edsl-harness
 ```
@@ -37,7 +37,7 @@ Install the EDSL harness skill: ep skills install --target "$HOME/.agents/skills
 
 ```text
 If Claude Code is missing, install it using https://code.claude.com/docs/en/setup.
-Then install EDSL: python -m pip install --upgrade "edsl @ git+https://github.com/expectedparrot/edsl.git"
+Then install EDSL: python -m pip install --upgrade "edsl @ git+https://github.com/expectedparrot/edsl.git@feat/edsl-harness-guidance"
 Run `ep auth status`; if no Expected Parrot key is configured, run `ep auth login`. Never print the key.
 Install the EDSL harness skill: ep skills install --target "$HOME/.claude/skills" --skill edsl-harness
 ```
@@ -46,7 +46,7 @@ Install the EDSL harness skill: ep skills install --target "$HOME/.claude/skills
 
 ```text
 If OpenCode is missing, install it using https://opencode.ai/docs/.
-Then install EDSL: python -m pip install --upgrade "edsl @ git+https://github.com/expectedparrot/edsl.git"
+Then install EDSL: python -m pip install --upgrade "edsl @ git+https://github.com/expectedparrot/edsl.git@feat/edsl-harness-guidance"
 Run `ep auth status`; if no Expected Parrot key is configured, run `ep auth login`. Never print the key.
 Install the EDSL harness skill: ep skills install --target "$HOME/.config/opencode/skills" --skill edsl-harness
 ```
@@ -55,7 +55,7 @@ Install the EDSL harness skill: ep skills install --target "$HOME/.config/openco
 
 ```text
 If Pi is missing, install it using https://docs.pi.dev/latest/quickstart.
-Then install EDSL: python -m pip install --upgrade "edsl @ git+https://github.com/expectedparrot/edsl.git"
+Then install EDSL: python -m pip install --upgrade "edsl @ git+https://github.com/expectedparrot/edsl.git@feat/edsl-harness-guidance"
 Run `ep auth status`; if no Expected Parrot key is configured, run `ep auth login`. Never print the key.
 Install the EDSL harness skill: ep skills install --target "$HOME/.pi/agent/skills" --skill edsl-harness
 ```
@@ -64,7 +64,7 @@ Install the EDSL harness skill: ep skills install --target "$HOME/.pi/agent/skil
 
 ```text
 If Antigravity CLI is missing, install it using https://antigravity.google/docs/cli-getting-started.
-Then install EDSL: python -m pip install --upgrade "edsl @ git+https://github.com/expectedparrot/edsl.git"
+Then install EDSL: python -m pip install --upgrade "edsl @ git+https://github.com/expectedparrot/edsl.git@feat/edsl-harness-guidance"
 Run `ep auth status`; if no Expected Parrot key is configured, run `ep auth login`. Never print the key.
 Install the EDSL harness skill: ep skills install --target "$HOME/.gemini/config/skills" --skill edsl-harness
 ```
@@ -73,7 +73,7 @@ Install the EDSL harness skill: ep skills install --target "$HOME/.gemini/config
 
 ```text
 If fx is missing, install it using https://fx.sh/docs/getting-started/installation.
-Then install EDSL: python -m pip install --upgrade "edsl @ git+https://github.com/expectedparrot/edsl.git"
+Then install EDSL: python -m pip install --upgrade "edsl @ git+https://github.com/expectedparrot/edsl.git@feat/edsl-harness-guidance"
 Run `ep auth status`; if no Expected Parrot key is configured, run `ep auth login`. Never print the key.
 Install the EDSL harness skill: ep skills install --target "$HOME/.fx/skills" --skill edsl-harness
 ```

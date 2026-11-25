@@ -10,7 +10,7 @@ In the Python environment the harness will use, install EDSL from GitHub,
 check the Expected Parrot key, and log in if it is not configured:
 
 ```bash
-python -m pip install --upgrade "edsl @ git+https://github.com/expectedparrot/edsl.git"
+python -m pip install --upgrade "edsl @ git+https://github.com/expectedparrot/edsl.git@feat/edsl-harness-guidance"
 ep auth status
 # If no key is configured, run:
 ep auth login
