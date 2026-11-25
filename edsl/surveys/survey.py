@@ -1217,6 +1217,13 @@ class Survey(Base):
         # Preserve any non-serialized attributes from the new_questions
         for i, new_question in enumerate(new_questions):
             survey_question = new_survey.questions[i]
+            stem_reads = getattr(new_question.question_text, "_stem_question_reads", None)
+            if stem_reads is not None:
+                from ..stem import CompiledStem
+
+                copied_text = CompiledStem(str(survey_question.question_text))
+                copied_text._stem_question_reads = stem_reads
+                survey_question.question_text = copied_text
             if hasattr(new_question, "exception_to_throw"):
                 survey_question.exception_to_throw = new_question.exception_to_throw
             if hasattr(new_question, "override_answer"):
@@ -1306,6 +1313,17 @@ class Survey(Base):
                 continue
             ordinary.append(item)
             if isinstance(item, QuestionBase):
+                stem_reads = getattr(item.question_text, "_stem_question_reads", ())
+                unavailable_stem_reads = sorted(
+                    name for name in stem_reads if name not in known_questions
+                )
+                if unavailable_stem_reads:
+                    from ..stem import StemError
+
+                    raise StemError(
+                        f"Question {item.question_name!r} uses Stem answer references "
+                        f"that are not available earlier in the survey: {unavailable_stem_reads}"
+                    )
                 preceding_question = item.question_name
                 known_questions.add(preceding_question)
                 if pending_before_writes:
