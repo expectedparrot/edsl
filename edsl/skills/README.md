@@ -14,7 +14,9 @@ optional workflow or research links managed by EP Agent use
 `ep-agent:<name>` and must be declared in `cross-references.json`.
 
 `ep skills install --target <directory>` installs each complete bundle as a
-child of the target directory, including its scripts. `ep skills show <name>`
+child of the target directory, including its scripts. Repeat `--skill <name>`
+to install only selected bundles; without it, all bundled skills are installed.
+`ep skills show <name>`
 returns the main file and every transitively linked local Markdown reference.
 Fetch one reference with `ep skills show <name> --reference
 references/<file>.md`; fetch a script's source with

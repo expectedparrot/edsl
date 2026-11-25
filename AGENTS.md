@@ -64,6 +64,22 @@ ep schema list
 
 `ep info` reports version and configuration diagnostics and redacts credentials.
 
+## Use EDSL Skills And Package Guidance
+
+Before relying on remembered EDSL APIs, discover guidance from the installed,
+version-matched skill catalog:
+
+```bash
+ep skills search "<task topic>" --snippets
+ep skills show <skill-name>
+```
+
+Parse the JSON response and inspect `status` and `warnings`. Load only skills
+relevant to the task. For harness setup and the `edsl-harness` routing skill, see
+[`harnesses/README.md`](harnesses/README.md). For work requiring a specialized
+Expected Parrot package, use the [package directory](https://github.com/expectedparrot/directory),
+then follow that package repository's own README and agent guidance.
+
 ## Command Inventory
 
 Top-level commands available in the CLI:

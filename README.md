@@ -56,6 +56,9 @@ to do with EDSL.
 EDSL's CLI is JSON-first, and its installed skill bundles provide
 version-matched API and workflow guidance.
 
+For harness-specific setup, installing only the EDSL skill router, and finding
+method-specific Expected Parrot packages, see [EDSL agent setup](harnesses/README.md).
+
 ## Getting started
 
 1. Run `pip install edsl` to install the package. See the <a href="https://docs.expectedparrot.com/en/latest/installation" target="_blank" rel="noopener noreferrer">installation guide</a>.
@@ -67,6 +70,129 @@ version-matched API and workflow guidance.
 4. Follow <a href="https://docs.expectedparrot.com/en/latest/starter_tutorial" target="_blank" rel="noopener noreferrer">Run your first survey</a>, then explore the <a href="https://docs.expectedparrot.com/en/latest/index#explore-the-docs" target="_blank" rel="noopener noreferrer">how-to guides and research examples</a>, including <a href="https://docs.expectedparrot.com/en/latest/guides/data_labeling" target="_blank" rel="noopener noreferrer">labeling data with survey questions</a>.
 
 5. Share workflows and survey results at <a href="https://www.expectedparrot.com/login" target="_blank" rel="noopener noreferrer">Coop</a>: a free platform for creating and sharing AI research.
+
+## Use EDSL with coding harnesses
+
+Use the prompt for your harness to install just the `edsl-harness` router skill
+from the active EDSL environment. Each fenced block has GitHub's copy button.
+The router skill then finds and loads task-specific EDSL skills on demand.
+
+<h3><img src="docs/assets/harness-icons/codex.svg" width="22" height="22" alt=""> Codex</h3>
+
+```text
+Set up EDSL guidance for Codex.
+
+1. Use the active EDSL environment. Install only its version-matched router skill:
+   ep skills install --target "$HOME/.agents/skills" --skill edsl-harness
+2. Parse the command's JSON output and confirm `status` is `ok`. Then run
+   `ep skills show edsl-harness`, parse that JSON, and follow the returned skill.
+3. For future EDSL tasks, use `edsl-harness` to find the relevant installed EDSL
+   skills and follow its project-layout advice for new work.
+4. For method-specific tasks, consult https://github.com/expectedparrot/directory,
+   then follow the selected package's own README and agent guidance. Install
+   only what the task needs; do not install every EDSL skill or package.
+
+If `ep` or `skills` is unavailable, locate or activate the EDSL environment
+before retrying.
+```
+
+<h3><img src="docs/assets/harness-icons/claude-code.svg" width="22" height="22" alt=""> Claude Code</h3>
+
+```text
+Set up EDSL guidance for Claude Code.
+
+1. Use the active EDSL environment. Install only its version-matched router skill:
+   ep skills install --target "$HOME/.claude/skills" --skill edsl-harness
+2. Parse the command's JSON output and confirm `status` is `ok`. Then run
+   `ep skills show edsl-harness`, parse that JSON, and follow the returned skill.
+3. For future EDSL tasks, use `edsl-harness` to find the relevant installed EDSL
+   skills and follow its project-layout advice for new work.
+4. For method-specific tasks, consult https://github.com/expectedparrot/directory,
+   then follow the selected package's own README and agent guidance. Install
+   only what the task needs; do not install every EDSL skill or package.
+
+If `ep` or `skills` is unavailable, locate or activate the EDSL environment
+before retrying.
+```
+
+<h3><img src="docs/assets/harness-icons/opencode.svg" width="22" height="22" alt=""> OpenCode</h3>
+
+```text
+Set up EDSL guidance for OpenCode.
+
+1. Use the active EDSL environment. Install only its version-matched router skill:
+   ep skills install --target "$HOME/.config/opencode/skills" --skill edsl-harness
+2. Parse the command's JSON output and confirm `status` is `ok`. Then run
+   `ep skills show edsl-harness`, parse that JSON, and follow the returned skill.
+3. For future EDSL tasks, use `edsl-harness` to find the relevant installed EDSL
+   skills and follow its project-layout advice for new work.
+4. For method-specific tasks, consult https://github.com/expectedparrot/directory,
+   then follow the selected package's own README and agent guidance. Install
+   only what the task needs; do not install every EDSL skill or package.
+
+If `ep` or `skills` is unavailable, locate or activate the EDSL environment
+before retrying.
+```
+
+<h3><img src="docs/assets/harness-icons/pi.svg" width="22" height="22" alt=""> Pi</h3>
+
+```text
+Set up EDSL guidance for Pi.
+
+1. Use the active EDSL environment. Install only its version-matched router skill:
+   ep skills install --target "$HOME/.pi/agent/skills" --skill edsl-harness
+2. Parse the command's JSON output and confirm `status` is `ok`. Then run
+   `ep skills show edsl-harness`, parse that JSON, and follow the returned skill.
+3. For future EDSL tasks, use `edsl-harness` to find the relevant installed EDSL
+   skills and follow its project-layout advice for new work.
+4. For method-specific tasks, consult https://github.com/expectedparrot/directory,
+   then follow the selected package's own README and agent guidance. Install
+   only what the task needs; do not install every EDSL skill or package.
+
+If `ep` or `skills` is unavailable, locate or activate the EDSL environment
+before retrying.
+```
+
+<h3><img src="docs/assets/harness-icons/antigravity.png" width="22" height="22" alt=""> Google Antigravity CLI</h3>
+
+```text
+Set up EDSL guidance for Google Antigravity CLI.
+
+1. Use the active EDSL environment. Install only its version-matched router skill:
+   ep skills install --target "$HOME/.gemini/config/skills" --skill edsl-harness
+2. Parse the command's JSON output and confirm `status` is `ok`. Then run
+   `ep skills show edsl-harness`, parse that JSON, and follow the returned skill.
+3. For future EDSL tasks, use `edsl-harness` to find the relevant installed EDSL
+   skills and follow its project-layout advice for new work.
+4. For method-specific tasks, consult https://github.com/expectedparrot/directory,
+   then follow the selected package's own README and agent guidance. Install
+   only what the task needs; do not install every EDSL skill or package.
+
+If `ep` or `skills` is unavailable, locate or activate the EDSL environment
+before retrying.
+```
+
+<h3><img src="docs/assets/harness-icons/vercel-fx.svg" width="22" height="22" alt=""> Vercel fx</h3>
+
+```text
+Set up EDSL guidance for Vercel fx.
+
+1. Use the active EDSL environment. Install only its version-matched router skill:
+   ep skills install --target "$HOME/.fx/skills" --skill edsl-harness
+2. Parse the command's JSON output and confirm `status` is `ok`. Then run
+   `ep skills show edsl-harness`, parse that JSON, and follow the returned skill.
+3. For future EDSL tasks, use `edsl-harness` to find the relevant installed EDSL
+   skills and follow its project-layout advice for new work.
+4. For method-specific tasks, consult https://github.com/expectedparrot/directory,
+   then follow the selected package's own README and agent guidance. Install
+   only what the task needs; do not install every EDSL skill or package.
+
+If `ep` or `skills` is unavailable, locate or activate the EDSL environment
+before retrying.
+```
+
+For harness-specific notes and project-level skill directories, see the
+[harness setup guide](harnesses/README.md).
 
 ## Code & Docs
 - <a href="https://github.com/expectedparrot/edsl" target="_blank" rel="noopener noreferrer">GitHub</a>

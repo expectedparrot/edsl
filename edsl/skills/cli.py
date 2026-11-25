@@ -440,12 +440,27 @@ def show_skill(name: str, reference_path: str | None, script_path: str | None, e
 
 @skills.command("install")
 @click.option("--target", required=True, type=click.Path(path_type=Path, file_okay=False), help="Directory in which to install each skill bundle.")
+@click.option("--skill", "skill_names", multiple=True, help="Install only this skill; repeat to install more than one. Defaults to all bundled skills.")
 @click.option("--human", is_flag=True, help="Print readable text instead of JSON.")
-def install_skills(target: Path, human: bool):
-    """Install or update bundled skill files under TARGET."""
+def install_skills(target: Path, skill_names: tuple[str, ...], human: bool):
+    """Install or update selected bundled skill files under TARGET."""
+    available = _skills()
+    by_name = {skill["name"]: skill for skill in available}
+    selected_names = list(dict.fromkeys(skill_names))
+    unknown = [name for name in selected_names if name not in by_name]
+    if unknown:
+        error(
+            "SKILL_NOT_FOUND",
+            f"No bundled skill named '{unknown[0]}'.",
+            "Run 'ep skills list' to see available skills, then repeat --skill for each skill to install.",
+            EXIT_NOT_FOUND,
+            details=[{"unknown_skills": unknown, "available_skills": sorted(by_name)}],
+        )
+    selected = [by_name[name] for name in selected_names] if selected_names else available
+
     target.mkdir(parents=True, exist_ok=True)
     installed = []
-    for skill in _skills():
+    for skill in selected:
         destination = target / skill["name"]
         if destination.exists():
             if not destination.is_dir():
