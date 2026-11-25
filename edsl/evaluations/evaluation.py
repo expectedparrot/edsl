@@ -200,13 +200,19 @@ class Evaluation(PersistenceMixin):
                         "Custom agent presentation templates are unsupported"
                     )
                 # JSON validation rejects file objects and arbitrary Python state.
+                visible_traits = dict(agent.visible_traits)
+                visible_trait_names = set(visible_traits)
                 state = json.loads(
                     canonical(
                         {
                             "scenario": dict(scenario),
                             "agent": {
-                                "traits": dict(agent.traits),
-                                "codebook": dict(agent.codebook),
+                                "traits": visible_traits,
+                                "codebook": {
+                                    key: value
+                                    for key, value in agent.codebook.items()
+                                    if key in visible_trait_names
+                                },
                             },
                         }
                     )
@@ -214,7 +220,7 @@ class Evaluation(PersistenceMixin):
                 context = {
                     **dict(scenario),
                     "scenario": dict(scenario),
-                    "agent": {**agent.traits, "traits": dict(agent.traits)},
+                    "agent": {**visible_traits, "traits": visible_traits},
                 }
                 rendered, questions = {}, {}
                 for question in survey.questions:
@@ -345,32 +351,31 @@ def compile_question(survey, question, context, agent, model):
             "Custom question presentation/answering templates are unsupported; use survey instructions"
         )
     env = make_environment(undefined=StrictUndefined)
-    # Detect piping even if a scenario field happens to shadow a question name.
-    serialized = canonical(question.to_dict(add_edsl_version=False))
-    dependencies = meta.find_undeclared_variables(env.parse(serialized)) & set(
-        survey.question_names
-    )
-    if dependencies:
-        raise ValueError(f"Answer piping is unsupported: {sorted(dependencies)}")
     try:
+        # Parse original strings independently. JSON serialization escapes quotes
+        # in valid expressions such as {{ scenario["text"] }} before Jinja sees
+        # them, so template parsing must not operate on canonical JSON.
+        dependencies = set()
 
-        def check_templates(value):
+        def template_strings(value):
             if isinstance(value, str):
-                env.from_string(value).render(context)
+                yield value
             elif isinstance(value, dict):
                 for item in value.values():
-                    check_templates(item)
+                    yield from template_strings(item)
             elif isinstance(value, list):
                 for item in value:
-                    check_templates(item)
+                    yield from template_strings(item)
 
-        check_templates(question.to_dict(add_edsl_version=False))
+        original = question.to_dict(add_edsl_version=False)
+        for value in template_strings(original):
+            dependencies.update(meta.find_undeclared_variables(env.parse(value)))
+        dependencies &= set(survey.question_names)
+        if dependencies:
+            raise ValueError(f"Answer piping is unsupported: {sorted(dependencies)}")
+        for value in template_strings(original):
+            env.from_string(value).render(context)
         rendered = question.render(context, jinja_env=env)
-        remaining = meta.find_undeclared_variables(
-            env.parse(canonical(rendered.to_dict(add_edsl_version=False)))
-        )
-        if remaining:
-            raise ValueError(f"Unresolved template variables: {sorted(remaining)}")
         instructions = [str(env.from_string(agent.instruction).render(context))]
         instructions.extend(
             str(env.from_string(i.text).render(context))

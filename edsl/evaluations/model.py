@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import math
 import os
 from dataclasses import dataclass
@@ -41,6 +42,20 @@ class JudgmentModel:
         self.service_name = service_name
         self._inference_service_ = service_name
         self.parameters = {}
+
+    def _identity(self):
+        settings = json.dumps(
+            self.parameters, sort_keys=True, ensure_ascii=False, default=repr
+        )
+        return self.service_name, self.model, settings
+
+    def __eq__(self, other):
+        if not isinstance(other, JudgmentModel):
+            return NotImplemented
+        return self._identity() == other._identity()
+
+    def __hash__(self):
+        return hash(self._identity())
 
     def __new__(cls, model="jev-latest", service_name="typesafe"):
         if cls is JudgmentModel and service_name in cls._providers:
@@ -96,7 +111,9 @@ class JudgmentModel:
                         raise ValueError
                 except ValueError:
                     delay = 2**attempt
-                await asyncio.sleep(delay)
+                # Retry-After is provider-controlled. Bound the wait so one
+                # throttled request cannot hold an evaluation open indefinitely.
+                await asyncio.sleep(min(delay, 30.0))
                 continue
             if response.is_error:
                 # Do not include headers, credentials, or provider-echoed content.

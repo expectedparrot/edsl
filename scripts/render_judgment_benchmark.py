@@ -40,6 +40,13 @@ def render(directory, comparison_run=None):
             p["estimated_usd"] for p in phases.values()
         )
     main = phases["batched_1000"]
+    dataset = summary["manifest"]["dataset"]
+    sample_count = dataset["sample_count"]
+    sample_seed = dataset["seed"]
+    class_counts = dataset["class_counts"]
+    class_counts_text = ", ".join(
+        f"{count:,} {label}" for label, count in sorted(class_counts.items())
+    )
     batched, single = phases["matched_batched"], phases["matched_single"]
     replay = phases["cache_replay"]
     attempts = json.loads((directory / "attempts.json").read_text())
@@ -113,7 +120,7 @@ def render(directory, comparison_run=None):
     )
     fig, axs = plt.subplots(2, 2, figsize=(12, 8), layout="constrained")
     fig.suptitle(
-        "EDSL judgment evaluations · 1,000 real SMS messages",
+        f"EDSL judgment evaluations · {sample_count:,} real SMS messages",
         fontsize=18,
         fontweight="bold",
     )
@@ -228,8 +235,8 @@ The persisted-cache replay made **{replay['http_attempts']} HTTP requests**.
 
 The dataset is the [UCI SMS Spam Collection](https://archive.ics.uci.edu/dataset/228/sms%2Bspam%2Bcollection),
 by Almeida and Hidalgo (2011), [DOI 10.24432/C5CC84](https://doi.org/10.24432/C5CC84), licensed CC BY 4.0.
-We sampled 1,000 messages without replacement after exact-text deduplication, using seed 20260918.
-The sample contains 882 ham and 118 spam messages. Only message text and its source-row ID
+We sampled {sample_count:,} messages without replacement after exact-text deduplication, using seed {sample_seed}.
+The sample contains {class_counts_text}. Only message text and its source-row ID
 were sent to the model; labels were held separately. Questions cover spam classification,
 urgency, commercial content, intent, and pressure (a three-level descriptive rubric).
 
