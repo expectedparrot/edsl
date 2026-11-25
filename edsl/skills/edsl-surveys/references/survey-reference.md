@@ -226,6 +226,30 @@ row order is recorded with the result under
 what each respondent saw. Randomization changes presentation order, not answer
 keys. Decide it before fielding and preview pinned positions.
 
+### QuestionCheckboxMatrix
+
+Use a checkbox matrix when each row can have zero or more selected options. The
+answer maps each row label to a list of selected option values; selection bounds
+apply separately to every row.
+
+```python
+from edsl import QuestionCheckboxMatrix
+
+q = QuestionCheckboxMatrix(
+    question_name="weekly_activities",
+    question_text="Which activities do you do on each day?",
+    question_items=["Monday", "Tuesday", "Wednesday"],
+    question_options=["Exercise", "Cooking", "Reading"],
+    min_selections=0,
+    max_selections=2,
+    option_labels={"Exercise": "Workout or sport"},
+)
+```
+
+A response has the form `{"answer": {"Monday": ["Exercise", "Reading"],
+"Tuesday": [], "Wednesday": ["Cooking"]}}`. Rows are required and selections
+must be declared options unless `permissive=True`.
+
 ### QuestionBudget
 
 Allocating a fixed budget across multiple options.

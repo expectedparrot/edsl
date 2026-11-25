@@ -116,6 +116,7 @@ from .question_registry import Question
 
 # Core Questions
 from .question_check_box import QuestionCheckBox
+from .question_checkbox_matrix import QuestionCheckboxMatrix
 from .question_extract import QuestionExtract
 from .question_email import QuestionEmail
 from .question_free_text import QuestionFreeText
@@ -187,6 +188,7 @@ __all__ = [
     "QuestionMarkdown",
     "QuestionMultipleChoice",
     "QuestionCheckBox",
+    "QuestionCheckboxMatrix",
     "QuestionDict",
     "QuestionExtract",
     "QuestionEmail",

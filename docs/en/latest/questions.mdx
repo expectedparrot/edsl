@@ -132,6 +132,7 @@ Most types share `question_name` and `question_text`. The table lists additional
 | `multiple_choice` | `question_options`: allowed choices. | One choice. |
 | `yes_no` | Built-in Yes/No options. | One of the built-in choices. |
 | `checkbox` | `question_options`; optional `min_selections` and `max_selections`. | A list of choices within the bounds. |
+| `checkbox_matrix` | `question_items`, `question_options`; optional per-row `min_selections` and `max_selections`. | A mapping from each row to its list of selected choices. |
 | `top_k` | `question_options`; set `min_selections` and `max_selections` to the same positive count. | A list with exactly that many choices. |
 | `linear_scale` | `question_options`: consecutive integers; optional `option_labels`. | One scale value. |
 | `likert_five` | Built-in five-point agreement scale. | One agreement label. |
@@ -144,6 +145,24 @@ Most types share `question_name` and `question_text`. The table lists additional
 | `distribution` | `question_options` and optional `tolerance`. | A probability for each option, summing to one within the tolerance. |
 
 For option-based types that support `use_code`, setting it to `True` asks for option indices; setting it to `False` asks for option values. The examples below use values explicitly where needed.
+
+Use `checkbox_matrix` when respondents may select multiple options independently in each row:
+
+```python
+from edsl import QuestionCheckboxMatrix
+
+q = QuestionCheckboxMatrix(
+    question_name="weekly_activities",
+    question_text="Which activities do you do on each day?",
+    question_items=["Monday", "Tuesday", "Wednesday"],
+    question_options=["Exercise", "Cooking", "Reading"],
+    min_selections=0,
+    max_selections=2,
+    option_labels={"Exercise": "Workout or sport"},
+)
+```
+
+The answer maps each row label to a list, for example `{"Monday": ["Exercise", "Reading"], "Tuesday": [], "Wednesday": ["Cooking"]}`. The bounds apply independently to every row. By default, every declared row must be present and all selections must be declared options.
 
 <AccordionGroup>
 <Accordion title="Select several options or rank them">
