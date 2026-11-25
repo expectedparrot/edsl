@@ -6,9 +6,18 @@ harness does not need a second copy of every EDSL skill. Install the small
 EDSL guidance that matches the current task, using the active package's `ep`
 CLI.
 
-Run the install command from the environment where the target harness will run
-EDSL commands. `--skill` is repeatable and leaves other EDSL skills out of the
-harness directory:
+In the Python environment the harness will use, install EDSL from GitHub,
+check the Expected Parrot key, and log in if it is not configured:
+
+```bash
+python -m pip install --upgrade "edsl @ git+https://github.com/expectedparrot/edsl.git"
+ep auth status
+# If no key is configured, run:
+ep auth login
+```
+
+Then install the router from that same environment. `--skill` is repeatable
+and leaves other EDSL skills out of the harness directory:
 
 ```bash
 ep skills install --target .agents/skills --skill edsl-harness
@@ -33,8 +42,8 @@ If the harness accepts project instructions, add a short pointer such as:
 > For EDSL tasks, use the `edsl-harness` skill. It routes you to the installed
 > EDSL version's relevant skills and package guidance.
 
-Install or update the EDSL package first if `ep skills install` is unavailable.
-After upgrading EDSL, rerun the command to refresh `edsl-harness`. Other skills
+Run the install commands from the active EDSL environment. After upgrading
+EDSL, rerun the skill-install command to refresh `edsl-harness`. Other skills
 remain available on demand through `ep skills search` and `ep skills show`;
 they do not have to be installed into the harness.
 
