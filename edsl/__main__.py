@@ -223,6 +223,7 @@ def jobs(ctx):
     \b
     Examples:
       ep jobs build --survey survey.ep --agents agents.ep --scenarios scenarios.ep --models models.ep --output jobs.ep
+      ep jobs set-treatment-assignment jobs.ep --policy treatment-policy.json
       ep run --jobs jobs.ep --background
       ep jobs list --status completed --page_size 20
       ep jobs status <job_uuid>
@@ -232,7 +233,7 @@ def jobs(ctx):
     """
     if ctx.invoked_subcommand is None:
         _output({
-            "commands": ["build", "list", "status", "wait", "results", "errors", "manifest", "page", "cancel", "cost"],
+            "commands": ["build", "set-treatment-assignment", "list", "status", "wait", "results", "errors", "manifest", "page", "cancel", "cost"],
             "help": "Use 'ep jobs <command> --help' for details.",
         })
 
@@ -299,6 +300,7 @@ def surveys(ctx):
             "commands": [
                 "create", "add-question", "drop-question", "move-question",
                 "show", "questions", "add-skip-rule", "add-stop-rule",
+                "set-scale-direction-randomization",
             ],
             "help": "Use 'ep surveys <command> --help' for details.",
         })

@@ -33,9 +33,13 @@ class EditSurvey:
             )
 
         moving_question = self.survey._questions[index]
+        scale_policy = self.survey.scale_direction_randomization
 
         new_survey = self.survey.delete_question(index)
         new_survey.add_question(moving_question, new_index)
+        if scale_policy is not None:
+            new_survey._validate_scale_direction_randomization(scale_policy)
+            new_survey._scale_direction_randomization = scale_policy
         return new_survey
 
     def add_question(
@@ -168,6 +172,16 @@ class EditSurvey:
         # Remove the question
         deleted_question = self.survey._questions.pop(index)
         del self.survey._pseudo_indices[deleted_question.question_name]
+
+        scale_policy = self.survey.scale_direction_randomization
+        if (
+            scale_policy
+            and deleted_question.question_name in scale_policy["questions"]
+        ):
+            scale_policy["questions"].remove(deleted_question.question_name)
+            self.survey._scale_direction_randomization = (
+                scale_policy if scale_policy["questions"] else None
+            )
 
         # Invalidate cached question name lookups
         for attr in (

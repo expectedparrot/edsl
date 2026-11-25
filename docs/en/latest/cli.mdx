@@ -180,6 +180,79 @@ ep inspect survey.ep
 
 `add-question` updates the survey package in place. A job built earlier retains its saved survey, so rebuild the job to include the new question. Use `ep agents create --help` and `ep scenarios create --help` for creating respondent profiles and scenario data from files.
 
+Set answer-option randomization on a survey with `set-option-randomization`. Repeat `--question` for each question; use `--pin-options` with a JSON object or a path to one when some options should stay in their original positions. This works for static choices and whole option lists resolved from scenarios or prior answers:
+
+```bash
+ep surveys set-option-randomization survey.ep \
+  --question recommend \
+  --pin-options '{"recommend":["No"]}'
+ep surveys show survey.ep
+ep validate --file survey.ep
+```
+
+Use `--clear` to remove the survey's option-randomization settings. See [Surveys](/en/latest/surveys#randomize-answer-option-order) for execution behavior and Python examples.
+
+For model-run studies, configure forward/reverse presentation of linear scales
+with `ep surveys set-scale-direction-randomization`. Repeat `--question` for
+each scale; use `--clear` to remove the policy:
+
+```bash
+ep surveys set-scale-direction-randomization survey.ep --question satisfaction
+ep surveys show survey.ep
+ep surveys set-scale-direction-randomization survey.ep --clear
+```
+
+### Assign treatment conditions
+
+
+Use an explicit schedule to assign each respondent/model/iteration unit to one scenario condition. Condition values are scenario indices in the Jobs package. Save a policy JSON file with `conditions`, `schedule`, `unit`, and optionally `unit_id_field`, `exposure_questions`, `balance`, and `planned_iterations`:
+
+```json
+{
+  "version": 1,
+  "conditions": {"control": 0, "treatment": 1},
+  "schedule": {"agent:r1": "control", "agent:r2": "treatment"},
+  "unit": "agent",
+  "unit_id_field": "respondent_id",
+  "exposure_questions": ["outcome"],
+  "balance": "exact",
+  "planned_iterations": 1
+}
+```
+
+Apply and validate the policy, then inspect realized assignment and exposure in results:
+
+```bash
+ep jobs set-treatment-assignment jobs.ep --policy treatment-policy.json
+ep validate --file jobs.ep
+ep run jobs.ep --local --output results.ep
+ep results select --file results.ep \
+  --column randomization.treatment_assignment.condition \
+  --column randomization.treatment_assignment.assignment_id \
+  --column randomization.treatment_exposure.exposed
+```
+
+Unit keys start with `agent:<id>`; `agent_model` appends `|model:<index>`, `agent_iteration` appends `|iteration:<index>`, and `agent_model_iteration` appends both. `balance: "exact"` requires equal counts for all conditions. Iteration-specific units require `planned_iterations` to match the run's `n`. Use `ep jobs set-treatment-assignment jobs.ep --clear` to remove a schedule. This version accepts explicit schedules on the default Cartesian assignment plan; it rejects probability-based assignment, stratification, custom Jobs assignment plans, and Humanize.
+
+Configure exact-count question sampling in a saved Survey package, then inspect and validate the policy:
+```bash
+ep surveys set-question-sampling survey.ep \
+  --eligible-question q1 --eligible-question q2 --eligible-question q3 \
+  --sample-size 2 --required-question q1
+ep surveys show survey.ep
+ep validate --file survey.ep
+```
+Declare and inspect question-order blocks:
+```bash
+ep surveys add-question-order-block survey.ep \
+  --name attitudes \
+  --question trust --question fairness --question satisfaction
+ep surveys show survey.ep
+ep validate --file survey.ep
+```
+Required questions count toward `--sample-size`; questions outside the eligible pool are always asked. Each respondent/scenario/iteration gets one sample shared across model variants. Results expose sampled and omitted questions under `randomization.*`.
+Question-order blocks contain at least two contiguous, independent questions in declared order. Custom branching, internal piping or memory dependencies, and instructions inside a block are not supported. `questions_to_randomize` continues to randomize answer options. Humanize currently reports a capability error for surveys with question-order blocks or question sampling.
+
 If validation fails, correct the reported problem before running the object.
 
 ## Run with language models
@@ -285,6 +358,21 @@ ep results export results.ep \
 ```
 
 Repeat `--column` for multiple columns; do not pass a comma-separated list. Inspect available columns before selecting them. Use a bounded `select` to review responses and `export` to save larger datasets. Results queries support `.ep`, `.json`, and `.json.gz` files.
+
+For randomized surveys, inspect assignment and exposure provenance as structured columns:
+
+```bash
+ep results columns --file results.ep
+ep results select --file results.ep \
+  --column randomization.assignment_id \
+  --column randomization.option_orders \
+  --column randomization.planned_question_order \
+  --column randomization.exposure_order
+ep results export results.ep \
+  --column randomization.assignment_id \
+  --column randomization.exposure_events \
+  --output randomization.csv
+```
 
 ## Automation conventions
 

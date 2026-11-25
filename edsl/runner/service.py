@@ -8,6 +8,8 @@ Handles:
 """
 
 import logging
+import hashlib
+import uuid
 import time
 from datetime import datetime
 from typing import Any, TYPE_CHECKING
@@ -628,6 +630,9 @@ class JobService:
         t0 = time.time()
         job.replace_missing_objects()
         assignment_plan = job.assignment_plan
+        treatment_policy = getattr(job, "treatment_assignment", None)
+        if treatment_policy is not None:
+            treatment_policy.validate_for_job(job, iterations=n_iterations)
         logger.info(
             f"[SUBMIT {job_id[:8]}] replace_missing_objects: {(time.time() - t0) * 1000:.1f}ms"
         )
@@ -635,6 +640,12 @@ class JobService:
         # Extract components from the EDSL Job
         t0 = time.time()
         survey = job.survey if hasattr(job, "survey") else job._survey
+        if survey.question_sampling is not None:
+            survey._validate_question_sampling(survey.question_sampling)
+        if survey.question_order["blocks"]:
+            survey._validate_question_order(survey.question_order)
+        if getattr(survey, "question_order", {}).get("blocks"):
+            survey._validate_question_order(survey.question_order)
         scenarios = list(job.scenarios)
         agents = list(job.agents)
         models = list(job.models)
@@ -756,6 +767,10 @@ class JobService:
 
         # Get questions to randomize (if any)
         questions_to_randomize = getattr(survey, "questions_to_randomize", []) or []
+        scale_policy = getattr(survey, "scale_direction_randomization", None)
+        scale_question_names = (scale_policy or {}).get("questions", [])
+        scale_assignments = {}
+        scale_assignment_ids = {}
 
         # Resolve source positions in plan order, including duplicate rows.
         t0 = time.time()
@@ -764,6 +779,10 @@ class JobService:
         all_task_definitions = []  # Collect for job_data cache
         all_direct_task_info = []  # Collect all direct-answer task info
         total_tasks_created = 0
+        question_sampling_by_unit: dict[
+            tuple[int, int, int], tuple[int, list[str], list[str]]
+        ] = {}
+        order_seeds_by_unit: dict[tuple[int, int, int], int] = {}
 
         for agent_index, scenario_index, model_index in assignment_plan.iter_indices():
             scenario_id = scenario_ids[scenario_index]
@@ -773,20 +792,98 @@ class JobService:
 
             # Create n_iterations interviews for this combination
             for iteration in range(n_iterations):
+                treatment_realization = None
+                if treatment_policy is not None:
+                    treatment_realization = treatment_policy.realize(
+                        agent_index, agent_obj, model_index, iteration
+                    )
+                    if scenario_index != treatment_realization.scenario_index:
+                        continue
+
                 interview_id = generate_id()
                 interview_ids.append(interview_id)
 
+                sampled_questions, unselected_questions, question_sampling_seed = (
+                    self._realize_question_sample(
+                        survey,
+                        questions,
+                        question_sampling_by_unit,
+                        (agent_index, scenario_index, iteration),
+                    )
+                )
+                unselected_set = set(unselected_questions)
+                interview_questions = [
+                    question
+                    for question in questions
+                    if self._get_question_name(question) not in unselected_set
+                ]
+
                 # Generate randomized question options for this interview
                 question_option_permutations = self._generate_question_permutations(
-                    questions,
+                    interview_questions,
                     questions_to_randomize,
                     getattr(survey, "options_to_pin", None),
                 )
+                scale_directions = {}
+                scale_direction_seeds = {}
+                assignment_key = (agent_index, scenario_index, iteration)
+                if scale_question_names:
+                    if assignment_key not in scale_assignments:
+                        scale_assignment_ids[assignment_key] = generate_id()
+                        scale_assignments[assignment_key] = {
+                            name: (
+                                seed := random.getrandbits(64),
+                                random.Random(seed).choice(("forward", "reverse")),
+                            )
+                            for name in scale_question_names
+                        }
+                    questions_by_name = {
+                        self._get_question_name(question): question
+                        for question in questions
+                    }
+                    for name, (seed, direction) in scale_assignments[
+                        assignment_key
+                    ].items():
+                        options = list(questions_by_name[name].question_options)
+                        scale_directions[name] = direction
+                        scale_direction_seeds[name] = seed
+                        question_option_permutations[name] = (
+                            options
+                            if direction == "forward"
+                            else list(reversed(options))
+                        )
                 question_item_randomization_seeds = {
                     self._get_question_name(question): random.getrandbits(64)
-                    for question in questions
+                    for question in interview_questions
                     if self._to_dict(question).get("randomize_items")
                 }
+                # Whole-list templates cannot be permuted until their inputs exist.
+                # Persist the draw now so rendering/retries/validation use one order.
+                question_option_randomizations = {
+                    q_name: {
+                        "seed": random.getrandbits(64),
+                        "pin_options": list(survey.options_to_pin.get(q_name, [])),
+                    }
+                    for question in interview_questions
+                    if (
+                        q_name := self._get_question_name(question)
+                    ) in questions_to_randomize
+                    and isinstance(
+                        self._to_dict(question).get("question_options"), (str, dict)
+                    )
+                }
+
+                question_order, question_order_seeds = self._realize_question_order(
+                    survey,
+                    questions,
+                    order_seeds_by_unit,
+                    (agent_index, scenario_index, iteration),
+                )
+                interview_dag = {name: set(parents) for name, parents in dag.items()}
+                if question_order:
+                    for before, after in zip(question_order, question_order[1:]):
+                        interview_dag.setdefault(after, set()).add(before)
+
 
                 # Create tasks for this interview
                 # Pass agent and scenario objects for direct answer detection
@@ -800,9 +897,9 @@ class JobService:
                     scenario_id=scenario_id,
                     agent_id=agent_id,
                     model_id=model_id,
-                    questions=questions,
+                    questions=interview_questions,
                     question_name_to_id=question_name_to_id,
-                    dag=dag,
+                    dag=interview_dag,
                     iteration=iteration,
                     agent=agent_obj,
                     scenario=scenario_obj,
@@ -820,10 +917,10 @@ class JobService:
                             "interview_id": interview_id,
                             "agent": agent_obj,
                             "scenario": scenario_obj,
-                            "question": questions[info["question_index"]],
+                            "question": interview_questions[info["question_index"]],
                             "item_randomization_seed": question_item_randomization_seeds.get(
                                 self._get_question_name(
-                                    questions[info["question_index"]]
+                                    interview_questions[info["question_index"]]
                                 )
                             ),
                         }
@@ -841,11 +938,36 @@ class JobService:
                     iteration=iteration,
                     question_option_permutations=question_option_permutations,
                     question_item_randomization_seeds=question_item_randomization_seeds,
+                    treatment_assignment=(
+                        treatment_realization.to_dict()
+                        if treatment_realization is not None
+                        else None
+                    ),
+                    scale_directions=scale_directions,
+                    scale_direction_seeds=scale_direction_seeds,
+                    scale_direction_assignment_id=scale_assignment_ids.get(
+                        assignment_key
+                    ),
+                    sampled_questions=sampled_questions,
+                    unselected_questions=unselected_questions,
+                    question_sampling_seed=question_sampling_seed,
+                    question_sampling_assignment_id=(
+                        str(uuid.uuid5(uuid.NAMESPACE_URL, f"edsl:{job_id}:{agent_index}:{scenario_index}:{iteration}"))
+                        if survey.question_sampling is not None else None
+                    ),
+                    question_order=question_order,
+                    question_order_seeds=question_order_seeds,
+                    question_order_blocks={block["name"]: list(block["questions"]) for block in survey.question_order["blocks"]},
+                    randomization_assignment_id=(
+                        str(uuid.uuid5(uuid.NAMESPACE_URL, f"edsl:{job_id}:{agent_index}:{scenario_index}:{iteration}"))
+                        if question_order else None
+                    ),
                     indices={
                         "agent": agent_index,
                         "scenario": scenario_index,
                         "model": model_index,
                     },
+                    question_option_randomizations=question_option_randomizations,
                 )
                 interview_definitions.append(interview_def)
 
@@ -2840,6 +2962,7 @@ class JobService:
         questions_data: dict | None = None,
         prefetched_answers: dict | None = None,
         indices: dict | None = None,
+        task_statuses_by_question: dict | None = None,
         _timing: dict | None = None,
     ) -> Any:
         """
@@ -3106,6 +3229,11 @@ class JobService:
             if interview_def and hasattr(interview_def, "question_option_permutations")
             else {}
         )
+        option_randomizations = (
+            interview_def.question_option_randomizations
+            if interview_def and hasattr(interview_def, "question_option_randomizations")
+            else {}
+        )
         item_randomization_seeds = (
             interview_def.question_item_randomization_seeds
             if interview_def
@@ -3117,16 +3245,9 @@ class JobService:
                 q_data = questions_data.get(q_id)
                 if q_data:
                     q_name = q_data.get("question_name", q_id)
-                    q_options = q_data.get("question_options")
-                    # Resolve template variables in question_options using prior answers
-                    q_options = self._resolve_question_options(
-                        q_options, answer_dict, scenario
+                    q_options = self._resolve_interview_options(
+                        q_data, interview_def, answer_dict, scenario, strict=False
                     )
-                    # Apply per-interview randomized permutation if present
-                    if option_permutations and q_name in option_permutations:
-                        q_options = self._resolve_question_options(
-                            option_permutations[q_name], answer_dict, scenario
-                        )
                     question_to_attributes[q_name] = {
                         "question_text": q_data.get("question_text", ""),
                         "question_type": q_data.get("question_type", ""),
@@ -3172,6 +3293,159 @@ class JobService:
             interview_def.iteration if hasattr(interview_def, "iteration") else 0
         )
 
+        randomized_option_names = set(option_permutations) | set(option_randomizations)
+        option_orders = {}
+        for name in randomized_option_names:
+            options = question_to_attributes.get(name, {}).get("question_options")
+            if isinstance(options, list):
+                option_orders[name] = options
+        scale_directions = getattr(interview_def, "scale_directions", {}) or {}
+        scale_direction_seeds = (
+            getattr(interview_def, "scale_direction_seeds", {}) or {}
+        )
+        matrix_row_orders = {
+            name: question_to_attributes.get(name, {}).get("question_items")
+            for name in item_randomization_seeds
+            if question_to_attributes.get(name, {}).get("question_items") is not None
+        }
+        answer_by_name = {a.question_name: a for a in answers}
+        completion_order = sorted(answers, key=lambda a: a.created_at)
+        scale_randomized_questions = set(scale_directions)
+        ordinary_option_randomized_questions = (
+            set(option_orders) - scale_randomized_questions
+        )
+        randomized_questions = (
+            set(option_orders)
+            | set(option_randomizations)
+            | set(matrix_row_orders)
+            | scale_randomized_questions
+        )
+        sampling_policy = getattr(survey, "question_sampling", None)
+        sampled_questions = list(
+            getattr(interview_def, "sampled_questions", []) or []
+        )
+        unselected_questions = list(
+            getattr(interview_def, "unselected_questions", []) or []
+        )
+        unselected_set = set(unselected_questions)
+        randomization = {
+            "schema_version": 1,
+            "design_version": 1,
+            "assignment_id": (getattr(interview_def, "randomization_assignment_id", None)
+                              or getattr(interview_def, "question_sampling_assignment_id", None)
+                              or interview_id),
+            "assignment_unit": "respondent_scenario_iteration" if (sampling_policy is not None or getattr(interview_def, "question_order", [])) else "interview",
+            "sampling_policy": sampling_policy,
+            "sample_size": sampling_policy["sample_size"] if sampling_policy is not None else None,
+            "required_questions": list(sampling_policy["required_questions"]) if sampling_policy is not None else [],
+            "sampled_questions": sampled_questions,
+            "unselected_questions": unselected_questions,
+            "sampling_seed": getattr(interview_def, "question_sampling_seed", None),
+            "option_orders": option_orders,
+            "matrix_row_orders": matrix_row_orders,
+            "scale_directions": dict(scale_directions),
+            "scale_direction_seeds": dict(scale_direction_seeds),
+            "scale_direction_assignment_id": getattr(
+                interview_def, "scale_direction_assignment_id", None
+            ),
+            "scale_direction_assignment_unit": (
+                "agent_scenario_iteration" if scale_directions else None
+            ),
+            "option_seeds": {
+                name: draw["seed"] for name, draw in option_randomizations.items()
+            },
+            "matrix_row_seeds": dict(item_randomization_seeds),
+            "planned_question_order": list(
+                getattr(interview_def, "question_order", []) or []
+            ),
+            "question_order_seeds": dict(
+                getattr(interview_def, "question_order_seeds", {}) or {}
+            ),
+            "question_order_blocks": dict(
+                getattr(interview_def, "question_order_blocks", {}) or {}
+            ),
+            "policies": {
+                name: [
+                    policy
+                    for applies, policy in (
+                        (
+                            name in ordinary_option_randomized_questions
+                            or name in option_randomizations,
+                            "randomized_option_order",
+                        ),
+                        (
+                            name in scale_randomized_questions,
+                            "randomized_scale_direction",
+                        ),
+                        (name in matrix_row_orders, "randomized_matrix_row_order"),
+                    )
+                    if applies
+                ]
+                for name in randomized_questions
+            },
+            "exposure_order": [a.question_name for a in completion_order],
+            "exposure_order_basis": "answer_completion_time",
+            "exposure_events": {
+                name: {
+                    "presented": (
+                        False
+                        if name in unselected_set
+                        or (task_statuses_by_question or {}).get(name)
+                        == TaskStatus.SKIPPED
+                        else (
+                            bool(
+                                answer_by_name[name].system_prompt
+                                or answer_by_name[name].user_prompt
+                            )
+                            if name in answer_by_name
+                            else None
+                        )
+                    ),
+                    "answered": name in answer_by_name,
+                    "answered_at": (
+                        answer_by_name[name].created_at.isoformat()
+                        if name in answer_by_name
+                        else None
+                    ),
+                }
+                for name in question_to_attributes
+            },
+        }
+        treatment_assignment = getattr(interview_def, "treatment_assignment", None)
+        if treatment_assignment is not None:
+            randomization["treatment_assignment"] = {
+                **treatment_assignment,
+            }
+            exposure_questions = list(
+                treatment_assignment.get("exposure_questions", [])
+            )
+            exposed_questions = [
+                name
+                for name in exposure_questions
+                if randomization["exposure_events"].get(name, {}).get("presented")
+                is True
+            ]
+            unknown_questions = [
+                name
+                for name in exposure_questions
+                if randomization["exposure_events"].get(name, {}).get("presented")
+                is None
+            ]
+            if not exposure_questions or unknown_questions:
+                treatment_exposed = None
+            else:
+                treatment_exposed = bool(exposed_questions)
+            randomization["treatment_exposure"] = {
+                "questions": exposure_questions,
+                "exposed_questions": exposed_questions,
+                "exposed": treatment_exposed,
+            }
+        randomization["not_presented_questions"] = [
+            name
+            for name, event in randomization["exposure_events"].items()
+            if event["presented"] is False
+        ]
+
         _t = _time.time()
         result = Result(
             agent=agent,
@@ -3194,6 +3468,7 @@ class JobService:
             resolution_draw=resolution_draw_dict,
             resolution_seed=resolution_seed_dict,
             resolution_method=resolution_method_dict,
+            randomization=randomization,
         )
 
         # Set interview_hash for compatibility with EDSL's Interview-based results.
@@ -3423,6 +3698,11 @@ class JobService:
                 questions_data=questions_data,
                 prefetched_answers=interview_answers,
                 indices=indices,
+                task_statuses_by_question={
+                    task_definitions[task_id].question_name: task_statuses.get(task_id)
+                    for task_id in (interview_def.task_ids if interview_def else [])
+                    if task_id in task_definitions
+                },
                 _timing=_timing,
             )
             result_list.append(result)
@@ -3566,6 +3846,61 @@ class JobService:
     # =========================================================================
     # Helper Methods
     # =========================================================================
+
+    def _realize_question_sample(
+        self,
+        survey: Any,
+        questions: list,
+        samples_by_unit: dict[
+            tuple[int, int, int], tuple[int, list[str], list[str]]
+        ],
+        assignment_unit: tuple[int, int, int],
+    ) -> tuple[list[str], list[str], int | None]:
+        """Draw an exact-size sample once per respondent/scenario/iteration unit."""
+        policy = getattr(survey, "question_sampling", None)
+        if policy is None:
+            return [], [], None
+        if assignment_unit not in samples_by_unit:
+            eligible = list(policy["eligible_questions"])
+            required = set(policy["required_questions"])
+            seed = random.getrandbits(64)
+            optional = [name for name in eligible if name not in required]
+            chosen = set(required)
+            chosen.update(
+                random.Random(seed).sample(
+                    optional, policy["sample_size"] - len(required)
+                )
+            )
+            sampled = [name for name in eligible if name in chosen]
+            unselected = [name for name in eligible if name not in chosen]
+            samples_by_unit[assignment_unit] = (seed, sampled, unselected)
+
+        seed, sampled, unselected = samples_by_unit[assignment_unit]
+        return list(sampled), list(unselected), seed
+    def _realize_question_order(
+        self, survey: Any, questions: list,
+        seeds_by_unit: dict[tuple[int, int, int], int],
+        assignment_unit: tuple[int, int, int],
+    ) -> tuple[list[str], dict[str, int]]:
+        """Draw and persist one independent permutation per declared order block."""
+        blocks = (getattr(survey, "question_order", {}) or {}).get("blocks", [])
+        if not blocks:
+            return [], {}
+        names = [self._get_question_name(q) for q in questions]
+        seeds_by_unit.setdefault(assignment_unit, random.getrandbits(64))
+        seed = seeds_by_unit[assignment_unit]
+        order = list(names)
+        block_seeds = {}
+        for block in blocks:
+            block_seed = int.from_bytes(hashlib.sha256(f"question-order-v1:{seed}:{block['name']}".encode()).digest()[:8], "big")
+            block_seeds[block["name"]] = block_seed
+            available = [name for name in block["questions"] if name in order]
+            permutation = list(available)
+            random.Random(block_seed).shuffle(permutation)
+            positions = [order.index(name) for name in available]
+            for position, name in zip(positions, permutation):
+                order[position] = name
+        return order, block_seeds
 
     def _extract_dag(self, survey: Any) -> dict[str, set[str]]:
         """Extract the dependency DAG from an EDSL Survey.
@@ -3737,7 +4072,11 @@ class JobService:
                 from_template, answer_dict, scenario
             )
             if isinstance(base, list):
-                return base + additional
+                resolved = list(base)
+                for option in additional:
+                    if option not in resolved:
+                        resolved.append(option)
+                return resolved
             # Couldn't resolve the "from" template
             return additional if additional else options
 
@@ -3867,6 +4206,47 @@ class JobService:
                 )
 
         return permutations
+
+    @staticmethod
+    def _resolve_interview_options(
+        question_data: dict,
+        interview_def: InterviewDefinition | None,
+        answer_dict: dict,
+        scenario: Any,
+        *,
+        strict: bool = True,
+    ) -> Any:
+        """Resolve options and reproduce the interview's static or deferred draw.
+
+        Results may include skipped/failed questions whose inputs never existed;
+        strict=False preserves their unresolved metadata without attempting a draw.
+        """
+        name = question_data.get("question_name")
+        permutations = (
+            interview_def.question_option_permutations if interview_def else {}
+        )
+        options = JobService._resolve_question_options(
+            permutations.get(name, question_data.get("question_options")),
+            answer_dict,
+            scenario,
+        )
+        draw = (
+            interview_def.question_option_randomizations.get(name)
+            if interview_def
+            else None
+        )
+        if draw is None:
+            return options
+        if not isinstance(options, list):
+            if strict:
+                raise ValueError(
+                    f"Randomized options for question {name!r} must resolve to a list; "
+                    f"got {type(options).__name__}."
+                )
+            return options
+        return JobService._shuffle_pinned(
+            options, draw["pin_options"], random.Random(draw["seed"])
+        )
 
     @staticmethod
     def _resolve_question_items(

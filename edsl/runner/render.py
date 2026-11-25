@@ -14,6 +14,7 @@ import base64
 from .storage import StorageProtocol
 from .stores import JobStore, InterviewStore, TaskStore, AnswerStore
 from .models import TaskDefinition, TaskStatus, InterviewDefinition
+from .service import JobService
 
 # EDSL imports - relative since this module lives inside edsl package
 from ..scenarios import Scenario
@@ -26,6 +27,24 @@ from ..invigilators.prompt_constructor import PromptConstructor
 from ..invigilators.prompt_helpers import PromptPlan
 from ..caching import CacheEntry
 from .presentation import capture_presentation
+
+
+def _question_from_data_with_presentation_order(question_data: dict):
+    """Restore a question while allowing a reversed linear-scale presentation.
+
+    QuestionLinearScale enforces ascending option values at construction time.
+    Randomized presentation changes only the display order, so construct from the
+    canonical ascending values and then set the validated display list directly.
+    """
+    if question_data.get("question_type") == "linear_scale":
+        options = question_data.get("question_options")
+        if isinstance(options, list) and options != sorted(options):
+            canonical = dict(question_data)
+            canonical["question_options"] = sorted(options)
+            question = QuestionBase.from_dict(canonical)
+            question.__dict__["_question_options"] = list(options)
+            return question
+    return QuestionBase.from_dict(question_data)
 
 
 @dataclass
@@ -224,6 +243,13 @@ class RenderService:
         )
         # Get current answers for memory/piping
         current_answers = self._get_current_answers(job_id, interview_id, task_def)
+        if task_def.question_name in interview_def.question_option_randomizations:
+            question_data = {
+                **question_data,
+                "question_options": JobService._resolve_interview_options(
+                    question_data, interview_def, current_answers, scenario_data
+                ),
+            }
         item_randomization_seed = interview_def.question_item_randomization_seeds.get(
             task_def.question_name
         )
@@ -355,7 +381,7 @@ class RenderService:
         ) + (_t.time() - _t0)
 
         _t0 = _t.time()
-        question = QuestionBase.from_dict(question_data)
+        question = _question_from_data_with_presentation_order(question_data)
         question._item_randomization_seed = item_randomization_seed
         self._profile_times["question_from_dict"] = self._profile_times.get(
             "question_from_dict", 0
@@ -435,7 +461,8 @@ class RenderService:
             prompt_constructor
         )
         replacements = builder.build_replacement_dict(prompt_constructor.question.data)
-        return prompt_constructor.question.render(replacements).to_dict()
+        rendered = prompt_constructor.question.render(replacements, return_dict=True)
+        return _question_from_data_with_presentation_order(rendered).to_dict()
 
     def _render_with_objects(
         self,
@@ -1083,6 +1110,34 @@ class RenderWorker:
                 if interview_def
                 else None
             )
+            current_answers = answers_cache.get(interview_id, {})
+            if (
+                interview_def
+                and task_def.question_name
+                in interview_def.question_option_randomizations
+            ):
+                try:
+                    option_perms = JobService._resolve_interview_options(
+                        questions[task_def.question_id],
+                        interview_def,
+                        current_answers,
+                        scenario,
+                    )
+                except Exception as option_exc:
+                    if self._job_service is None:
+                        raise
+                    self._job_service.on_task_failed(
+                        job_id,
+                        interview_id,
+                        task_id,
+                        error_type=type(option_exc).__name__,
+                        error_message=(
+                            f"Dynamic option resolution failed for "
+                            f"{task_def.question_name}: {option_exc}"
+                        ),
+                        force_permanent=True,
+                    )
+                    continue
             item_seed = (
                 interview_def.question_item_randomization_seeds.get(
                     task_def.question_name
@@ -1090,7 +1145,7 @@ class RenderWorker:
                 if interview_def
                 else None
             )
-            if option_perms or item_seed is not None:
+            if option_perms is not None or item_seed is not None:
                 _perm_key = (
                     task_def.question_id,
                     tuple(str(o) for o in option_perms or []),
@@ -1098,12 +1153,17 @@ class RenderWorker:
                 )
                 if _perm_key not in _permuted_questions:
                     q_data = questions.get(task_def.question_id)
-                    q_data = self._render_service._apply_option_permutation(
-                        q_data,
-                        task_def.question_name,
-                        interview_def.question_option_permutations,
+                    if option_perms is not None:
+                        q_data = {**q_data, "question_options": option_perms}
+                    else:
+                        q_data = self._render_service._apply_option_permutation(
+                            q_data,
+                            task_def.question_name,
+                            interview_def.question_option_permutations,
+                        )
+                    _permuted_questions[_perm_key] = (
+                        _question_from_data_with_presentation_order(q_data)
                     )
-                    _permuted_questions[_perm_key] = QuestionBase.from_dict(q_data)
                 question = _permuted_questions[_perm_key]
 
             if interview_def:
@@ -1112,9 +1172,6 @@ class RenderWorker:
                         task_def.question_name
                     )
                 )
-
-            # Get current answers from cache
-            current_answers = answers_cache.get(interview_id, {})
 
             # Get or build Survey + MemoryPlan (cached by question + answer keys)
             _t_survey = _time.time()

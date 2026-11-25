@@ -173,6 +173,7 @@ class Jobs(Base):
         self._where_clauses = []
         self._include_expression = None
         self._assignment_plan = None
+        self._treatment_assignment = None
 
         self._post_run_methods = []
         self._depends_on = None
@@ -473,6 +474,29 @@ class Jobs(Base):
             self._assignment_plan = plan
         if "include_expression" in data:
             self._include_expression = data["include_expression"]
+
+    @property
+    def treatment_assignment(self):
+        """Return the optional precomputed treatment-assignment policy."""
+        return self._treatment_assignment
+
+    def set_treatment_assignment(self, policy) -> "Jobs":
+        """Attach and validate a precomputed treatment schedule to this Jobs object."""
+        from .treatment_assignment import TreatmentAssignment
+
+        if policy is None:
+            self._treatment_assignment = None
+            return self
+        if isinstance(policy, dict):
+            policy = TreatmentAssignment.from_dict(policy)
+        if not isinstance(policy, TreatmentAssignment):
+            raise JobsValueError(
+                "policy must be a TreatmentAssignment or its serialized dictionary."
+            )
+        self.replace_missing_objects()
+        policy.validate_for_job(self, policy.planned_iterations)
+        self._treatment_assignment = policy
+        return self
 
     def by(
         self,
@@ -1730,6 +1754,19 @@ class Jobs(Base):
             self.run_config.parameters.use_api_proxy = False
             self._logger.info("offload_execution=True - using full remote execution")
 
+        if (
+            getattr(self.survey, "scale_direction_randomization", None) is not None
+            and self.run_config.parameters.offload_execution
+            and not self.run_config.parameters.disable_remote_inference
+        ):
+            from .exceptions import JobsRunError
+
+            raise JobsRunError(
+                "Scale-direction randomization is not supported by full remote job "
+                "offload yet. Run locally with disable_remote_inference=True or "
+                "offload_execution=False."
+            )
+
         # Use new parameter (use_api_proxy) to determine if we should enable proxy mode
         if self.run_config.parameters.use_api_proxy:
             # Enable progress bar by default when using API proxy
@@ -2883,6 +2920,9 @@ class Jobs(Base):
 
         d.update(assignment_metadata)
 
+        if self._treatment_assignment is not None:
+            d["treatment_assignment"] = self._treatment_assignment.to_dict()
+
         if add_edsl_version:
             from .. import __version__
 
@@ -2935,6 +2975,9 @@ class Jobs(Base):
             job._depends_on = cls.from_dict(data["_depends_on"])
 
         job._restore_assignment_metadata(data)
+
+        if "treatment_assignment" in data:
+            job.set_treatment_assignment(data["treatment_assignment"])
 
         return job
 
@@ -3065,6 +3108,12 @@ class Jobs(Base):
         from edsl.coop.exceptions import CoopValueError
         from ..scenarios import Scenario
         from ..surveys import Survey
+
+        if self._treatment_assignment is not None:
+            raise CoopValueError(
+                "Humanize does not support treatment assignment schedules. "
+                "Clear the schedule before publishing this job."
+            )
 
         if len(self.models) > 0:
             raise CoopValueError("We don't support humanize with models yet.")
