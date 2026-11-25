@@ -8,19 +8,32 @@ This module provides the InterviewTupleFilter class which generates
 from typing import Generator, Tuple, Optional, Any, Sequence
 from itertools import product
 
+from jinja2 import StrictUndefined
+from jinja2.exceptions import SecurityError
 from ..utilities.jinja import EDSLSandboxedEnvironment
 
 
 class _InterviewFilterEnvironment(EDSLSandboxedEnvironment):
-    """Expose only the source positions needed by legacy index filters."""
+    """Expose only source positions needed by index filters."""
 
     def __init__(self):
-        super().__init__()
+        super().__init__(undefined=StrictUndefined)
         self.positions = {}
 
     def getattr(self, obj, attribute):
-        if attribute in ("_index", "_position_index") and id(obj) in self.positions:
-            # These are enumerated integers, not reads of private object state.
+        if attribute == "_index" and id(obj) in self.positions:
+            if type(getattr(obj, "_index", None)) is not int:
+                raise SecurityError("Interview indices must be integers")
+            return self.positions[id(obj)]
+        if attribute == "_position_index" and id(obj) in self.positions:
+            # This alias is intended for EDSL components whose position is set by
+            # Jobs._ensure_position_indices, not arbitrary template objects.
+            if not type(obj).__module__.startswith("edsl.") or type(
+                getattr(obj, "_position_index", None)
+            ) is not int:
+                raise SecurityError(
+                    "Position indices are only available on EDSL objects"
+                )
             return self.positions[id(obj)]
         return super().getattr(obj, attribute)
 
@@ -38,12 +51,12 @@ class InterviewTupleFilter:
     If no expression is provided, yields all combinations (equivalent to itertools.product).
 
     Example expressions:
-        - "{{ scenario._index }} == {{ agent._index }}"  # Only matching indices
-        - "{{ agent._index }} < 5"  # First 5 agents only
-        - "{{ scenario._index }} % 2 == 0"  # Even-indexed scenarios
+        - "{{ scenario._index == agent._index }}"  # Only matching indices
+        - "{{ agent._index < 5 }}"  # First 5 agents only
+        - "{{ scenario._index % 2 == 0 }}"  # Even-indexed scenarios
 
     Usage:
-        filter = InterviewTupleFilter(agents, scenarios, models, "{{ scenario._index }} == {{ agent._index }}")
+        filter = InterviewTupleFilter(agents, scenarios, models, "{{ scenario._index == agent._index }}")
         for agent, scenario, model in filter:
             # process matching tuples
     """
@@ -76,7 +89,6 @@ class InterviewTupleFilter:
             scenario=scenario,
             model=model,
         )
-        # breakpoint()
         # Handle string results from Jinja2
         result_str = result.strip().lower()
         return result_str == "true"

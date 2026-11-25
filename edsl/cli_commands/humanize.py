@@ -567,6 +567,44 @@ def register(humanize: click.Group) -> None:
             )
 
 
+    @humanize.command("pause")
+    @click.argument("human_survey_uuid")
+    def humanize_pause(human_survey_uuid):
+        """Pause response collection: new respondents are told the survey is closed."""
+        try:
+            from edsl.coop import Coop
+
+            output(jsonable(Coop().pause_human_survey(human_survey_uuid)))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "HUMANIZE_ERROR",
+                str(e),
+                suggestion="Check the human survey UUID and that you own the survey.",
+                exit_code=EXIT_REMOTE,
+            )
+
+
+    @humanize.command("resume")
+    @click.argument("human_survey_uuid")
+    def humanize_resume(human_survey_uuid):
+        """Resume response collection for a paused human survey."""
+        try:
+            from edsl.coop import Coop
+
+            output(jsonable(Coop().resume_human_survey(human_survey_uuid)))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "HUMANIZE_ERROR",
+                str(e),
+                suggestion="Check the human survey UUID and that you own the survey.",
+                exit_code=EXIT_REMOTE,
+            )
+
+
     @humanize.command("preview")
     @click.option("--survey", "survey_path", required=True, type=click.Path(exists=True), help="Survey .ep, JSON, or package directory.")
     @click.option("--schema", "schema_path", default=None, type=click.Path(exists=True), help="Humanize schema JSON.")

@@ -3258,6 +3258,8 @@ class TestHumanizeCli:
             "list",
             "create",
             "status",
+            "pause",
+            "resume",
             "responses",
             "qr",
             "preview",
@@ -6846,7 +6848,7 @@ class TestRunValidation:
 
         result = CliRunner().invoke(
             cli_module.app,
-            ["run", str(jobs_path), "-o", str(results_path)],
+            ["run", str(jobs_path), "--local", "-o", str(results_path)],
         )
 
         assert result.exit_code == 0, result.output
@@ -6967,7 +6969,7 @@ class TestRunValidation:
 
         run = CliRunner().invoke(
             cli_module.app,
-            ["run", str(jobs_path), "--output", str(results_path)],
+            ["run", str(jobs_path), "--local", "--output", str(results_path)],
         )
         select = CliRunner().invoke(
             cli_module.app,
@@ -7029,7 +7031,7 @@ class TestRunValidation:
 
         result = CliRunner().invoke(
             cli_module.app,
-            ["run", str(jobs_path), "--n", "3", "--output", str(results_path)],
+            ["run", str(jobs_path), "--local", "--n", "3", "--output", str(results_path)],
         )
 
         assert result.exit_code == 0, result.output
@@ -8345,6 +8347,7 @@ class TestDefault:
         assert "clone" in data["commands"]
         assert "push" in data["commands"]
         assert "pull" in data["commands"]
+        assert "log" in data["commands"]
         assert "metadata" in data["commands"]
         assert "update-metadata" in data["commands"]
         assert "share" in data["commands"]
@@ -8467,6 +8470,7 @@ class TestPush:
             visibility=None,
             expected_parrot_url=None,
             force=False,
+            git_repo=False,
         ):
             push_calls.append(
                 {
@@ -8474,6 +8478,7 @@ class TestPush:
                     "alias": alias,
                     "visibility": visibility,
                     "force": force,
+                    "git_repo": git_repo,
                 }
             )
             return {
@@ -8531,6 +8536,7 @@ class TestPush:
                 "alias": "created-alias",
                 "visibility": "public",
                 "force": False,
+                "git_repo": True,
             }
         ]
         html = Survey.git.open(package_path).html()
@@ -8559,7 +8565,10 @@ class TestPush:
             def __init__(self, url=None):
                 pass
 
-            def patch(self, url_or_uuid, description=None, alias=None, value=None, visibility=None):
+            def patch(
+                self, url_or_uuid, description=None, alias=None, value=None, visibility=None,
+                git_repo=False,
+            ):
                 patch_calls.append(
                     {
                         "url_or_uuid": url_or_uuid,
@@ -8567,6 +8576,7 @@ class TestPush:
                         "alias": alias,
                         "object_type": type(value).__name__,
                         "visibility": visibility,
+                        "git_repo": git_repo,
                     }
                 )
                 return {
@@ -8618,6 +8628,7 @@ class TestPush:
                 "alias": "new-alias",
                 "object_type": "Survey",
                 "visibility": "unlisted",
+                "git_repo": True,
             }
         ]
 
@@ -8724,7 +8735,7 @@ class TestPull:
         assert out["status"] == "ok"
         assert out["data"]["operation"] == "unchanged"
 
-    def test_pull_package_without_coop_info_errors(self, tmp_path):
+    def test_pull_package_without_any_remote_errors(self, tmp_path):
         from edsl.surveys import Survey
 
         package_path = tmp_path / "survey.ep"
@@ -8735,4 +8746,4 @@ class TestPull:
         assert result.exit_code == cli_module.EXIT_VALIDATION
         out = json.loads(result.output)
         assert out["status"] == "error"
-        assert out["error"]["code"] == "NO_COOP_INFO"
+        assert out["error"]["code"] == "NO_REMOTE"

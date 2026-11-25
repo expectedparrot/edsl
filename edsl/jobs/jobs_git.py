@@ -180,8 +180,7 @@ def _load_manifest_at_ref(path: Path, ref: str) -> dict:
         raise ValueError(f"Unsupported Jobs git package format: {manifest!r}")
     if manifest.get("format_version") != FORMAT_VERSION:
         raise ValueError(
-            "Unsupported Jobs git package version: "
-            f"{manifest.get('format_version')!r}"
+            f"Unsupported Jobs git package version: {manifest.get('format_version')!r}"
         )
     return manifest
 
@@ -210,13 +209,7 @@ def _write_manifest(path: Path, job: "Jobs") -> None:
         "components": dict(_COMPONENTS),
         "has_depends_on": job._depends_on is not None,
     }
-    existing_remotes = gitpkg.manifest_remotes(existing_manifest)
-    if existing_remotes:
-        manifest["remotes"] = existing_remotes
-    if "primary_remote" in existing_manifest:
-        manifest["primary_remote"] = existing_manifest["primary_remote"]
-    elif "remote" in existing_manifest and existing_manifest["remote"].get("name"):
-        manifest["primary_remote"] = existing_manifest["remote"]["name"]
+    gitpkg.carry_package_metadata(existing_manifest, manifest)
     try:
         from edsl import __version__
 
@@ -236,6 +229,13 @@ def _write_job_metadata(path: Path, job: "Jobs") -> None:
     metadata.update(job._assignment_metadata())
     if getattr(job, "treatment_assignment", None) is not None:
         metadata["treatment_assignment"] = job.treatment_assignment.to_dict()
+    schedule = job.run_config.parameters.interview_schedule
+    if schedule != "concurrent":
+        from .interview_schedule import InterviewSchedule
+
+        metadata["interview_schedule"] = (
+            schedule.to_dict() if isinstance(schedule, InterviewSchedule) else schedule
+        )
     (path / "job.json").write_text(
         json.dumps(metadata, indent=2, sort_keys=True) + "\n"
     )
@@ -327,6 +327,15 @@ def _read_job_from_tree(path: Path) -> "Jobs":
     job._restore_assignment_metadata(job_metadata)
     if "treatment_assignment" in job_metadata:
         job.set_treatment_assignment(job_metadata["treatment_assignment"])
+    if "interview_schedule" in job_metadata:
+        from .interview_schedule import InterviewSchedule
+
+        schedule = job_metadata["interview_schedule"]
+        job.run_config.parameters.interview_schedule = (
+            InterviewSchedule.from_dict(schedule)
+            if isinstance(schedule, dict)
+            else schedule
+        )
     dependencies = job_metadata.get("dependencies") or []
     if dependencies:
         job._depends_on = _read_job_from_tree(path / dependencies[0])
@@ -352,7 +361,7 @@ def _read_embedded_survey(path: Path):
             path / "metadata" / "question_groups.json", {}
         ),
     }
-    for key in ["name", "questions_to_randomize", "options_to_pin"]:
+    for key in ["name", "questions_to_randomize", "options_to_pin", "state_steps"]:
         value = _read_optional_json_file(path / "metadata" / f"{key}.json", None)
         if value is not None:
             survey_dict[key] = value
@@ -454,8 +463,7 @@ def _load_manifest(path: Path) -> dict:
         raise ValueError(f"Unsupported Jobs git package format: {manifest!r}")
     if manifest.get("format_version") != FORMAT_VERSION:
         raise ValueError(
-            "Unsupported Jobs git package version: "
-            f"{manifest.get('format_version')!r}"
+            f"Unsupported Jobs git package version: {manifest.get('format_version')!r}"
         )
     return manifest
 

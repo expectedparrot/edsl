@@ -428,9 +428,16 @@ class QuestionBaseGenMixin:
         # This allows both {{ scenario.x }} and {{ scenario }} to work
         # {{ scenario.x }} accesses keys, {{ scenario }} converts to string
         # Filter out keys starting with underscore (private/internal keys)
+        # Prompt construction supplies an explicit scenario namespace. Preserve
+        # it when question fields (such as prices) share scenario variable names.
+        from collections.abc import Mapping
+
+        scenario_values = replacement_dict.get("scenario")
+        if not isinstance(scenario_values, Mapping):
+            scenario_values = strings_only_replacement_dict
         scenario_dict_for_template = {
             k: v
-            for k, v in strings_only_replacement_dict.items()
+            for k, v in scenario_values.items()
             if not k.startswith("_")
         }
         strings_only_replacement_dict["scenario"] = scenario_dict_for_template
@@ -483,6 +490,19 @@ class QuestionBaseGenMixin:
             except Exception:
                 pass
 
+        # Numerical bounds must retain their native type after template
+        # substitution. The regular string renderer intentionally returns text,
+        # but question descriptors reject resolved values such as "12".
+        for key in ("min_value", "max_value"):
+            original_value = self.data.get(key)
+            if isinstance(original_value, str):
+                try:
+                    native_value = render_native(original_value)
+                    if isinstance(native_value, (int, float)) or native_value is None:
+                        rendered_dict[key] = native_value
+                except Exception:
+                    pass
+
         original_prices = self.data.get("prices")
         if isinstance(original_prices, str):
             try:
@@ -504,7 +524,6 @@ class QuestionBaseGenMixin:
                 raise
             except Exception:
                 pass
-
         if return_dict:
             return rendered_dict
         else:

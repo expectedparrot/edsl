@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import sys
 import webbrowser
 
@@ -97,6 +98,84 @@ def register(app: click.Group, auth: click.Group) -> None:
         output(data)
 
 
+    @auth.command("setup-git")
+    @click.option("--hostname", default=None, help="Git host URL (default: Expected Parrot's git host).")
+    @click.option("--unset", is_flag=True, default=False, help="Remove the credential helper instead.")
+    def auth_setup_git(hostname, unset):
+        """Let plain git use your Expected Parrot key for the git host, like 'gh auth setup-git'.
+
+        Sets credential.<host>.helper in your global git config to
+        'ep auth git-credential', after an empty entry that drops any helper
+        set before it for that host.
+        """
+        import shlex
+        import subprocess
+
+        from edsl.base import git_package as gitpkg
+
+        try:
+            host = gitpkg.git_url_host(hostname) if hostname else gitpkg.coop_git_host()
+            if host is None:
+                error(
+                    "SETUP_GIT_ERROR",
+                    "Coop reported no git host.",
+                    suggestion="Check your API key with 'ep auth status', or pass --hostname.",
+                    exit_code=EXIT_REMOTE,
+                )
+            key = f"credential.{host}.helper"
+            if unset:
+                subprocess.run(["git", "config", "--global", "--unset-all", key], check=False)
+                output({"host": host, "helper": None})
+                return
+            helper = f"!{shlex.quote(_ep_executable())} auth git-credential --hostname {host}"
+            subprocess.run(["git", "config", "--global", "--replace-all", key, ""], check=True)
+            subprocess.run(["git", "config", "--global", "--add", key, helper], check=True)
+            output({"host": host, "helper": helper})
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("SETUP_GIT_ERROR", str(e), suggestion="Check that git is installed.", exit_code=EXIT_REMOTE)
+
+
+    @auth.command("git-credential", hidden=True)
+    @click.argument("operation")
+    @click.option("--hostname", default=None)
+    def auth_git_credential(operation, hostname):
+        """git credential helper: answers 'get' for the git host only."""
+        if operation != "get" or not hostname:
+            return
+        from edsl.base import git_package as gitpkg
+
+        host = gitpkg.git_url_host(hostname)
+        request = dict(
+            line.split("=", 1) for line in sys.stdin.read().splitlines() if "=" in line
+        )
+        if f"{request.get('protocol')}://{request.get('host')}" != host:
+            return
+        from edsl.coop import Coop
+
+        coop_client = Coop()
+        if not coop_client.api_key:
+            return
+        # git reads this helper's stdout as the credential, so Coop's notices go
+        # to stderr, and an invalid key fails here instead of starting a login.
+        try:
+            with contextlib.redirect_stdout(sys.stderr):
+                response = coop_client._send_server_request(
+                    uri="api/v0/users/profile", method="GET"
+                )
+                coop_client._resolve_server_response(response, check_api_key=False)
+            username = response.json().get("username")
+        except Exception:
+            username = None
+        # The git host requires a Basic username to be the key owner's; without
+        # a username on the account, the key goes alone.
+        if username:
+            sys.stdout.write(f"username={username}\npassword={coop_client.api_key}\n")
+        else:
+            sys.stdout.write(f"username={coop_client.api_key}\npassword=\n")
+
+
     @auth.command("balance")
     def auth_balance():
         """Get the authenticated Expected Parrot credit balance."""
@@ -182,6 +261,17 @@ def register(app: click.Group, auth: click.Group) -> None:
                     exit_code=EXIT_REMOTE,
                 )
         output({"credits_url": CREDITS_URL, "opened": opened})
+
+
+    def _ep_executable() -> str:
+        """This ep, by absolute path, so git finds it without the venv on PATH."""
+        import shutil
+        from pathlib import Path
+
+        running = Path(sys.argv[0])
+        if running.name in ("ep", "edsl") and running.exists():
+            return str(running.resolve())
+        return shutil.which("ep") or "ep"
 
 
     def _get_expected_parrot_balance() -> dict:
