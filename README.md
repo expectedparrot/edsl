@@ -112,7 +112,7 @@ The installer sets up EDSL once for use across your projects. [Setup options](ha
 
 [<img src="docs/assets/demos/edsl-agent-demo.jpg" width="460" alt="Watch Pi build a coffee survey and Antigravity inspect its follow-up rule">](docs/assets/demos/edsl-agent-demo.mp4?raw=true)
 
-[Watch the 41-second demo with Pi and Antigravity](docs/assets/demos/edsl-agent-demo.mp4?raw=true)
+[Watch Pi build a survey and Antigravity check its skip rule (54-second terminal recording)](docs/assets/demos/edsl-agent-demo.mp4?raw=true)
 
 ## Key features
 
