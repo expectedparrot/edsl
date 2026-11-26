@@ -12,7 +12,7 @@ E[🦜] [Full EDSL documentation](https://docs.expectedparrot.com/en/latest/inde
 
 Choose your agent and paste its setup prompt into the chat. Once EDSL is ready, describe the study you want to run. For example, “Make a three-question survey about coffee habits and show it here in the chat.”
 
-[![Get help with Expected Parrot](https://img.shields.io/badge/Get_help_with_Expected_Parrot-0057B8?style=for-the-badge)](https://www.expectedparrot.com/respond/human-surveys/f10115dd-8503-4024-ab4d-9d32b14e30fa)
+[![Need help?](https://img.shields.io/badge/Need_help%3F-22863A?style=flat)](https://www.expectedparrot.com/respond/human-surveys/f10115dd-8503-4024-ab4d-9d32b14e30fa)
 
 <details>
 <summary><img src="docs/assets/harness-icons/codex.svg" width="22" height="22" alt=""> Codex</summary>
