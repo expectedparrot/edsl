@@ -91,6 +91,7 @@ Some question types support a `format` field to change the UI widget:
 | `linear_scale` | `"radio"`, `"dropdown"` | `"radio"` |
 | `yes_no` | `"radio"`, `"dropdown"` | `"radio"` |
 | `numerical` | `"input"`, `"slider"` | `"input"` |
+| `numerical_range` | `"input"` | `"input"` |
 
 ```python
 schema = {
@@ -306,6 +307,8 @@ Supported on every question type except `compute` and `image_generation` (both a
 | `budget` | yes | — | — |
 | `checkbox` | yes | — | — |
 | `checkbox_with_other` | yes | — | — |
+| `date` | yes | — | — |
+| `date_time` | yes | — | — |
 | `demand` | no | — | — |
 | `dict` | no | — | — |
 | `distribution` | no | — | — |
@@ -321,6 +324,7 @@ Supported on every question type except `compute` and `image_generation` (both a
 | `multiple_choice` | yes | radio/dropdown | `select_exact_answer` |
 | `multiple_choice_with_other` | yes | — | — |
 | `numerical` | yes | input/slider | — |
+| `numerical_range` | yes | input | — |
 | `rank` | yes | — | — |
 | `top_k` | yes | — | — |
 | `url` | yes | — | — |
