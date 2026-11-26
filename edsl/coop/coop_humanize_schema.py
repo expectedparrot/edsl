@@ -549,6 +549,26 @@ class DictHumanizeSchema(QuestionHumanizeSchemaBase):
     javascript: Optional[QuestionJavaScript] = None
 
 
+class DateHumanizeSchema(QuestionHumanizeSchemaBase):
+    """Humanize options for the date question type."""
+
+    optional: bool = False
+    time_limit: Optional[TimeLimit] = None
+    comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
+
+
+class DateTimeHumanizeSchema(QuestionHumanizeSchemaBase):
+    """Humanize options for the date and time question type."""
+
+    optional: bool = False
+    time_limit: Optional[TimeLimit] = None
+    comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
+
+
 class EditHumanizeSchema(QuestionHumanizeSchemaBase):
     """Humanize options for the edit question type."""
 
@@ -1278,6 +1298,24 @@ class NumericalHumanizeSchema(QuestionHumanizeSchemaBase):
     javascript: Optional[QuestionJavaScript] = None
 
 
+# Input only for now. A union with a two-thumb slider can join later, as
+# ``NumericalFormatSchema`` does for numerical.
+NumericalRangeFormatSchema = NumericalFormatInputSchema
+
+
+class NumericalRangeHumanizeSchema(QuestionHumanizeSchemaBase):
+    """Humanize options for the numerical range question type."""
+
+    optional: bool = False
+    time_limit: Optional[TimeLimit] = None
+    format: NumericalRangeFormatSchema = Field(
+        default_factory=NumericalFormatInputSchema
+    )
+    comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
+
+
 class RankHumanizeSchema(QuestionHumanizeSchemaBase):
     """Humanize options for the rank question type."""
 
@@ -1341,6 +1379,8 @@ HumanizeQuestionSchema = Union[
     CheckboxHumanizeSchema,
     CheckboxWithOtherHumanizeSchema,
     ComputeHumanizeSchema,
+    DateHumanizeSchema,
+    DateTimeHumanizeSchema,
     DemandHumanizeSchema,
     DetectAIHumanizeSchema,
     DictHumanizeSchema,
@@ -1356,6 +1396,7 @@ HumanizeQuestionSchema = Union[
     MultipleChoiceHumanizeSchema,
     MultipleChoiceWithOtherHumanizeSchema,
     NumericalHumanizeSchema,
+    NumericalRangeHumanizeSchema,
     RankHumanizeSchema,
     TopKHumanizeSchema,
     URLHumanizeSchema,
@@ -1382,6 +1423,8 @@ QUESTION_TYPE_TO_HUMANIZE_CLASS: Dict[str, Type[BaseModel]] = {
     "checkbox": CheckboxHumanizeSchema,
     "checkbox_with_other": CheckboxWithOtherHumanizeSchema,
     "compute": ComputeHumanizeSchema,
+    "date": DateHumanizeSchema,
+    "date_time": DateTimeHumanizeSchema,
     "demand": DemandHumanizeSchema,
     "detect_ai": DetectAIHumanizeSchema,
     "dict": DictHumanizeSchema,
@@ -1397,6 +1440,7 @@ QUESTION_TYPE_TO_HUMANIZE_CLASS: Dict[str, Type[BaseModel]] = {
     "multiple_choice": MultipleChoiceHumanizeSchema,
     "multiple_choice_with_other": MultipleChoiceWithOtherHumanizeSchema,
     "numerical": NumericalHumanizeSchema,
+    "numerical_range": NumericalRangeHumanizeSchema,
     "rank": RankHumanizeSchema,
     "top_k": TopKHumanizeSchema,
     "url": URLHumanizeSchema,

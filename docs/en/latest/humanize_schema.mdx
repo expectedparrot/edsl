@@ -130,7 +130,7 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
 <ParamField path="optional" type="boolean" default={false}>
   Whether the question is optional. Default is `false` when omitted.
 
-  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `dropdown`, `edit`, `email`, `file_upload`, `interview`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `url`, `yes_no`.
+  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `date`, `date_time`, `dropdown`, `edit`, `email`, `file_upload`, `interview`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `numerical_range`, `rank`, `top_k`, `url`, `yes_no`.
 
   Note: `optional` currently has no effect for `interview` and `rank`.
 </ParamField>
@@ -145,6 +145,12 @@ In Humanize, `QuestionURL` is a one-line text box. Respondents can leave off the
 
 In Humanize, `QuestionEmail` is a one-line email box. Spaces around the address are dropped, and the answer must be a valid email address, as EDSL requires.
 
+In Humanize, `QuestionDate` is a date field that opens a calendar. Days outside `min_date` and `max_date` can't be chosen, and the answer is the date as `YYYY-MM-DD`.
+
+In Humanize, `QuestionDateTime` shows three fields: **Date**, which opens the same calendar as `QuestionDate`; **Time**, shown in 12- or 24-hour form as the respondent's browser prefers; and **Time zone**, which starts as the respondent's own and can be changed by searching a list. The answer is an ISO 8601 date and time with the chosen time zone's UTC offset on that date, such as `2026-05-20T14:30:00-04:00`, so daylight saving is accounted for. It must fall within `min_datetime` and `max_datetime`, compared as moments in time whatever offset each is written in; days outside them can't be chosen in the calendar. A time that doesn't exist in the chosen time zone, because the clocks spring forward over it, can't be submitted.
+
+In Humanize, `QuestionNumericalRange` shows two number boxes, **From** and **To**. Both must be within `min_value` and `max_value`, and From can't be greater than To. The answer is `{"min": ..., "max": ...}`. If the question is `optional`, both boxes can be left empty, but not just one.
+
 In Humanize, `QuestionEdit` shows `text_to_edit` in an editable text box, with a tracked-changes preview underneath: deleted text is struck through in red and inserted text is green. The answer is the full revised text.
 
 <ParamField path="time_limit" type="dict" required={false}>
@@ -154,7 +160,7 @@ In Humanize, `QuestionEdit` shows `text_to_edit` in an editable text box, with a
 
   A time limit applies only while the question is alone on its page. When `survey.presentation` is `"group"`, every question's `time_limit` is ignored, including a question that is the only one in its group. The countdown runs in the respondent's browser, so reloading the page starts it again.
 
-  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `demand`, `dict`, `dropdown`, `edit`, `email`, `file_upload`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `url`, `yes_no`.
+  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `date`, `date_time`, `demand`, `dict`, `dropdown`, `edit`, `email`, `file_upload`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `numerical_range`, `rank`, `top_k`, `url`, `yes_no`.
 
   <Expandable title="properties">
     <ParamField path="duration" type="dict" required={true}>
@@ -168,6 +174,7 @@ In Humanize, `QuestionEdit` shows `text_to_edit` in an editable text box, with a
 
   - **MC-style** (`likert_five`, `linear_scale`, `multiple_choice`, `yes_no`): `"radio"` (list of radio buttons) or `"dropdown"` (single `<select>`). Default is `"radio"`. Use `{"type": "radio"}` or `{"type": "dropdown"}`.
   - **Numerical** (`numerical`): `"input"` (number input field) or `"slider"` (range slider). Default is `"input"`. Use `{"type": "input"}` or `{"type": "slider", "min": 0, "max": 100, "step": 1}`. For slider, `min` must be less than `max`, `step` must be positive and not exceed `(max - min)`.
+  - **Numerical range** (`numerical_range`): `"input"` (two number input fields) is the only format and the default. Use `{"type": "input"}`.
   - **Matrix** (`matrix`): `"table"` (the whole grid at once) or `"carousel"` (one item at a time). Default is `"table"`. Use `{"type": "table"}` or `{"type": "carousel"}`.
 
   `dropdown` questions always use their searchable option picker and do not support `format`. Other question types do not support `format`.
@@ -406,7 +413,7 @@ In Humanize, `QuestionEdit` shows `text_to_edit` in an editable text box, with a
   Optional comment input shown with the question.
   Submitted comment text appears in survey results under `comment.{question_name}_comment`.
 
-  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `demand`, `dict`, `dropdown`, `edit`, `email`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `url`, `yes_no`.
+  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `date`, `date_time`, `demand`, `dict`, `dropdown`, `edit`, `email`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `numerical_range`, `rank`, `top_k`, `url`, `yes_no`.
 
   <Expandable title="properties">
     <ParamField path="label" type="string" required={true}>
@@ -418,7 +425,7 @@ In Humanize, `QuestionEdit` shows `text_to_edit` in an editable text box, with a
 <ParamField path="submitting_indicator" type="dict" required={false}>
   Optional indicator shown after the respondent clicks **Next**, while the following question runs. Omit or set to `null` for no indicator.
 
-  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `demand`, `dict`, `dropdown`, `edit`, `email`, `file_upload`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `url`, `yes_no`.
+  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `date`, `date_time`, `demand`, `dict`, `dropdown`, `edit`, `email`, `file_upload`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `numerical_range`, `rank`, `top_k`, `url`, `yes_no`.
 
   Note: not supported for `compute`, `detect_ai` or `image_generation` (all run in the background and auto-advance, so none is ever the question a respondent submits), or for `interview`.
 
@@ -435,7 +442,7 @@ In Humanize, `QuestionEdit` shows `text_to_edit` in an editable text box, with a
 <ParamField path="javascript" type="dict" required={false}>
   Optional JavaScript that runs on the respondent's page for this question. Omit or set to `null` to run no script. See [Custom JavaScript](/en/latest/custom_javascript) for how to write a hook, what a script may do, and how to retrieve the events it logs.
 
-  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `demand`, `dict`, `distribution`, `dropdown`, `edit`, `email`, `file_upload`, `interview`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `url`, `yes_no`, `survey_message`.
+  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `date`, `date_time`, `demand`, `dict`, `distribution`, `dropdown`, `edit`, `email`, `file_upload`, `interview`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `numerical_range`, `rank`, `top_k`, `url`, `yes_no`, `survey_message`.
 
   Note: not supported for `compute`, `detect_ai` or `image_generation`. All three run in the background and are dropped from the page, so there is no rendered question for a script to attach to.
 
