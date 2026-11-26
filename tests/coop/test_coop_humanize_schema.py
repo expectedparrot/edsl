@@ -490,7 +490,18 @@ class TestValidateHumanizeSchemaGeneral:
         [
             {"format": {"type": "table"}},
             {"format": {"type": "carousel"}},
-            {"preselection": {"type": "column", "value": "Exercise"}},
+            # A preselection matrix accepts, so this fails only if checkbox
+            # matrix gains the field.
+            {
+                "preselection": {
+                    "rules": [
+                        {
+                            "match": {"type": "all"},
+                            "option": {"type": "text", "value": "Exercise"},
+                        }
+                    ]
+                }
+            },
         ],
         ids=["table", "carousel", "preselection"],
     )
