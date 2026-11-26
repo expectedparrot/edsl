@@ -4,7 +4,7 @@
 
 <!-- The cache badge groups 7–9 digits until expectedparrot/coopr#4586 deploys /api/remote-cache/badge.json with server-side number formatting. -->
 
-EDSL is a Python library for surveys and simulations. You describe a study in natural language, and your coding agent uses EDSL to write and run it. The study design lives in code, so you can inspect it, ask the agent to change it, and run it again.
+[Expected Parrot](https://www.expectedparrot.com/)’s EDSL is an MIT-licensed Python library for surveys and simulations. You describe a study in natural language, and your coding agent uses EDSL to write and run it. The study design lives in code, so you can inspect it, ask the agent to change it, and run it again.
 
 E[🦜] [Full EDSL documentation](https://docs.expectedparrot.com/en/latest/index) · [Academic papers using or citing EDSL](https://docs.expectedparrot.com/en/latest/papers)
 
