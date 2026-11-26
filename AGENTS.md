@@ -6,10 +6,10 @@ This guide is for coding agents and automation using the EDSL command line. Use 
 
 The CLI is designed for programmatic use.
 
-- Stdout is a single JSON document.
+- By default, stdout is a single JSON document.
 - Stderr is for diagnostics and logs.
 - Commands should not prompt interactively.
-- Always parse stdout as JSON and inspect `status`.
+- Parse JSON responses and inspect `status`. For an explicit raw-output option, check the exit code before consuming stdout.
 - Read `warnings`; lower-level output may be captured there to preserve the JSON envelope.
 - Do not scrape prose, progress lines, URLs, or table output from stdout.
 - Prefer `.ep` packages for durable EDSL objects.
@@ -271,6 +271,7 @@ ep surveys create --question-type free_text --question-name q0 --question-text "
 ep surveys add-question survey.ep --question-type multiple_choice --question-name q1 --question-text "Pick one." --option A --option B
 ep surveys questions survey.ep
 ep surveys show survey.ep
+ep surveys show survey.ep --markdown
 ep surveys add-skip-rule survey.ep --question q1 --expression "{{ q0.answer }} == 'skip'"
 ep surveys add-stop-rule survey.ep --question q1 --expression "{{ q1.answer }} == 'done'"
 ep surveys add-instruction survey.ep --text "Answer as briefly as possible."
@@ -279,6 +280,8 @@ ep surveys add-question-group survey.ep --help
 ep surveys move-question survey.ep --help
 ep surveys drop-question survey.ep --help
 ```
+
+Use `ep surveys show survey.ep --markdown` to present the questionnaire in a terminal. On success, stdout contains Markdown. On failure, inspect the JSON error envelope.
 
 Use `ep surveys review survey.ep` only when a local review UI is appropriate for the task.
 

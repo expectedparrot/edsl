@@ -16,6 +16,7 @@ from .descriptors import (
     QuestionTextDescriptor,
 )
 from .exceptions import QuestionCreationValidationError
+from . import markdown_layout as md
 from .question_base import QuestionBase
 from .response_validator_abc import ResponseValidatorABC
 
@@ -203,6 +204,13 @@ class QuestionCheckboxMatrix(QuestionBase):
             count = random.randint(self.min_selections, self.max_selections)
             answer[row] = random.sample(self.question_options, count)
         return {"answer": answer, "comment": "Sample checkbox matrix response"}
+
+    def _markdown_answer(self, option_notes):
+        return md.matrix(
+            self,
+            "For each row: "
+            + md.select_count(self.min_selections, self.max_selections),
+        )
 
     @property
     def question_html_content(self) -> str:

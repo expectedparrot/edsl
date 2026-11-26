@@ -20,6 +20,7 @@ from pydantic import (
 )
 from jinja2 import Template
 
+from . import markdown_layout as md
 from .question_base import QuestionBase
 from .descriptors import (
     QuestionOptionsDescriptor,
@@ -885,6 +886,9 @@ class QuestionMatrix(QuestionBase):
             },
             "comment": "Sample matrix response",
         }
+
+    def _markdown_answer(self, option_notes):
+        return md.matrix(self, "Choose one option per row.")
 
     @property
     def question_html_content(self) -> str:

@@ -553,14 +553,19 @@ def register(surveys_group: click.Group) -> None:
 
     @surveys_group.command("show")
     @click.argument("survey_path")
-    def show_survey(survey_path: str):
+    @click.option("--markdown", is_flag=True, help="Print a readable Markdown questionnaire directly to stdout.")
+    def show_survey(survey_path: str, markdown: bool):
         """Summarize a Survey.
 
         Example:
           ep surveys show survey.ep
+          ep surveys show survey.ep --markdown
         """
         try:
             survey = _load_survey(survey_path)
+            if markdown:
+                click.echo(survey.to_markdown(style="questionnaire"))
+                return
             output(_survey_summary(survey))
         except SystemExit:
             raise

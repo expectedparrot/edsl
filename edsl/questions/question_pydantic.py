@@ -19,6 +19,7 @@ import json
 
 from pydantic import BaseModel, field_validator
 
+from . import markdown_layout as md
 from .question_base import QuestionBase
 from .response_validator_abc import ResponseValidatorABC
 from .decorators import inject_exception
@@ -577,6 +578,13 @@ class QuestionPydantic(QuestionBase):
                 )
 
         return validated_answer
+
+    def _markdown_answer(self, option_notes):
+        schema = self.get_response_schema()
+        fields = md.lines(f"- {md.text(key)}" for key in schema.get("properties", {}))
+        return f"Structured response ({md.text(schema.get('title', 'object'))})" + (
+            "\n\n" + fields if fields else ""
+        )
 
     @property
     def question_html_content(self) -> str:

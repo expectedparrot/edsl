@@ -180,6 +180,18 @@ ep inspect survey.ep
 
 `add-question` updates the survey package in place. A job built earlier retains its saved survey, so rebuild the job to include the new question. Use `ep agents create --help` and `ep scenarios create --help` for creating respondent profiles and scenario data from files.
 
+To read a survey in the terminal, print its Markdown questionnaire or save it for review:
+
+```bash
+ep surveys show survey.ep --markdown
+ep surveys show survey.ep --markdown > questionnaire.md
+```
+
+The Markdown view shows questions in authored order, with response options and routing.
+For example, a Yes/No question can display `○ No → Go to question 3`. More complex
+conditions appear at the question where they are evaluated. The flag writes Markdown
+directly to stdout on success. Omit it for the normal JSON summary.
+
 Set answer-option randomization on a survey with `set-option-randomization`. Repeat `--question` for each question; use `--pin-options` with a JSON object or a path to one when some options should stay in their original positions. This works for static choices and whole option lists resolved from scenarios or prior answers:
 
 ```bash

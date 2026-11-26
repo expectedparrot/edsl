@@ -5,6 +5,7 @@ from typing import Dict, Any, Optional, Type
 
 from pydantic import create_model, Field, BaseModel, ValidationError
 
+from . import markdown_layout as md
 from .question_base import QuestionBase
 from .descriptors import AnswerTemplateDescriptor
 
@@ -425,6 +426,12 @@ class QuestionExtract(QuestionBase):
             True
         """
         return dict_to_pydantic_model(self.answer_template)
+
+    def _markdown_answer(self, option_notes):
+        return "Extract the following fields.\n\n" + md.lines(
+            f"- {md.text(key)} (e.g. {md.text(value)})"
+            for key, value in self.answer_template.items()
+        )
 
     @property
     def question_html_content(self) -> str:

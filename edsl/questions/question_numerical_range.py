@@ -17,6 +17,7 @@ from pydantic import (
 from .decorators import inject_exception
 from .descriptors import NumericalOrNoneDescriptor, QuestionTextDescriptor
 from .exceptions import QuestionCreationValidationError
+from . import markdown_layout as md
 from .question_base import QuestionBase
 from .response_validator_abc import ResponseValidatorABC
 
@@ -102,6 +103,13 @@ class QuestionNumericalRange(QuestionBase):
             upper = max(100.0, lower)
         first, second = sorted((uniform(lower, upper), uniform(lower, upper)))
         return {"answer": {"min": first, "max": second}}
+
+    def _markdown_answer(self, option_notes):
+        return (
+            "Enter a minimum and maximum"
+            + md.bounds(self.min_value, self.max_value)
+            + "."
+        )
 
     @property
     def question_html_content(self) -> str:

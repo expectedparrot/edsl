@@ -60,6 +60,7 @@ from typing import (
     Callable,
 )
 
+from . import markdown_layout as md
 from .descriptors import QuestionNameDescriptor, QuestionTextDescriptor
 from .answer_validator_mixin import AnswerValidatorMixin
 from .register_questions_meta import RegisterQuestionsMeta
@@ -208,6 +209,31 @@ class QuestionBase(
     @answer.setter
     def answer(self, value):
         self.__dict__["_answer"] = value
+
+    _markdown_hint: str | None = None
+
+    def _markdown_answer(self, option_notes):
+        """Override for response formats that depend on the question's configuration."""
+        hint = (
+            self._markdown_hint
+            or self.question_type.replace("_", " ").capitalize() + " response"
+        )
+        return f"*{md.text(hint)}*"
+
+    def to_markdown(
+        self, *, number: int | None = None, option_notes: dict[int, str] | None = None
+    ) -> str:
+        """Render a standalone question or a numbered survey question.
+
+        Subclasses can set a static `_markdown_hint` or implement `_markdown_answer`
+        for a structured response. The survey supplies any option-indexed routing notes.
+        """
+        prefix = f"{number}. " if number is not None else ""
+        paragraphs = md.text(self.question_text).strip().split("\n\n")
+        heading = f"**{prefix}{paragraphs[0]}**"
+        if len(paragraphs) > 1:
+            heading += "\n\n" + "\n\n".join(paragraphs[1:])
+        return heading + "\n\n" + self._markdown_answer(option_notes)
 
     question_name: str = QuestionNameDescriptor()  # type: ignore[assignment]
     question_text: str = QuestionTextDescriptor()  # type: ignore[assignment]

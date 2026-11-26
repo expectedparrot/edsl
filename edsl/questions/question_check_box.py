@@ -16,6 +16,7 @@ from typing import List, Literal, Annotated, Union
 from .exceptions import QuestionAnswerValidationError
 from ..scenarios import Scenario
 
+from . import markdown_layout as md
 from .question_base import QuestionBase
 from .descriptors import (
     IntegerDescriptor,
@@ -904,6 +905,14 @@ class QuestionCheckBox(QuestionBase):
                 "comment": random_string(),
             }
         return answer
+
+    def _markdown_answer(self, option_notes):
+        if self.probabilistic_response is not None:
+            return "Give the inclusion probability for each option.\n\n" + md.options(
+                self, "·"
+            )
+        instruction = md.select_count(self.min_selections, self.max_selections)
+        return f"{instruction}\n\n" + md.options(self, "☐")
 
     @property
     def question_html_content(self) -> str:

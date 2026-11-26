@@ -6,6 +6,7 @@ from uuid import uuid4
 from pydantic import field_validator, BaseModel
 
 
+from . import markdown_layout as md
 from .question_base import QuestionBase
 from .response_validator_abc import ResponseValidatorABC
 from .decorators import inject_exception
@@ -348,6 +349,14 @@ class QuestionInterview(QuestionBase):
         from ..invigilators.invigilator_interview import InvigilatorInterview
 
         return InvigilatorInterview
+
+    def _markdown_answer(self, option_notes):
+        intro = f"Interview (up to {self.max_turns} turns)."
+        return (
+            f"{intro}\n\n{md.text(self.interview_guide)}"
+            if self.interview_guide
+            else intro
+        )
 
     @property
     def question_html_content(self) -> str:

@@ -4,6 +4,7 @@ import re
 
 from pydantic import BaseModel, Field, model_validator, ValidationError
 
+from . import markdown_layout as md
 from .question_base import QuestionBase
 from .descriptors import IntegerDescriptor, QuestionOptionsDescriptor
 from .response_validator_abc import ResponseValidatorABC
@@ -665,6 +666,12 @@ class QuestionBudget(QuestionBase):
             "answer": values,
             "comment": random_string() if self.include_comment else None,
         }
+
+    def _markdown_answer(self, option_notes):
+        instruction = f"Allocate a total of {md.text(self.budget_sum)}."
+        if self.remainder_option is not None:
+            instruction += f" Any remainder goes to {md.text(self.remainder_option)}."
+        return f"{instruction}\n\n" + md.options(self, "·")
 
     @property
     def question_html_content(self) -> str:

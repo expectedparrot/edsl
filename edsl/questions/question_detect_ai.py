@@ -46,6 +46,7 @@ class QuestionDetectAI(QuestionBase):
     """
 
     question_type = "detect_ai"
+    _markdown_hint = "AI-generated text detection"
     _response_model = DetectAIResponse
     response_validator_class = DetectAIResponseValidator
 

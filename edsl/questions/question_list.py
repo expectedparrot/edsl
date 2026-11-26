@@ -4,6 +4,7 @@ from typing import Any, Optional, Union, ForwardRef
 
 from pydantic import Field, model_validator, ValidationError
 from json_repair import repair_json
+from . import markdown_layout as md
 from .question_base import QuestionBase
 from .descriptors import IntegerOrNoneDescriptor
 from .decorators import inject_exception
@@ -495,6 +496,13 @@ class QuestionList(QuestionBase):
         min_items = self.min_list_items or 2
         items = [f"Item {i+1}" for i in range(min_items)]
         return {"answer": items, "comment": "Simulated answer"}
+
+    def _markdown_answer(self, option_notes):
+        return (
+            "List your answers"
+            + md.bounds(self.min_list_items, self.max_list_items)
+            + "."
+        )
 
     @property
     def question_html_content(self) -> str:

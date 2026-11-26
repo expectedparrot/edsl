@@ -5089,14 +5089,27 @@ class Survey(Base):
             include_question_name=include_question_name,
         )
 
-    def to_markdown(self) -> str:
-        """Generate a markdown string representation of the survey.
+    def to_markdown(self, *, style: str = "table") -> str:
+        """Return the question table or a respondent-facing questionnaire with routing.
 
-        Converts Jinja2 braces ({{ }}) to << >> to indicate piping.
+        The default table uses << >> for piping. The questionnaire preserves the
+        authored templates, lists response options, and describes routing in survey order.
 
-        Returns:
-            str: Markdown formatted string representation of the survey.
+        >>> from edsl import QuestionFreeText, Survey
+        >>> survey = Survey([QuestionFreeText(question_name="name", question_text="Your name?")])
+        >>> print(survey.to_markdown(style="questionnaire"))
+        # Survey
+        <BLANKLINE>
+        **1. Your name?**
+        <BLANKLINE>
+        *Free-text response*
         """
+        if style == "questionnaire":
+            from .survey_markdown import questionnaire
+
+            return questionnaire(self)
+        if style != "table":
+            raise ValueError("Markdown style must be 'table' or 'questionnaire'.")
         text = self.table().to_markdown_table()
         # Replace Jinja2 braces with << >> to indicate piping
         text = re.sub(r"\{\{", "<<", text)

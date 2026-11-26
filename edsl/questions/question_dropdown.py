@@ -5,6 +5,7 @@ from jinja2 import Template
 from pydantic import BaseModel, Field
 from ..utilities.bm25 import BM25Okapi
 
+from . import markdown_layout as md
 from .question_base import QuestionBase
 from .descriptors import QuestionOptionsDescriptor
 from .decorators import inject_exception
@@ -565,6 +566,11 @@ class QuestionDropdown(QuestionBase):
                 )
         else:
             return answer_codes
+
+    def _markdown_answer(self, option_notes):
+        return f"Search the options (up to {self.top_k} matches).\n\n" + md.options(
+            self, "·"
+        )
 
     @property
     def question_html_content(self) -> str:
