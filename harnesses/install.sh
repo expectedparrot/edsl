@@ -6,56 +6,72 @@ usage() {
 Install EDSL from the harness-guidance branch, authenticate with Expected Parrot,
 and install the EDSL harness skill for one coding harness.
 
-Usage: bash harnesses/install.sh <harness> [--launch]
+Usage: bash harnesses/install.sh <harness> [--setup project|user|router] [--launch]
 
 Harnesses: codex, claude-code, opencode, pi, antigravity, fx
 
-Uses the active virtual environment or a .edsl-venv in the current project.
+project: link bundled skills in this project, using its .edsl-venv
+user:    link bundled skills for all projects, using a user-wide EDSL environment
+router:  copy only edsl-harness to user skills (default for unattended installs)
 USAGE
 }
 
-if [[ $# -lt 1 || $# -gt 2 ]]; then
+if [[ $# -lt 1 ]]; then
   usage >&2
   exit 2
 fi
 
 harness=$1
+shift
 launch=false
-if [[ ${2:-} == --launch ]]; then
-  launch=true
-elif [[ $# -eq 2 ]]; then
-  usage >&2
-  exit 2
-fi
+setup=
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --launch) launch=true ;;
+    --setup)
+      case "${2:-}" in
+        project|user|router) setup=$2; shift ;;
+        *) usage >&2; exit 2 ;;
+      esac ;;
+    *) usage >&2; exit 2 ;;
+  esac
+  shift
+done
 case "$harness" in
   codex)
     command_name=codex
     install_kind=codex
+    project_skill_dir="$PWD/.agents/skills"
     skill_dir="$HOME/.agents/skills"
     ;;
   claude-code)
     command_name=claude
     install_kind=claude-code
+    project_skill_dir="$PWD/.claude/skills"
     skill_dir="$HOME/.claude/skills"
     ;;
   opencode)
     command_name=opencode
     install_kind=opencode
+    project_skill_dir="$PWD/.opencode/skills"
     skill_dir="$HOME/.config/opencode/skills"
     ;;
   pi)
     command_name=pi
     install_kind=pi
+    project_skill_dir="$PWD/.pi/skills"
     skill_dir="$HOME/.pi/agent/skills"
     ;;
   antigravity)
     command_name=agy
     install_kind=antigravity
+    project_skill_dir="$PWD/.agents/skills"
     skill_dir="$HOME/.gemini/config/skills"
     ;;
   fx)
     command_name=fx
     install_kind=fx
+    project_skill_dir="$PWD/.fx/skills"
     skill_dir="$HOME/.fx/skills"
     ;;
   -h|--help|help)
@@ -67,6 +83,31 @@ case "$harness" in
     usage >&2
     exit 2
     ;;
+esac
+
+# Read choices from the terminal even when bash is reading the script from curl.
+if [[ -z "$setup" && -t 2 ]] && (: </dev/tty) 2>/dev/null; then
+  cat >/dev/tty <<'MENU'
+Where should the agent look for EDSL skills?
+  1. This project (recommended) — link all skills from this project's EDSL.
+  2. All projects — link all skills from a shared user EDSL installation.
+  3. Routing skill only — the agent loads task guidance on demand with ep.
+MENU
+  printf 'Choose [1/2/3, default 1]: ' >/dev/tty
+  IFS= read -r choice </dev/tty
+  case "$choice" in
+    1|'') setup=project ;;
+    2) setup=user ;;
+    3) setup=router ;;
+    *) printf 'Expected 1, 2, or 3.\n' >&2; exit 2 ;;
+  esac
+fi
+setup=${setup:-router}
+skill_args=(--link)
+case "$setup" in
+  project) skill_dir=$project_skill_dir; edsl_env="$PWD/.edsl-venv" ;;
+  user) edsl_env="${XDG_DATA_HOME:-$HOME/.local/share}/edsl/harness-venv" ;;
+  router) edsl_env=${VIRTUAL_ENV:-"$PWD/.edsl-venv"}; skill_args=(--skill edsl-harness) ;;
 esac
 
 if ! command -v curl >/dev/null 2>&1; then
@@ -87,7 +128,6 @@ if ! command -v "$command_name" >/dev/null 2>&1; then
   export PATH="$HOME/.local/bin:$HOME/.bun/bin:$HOME/.cargo/bin:$PATH"
 fi
 
-edsl_env=${VIRTUAL_ENV:-"$PWD/.edsl-venv"}
 if [[ ! -x "$edsl_env/bin/python" ]]; then
   if command -v uv >/dev/null 2>&1; then
     uv venv --python 3.12 "$edsl_env"
@@ -137,8 +177,8 @@ else
   "$edsl_cli" auth login
 fi
 
-printf 'Installing edsl-harness for %s...\n' "$harness"
-if skill_install=$("$edsl_cli" skills install --target "$skill_dir" --skill edsl-harness); then
+printf 'Installing EDSL skills (%s) in %s...\n' "$setup" "$skill_dir"
+if skill_install=$("$edsl_cli" skills install --target "$skill_dir" "${skill_args[@]}"); then
   :
 else
   printf '%s\n' "$skill_install" >&2

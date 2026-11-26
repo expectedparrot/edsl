@@ -108,6 +108,8 @@ curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harne
 
 </details>
 
+The terminal installer offers project, user-wide, and routing-skill setup. [Setup options](harnesses/README.md#installing-the-agent-from-a-terminal)
+
 ## Key features
 
 | Feature | What you can do |

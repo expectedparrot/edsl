@@ -441,8 +441,9 @@ def show_skill(name: str, reference_path: str | None, script_path: str | None, e
 @skills.command("install")
 @click.option("--target", required=True, type=click.Path(path_type=Path, file_okay=False), help="Directory in which to install each skill bundle.")
 @click.option("--skill", "skill_names", multiple=True, help="Install only this skill; repeat to install more than one. Defaults to all bundled skills.")
+@click.option("--link", is_flag=True, help="Link skill directories to this EDSL installation.")
 @click.option("--human", is_flag=True, help="Print readable text instead of JSON.")
-def install_skills(target: Path, skill_names: tuple[str, ...], human: bool):
+def install_skills(target: Path, skill_names: tuple[str, ...], link: bool, human: bool):
     """Install or update selected bundled skill files under TARGET."""
     available = _skills()
     by_name = {skill["name"]: skill for skill in available}
@@ -459,16 +460,38 @@ def install_skills(target: Path, skill_names: tuple[str, ...], human: bool):
     selected = [by_name[name] for name in selected_names] if selected_names else available
 
     target.mkdir(parents=True, exist_ok=True)
+    for skill in selected:
+        dest = target / skill["name"]
+        if dest.is_symlink() and dest.readlink() == skill["path"] and link:
+            continue
+        if dest.is_symlink() or (link and dest.exists()):
+            error("SKILL_CONFLICT", f"Skill already exists at {dest}.",
+                  "Move the existing entry to a backup directory and rerun the command.",
+                  exit_code=EXIT_USAGE)
+
     installed = []
     for skill in selected:
         destination = target / skill["name"]
-        if destination.exists():
+        if link:
+            if not destination.is_symlink():
+                destination.symlink_to(skill["path"], target_is_directory=True)
+        elif destination.exists():
             if not destination.is_dir():
                 error("USAGE_ERROR", f"Cannot install over non-directory: {destination}", "Choose a directory target without conflicting files.", EXIT_USAGE)
             shutil.copytree(skill["path"], destination, dirs_exist_ok=True)
         else:
             shutil.copytree(skill["path"], destination)
         installed.append(str(destination))
+    if link and not selected_names:
+        # Clean up only links into this installation whose bundle was removed.
+        for dest in target.iterdir():
+            if (
+                dest.is_symlink()
+                and dest.name not in by_name
+                and dest.readlink() == SKILLS_ROOT / dest.name
+                and not (dest / "SKILL.md").exists()
+            ):
+                dest.unlink()
     if human:
         click.echo(f"Installed {len(installed)} skills into {target.resolve()}")
         for path in installed:

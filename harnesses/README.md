@@ -23,7 +23,17 @@ For the coffee survey, create the three questions, save a Survey package, and re
 
 ## Installing the agent from a terminal
 
-From the project directory, the installer sets up the selected agent, EDSL, and its routing skill. It uses the active virtual environment or creates `.edsl-venv` in the project. With `--launch`, the agent inherits that environment and can start directly on the survey. The script supports macOS, Linux, and WSL.
+Run the installer from the project directory. In a terminal it offers three choices. Press Enter for **This project**, or pass `--setup` to skip the menu.
+
+| Choice | What the agent discovers | Where EDSL lives |
+| --- | --- | --- |
+| `--setup project` | All bundled skills, linked in this project's harness skill directory | `.edsl-venv` in this project |
+| `--setup user` | All bundled skills, linked in the harness's user skill directory | `$XDG_DATA_HOME/edsl/harness-venv`, defaulting to `~/.local/share/edsl/harness-venv` |
+| `--setup router` | A copy of the single user skill `edsl-harness`, which looks up guidance with `ep` | The active virtual environment or the project's `.edsl-venv` |
+
+For example, `bash harnesses/install.sh antigravity --setup project --launch` sets up the current project and opens Antigravity. With no interactive terminal or explicit choice, the script uses the existing router setup. It supports macOS, Linux, and WSL.
+
+Linked skills track updates in their chosen environment. Rerun the same installer command after an upgrade to pick up new or retired skills, then start a fresh agent session. If a destination already holds a copy or a link to another environment, the installer identifies the conflict. Move the conflicting entries outside the discovery directory before retrying. Older user-level copies may also appear alongside project skills.
 
 The installer authenticates EDSL with Expected Parrot when needed. This is
 separate from model-provider credentials: direct inference with a provider
@@ -44,8 +54,7 @@ cloning EDSL:
 curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- pi --launch
 ```
 
-The bootstrap installs the skill in the harness's user directory. Current
-common targets are listed below. Harness conventions can change; check the
+User skill directories are listed below. Harness conventions can change; check the
 linked setup guide if the target does not discover the skill.
 
 | Harness | Script name | Suggested skill directory | Setup guide |
@@ -62,10 +71,7 @@ If the harness accepts project instructions, add a short pointer such as:
 > For EDSL tasks, use the `edsl-harness` skill. It routes you to the installed
 > EDSL version's relevant skills and package guidance.
 
-Run the install commands from the active EDSL environment. After upgrading
-EDSL, rerun the skill-install command to refresh `edsl-harness`. Other skills
-remain available on demand through `ep skills search` and `ep skills show`;
-they do not have to be installed into the harness.
+With router setup, rerun the installer to refresh the routing skill. With fx, a linked skill outside its trusted directories may require configuring a skill symlink authority. See the [fx troubleshooting guide](https://fx.sh/docs/using-fx/troubleshooting).
 
 ## Project layout
 
