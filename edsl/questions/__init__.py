@@ -116,6 +116,7 @@ from .question_registry import Question
 
 # Core Questions
 from .question_check_box import QuestionCheckBox
+from .question_checkbox_matrix import QuestionCheckboxMatrix
 from .question_date import QuestionDate, QuestionDateTime
 from .question_extract import QuestionExtract
 from .question_email import QuestionEmail
@@ -189,6 +190,7 @@ __all__ = [
     "QuestionMarkdown",
     "QuestionMultipleChoice",
     "QuestionCheckBox",
+    "QuestionCheckboxMatrix",
     "QuestionDate",
     "QuestionDateTime",
     "QuestionDict",
