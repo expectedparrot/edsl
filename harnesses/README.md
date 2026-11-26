@@ -62,6 +62,10 @@ linked setup guide if the target does not discover the skill.
 | Pi | `pi` | `~/.pi/agent/skills` | [EP Agent Pi guide](https://github.com/expectedparrot/ep-ra/tree/main/harnesses/pi) |
 | Antigravity CLI | `antigravity` | `~/.gemini/config/skills` | [EP Agent Antigravity guide](https://github.com/expectedparrot/ep-ra/tree/main/harnesses/antigravity) |
 | Vercel fx | `fx` | `~/.fx/skills` | [EP Agent fx guide](https://github.com/expectedparrot/ep-ra/tree/main/harnesses/fx) |
+| Meta Muse Code | `muse` | `~/.agents/skills` | [Muse Code](https://dev.meta.ai/products/muse-code) · [Skill discovery](https://dev.meta.ai/docs/muse-code/extending) |
+| Mistral Vibe | `vibe` | `~/.agents/skills` | [Vibe setup](https://docs.mistral.ai/vibe/code/cli) · [Skill discovery](https://docs.mistral.ai/vibe/code/cli/skills) |
+
+Muse Code and Vibe also discover project skills in `.agents/skills` after you trust the project directory.
 
 If the harness accepts project instructions, add a short pointer such as:
 

@@ -8,7 +8,7 @@ and install the EDSL harness skill for one coding harness.
 
 Usage: bash harnesses/install.sh <harness> [--setup project|user|router] [--launch]
 
-Harnesses: codex, claude-code, opencode, pi, antigravity, fx
+Harnesses: codex, claude-code, opencode, pi, antigravity, fx, muse, vibe
 
 project: link bundled skills in this project, using its .edsl-venv
 user:    one EDSL installation for all projects (default)
@@ -38,9 +38,9 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 case "$harness" in
-  codex)
-    command_name=codex
-    install_kind=codex
+  codex|muse|vibe)
+    command_name=$harness
+    install_kind=$harness
     project_skill_dir="$PWD/.agents/skills"
     skill_dir="$HOME/.agents/skills"
     ;;
@@ -103,6 +103,8 @@ if ! command -v "$command_name" >/dev/null 2>&1; then
   printf 'Installing %s...\n' "$harness"
   case "$install_kind" in
     codex) curl -fsSL https://chatgpt.com/codex/install.sh | sh ;;
+    muse) curl -fsSL https://dev.meta.ai/install.sh | bash ;;
+    vibe) curl -fsSL https://mistral.ai/vibe/install.sh | PATH="$HOME/.local/bin:$PATH" bash ;;
     claude-code) curl -fsSL https://claude.ai/install.sh | bash ;;
     opencode) curl -fsSL https://opencode.ai/v2/install | bash ;;
     pi) curl -fsSL https://pi.dev/install.sh | sh ;;

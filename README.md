@@ -114,6 +114,40 @@ curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harne
 
 </details>
 
+<details>
+<summary><img src="docs/assets/harness-icons/meta.svg" width="22" height="22" alt=""> Meta Muse Code</summary>
+
+Paste into Meta Muse Code:
+
+```text
+Run `ep skills show edsl-harness` and follow its guidance. If the command or skill is missing, use https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for Meta Muse Code.
+```
+
+Need Meta Muse Code first? Run this in your project terminal.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- muse --launch
+```
+
+</details>
+
+<details>
+<summary><img src="docs/assets/harness-icons/mistralai.svg" width="22" height="22" alt=""> Mistral Vibe</summary>
+
+Paste into Mistral Vibe:
+
+```text
+Run `ep skills show edsl-harness` and follow its guidance. If the command or skill is missing, use https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for Mistral Vibe.
+```
+
+Need Mistral Vibe first? Run this in your project terminal.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- vibe --launch
+```
+
+</details>
+
 The installer sets up EDSL once for use across your projects. [Setup options](harnesses/README.md#installing-the-agent-from-a-terminal)
 
 ## Build and Edit Surveys
