@@ -6,9 +6,22 @@ harness does not need a second copy of every EDSL skill. Install the small
 EDSL guidance that matches the current task, using the active package's `ep`
 CLI.
 
-The copyable prompts in the main README are for a harness that is already
-installed and open. For a first-time setup, run the bootstrap script from a
-terminal. It installs the selected harness if missing, installs EDSL from the
+## When someone pastes the README prompt into a running agent
+
+1. Set up EDSL in the user's project. Use its Python environment, or create one with Python 3.10–3.13. Install or update the build that includes the harness skill using the environment's interpreter:
+
+   ```bash
+   python -m pip install --upgrade 'edsl @ git+https://github.com/expectedparrot/edsl.git@feat/edsl-harness-guidance'
+   ```
+
+   With uv, use `uv pip install --python /path/to/environment/bin/python --upgrade` with the same package argument.
+
+2. Find the named agent in the skill directory table below. Run `ep skills install --target <directory> --skill edsl-harness` with that directory expanded to its full path. Then run `ep skills show edsl-harness` and follow the guidance in this session. Use the same environment for each command.
+3. Create the survey the user asked for and save it as a local `.ep` package. Render it with `ep open survey.ep --output survey.html --no-browser` (substitute the actual filenames) and give the user a link to the HTML file. Creating this preview requires no Expected Parrot login or model-provider key. When the user asks for cloud work, check `ep auth status` and use `ep auth login` if a key is missing.
+
+## Installing the agent from a terminal
+
+Run the bootstrap script from the project directory. It installs the selected harness if missing, installs EDSL from the
 current branch into the active Python environment (using uv when available,
 otherwise pip), checks Expected Parrot authentication, and installs the
 `edsl-harness` skill in that harness's user skill directory. Add `--launch` to
