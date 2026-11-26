@@ -1,10 +1,6 @@
 # <img src="static/edsl-wordmark.svg" alt="EDSL" width="180" height="48">
 
-With EDSL, you define surveys in Python, from a single poll to a study with the question formats and branching logic you might use in Qualtrics. The questions, response options, and rules live together in code you can review, version, and reuse.
-
-Run the same survey across hundreds of AI models with one Expected Parrot API key, or use your own provider keys. EDSL caches model responses so you can reuse answers without paying for the same calls again.
-
-Invite people to take the survey by URL or email, or set up an AI interviewer to ask follow-up questions based on what each participant says.
+EDSL is a Python library for surveys and simulations. You describe a study in natural language, and your coding agent uses EDSL to write and run it. The study design lives in code, so you can inspect it, ask the agent to change it, and run it again.
 
 ## The best way to use EDSL is with your coding agent
 
@@ -118,6 +114,7 @@ curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harne
 | --- | --- |
 | Question types | Ask respondents to choose one or more options, rate items in a matrix, rank choices, allocate a budget, or enter a number or free-text answer. [Question catalog](https://docs.expectedparrot.com/en/latest/questions) |
 | Survey logic | Branch or stop based on an answer, pipe it into a later question, or repeat a group of follow-ups for each item a respondent lists. [Survey logic guide](https://docs.expectedparrot.com/en/latest/guides/survey_logic) |
+| Model access | Use one Expected Parrot API key to access hundreds of AI models, or use your own provider keys. |
 | Model comparison | Give several models the same survey and compare answers by model, scenario, or simulated persona. |
 | Human surveys | Share a survey by URL or send email invitations and collect responses. |
 | AI interviews | Give an AI interviewer a research question and let it ask participants follow-up questions. |
