@@ -230,9 +230,9 @@ class QuestionBase(
         """
         prefix = f"{number}. " if number is not None else ""
         paragraphs = md.text(self.question_text).strip().split("\n\n")
-        heading = f"**{prefix}{paragraphs[0]}**"
-        if len(paragraphs) > 1:
-            heading += "\n\n" + "\n\n".join(paragraphs[1:])
+        paragraphs[-1] += "”"
+        paragraphs[0] = f"**{prefix}[{md.text(self.question_name)}] “{paragraphs[0]}**"
+        heading = "\n\n".join(paragraphs) + f" ({md.text(self.question_type)})"
         return heading + "\n\n" + self._markdown_answer(option_notes)
 
     question_name: str = QuestionNameDescriptor()  # type: ignore[assignment]

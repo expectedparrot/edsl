@@ -5100,7 +5100,7 @@ class Survey(Base):
         >>> print(survey.to_markdown(style="questionnaire"))
         # Survey
         <BLANKLINE>
-        **1. Your name?**
+        **1. [name] “Your name?”** (free_text)
         <BLANKLINE>
         *Free-text response*
         """

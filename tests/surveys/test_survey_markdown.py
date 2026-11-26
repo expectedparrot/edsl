@@ -34,8 +34,10 @@ def coffee():
 def test_registered_question_markdown(cls):
     q = cls.example()
     snippet = q.to_markdown(number=1)
-    assert snippet.startswith("**1. ")
-    assert snippet.split("**\n\n", 1)[1].strip()
+    heading, answer = snippet.split("\n\n", 1)
+    assert heading.startswith(f"**1. [{q.question_name}] “")
+    assert heading.endswith(f"”** ({q.question_type})")
+    assert answer.strip()
     assert q._markdown_hint or cls._markdown_answer is not QuestionBase._markdown_answer
     assert snippet in Survey([q]).to_markdown(style="questionnaire")
 
@@ -44,16 +46,16 @@ def test_cli_raw_markdown_and_default_json(tmp_path, coffee):
     survey = coffee.add_skip_rule("brew", "{{ drinks.answer }} != 'Yes'")
     expected = """# Survey
 
-**1. Do you drink coffee?**
+**1. [drinks] “Do you drink coffee?”** (multiple_choice)
 
 ○ Yes{br}
 ○ No → Go to question 3
 
-**2. Favorite brew?**
+**2. [brew] “Favorite brew?”** (free_text)
 
 *Free-text response*
 
-**3. Where do you get coffee?**
+**3. [source] “Where do you get coffee?”** (free_text)
 
 *Free-text response*""".format(
         br="  "
@@ -137,6 +139,13 @@ def test_probabilistic_choice_describes_elicited_answer():
         probabilistic_response={"representation": "categorical"},
     )
     assert "Allocate probabilities totaling 1." in question.to_markdown()
+
+
+def test_standalone_question_keeps_name_case_and_type_after_full_prompt():
+    question = QuestionFreeText(question_name="AGE", question_text="What is your age?\n\nUse years.")
+    assert question.to_markdown() == (
+        "**[AGE] “What is your age?**\n\nUse years.” (free_text)\n\n*Free-text response*"
+    )
 
 
 def test_empty_questionnaire():
