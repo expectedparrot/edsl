@@ -734,6 +734,20 @@ class CheckboxHumanizeSchema(QuestionHumanizeSchemaBase):
         return self
 
 
+class CheckboxMatrixHumanizeSchema(QuestionHumanizeSchemaBase):
+    """Humanize options for the checkbox matrix question type.
+
+    A table only for now: matrix's one-row-at-a-time carousel moves on when a row
+    is answered, and a checkbox row has no single click that finishes it.
+    """
+
+    optional: bool = False
+    time_limit: Optional[TimeLimit] = None
+    comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
+
+
 class CheckboxWithOtherHumanizeSchema(QuestionHumanizeSchemaBase):
     """Humanize options for the checkbox with other question type."""
 
@@ -1377,6 +1391,7 @@ HumanizeQuestionSchema = Union[
     DistributionHumanizeSchema,
     DropdownHumanizeSchema,
     CheckboxHumanizeSchema,
+    CheckboxMatrixHumanizeSchema,
     CheckboxWithOtherHumanizeSchema,
     ComputeHumanizeSchema,
     DateHumanizeSchema,
@@ -1421,6 +1436,7 @@ QUESTION_TYPE_TO_HUMANIZE_CLASS: Dict[str, Type[BaseModel]] = {
     "distribution": DistributionHumanizeSchema,
     "dropdown": DropdownHumanizeSchema,
     "checkbox": CheckboxHumanizeSchema,
+    "checkbox_matrix": CheckboxMatrixHumanizeSchema,
     "checkbox_with_other": CheckboxWithOtherHumanizeSchema,
     "compute": ComputeHumanizeSchema,
     "date": DateHumanizeSchema,
