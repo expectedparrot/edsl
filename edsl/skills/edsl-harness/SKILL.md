@@ -41,6 +41,14 @@ For question construction, use `edsl:edsl-surveys`; for a CLI or API edge case,
 use `edsl:edsl-quirks`. Search the catalog for other topics instead of loading
 every skill into the conversation.
 
+## Expected Parrot authentication
+
+Before an operation that needs Expected Parrot cloud access, run
+`ep auth status` and inspect `data.authenticated`. If no key is configured,
+run `ep auth login`, complete its browser flow, then check the status again.
+Do not print, copy into prompts, or expose API keys. Local EDSL work does not
+require cloud authentication.
+
 ## Organize new EDSL work
 
 First inspect the current project and follow its existing structure. Do not
