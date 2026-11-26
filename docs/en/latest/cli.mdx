@@ -200,7 +200,8 @@ Matrix questions display items as rows and response options as columns. Question
 in authored order with response options and routing. Jinja expressions and control
 tags in question text appear as inline code, so you can see where answers or scenario
 values will be inserted and which wording is conditional.
-For example, a Yes/No question can display `○ No → Go to question 3`. More complex
+For example, a Yes/No question can display `○ No → Go to question 3`. The skipped question also shows its skip
+condition above the answer choices, even on a page by itself. More complex
 conditions appear at the question where they are evaluated. The flag writes Markdown
 directly to stdout on success. Omit it for the normal JSON summary.
 

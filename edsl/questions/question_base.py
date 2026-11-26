@@ -225,6 +225,7 @@ class QuestionBase(
         *,
         number: int | None = None,
         option_notes: dict[int, str] | None = None,
+        before_answer_notes: tuple[str, ...] = (),
         with_question_names: bool = False,
         with_question_types: bool = False,
         expand_options: bool = False,
@@ -245,7 +246,7 @@ class QuestionBase(
         if with_question_types:
             heading += f" ({md.text(self.question_type)})"
         view = md.AnswerView(option_notes=option_notes, expand_options=expand_options)
-        return heading + "\n\n" + self._markdown_answer(view)
+        return "\n\n".join((heading, *before_answer_notes, self._markdown_answer(view)))
 
     question_name: str = QuestionNameDescriptor()  # type: ignore[assignment]
     question_text: str = QuestionTextDescriptor()  # type: ignore[assignment]

@@ -54,6 +54,8 @@ def test_cli_raw_markdown_and_default_json(tmp_path, coffee):
 
 **2. “Favorite brew?”**
 
+Skip this question if the answer to question 1 is not “Yes”.
+
 *Free-text response*
 
 **3. “Where do you get coffee?”**
@@ -72,6 +74,12 @@ def test_cli_raw_markdown_and_default_json(tmp_path, coffee):
         result = runner.invoke(app, ["surveys", "show", str(path), "--markdown"])
         assert result.exit_code == 0, result.output
         assert result.output == expected + "\n"
+        page = runner.invoke(
+            app, ["surveys", "show", str(path), "--markdown", "--page", "2", "--page-size", "1"]
+        )
+        assert page.exit_code == 0, page.output
+        assert "○ No →" not in page.output
+        assert "Skip this question if the answer to question 1 is not “Yes”." in page.output
         result = runner.invoke(app, ["surveys", "show", str(path)])
         assert json.loads(result.output)["status"] == "ok"
     result = runner.invoke(
