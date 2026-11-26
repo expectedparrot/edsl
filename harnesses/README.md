@@ -55,7 +55,7 @@ User skill directories are listed below. Harness conventions can change; check t
 linked setup guide if the target does not discover the skill.
 
 | Harness | Script name | Suggested skill directory | Setup guide |
-| --- | --- | --- |
+| --- | --- | --- | --- |
 | Codex | `codex` | `~/.agents/skills` | [EP Agent Codex guide](https://github.com/expectedparrot/ep-ra/tree/main/harnesses/codex) |
 | Claude Code | `claude-code` | `~/.claude/skills` | [EP Agent Claude Code guide](https://github.com/expectedparrot/ep-ra/tree/main/harnesses/claude-code) |
 | OpenCode | `opencode` | `~/.config/opencode/skills` | [EP Agent OpenCode guide](https://github.com/expectedparrot/ep-ra/tree/main/harnesses/opencode) |
