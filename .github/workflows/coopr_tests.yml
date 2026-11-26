@@ -15,15 +15,23 @@ jobs:
     runs-on: self-hosted
 
     steps:
-      - name: Reclaim unused Docker build cache when disk space is low
+      - name: Reclaim Docker build cache and dangling images when disk space is low
         shell: bash
         run: |
           docker_root=$(docker info --format '{{.DockerRootDir}}')
-          available_kib=$(df -Pk "$docker_root" | awk 'NR == 2 {print $4}')
-          if (( available_kib < 20 * 1024 * 1024 )); then
+          low_disk_space() {
+            local available_kib
+            available_kib=$(df -Pk "$docker_root" | awk 'NR == 2 {print $4}') || exit 1
+            (( available_kib < 20 * 1024 * 1024 ))
+          }
+          if low_disk_space; then
             df -h "$docker_root"
             docker builder prune --all --force
+            if low_disk_space; then
+              docker image prune --force
+            fi
             df -h "$docker_root"
+            docker system df
           fi
 
       - name: Checkout repository
