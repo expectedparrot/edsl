@@ -184,11 +184,13 @@ To read a survey in the terminal, print its Markdown questionnaire or save it fo
 
 ```bash
 ep surveys show survey.ep --markdown
-ep surveys show survey.ep --markdown > questionnaire.md
+ep surveys show survey.ep --markdown --with-question-names --with-question-types > questionnaire.md
 ```
 
-The Markdown view labels each question with its case-sensitive name and registered type,
-for example `3. [age] “What is your age?” (numerical)`. Questions appear in authored order with response options and routing.
+Use either heading flag independently. With both flags, a heading reads
+`3. [age] “What is your age?” (numerical)`. By default it reads `3. “What is your age?”`.
+Matrix questions display items as rows and response options as columns. Questions appear
+in authored order with response options and routing.
 For example, a Yes/No question can display `○ No → Go to question 3`. More complex
 conditions appear at the question where they are evaluated. The flag writes Markdown
 directly to stdout on success. Omit it for the normal JSON summary.

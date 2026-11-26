@@ -86,7 +86,7 @@ def rule_note(survey, rule):
     )
 
 
-def questionnaire(survey):
+def questionnaire(survey, *, with_question_names, with_question_types):
     rules = survey.rule_collection.non_default_rules
     notes = defaultdict(list)
     option_notes = {}
@@ -102,7 +102,12 @@ def questionnaire(survey):
     sections = ["# " + text(survey.name or "Survey")]
     for i, question in enumerate(survey.questions):
         sections.append(
-            question.to_markdown(number=i + 1, option_notes=option_notes.get(i))
+            question.to_markdown(
+                number=i + 1,
+                option_notes=option_notes.get(i),
+                with_question_names=with_question_names,
+                with_question_types=with_question_types,
+            )
         )
         sections.extend(notes.get(i, ()))
     return "\n\n".join(sections)

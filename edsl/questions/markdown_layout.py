@@ -39,6 +39,15 @@ def select_count(lower, upper):
     return "Select all that apply."
 
 
+def option_text(value, labels):
+    result = text(value)
+    if labels:
+        label = labels.get(value, labels.get(str(value)))
+        if label is not None:
+            result += f" — {text(label)}"
+    return result
+
+
 def options(question, marker, notes=None):
     values = question.question_options
     if isinstance(values, str):
@@ -50,10 +59,7 @@ def options(question, marker, notes=None):
     labels = getattr(question, "option_labels", None) or {}
     rows = []
     for index, value in enumerate(values):
-        label = labels.get(value, labels.get(str(value))) if labels else None
-        row = f"{marker} {text(value)}"
-        if label is not None:
-            row += f" — {text(label)}"
+        row = f"{marker} {option_text(value, labels)}"
         if other is not None and value == other:
             row += " (write in)"
         if notes and index in notes:
@@ -68,13 +74,43 @@ def single_choice(question, notes):
     return options(question, "○", notes)
 
 
-def matrix(question, instruction):
+def _axis_description(values, labels=None):
+    if isinstance(values, str):
+        return text(values)
+    if isinstance(values, dict):
+        return ", ".join(text(v) for v in [values["from"], *values.get("add", [])])
+    return ", ".join(option_text(v, labels) for v in values)
+
+
+def matrix(question, instruction, marker="○"):
+    """Render the response grid, leaving piped axes unresolved."""
+    from ..utilities.simple_table import simple_table
+
     rows = question.question_items
-    if isinstance(rows, str):
-        rows = [rows]
-    with_text = getattr(question, "items_with_text", None) or []
-    items = lines(
-        f"- {text(row)}" + (" (with a text response)" if row in with_text else "")
-        for row in rows
-    )
-    return f"{instruction}\n\n{items}\n\n**Options**\n\n{options(question, '·')}"
+    choices = question.question_options
+    labels = question.option_labels
+    with_text = getattr(question, "items_with_text", ())
+    if not isinstance(rows, list) or not isinstance(choices, list):
+        parts = [
+            instruction,
+            f"**Rows** — {_axis_description(rows)}",
+            f"**Options** — {_axis_description(choices, labels)}",
+        ]
+        if with_text:
+            parts.append(f"**Text response** — {_axis_description(with_text)}")
+        return "\n\n".join(parts)
+
+    # Keep a cell on one line and give even one-character headings a Markdown delimiter.
+    headers = [
+        "Item",
+        *(" ".join(option_text(v, labels).splitlines()).ljust(3) for v in choices),
+    ]
+    if with_text:
+        headers.append("Additional text")
+    cells = []
+    for row in rows:
+        cells_for_row = [" ".join(text(row).splitlines())] + [marker] * len(choices)
+        if with_text:
+            cells_for_row.append("Free text" if row in with_text else "")
+        cells.append(cells_for_row)
+    return instruction + "\n\n" + simple_table(headers, cells, fmt="pipe")

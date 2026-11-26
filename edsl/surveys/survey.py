@@ -2543,7 +2543,6 @@ class Survey(Base):
             new_survey._validate_question_sampling(self._question_sampling)
             new_survey._question_sampling = copy.deepcopy(self._question_sampling)
 
-
     @property
     def question_order(self) -> dict:
         """Return the versioned random question-order plan."""
@@ -5089,7 +5088,13 @@ class Survey(Base):
             include_question_name=include_question_name,
         )
 
-    def to_markdown(self, *, style: str = "table") -> str:
+    def to_markdown(
+        self,
+        *,
+        style: str = "table",
+        with_question_names: bool = False,
+        with_question_types: bool = False,
+    ) -> str:
         """Return the question table or a respondent-facing questionnaire with routing.
 
         The default table uses << >> for piping. The questionnaire preserves the
@@ -5100,16 +5105,22 @@ class Survey(Base):
         >>> print(survey.to_markdown(style="questionnaire"))
         # Survey
         <BLANKLINE>
-        **1. [name] “Your name?”** (free_text)
+        **1. “Your name?”**
         <BLANKLINE>
         *Free-text response*
         """
         if style == "questionnaire":
             from .survey_markdown import questionnaire
 
-            return questionnaire(self)
+            return questionnaire(
+                self,
+                with_question_names=with_question_names,
+                with_question_types=with_question_types,
+            )
         if style != "table":
             raise ValueError("Markdown style must be 'table' or 'questionnaire'.")
+        if with_question_names or with_question_types:
+            raise ValueError("Heading options apply to the questionnaire style.")
         text = self.table().to_markdown_table()
         # Replace Jinja2 braces with << >> to indicate piping
         text = re.sub(r"\{\{", "<<", text)

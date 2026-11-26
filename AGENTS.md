@@ -281,7 +281,7 @@ ep surveys move-question survey.ep --help
 ep surveys drop-question survey.ep --help
 ```
 
-Use `ep surveys show survey.ep --markdown` to present the questionnaire in a terminal. On success, stdout contains Markdown. On failure, inspect the JSON error envelope.
+Use `ep surveys show survey.ep --markdown` to present the questionnaire in a terminal. Add `--with-question-names` or `--with-question-types` to label the headings. On success, stdout contains Markdown. On failure, inspect the JSON error envelope.
 
 Use `ep surveys review survey.ep` only when a local review UI is appropriate for the task.
 

@@ -210,6 +210,7 @@ class QuestionCheckboxMatrix(QuestionBase):
             self,
             "For each row: "
             + md.select_count(self.min_selections, self.max_selections),
+            marker="☐",
         )
 
     @property

@@ -553,18 +553,51 @@ def register(surveys_group: click.Group) -> None:
 
     @surveys_group.command("show")
     @click.argument("survey_path")
-    @click.option("--markdown", is_flag=True, help="Print a readable Markdown questionnaire directly to stdout.")
-    def show_survey(survey_path: str, markdown: bool):
+    @click.option(
+        "--markdown",
+        is_flag=True,
+        help="Print a readable Markdown questionnaire directly to stdout.",
+    )
+    @click.option(
+        "--with-question-names",
+        is_flag=True,
+        help="Include the question name in each Markdown heading.",
+    )
+    @click.option(
+        "--with-question-types",
+        is_flag=True,
+        help="Include the registered type in each Markdown heading.",
+    )
+    def show_survey(
+        survey_path: str,
+        markdown: bool,
+        with_question_names: bool,
+        with_question_types: bool,
+    ):
         """Summarize a Survey.
 
-        Example:
+        \b
+        Examples:
           ep surveys show survey.ep
           ep surveys show survey.ep --markdown
+          ep surveys show survey.ep --markdown --with-question-names --with-question-types
         """
         try:
+            if (with_question_names or with_question_types) and not markdown:
+                error(
+                    "USAGE_ERROR",
+                    "Question heading options require --markdown.",
+                    exit_code=EXIT_USAGE,
+                )
             survey = _load_survey(survey_path)
             if markdown:
-                click.echo(survey.to_markdown(style="questionnaire"))
+                click.echo(
+                    survey.to_markdown(
+                        style="questionnaire",
+                        with_question_names=with_question_names,
+                        with_question_types=with_question_types,
+                    )
+                )
                 return
             output(_survey_summary(survey))
         except SystemExit:

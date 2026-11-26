@@ -221,7 +221,12 @@ class QuestionBase(
         return f"*{md.text(hint)}*"
 
     def to_markdown(
-        self, *, number: int | None = None, option_notes: dict[int, str] | None = None
+        self,
+        *,
+        number: int | None = None,
+        option_notes: dict[int, str] | None = None,
+        with_question_names: bool = False,
+        with_question_types: bool = False,
     ) -> str:
         """Render a standalone question or a numbered survey question.
 
@@ -229,10 +234,14 @@ class QuestionBase(
         for a structured response. The survey supplies any option-indexed routing notes.
         """
         prefix = f"{number}. " if number is not None else ""
+        if with_question_names:
+            prefix += f"[{md.text(self.question_name)}] "
         paragraphs = md.text(self.question_text).strip().split("\n\n")
         paragraphs[-1] += "”"
-        paragraphs[0] = f"**{prefix}[{md.text(self.question_name)}] “{paragraphs[0]}**"
-        heading = "\n\n".join(paragraphs) + f" ({md.text(self.question_type)})"
+        paragraphs[0] = f"**{prefix}“{paragraphs[0]}**"
+        heading = "\n\n".join(paragraphs)
+        if with_question_types:
+            heading += f" ({md.text(self.question_type)})"
         return heading + "\n\n" + self._markdown_answer(option_notes)
 
     question_name: str = QuestionNameDescriptor()  # type: ignore[assignment]

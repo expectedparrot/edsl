@@ -33,29 +33,30 @@ def coffee():
 )
 def test_registered_question_markdown(cls):
     q = cls.example()
-    snippet = q.to_markdown(number=1)
+    flags = {"with_question_names": True, "with_question_types": True}
+    snippet = q.to_markdown(number=1, **flags)
     heading, answer = snippet.split("\n\n", 1)
     assert heading.startswith(f"**1. [{q.question_name}] “")
     assert heading.endswith(f"”** ({q.question_type})")
     assert answer.strip()
     assert q._markdown_hint or cls._markdown_answer is not QuestionBase._markdown_answer
-    assert snippet in Survey([q]).to_markdown(style="questionnaire")
+    assert snippet in Survey([q]).to_markdown(style="questionnaire", **flags)
 
 
 def test_cli_raw_markdown_and_default_json(tmp_path, coffee):
     survey = coffee.add_skip_rule("brew", "{{ drinks.answer }} != 'Yes'")
     expected = """# Survey
 
-**1. [drinks] “Do you drink coffee?”** (multiple_choice)
+**1. “Do you drink coffee?”**
 
 ○ Yes{br}
 ○ No → Go to question 3
 
-**2. [brew] “Favorite brew?”** (free_text)
+**2. “Favorite brew?”**
 
 *Free-text response*
 
-**3. [source] “Where do you get coffee?”** (free_text)
+**3. “Where do you get coffee?”**
 
 *Free-text response*""".format(
         br="  "
@@ -111,10 +112,10 @@ def test_matrix_rows_write_in_and_bounds():
         QuestionCheckBoxWithOther,
     )
 
-    assert (
-        "Support (with a text response)"
-        in QuestionMatrixWithText.example().to_markdown()
-    )
+    rows = QuestionMatrixWithText.example().to_markdown().splitlines()
+    assert "Additional text" in next(row for row in rows if row.startswith("| Item"))
+    assert "Free text" in next(row for row in rows if row.startswith("| Support"))
+    assert "Free text" not in next(row for row in rows if row.startswith("| Speed"))
     checkboxes = QuestionCheckBoxWithOther.example().to_markdown()
     assert "Select 1 to 3" in checkboxes and "☐ Other (write in)" in checkboxes
     assert "Allocate a total of 100" in QuestionBudget.example().to_markdown()
@@ -142,11 +143,78 @@ def test_probabilistic_choice_describes_elicited_answer():
 
 
 def test_standalone_question_keeps_name_case_and_type_after_full_prompt():
-    question = QuestionFreeText(question_name="AGE", question_text="What is your age?\n\nUse years.")
-    assert question.to_markdown() == (
+    question = QuestionFreeText(
+        question_name="AGE", question_text="What is your age?\n\nUse years."
+    )
+    assert question.to_markdown(with_question_names=True, with_question_types=True) == (
         "**[AGE] “What is your age?**\n\nUse years.” (free_text)\n\n*Free-text response*"
     )
 
 
 def test_empty_questionnaire():
     assert Survey().to_markdown(style="questionnaire") == "# Survey"
+
+
+@pytest.mark.parametrize("names", [False, True])
+@pytest.mark.parametrize("types", [False, True])
+def test_cli_heading_options(coffee, tmp_path, names, types):
+    path = tmp_path / "coffee.json"
+    path.write_text(json.dumps(coffee.to_dict()))
+    flags = []
+    if names:
+        flags.append("--with-question-names")
+    if types:
+        flags.append("--with-question-types")
+    result = CliRunner().invoke(
+        app, ["surveys", "show", str(path), "--markdown", *flags]
+    )
+    assert result.exit_code == 0, result.output
+    heading = result.output.splitlines()[2]
+    assert ("[drinks]" in heading) == names
+    assert ("(multiple_choice)" in heading) == types
+    assert result.output.rstrip() == coffee.to_markdown(
+        style="questionnaire", with_question_names=names, with_question_types=types
+    )
+    if flags:
+        result = CliRunner().invoke(app, ["surveys", "show", str(path), *flags])
+        assert result.exit_code == 2
+        assert json.loads(result.output)["error"]["code"] == "USAGE_ERROR"
+
+
+def test_matrix_table_labels_and_escaping():
+    from edsl import QuestionMatrix, QuestionCheckboxMatrix
+
+    q = QuestionMatrix(
+        question_name="rating",
+        question_text="Rate each item.",
+        question_items=["Left | right", "Line one\nline two"],
+        question_options=[1, 2],
+        option_labels={1: "Low | lowest", 2: "High"},
+    )
+    grid = [line for line in q.to_markdown().splitlines() if line.startswith("|")]
+    assert len(grid) == 4
+    assert r"1 — Low \| lowest" in grid[0]
+    assert r"Left \| right" in grid[2] and grid[2].count("○") == 2
+    assert "Line one line two" in grid[3]
+    checkbox_grid = QuestionCheckboxMatrix.example().to_markdown()
+    assert "Select up to 2" in checkbox_grid
+    assert (
+        next(
+            row for row in checkbox_grid.splitlines() if row.startswith("| Monday")
+        ).count("☐")
+        == 3
+    )
+
+
+def test_dynamic_matrix_keeps_unresolved_axes():
+    from edsl import QuestionMatrix
+
+    q = QuestionMatrix(
+        question_name="rating",
+        question_text="Rate each item.",
+        question_items="{{ items }}",
+        question_options={"from": "{{ choices }}", "add": ["Other"]},
+    )
+    md = q.to_markdown()
+    assert "**Rows** — {{ items }}" in md
+    assert "**Options** — {{ choices }}, Other" in md
