@@ -238,7 +238,7 @@ class QuestionBase(
         prefix = f"{number}. " if number is not None else ""
         if with_question_names:
             prefix += f"[{md.text(self.question_name)}] "
-        paragraphs = md.text(self.question_text).strip().split("\n\n")
+        paragraphs = md.question_text(self.question_text).strip().split("\n\n")
         paragraphs[-1] += "”"
         paragraphs[0] = f"**{prefix}“{paragraphs[0]}**"
         heading = "\n\n".join(paragraphs)

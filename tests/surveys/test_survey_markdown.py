@@ -310,3 +310,43 @@ def test_multiple_choice_write_in_uses_authored_label_once():
     md = QuestionMultipleChoiceWithOther.example().to_markdown()
     assert md.count("Other (please specify)") == 1
     assert "○ Other (please specify) ______" in md
+
+
+def test_jinja_question_in_saved_markdown_preview(tmp_path):
+    question = QuestionFreeText(
+        "city",
+        "Why {{ city_name | title }}? {% if count > 1 %}What changed?{% endif %}",
+    )
+    survey = Survey([question])
+    package = tmp_path / "city.ep"
+    survey.git.save(package)
+    result = CliRunner().invoke(app, ["surveys", "show", str(package), "--markdown"])
+    assert result.exit_code == 0, result.output
+    assert (
+        "**1. “Why `{{ city_name | title }}`? `{% if count > 1 %}`What changed?"
+        "`{% endif %}`”**"
+    ) in result.output
+    assert "<< city_name | title >>" in survey.to_markdown()
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        ("A *city* called {{ city }}.", r"A \*city\* called `{{ city }}`."),
+        ("{{ x['}}'] | default('`') }}", "``{{ x['}}'] | default('`') }}``"),
+        ("{{ a }}{{ b }}", "`{{ a }}{{ b }}`"),
+        ("A  {{- x -}}  B", "A  `{{- x -}}`  B"),
+        (
+            "{% raw %}{{ literal }}{% endraw %}",
+            "`{% raw %}`{{ literal }}`{% endraw %}`",
+        ),
+        ("{# {{ hidden }} #}", "{# {{ hidden }} #}"),
+        ("{{ first\n\n | title }}", "`{{ first   | title }}`"),
+        ("Plain {{ unfinished", "Plain {{ unfinished"),
+        ("An invalid {{ ] }}", r"An invalid {{ \] }}"),
+    ],
+)
+def test_question_jinja_spans(source, expected):
+    from edsl.questions.markdown_layout import question_text
+
+    assert question_text(source) == expected

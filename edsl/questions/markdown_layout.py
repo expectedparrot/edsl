@@ -23,6 +23,48 @@ def text(value):
     return re.sub(r"(?<!\w)_|_(?!\w)", r"\\_", value)
 
 
+def question_text(source: str) -> str:
+    """Highlight authored Jinja tags without substituting or executing them."""
+    if "{{" not in source and "{%" not in source:
+        return text(source)
+
+    from jinja2 import TemplateSyntaxError
+    from ..utilities.jinja import make_environment
+
+    # The lexer normalizes line endings and can discard whitespace for trim tags.
+    # Locate tokens in the original prose so that whitespace outside tags survives.
+    source = source.replace("\r\n", "\n").replace("\r", "\n")
+    cursor = 0
+    start = 0
+    spans = []
+    try:
+        for _, kind, value in make_environment(keep_trailing_newline=True).lex(source):
+            offset = source.index(value, cursor)
+            cursor = offset + len(value)
+            if kind in ("variable_begin", "block_begin", "raw_begin", "raw_end"):
+                start = offset
+            if kind in ("variable_end", "block_end", "raw_begin", "raw_end"):
+                end = offset + len(value.rstrip())
+                # Touching Markdown delimiters would otherwise become one backtick run.
+                if spans and spans[-1][1] == start:
+                    start = spans.pop()[0]
+                spans.append((start, end))
+    except TemplateSyntaxError:
+        return text(source)
+
+    output = []
+    cursor = 0
+    for start, end in spans:
+        output.append(text(source[cursor:start]))
+        tag = source[start:end].replace("\n", " ")
+        longest = max((len(run) for run in re.findall(r"`+", tag)), default=0)
+        fence = "`" * (longest + 1)
+        output.append(f"{fence}{tag}{fence}")
+        cursor = end
+    output.append(text(source[cursor:]))
+    return "".join(output)
+
+
 def lines(values):
     """Use hard breaks so terminal and browser Markdown keep one item per line."""
     return "  \n".join(values)
