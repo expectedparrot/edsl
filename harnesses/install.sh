@@ -11,8 +11,8 @@ Usage: bash harnesses/install.sh <harness> [--setup project|user|router] [--laun
 Harnesses: codex, claude-code, opencode, pi, antigravity, fx
 
 project: link bundled skills in this project, using its .edsl-venv
-user:    link bundled skills for all projects, using a user-wide EDSL environment
-router:  copy only edsl-harness to user skills (default for unattended installs)
+user:    one EDSL installation for all projects (default)
+router:  copy only edsl-harness to user skills
 USAGE
 }
 
@@ -24,7 +24,7 @@ fi
 harness=$1
 shift
 launch=false
-setup=
+setup=user
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --launch) launch=true ;;
@@ -85,24 +85,6 @@ case "$harness" in
     ;;
 esac
 
-# Read choices from the terminal even when bash is reading the script from curl.
-if [[ -z "$setup" && -t 2 ]] && (: </dev/tty) 2>/dev/null; then
-  cat >/dev/tty <<'MENU'
-Where should the agent look for EDSL skills?
-  1. This project (recommended) — link all skills from this project's EDSL.
-  2. All projects — link all skills from a shared user EDSL installation.
-  3. Routing skill only — the agent loads task guidance on demand with ep.
-MENU
-  printf 'Choose [1/2/3, default 1]: ' >/dev/tty
-  IFS= read -r choice </dev/tty
-  case "$choice" in
-    1|'') setup=project ;;
-    2) setup=user ;;
-    3) setup=router ;;
-    *) printf 'Expected 1, 2, or 3.\n' >&2; exit 2 ;;
-  esac
-fi
-setup=${setup:-router}
 skill_args=(--link)
 case "$setup" in
   project) skill_dir=$project_skill_dir; edsl_env="$PWD/.edsl-venv" ;;
@@ -110,6 +92,8 @@ case "$setup" in
   router) edsl_env=${VIRTUAL_ENV:-"$PWD/.edsl-venv"}; skill_args=(--skill edsl-harness) ;;
 esac
 
+user_ep=$(command -v ep || true)
+original_path=$PATH
 if ! command -v curl >/dev/null 2>&1; then
   printf 'curl is required to install the selected harness.\n' >&2
   exit 1
@@ -197,6 +181,21 @@ if result.get("status") != "ok":
     raise SystemExit(1)
 '
 printf '%s\n' "$skill_install"
+if [[ "$setup" == user ]]; then
+  # Give new shells a stable entry point without replacing an existing command.
+  user_bin="$HOME/.local/bin"
+  mkdir -p "$user_bin"
+  if [[ ! -e "$user_bin/ep" && ! -L "$user_bin/ep" ]]; then
+    ln -s "$edsl_cli" "$user_bin/ep"
+  fi
+  if [[ ! "$user_bin/ep" -ef "$edsl_cli" ]]; then
+    printf 'An ep launcher already exists in %s. The shared EDSL command is %s.\n' "$user_bin" "$edsl_cli"
+  elif [[ -n "$user_ep" && ! "$user_ep" -ef "$edsl_cli" ]]; then
+    printf 'Your shell currently selects %s. To prefer shared EDSL, put %s first on PATH.\n' "$user_ep" "$user_bin"
+  elif [[ ":$original_path:" != *":$user_bin:"* ]]; then
+    printf 'For future shells, add %s to PATH to use ep from any project.\n' "$user_bin"
+  fi
+fi
 printf 'First prompt: Make a three-question survey about coffee habits and show me the preview.\n'
 if [[ "$launch" == true ]]; then
   if (: </dev/tty) 2>/dev/null; then

@@ -10,28 +10,23 @@ CLI.
 
 Start with `ep skills show edsl-harness`. If it returns `status: ok`, use the guidance in that response and proceed to the user's task. After a terminal install, the launched agent already has the skill and the matching `ep` on its path.
 
-If the command or skill is missing, install into a dedicated environment in the project. With uv:
-
-```bash
-uv venv --python 3.12 .edsl-venv
-uv pip install --python .edsl-venv/bin/python 'edsl @ git+https://github.com/expectedparrot/edsl.git@feat/edsl-harness-guidance'
-```
-
-Reuse `.edsl-venv` if it exists. Without uv, create it with `python3 -m venv .edsl-venv` using Python 3.10–3.13, then install the same package with `.edsl-venv/bin/python -m pip install`. Use `.edsl-venv/bin/ep` for subsequent commands, including `skills show edsl-harness`. That response supplies the skill for the current session. To make it available in future sessions, use `skills install --target <directory> --skill edsl-harness` with the named agent's directory from the table below.
+If `ep` or its skill is missing, check the shared launcher at `"${XDG_DATA_HOME:-$HOME/.local/share}/edsl/harness-venv/bin/ep"`. If setup is needed, run the installer below for the named agent with `--setup user` and omit `--launch` inside an existing session. Use the shared executable for the rest of the session.
 
 For the coffee survey, create the three questions, save a Survey package, and render it with `ep open survey.ep --output survey.html --no-browser`. Link the user to the HTML preview. This task runs locally.
 
 ## Installing the agent from a terminal
 
-Run the installer from the project directory. In a terminal it offers three choices. Press Enter for **This project**, or pass `--setup` to skip the menu.
+Run the installer once for your agent. By default, the installer manages one copy of EDSL for your account and makes the skills available across projects. It creates a launcher at `~/.local/bin/ep` if that name is free. Include `~/.local/bin` on your shell’s PATH to run `ep` from any folder. Rerun the installer to update the shared copy.
+
+Use `--setup` if you want to choose the installation scope explicitly.
 
 | Choice | What the agent discovers | Where EDSL lives |
 | --- | --- | --- |
 | `--setup project` | All bundled skills, linked in this project's harness skill directory | `.edsl-venv` in this project |
-| `--setup user` | All bundled skills, linked in the harness's user skill directory | `$XDG_DATA_HOME/edsl/harness-venv`, defaulting to `~/.local/share/edsl/harness-venv` |
+| `--setup user` (default) | All bundled skills, linked in the harness's user skill directory | `$XDG_DATA_HOME/edsl/harness-venv`, defaulting to `~/.local/share/edsl/harness-venv` |
 | `--setup router` | A copy of the single user skill `edsl-harness`, which looks up guidance with `ep` | The active virtual environment or the project's `.edsl-venv` |
 
-For example, `bash harnesses/install.sh antigravity --setup project --launch` sets up the current project and opens Antigravity. With no interactive terminal or explicit choice, the script uses the existing router setup. It supports macOS, Linux, and WSL.
+For example, `bash harnesses/install.sh antigravity --setup project --launch` sets up the current project and opens Antigravity. It supports macOS, Linux, and WSL.
 
 Linked skills track updates in their chosen environment. Rerun the same installer command after an upgrade to pick up new or retired skills, then start a fresh agent session. If a destination already holds a copy or a link to another environment, the installer identifies the conflict. Move the conflicting entries outside the discovery directory before retrying. Older user-level copies may also appear alongside project skills.
 
