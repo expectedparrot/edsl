@@ -18,31 +18,129 @@ EDSL makes it easy to conduct computational social science and market research w
 
 5. Share workflows and survey results at <a href="https://www.expectedparrot.com/login" target="_blank" rel="noopener noreferrer">Coop</a>: a free platform for creating and sharing AI research.
 
-## Use EDSL with Codex
+## Use EDSL with coding harnesses
 
-Already have Codex? Copy and paste this into it:
+Already have a harness? Copy its prompt below and paste it into the harness. If
+it is not installed, run that harness's terminal command from your project
+directory; the installer sets up EDSL and the skill, then launches the harness.
 
-```text
-Set up EDSL in this environment. Install EDSL from
-https://github.com/expectedparrot/edsl/tree/feat/edsl-harness-guidance into the
-Python environment this Codex session will use (use uv if available). Run
-`ep auth status`; if Expected Parrot authentication is missing, run
-`ep auth login` and never print or expose credentials. Install only the EDSL
-routing skill with `ep skills install --target "$HOME/.agents/skills" --skill
-edsl-harness`. Verify the CLI and skill catalog, then use `edsl-harness` for
-EDSL tasks and discover task-specific guidance with `ep skills`.
-```
+Expected Parrot login and model-provider keys are separate. The installer can
+log into Expected Parrot, but does not configure provider keys. See the
+[harness setup guide](harnesses/README.md) for details and troubleshooting.
 
-If Codex is not installed, run this from your project directory in a terminal
-to install and launch it with EDSL:
+<h3><img src="docs/assets/harness-icons/codex.svg" width="22" height="22" alt=""> Codex</h3>
+
+If Codex is not installed, run this in a terminal:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- codex --launch
 ```
 
-Expected Parrot login and language-model provider keys are separate. See the
-[harness setup guide](harnesses/README.md) for other coding agents, environment
-setup, provider credentials, and troubleshooting.
+Copy and paste into Codex:
+
+```text
+Set up EDSL in this environment. Install EDSL from the
+expectedparrot/edsl `feat/edsl-harness-guidance` branch into the Python
+environment this harness uses (use uv if available). Check `ep auth status`; if
+not authenticated, run `ep auth login` without displaying credentials. Install
+only `edsl-harness` with `ep skills install --target "$HOME/.agents/skills" --skill edsl-harness`. Verify the skill catalog, then use
+`edsl-harness` for EDSL tasks and discover task-specific guidance with `ep skills`.
+```
+
+<h3><img src="docs/assets/harness-icons/claude-code.svg" width="22" height="22" alt=""> Claude Code</h3>
+
+If Claude Code is not installed, run this in a terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- claude-code --launch
+```
+
+Copy and paste into Claude Code:
+
+```text
+Set up EDSL in this environment. Install EDSL from the
+expectedparrot/edsl `feat/edsl-harness-guidance` branch into the Python
+environment this harness uses (use uv if available). Check `ep auth status`; if
+not authenticated, run `ep auth login` without displaying credentials. Install
+only `edsl-harness` with `ep skills install --target "$HOME/.claude/skills" --skill edsl-harness`. Verify the skill catalog, then use
+`edsl-harness` for EDSL tasks and discover task-specific guidance with `ep skills`.
+```
+
+<h3><img src="docs/assets/harness-icons/opencode.svg" width="22" height="22" alt=""> OpenCode</h3>
+
+If OpenCode is not installed, run this in a terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- opencode --launch
+```
+
+Copy and paste into OpenCode:
+
+```text
+Set up EDSL in this environment. Install EDSL from the
+expectedparrot/edsl `feat/edsl-harness-guidance` branch into the Python
+environment this harness uses (use uv if available). Check `ep auth status`; if
+not authenticated, run `ep auth login` without displaying credentials. Install
+only `edsl-harness` with `ep skills install --target "$HOME/.config/opencode/skills" --skill edsl-harness`. Verify the skill catalog, then use
+`edsl-harness` for EDSL tasks and discover task-specific guidance with `ep skills`.
+```
+
+<h3><img src="docs/assets/harness-icons/pi.svg" width="22" height="22" alt=""> Pi</h3>
+
+If Pi is not installed, run this in a terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- pi --launch
+```
+
+Copy and paste into Pi:
+
+```text
+Set up EDSL in this environment. Install EDSL from the
+expectedparrot/edsl `feat/edsl-harness-guidance` branch into the Python
+environment this harness uses (use uv if available). Check `ep auth status`; if
+not authenticated, run `ep auth login` without displaying credentials. Install
+only `edsl-harness` with `ep skills install --target "$HOME/.pi/agent/skills" --skill edsl-harness`. Verify the skill catalog, then use
+`edsl-harness` for EDSL tasks and discover task-specific guidance with `ep skills`.
+```
+
+<h3><img src="docs/assets/harness-icons/antigravity.png" width="22" height="22" alt=""> Google Antigravity CLI</h3>
+
+If Google Antigravity CLI is not installed, run this in a terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- antigravity --launch
+```
+
+Copy and paste into Google Antigravity CLI:
+
+```text
+Set up EDSL in this environment. Install EDSL from the
+expectedparrot/edsl `feat/edsl-harness-guidance` branch into the Python
+environment this harness uses (use uv if available). Check `ep auth status`; if
+not authenticated, run `ep auth login` without displaying credentials. Install
+only `edsl-harness` with `ep skills install --target "$HOME/.gemini/config/skills" --skill edsl-harness`. Verify the skill catalog, then use
+`edsl-harness` for EDSL tasks and discover task-specific guidance with `ep skills`.
+```
+
+<h3><img src="docs/assets/harness-icons/vercel-fx.svg" width="22" height="22" alt=""> Vercel fx</h3>
+
+If Vercel fx is not installed, run this in a terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- fx --launch
+```
+
+Copy and paste into Vercel fx:
+
+```text
+Set up EDSL in this environment. Install EDSL from the
+expectedparrot/edsl `feat/edsl-harness-guidance` branch into the Python
+environment this harness uses (use uv if available). Check `ep auth status`; if
+not authenticated, run `ep auth login` without displaying credentials. Install
+only `edsl-harness` with `ep skills install --target "$HOME/.fx/skills" --skill edsl-harness`. Verify the skill catalog, then use
+`edsl-harness` for EDSL tasks and discover task-specific guidance with `ep skills`.
+```
 
 ## Code & Docs
 - <a href="https://github.com/expectedparrot/edsl" target="_blank" rel="noopener noreferrer">GitHub</a>
