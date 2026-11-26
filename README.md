@@ -2,7 +2,7 @@
 
 EDSL is a Python library for research. You can build surveys, ask several AI models the same questions, and compare their answers in a dataset. You can send the same survey to people by sharing a URL or emailing them an invitation. You can also set up an AI interviewer to ask participants questions and follow up on their answers.
 
-## Try EDSL with your coding agent
+## The best way to use EDSL is with your coding agent
 
 Choose your agent and paste the prompt into its chat. It will set up EDSL and make a three-question survey you can preview on your computer.
 
