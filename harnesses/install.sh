@@ -196,7 +196,6 @@ if [[ "$setup" == user ]]; then
     printf 'For future shells, add %s to PATH to use ep from any project.\n' "$user_bin"
   fi
 fi
-printf 'First prompt: Make a three-question survey about coffee habits and show me the preview.\n'
 if [[ "$launch" == true ]]; then
   if (: </dev/tty) 2>/dev/null; then
     printf 'Setup complete. Launching %s in %s...\n' "$command_name" "$PWD"

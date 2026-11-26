@@ -12,7 +12,7 @@ Start with `ep skills show edsl-harness`. If it returns `status: ok`, use the gu
 
 If `ep` or its skill is missing, check the shared launcher at `"${XDG_DATA_HOME:-$HOME/.local/share}/edsl/harness-venv/bin/ep"`. If setup is needed, run the installer below for the named agent with `--setup user` and omit `--launch` inside an existing session. Use the shared executable for the rest of the session.
 
-For the coffee survey, create the three questions, save a Survey package, and render it with `ep open survey.ep --output survey.html --no-browser`. Link the user to the HTML preview. This task runs locally.
+When setup succeeds, tell the user EDSL is ready. If they included a research task, continue with that task.
 
 ## Installing the agent from a terminal
 

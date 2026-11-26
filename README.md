@@ -4,7 +4,7 @@ EDSL is a Python library for surveys and simulations. You describe a study in na
 
 ## The best way to use EDSL is with your coding agent
 
-Choose your agent and paste the prompt into its chat. It will set up EDSL and make a three-question survey you can preview on your computer.
+Choose your agent and paste its setup prompt into the chat. Once EDSL is ready, describe the study you want to run. For example, “Make a three-question survey about coffee habits and show me the preview.”
 
 <details>
 <summary><img src="docs/assets/harness-icons/codex.svg" width="22" height="22" alt=""> Codex</summary>
@@ -12,10 +12,10 @@ Choose your agent and paste the prompt into its chat. It will set up EDSL and ma
 Paste into Codex:
 
 ```text
-Follow `ep skills show edsl-harness`. If unavailable, follow https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for Codex. Make a three-question survey about coffee habits and show me the preview.
+Run `ep skills show edsl-harness` and follow its guidance. If the command or skill is missing, use https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for Codex.
 ```
 
-Need Codex first? Run this in your project terminal. When the agent opens, ask: **Make a three-question survey about coffee habits and show me the preview.**
+Need Codex first? Run this in your project terminal.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- codex --launch
@@ -29,10 +29,10 @@ curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harne
 Paste into Claude Code:
 
 ```text
-Follow `ep skills show edsl-harness`. If unavailable, follow https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for Claude Code. Make a three-question survey about coffee habits and show me the preview.
+Run `ep skills show edsl-harness` and follow its guidance. If the command or skill is missing, use https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for Claude Code.
 ```
 
-Need Claude Code first? Run this in your project terminal. When the agent opens, ask: **Make a three-question survey about coffee habits and show me the preview.**
+Need Claude Code first? Run this in your project terminal.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- claude-code --launch
@@ -46,10 +46,10 @@ curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harne
 Paste into OpenCode:
 
 ```text
-Follow `ep skills show edsl-harness`. If unavailable, follow https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for OpenCode. Make a three-question survey about coffee habits and show me the preview.
+Run `ep skills show edsl-harness` and follow its guidance. If the command or skill is missing, use https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for OpenCode.
 ```
 
-Need OpenCode first? Run this in your project terminal. When the agent opens, ask: **Make a three-question survey about coffee habits and show me the preview.**
+Need OpenCode first? Run this in your project terminal.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- opencode --launch
@@ -63,10 +63,10 @@ curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harne
 Paste into Pi:
 
 ```text
-Follow `ep skills show edsl-harness`. If unavailable, follow https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for Pi. Make a three-question survey about coffee habits and show me the preview.
+Run `ep skills show edsl-harness` and follow its guidance. If the command or skill is missing, use https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for Pi.
 ```
 
-Need Pi first? Run this in your project terminal. When the agent opens, ask: **Make a three-question survey about coffee habits and show me the preview.**
+Need Pi first? Run this in your project terminal.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- pi --launch
@@ -80,10 +80,10 @@ curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harne
 Paste into Google Antigravity CLI:
 
 ```text
-Follow `ep skills show edsl-harness`. If unavailable, follow https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for Google Antigravity CLI. Make a three-question survey about coffee habits and show me the preview.
+Run `ep skills show edsl-harness` and follow its guidance. If the command or skill is missing, use https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for Google Antigravity CLI.
 ```
 
-Need Google Antigravity CLI first? Run this in your project terminal. When the agent opens, ask: **Make a three-question survey about coffee habits and show me the preview.**
+Need Google Antigravity CLI first? Run this in your project terminal.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- antigravity --launch
@@ -97,10 +97,10 @@ curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harne
 Paste into Vercel fx:
 
 ```text
-Follow `ep skills show edsl-harness`. If unavailable, follow https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for Vercel fx. Make a three-question survey about coffee habits and show me the preview.
+Run `ep skills show edsl-harness` and follow its guidance. If the command or skill is missing, use https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for Vercel fx.
 ```
 
-Need Vercel fx first? Run this in your project terminal. When the agent opens, ask: **Make a three-question survey about coffee habits and show me the preview.**
+Need Vercel fx first? Run this in your project terminal.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- fx --launch
