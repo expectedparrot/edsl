@@ -107,16 +107,19 @@ def questionnaire_items(
 ):
     """Render a window of questions with numbering and routing from the full survey."""
     rules = survey.rule_collection.non_default_rules
-    notes = defaultdict(list)
+    before_answer_notes = defaultdict(list)
+    after_answer_notes = defaultdict(list)
     option_notes = {}
     # With competing or intersecting routes, keep the rules at their evaluation sites.
     inline = inline_choice_route(survey, rules[0]) if len(rules) == 1 else None
     if inline:
         index, routes = inline
         option_notes[index] = routes
-    else:
-        for rule in sorted(rules, key=lambda r: (not r.before_rule, -r.priority)):
-            notes[rule.current_q].append(rule_note(survey, rule))
+    for rule in sorted(rules, key=lambda r: -r.priority):
+        if rule.before_rule:
+            before_answer_notes[rule.current_q].append(rule_note(survey, rule))
+        elif not inline:
+            after_answer_notes[rule.current_q].append(rule_note(survey, rule))
 
     sections = []
     for i in indices:
@@ -125,10 +128,11 @@ def questionnaire_items(
             question.to_markdown(
                 number=i + 1,
                 option_notes=option_notes.get(i),
+                before_answer_notes=tuple(before_answer_notes.get(i, ())),
                 with_question_names=with_question_names,
                 with_question_types=with_question_types,
                 expand_options=expand_options,
             )
         )
-        sections.extend(notes.get(i, ()))
+        sections.extend(after_answer_notes.get(i, ()))
     return "\n\n".join(sections)
