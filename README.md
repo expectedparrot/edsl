@@ -110,6 +110,10 @@ curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harne
 
 The installer sets up EDSL once for use across your projects. [Setup options](harnesses/README.md#installing-the-agent-from-a-terminal)
 
+[<img src="docs/assets/demos/edsl-agent-demo.jpg" width="460" alt="Watch Pi build a coffee survey and Antigravity inspect its follow-up rule">](docs/assets/demos/edsl-agent-demo.mp4?raw=true)
+
+[Watch the 41-second demo with Pi and Antigravity](docs/assets/demos/edsl-agent-demo.mp4?raw=true)
+
 ## Key features
 
 | Feature | What you can do |
