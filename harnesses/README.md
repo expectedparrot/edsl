@@ -18,6 +18,41 @@ interpreter selected by `python3`. The bootstrap script supports macOS, Linux,
 and WSL. On native Windows, install the harness from its official guide first,
 then run the EDSL and skill setup steps in that environment.
 
+For a first-time setup, create a project directory and environment, activate
+the environment, and run the installer from the project directory. This makes
+the launched harness start in the right workspace:
+
+```bash
+mkdir my-edsl-project
+cd my-edsl-project
+uv venv
+source .venv/bin/activate
+curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- pi --launch
+```
+
+If you do not use uv, replace `uv venv` with `python3 -m venv .venv`.
+
+The installer authenticates EDSL with Expected Parrot when needed. This is
+separate from model-provider credentials: direct inference with a provider
+requires that provider's key, while Expected Parrot account access can be used
+for available models. See [Managing Keys](https://docs.expectedparrot.com/en/latest/api_keys)
+for credential setup. The installer does not configure model-provider keys.
+
+After installation, verify the CLI and skill catalog in the activated
+environment, then restart the harness to load the new skill:
+
+```bash
+ep info
+ep auth status
+ep skills list --routing
+ep skills search "survey" --snippets
+```
+
+To confirm the harness is using dynamic skill discovery, ask it to use
+`edsl-harness` for an EDSL survey task, find the relevant task skill through
+`ep skills`, and summarize the guidance. It should use the CLI catalog rather
+than inspect Python package installation paths.
+
 ```bash
 bash harnesses/install.sh pi --launch
 ```

@@ -26,8 +26,25 @@ first. The script installs the selected harness when missing, installs EDSL
 from this branch using uv when available (pip otherwise), logs in to Expected
 Parrot if needed, and installs the harness-specific `edsl-harness` skill. Add
 `--launch` to the bootstrap command to open the harness in the current
-directory when setup finishes. Activate the Python environment where you want
-EDSL installed before running it.
+directory when setup finishes. Run it from the project directory you want the
+agent to work in, and activate the Python environment where you want EDSL
+installed before running it. If you do not have a project directory or Python
+environment yet, create them first:
+
+```bash
+mkdir my-edsl-project
+cd my-edsl-project
+uv venv
+source .venv/bin/activate
+```
+
+If you do not use uv, create and activate the environment with Python's built-in
+`venv` instead:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
 
 From a local EDSL checkout:
 
@@ -41,6 +58,29 @@ needed. To bootstrap directly from this branch without cloning EDSL:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- pi --launch
 ```
+
+The installer logs into Expected Parrot when needed. That account login is
+separate from language-model provider credentials: for inference, configure a
+provider key as described in [Managing Keys](https://docs.expectedparrot.com/en/latest/api_keys),
+or use your Expected Parrot account's model access. The installer does not
+configure provider keys.
+
+After setup, verify the EDSL CLI and skill catalog in the same activated
+environment:
+
+```bash
+ep info
+ep auth status
+ep skills list --routing
+ep skills search "survey" --snippets
+```
+
+Check that the commands return JSON with `"status": "ok"`; `ep auth status`
+should report whether Expected Parrot cloud access is authenticated. Start or
+restart the harness so it discovers the newly installed skill. To check that
+skill routing works, ask the agent: “For an EDSL survey task, use the
+`edsl-harness` skill to find the relevant task skill with `ep skills`, then
+summarize the guidance you found.”
 
 <h3><img src="docs/assets/harness-icons/codex.svg" width="22" height="22" alt=""> Codex</h3>
 
