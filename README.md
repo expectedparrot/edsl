@@ -4,7 +4,7 @@ EDSL is a Python library for surveys and simulations. You describe a study in na
 
 ## The best way to use EDSL is with your coding agent
 
-Choose your agent and paste its setup prompt into the chat. Once EDSL is ready, describe the study you want to run. For example, “Make a three-question survey about coffee habits and show me the preview.”
+Choose your agent and paste its setup prompt into the chat. Once EDSL is ready, describe the study you want to run. For example, “Make a three-question survey about coffee habits and show it here in the chat.”
 
 <details>
 <summary><img src="docs/assets/harness-icons/codex.svg" width="22" height="22" alt=""> Codex</summary>
@@ -110,7 +110,9 @@ curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harne
 
 The installer sets up EDSL once for use across your projects. [Setup options](harnesses/README.md#installing-the-agent-from-a-terminal)
 
-![Pi creates a three-question coffee survey, then edits it to skip the favorite-brew question for people who do not drink coffee.](docs/assets/demos/edsl-agent-demo.gif)
+![Pi creates a coffee survey, adds a skip rule, and displays the saved survey as Markdown. The No option points to question 3.](docs/assets/demos/edsl-agent-demo.gif)
+
+[Watch the Pi terminal recording with playback controls (MP4)](docs/assets/demos/pi-survey-markdown.mp4)
 
 ## Key features
 
