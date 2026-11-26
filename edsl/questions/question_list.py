@@ -497,7 +497,7 @@ class QuestionList(QuestionBase):
         items = [f"Item {i+1}" for i in range(min_items)]
         return {"answer": items, "comment": "Simulated answer"}
 
-    def _markdown_answer(self, option_notes):
+    def _markdown_answer(self, view):
         return (
             "List your answers"
             + md.bounds(self.min_list_items, self.max_list_items)

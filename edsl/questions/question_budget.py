@@ -667,11 +667,11 @@ class QuestionBudget(QuestionBase):
             "comment": random_string() if self.include_comment else None,
         }
 
-    def _markdown_answer(self, option_notes):
-        instruction = f"Allocate a total of {md.text(self.budget_sum)}."
+    def _markdown_answer(self, view):
+        instruction = f"Allocate a total of {md.text(self.budget_sum)} across these items."
         if self.remainder_option is not None:
             instruction += f" Any remainder goes to {md.text(self.remainder_option)}."
-        return f"{instruction}\n\n" + md.options(self, "·")
+        return f"{instruction}\n\n" + md.fill_in_table(("Item", "Amount"), self.question_options)
 
     @property
     def question_html_content(self) -> str:

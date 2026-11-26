@@ -86,7 +86,7 @@ class QuestionEdit(QuestionBase):
     def text_to_edit(self, value: str) -> None:
         self._text_to_edit = value
 
-    def _markdown_answer(self, option_notes):
+    def _markdown_answer(self, view):
         return "Revise the following text.\n\n" + "\n".join(
             "> " + md.text(line) for line in self.text_to_edit.splitlines()
         )

@@ -579,7 +579,7 @@ class QuestionPydantic(QuestionBase):
 
         return validated_answer
 
-    def _markdown_answer(self, option_notes):
+    def _markdown_answer(self, view):
         schema = self.get_response_schema()
         fields = md.lines(f"- {md.text(key)}" for key in schema.get("properties", {}))
         return f"Structured response ({md.text(schema.get('title', 'object'))})" + (

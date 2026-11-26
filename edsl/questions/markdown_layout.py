@@ -1,7 +1,18 @@
 """Formatting primitives for the read-only Markdown questionnaire."""
 
 import re
+from dataclasses import dataclass
 from html import escape
+
+from ..utilities.simple_table import simple_table
+
+
+@dataclass(frozen=True)
+class AnswerView:
+    """Display settings shared by question-specific Markdown renderers."""
+
+    option_notes: dict[int, str] | None
+    expand_options: bool
 
 
 def text(value):
@@ -50,8 +61,12 @@ def option_text(value, labels):
 
 def options(question, marker, notes=None):
     values = question.question_options
-    if isinstance(values, str):
-        return f"Options from {text(values)}"
+    if isinstance(values, (str, dict)):
+        result = f"Options from {option_list(values)}"
+        other = getattr(question, "other_option_text", None)
+        if other is not None:
+            result += f"  \n{marker} {text(other)} ______"
+        return result
     values = list(values)
     other = getattr(question, "other_option_text", None)
     if other is not None and other not in values:
@@ -61,20 +76,20 @@ def options(question, marker, notes=None):
     for index, value in enumerate(values):
         row = f"{marker} {option_text(value, labels)}"
         if other is not None and value == other:
-            row += " (write in)"
+            row += " ______"
         if notes and index in notes:
             row += f" → {notes[index]}"
         rows.append(row)
     return lines(rows)
 
 
-def single_choice(question, notes):
+def single_choice(question, view):
     if getattr(question, "probabilistic_response", None) is not None:
         return "Allocate probabilities totaling 1.\n\n" + options(question, "·")
-    return options(question, "○", notes)
+    return options(question, "○", view.option_notes)
 
 
-def _axis_description(values, labels=None):
+def option_list(values, labels=None):
     if isinstance(values, str):
         return text(values)
     if isinstance(values, dict):
@@ -82,10 +97,23 @@ def _axis_description(values, labels=None):
     return ", ".join(option_text(v, labels) for v in values)
 
 
+def fill_in_table(headers, values):
+    """Leave one empty answer cell beside each authored item or price."""
+    if not isinstance(values, list):
+        return f"**{headers[0]}** — {option_list(values)}"
+    rows = [(" ".join(text(value).splitlines()), "") for value in values]
+    return simple_table(headers, rows, fmt="pipe")
+
+
+def ordinal(number):
+    if 11 <= number % 100 <= 13:
+        return f"{number}th"
+    suffix = {1: "st", 2: "nd", 3: "rd"}.get(number % 10, "th")
+    return f"{number}{suffix}"
+
+
 def matrix(question, instruction, marker="○"):
     """Render the response grid, leaving piped axes unresolved."""
-    from ..utilities.simple_table import simple_table
-
     rows = question.question_items
     choices = question.question_options
     labels = question.option_labels
@@ -93,11 +121,11 @@ def matrix(question, instruction, marker="○"):
     if not isinstance(rows, list) or not isinstance(choices, list):
         parts = [
             instruction,
-            f"**Rows** — {_axis_description(rows)}",
-            f"**Options** — {_axis_description(choices, labels)}",
+            f"**Rows** — {option_list(rows)}",
+            f"**Options** — {option_list(choices, labels)}",
         ]
         if with_text:
-            parts.append(f"**Text response** — {_axis_description(with_text)}")
+            parts.append(f"**Text response** — {option_list(with_text)}")
         return "\n\n".join(parts)
 
     # Keep a cell on one line and give even one-character headings a Markdown delimiter.

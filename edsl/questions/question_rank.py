@@ -560,9 +560,13 @@ class QuestionRank(QuestionBase):
         }
         return answer
 
-    def _markdown_answer(self, option_notes):
-        count = self.num_selections or "all options"
-        return f"Rank {count} in order of preference.\n\n" + md.options(self, "·")
+    def _markdown_answer(self, view):
+        count = self.num_selections
+        choices = f"**Choices** — {md.option_list(self.question_options)}"
+        if count is None:
+            return f"Rank all options in order of preference.\n\n{choices}"
+        slots = md.lines(f"{md.ordinal(i)} choice ______" for i in range(1, count + 1))
+        return f"Rank {count} in order of preference.\n\n{choices}\n\n{slots}"
 
     @property
     def question_html_content(self) -> str:

@@ -200,7 +200,7 @@ class QuestionDate(QuestionBase):
             "answer": date.fromordinal(lower.toordinal() + randint(0, span)).isoformat()
         }
 
-    def _markdown_answer(self, option_notes):
+    def _markdown_answer(self, view):
         return "Enter a date" + md.bounds(self.min_date, self.max_date) + "."
 
     @property
@@ -292,7 +292,7 @@ class QuestionDateTime(QuestionBase):
         answer = lower_utc + timedelta(seconds=randint(0, seconds))
         return {"answer": answer.isoformat()}
 
-    def _markdown_answer(self, option_notes):
+    def _markdown_answer(self, view):
         return (
             "Enter a date and time"
             + md.bounds(self.min_datetime, self.max_datetime)

@@ -205,7 +205,7 @@ class QuestionCheckboxMatrix(QuestionBase):
             answer[row] = random.sample(self.question_options, count)
         return {"answer": answer, "comment": "Sample checkbox matrix response"}
 
-    def _markdown_answer(self, option_notes):
+    def _markdown_answer(self, view):
         return md.matrix(
             self,
             "For each row: "

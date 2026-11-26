@@ -442,10 +442,8 @@ class QuestionDemand(QuestionBase):
             "comment": random_string() if self.include_comment else None,
         }
 
-    def _markdown_answer(self, option_notes):
-        return "Enter a quantity for each price.\n\n" + md.lines(
-            f"- {md.text(price)}" for price in self.prices
-        )
+    def _markdown_answer(self, view):
+        return "Enter a quantity for each price.\n\n" + md.fill_in_table(("Price", "Quantity"), self.prices)
 
     @property
     def question_html_content(self) -> str:

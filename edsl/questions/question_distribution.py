@@ -429,7 +429,7 @@ class QuestionDistribution(QuestionBase):
             "comment": "Simulated answer",
         }
 
-    def _markdown_answer(self, option_notes):
+    def _markdown_answer(self, view):
         return "Allocate probabilities totaling 1.\n\n" + md.options(self, "·")
 
     @property

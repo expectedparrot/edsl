@@ -338,7 +338,7 @@ class QuestionEDSLObject(QuestionBase):
 
         return validated_answer
 
-    def _markdown_answer(self, option_notes):
+    def _markdown_answer(self, view):
         return f"EDSL object of type {md.text(self.expected_object_type)}."
 
     @property

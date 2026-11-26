@@ -567,10 +567,19 @@ class QuestionDropdown(QuestionBase):
         else:
             return answer_codes
 
-    def _markdown_answer(self, option_notes):
-        return f"Search the options (up to {self.top_k} matches).\n\n" + md.options(
-            self, "·"
-        )
+    def _markdown_answer(self, view):
+        unit = "match" if self.top_k == 1 else "matches"
+        instruction = f"Search returns up to {self.top_k} {unit}."
+        choices = self.question_options
+        if not isinstance(choices, list):
+            return f"{instruction}\n\nOptions from {md.option_list(choices)}"
+        visible = choices if view.expand_options else choices[:5]
+        entries = [f"· {md.text(value)}" for value in visible]
+        remaining = len(choices) - len(visible)
+        if remaining:
+            noun = "choice" if remaining == 1 else "choices"
+            entries.append(f"*{remaining} more {noun}*")
+        return instruction + "\n\n" + md.lines(entries)
 
     @property
     def question_html_content(self) -> str:

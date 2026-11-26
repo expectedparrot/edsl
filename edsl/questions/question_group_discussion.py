@@ -510,7 +510,7 @@ class QuestionGroupDiscussion(QuestionBase):
                 rnd += 1
         return {"answer": transcript, "generated_tokens": None}
 
-    def _markdown_answer(self, option_notes):
+    def _markdown_answer(self, view):
         names = ", ".join(md.text(p["name"]) for p in self.participants)
         return f"Group discussion with {names} (up to {self.max_rounds} rounds)."
 

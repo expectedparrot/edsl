@@ -568,11 +568,17 @@ def register(surveys_group: click.Group) -> None:
         is_flag=True,
         help="Include the registered type in each Markdown heading.",
     )
+    @click.option(
+        "--expand-options",
+        is_flag=True,
+        help="Show every dropdown choice in Markdown. Defaults to the first five.",
+    )
     def show_survey(
         survey_path: str,
         markdown: bool,
         with_question_names: bool,
         with_question_types: bool,
+        expand_options: bool,
     ):
         """Summarize a Survey.
 
@@ -583,10 +589,10 @@ def register(surveys_group: click.Group) -> None:
           ep surveys show survey.ep --markdown --with-question-names --with-question-types
         """
         try:
-            if (with_question_names or with_question_types) and not markdown:
+            if (with_question_names or with_question_types or expand_options) and not markdown:
                 error(
                     "USAGE_ERROR",
-                    "Question heading options require --markdown.",
+                    "Questionnaire display options require --markdown.",
                     exit_code=EXIT_USAGE,
                 )
             survey = _load_survey(survey_path)
@@ -596,6 +602,7 @@ def register(surveys_group: click.Group) -> None:
                         style="questionnaire",
                         with_question_names=with_question_names,
                         with_question_types=with_question_types,
+                        expand_options=expand_options,
                     )
                 )
                 return

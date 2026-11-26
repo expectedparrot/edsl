@@ -86,7 +86,7 @@ def rule_note(survey, rule):
     )
 
 
-def questionnaire(survey, *, with_question_names, with_question_types):
+def questionnaire(survey, *, with_question_names, with_question_types, expand_options):
     rules = survey.rule_collection.non_default_rules
     notes = defaultdict(list)
     option_notes = {}
@@ -107,6 +107,7 @@ def questionnaire(survey, *, with_question_names, with_question_types):
                 option_notes=option_notes.get(i),
                 with_question_names=with_question_names,
                 with_question_types=with_question_types,
+                expand_options=expand_options,
             )
         )
         sections.extend(notes.get(i, ()))

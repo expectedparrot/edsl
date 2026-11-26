@@ -838,7 +838,7 @@ class QuestionDict(QuestionBase):
         """Simulate an answer for the question."""
         return {"answer": self._get_default_answer(), "comment": None}
 
-    def _markdown_answer(self, option_notes):
+    def _markdown_answer(self, view):
         fields = []
         for i, key in enumerate(self.answer_keys):
             field = f"- {md.text(key)}"

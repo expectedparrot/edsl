@@ -350,7 +350,7 @@ class QuestionInterview(QuestionBase):
 
         return InvigilatorInterview
 
-    def _markdown_answer(self, option_notes):
+    def _markdown_answer(self, view):
         intro = f"Interview (up to {self.max_turns} turns)."
         return (
             f"{intro}\n\n{md.text(self.interview_guide)}"

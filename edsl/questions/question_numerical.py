@@ -503,7 +503,7 @@ class QuestionNumerical(QuestionBase):
     # Answer methods
     ################
 
-    def _markdown_answer(self, option_notes):
+    def _markdown_answer(self, view):
         return "Enter a number" + md.bounds(self.min_value, self.max_value) + "."
 
     @property

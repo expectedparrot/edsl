@@ -117,7 +117,7 @@ def test_matrix_rows_write_in_and_bounds():
     assert "Free text" in next(row for row in rows if row.startswith("| Support"))
     assert "Free text" not in next(row for row in rows if row.startswith("| Speed"))
     checkboxes = QuestionCheckBoxWithOther.example().to_markdown()
-    assert "Select 1 to 3" in checkboxes and "☐ Other (write in)" in checkboxes
+    assert "Select 1 to 3" in checkboxes and "☐ Other ______" in checkboxes
     assert "Allocate a total of 100" in QuestionBudget.example().to_markdown()
     assert "0 to 1000" in QuestionNumericalRange.example().to_markdown()
 
@@ -218,3 +218,95 @@ def test_dynamic_matrix_keeps_unresolved_axes():
     md = q.to_markdown()
     assert "**Rows** — {{ items }}" in md
     assert "**Options** — {{ choices }}, Other" in md
+
+
+def test_dropdown_preview_and_expansion_through_cli(tmp_path):
+    from edsl import QuestionDropdown
+
+    q = QuestionDropdown.example()
+    survey = Survey([q])
+    path = tmp_path / "dropdown.ep"
+    survey.git.save(path)
+    args = ["surveys", "show", str(path)]
+    runner = CliRunner()
+    for expanded in (False, True):
+        flags = ["--expand-options"] if expanded else []
+        result = runner.invoke(app, [*args, "--markdown", *flags])
+        assert result.exit_code == 0, result.output
+        visible = [
+            line.removeprefix("· ").rstrip()
+            for line in result.output.splitlines()
+            if line.startswith("· ")
+        ]
+        assert visible == (q.question_options if expanded else q.question_options[:5])
+        assert ("*61 more choices*" in result.output) == (not expanded)
+        assert "Search returns up to 3 matches." in result.output
+        assert result.output.rstrip() == survey.to_markdown(
+            style="questionnaire", expand_options=expanded
+        )
+    result = runner.invoke(app, [*args, "--expand-options"])
+    assert (
+        result.exit_code == 2
+        and json.loads(result.output)["error"]["code"] == "USAGE_ERROR"
+    )
+
+
+@pytest.mark.parametrize("size,footer", [(5, ""), (6, "*1 more choice*")])
+def test_dropdown_preview_boundary(size, footer):
+    from edsl import QuestionDropdown
+
+    choices = [f"City {i}" for i in range(size)]
+    q = QuestionDropdown("city", "Pick a city.", choices, top_k=1)
+    preview = q.to_markdown()
+    assert "Search returns up to 1 match." in preview
+    assert [line for line in preview.splitlines() if "more choice" in line] == (
+        [footer] if footer else []
+    )
+
+
+def test_fill_in_tables_show_authored_values_and_empty_answers():
+    from edsl import QuestionBudget, QuestionDemand
+
+    budget = QuestionBudget(
+        "allocate",
+        "How would you allocate your time?",
+        ["Sleep", "Study | work"],
+        24,
+        remainder_option="Sleep",
+    )
+    demand = QuestionDemand("demand", "How many at each price?", [0, 1.50])
+    for q, columns, rows in (
+        (budget, ["Item", "Amount"], ["Sleep", r"Study \| work"]),
+        (demand, ["Price", "Quantity"], ["0", "1.5"]),
+    ):
+        md = q.to_markdown()
+        table = [line for line in md.splitlines() if line.startswith("| ")]
+        assert [s.strip() for s in table[0].strip("|").split("|")] == columns
+        assert len(table) == len(rows) + 2
+        for value, row in zip(rows, table[2:]):
+            assert row.startswith(f"| {value} ") and row.rstrip("| ").endswith(value)
+    assert "24 across these items" in budget.to_markdown()
+    assert "Any remainder goes to Sleep." in budget.to_markdown()
+
+
+def test_rank_shows_choices_and_empty_positions():
+    from edsl import QuestionRank
+
+    md = QuestionRank.example().to_markdown()
+    assert "**Choices** — Pizza, Pasta, Salad, Soup" in md
+    assert [line.strip() for line in md.splitlines() if "choice ______" in line] == [
+        "1st choice ______",
+        "2nd choice ______",
+    ]
+    q = QuestionRank("rank", "Rank these.", [str(i) for i in range(22)])
+    md = q.to_markdown()
+    for ordinal in ("3rd", "4th", "11th", "12th", "13th", "21st", "22nd"):
+        assert f"{ordinal} choice ______" in md
+
+
+def test_multiple_choice_write_in_uses_authored_label_once():
+    from edsl import QuestionMultipleChoiceWithOther
+
+    md = QuestionMultipleChoiceWithOther.example().to_markdown()
+    assert md.count("Other (please specify)") == 1
+    assert "○ Other (please specify) ______" in md

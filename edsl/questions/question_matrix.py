@@ -887,7 +887,7 @@ class QuestionMatrix(QuestionBase):
             "comment": "Sample matrix response",
         }
 
-    def _markdown_answer(self, option_notes):
+    def _markdown_answer(self, view):
         return md.matrix(self, "Choose one option per row.")
 
     @property

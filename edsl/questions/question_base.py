@@ -212,7 +212,7 @@ class QuestionBase(
 
     _markdown_hint: str | None = None
 
-    def _markdown_answer(self, option_notes):
+    def _markdown_answer(self, view):
         """Override for response formats that depend on the question's configuration."""
         hint = (
             self._markdown_hint
@@ -227,11 +227,13 @@ class QuestionBase(
         option_notes: dict[int, str] | None = None,
         with_question_names: bool = False,
         with_question_types: bool = False,
+        expand_options: bool = False,
     ) -> str:
         """Render a standalone question or a numbered survey question.
 
         Subclasses can set a static `_markdown_hint` or implement `_markdown_answer`
-        for a structured response. The survey supplies any option-indexed routing notes.
+        for a structured response. Its view supplies option-indexed routing notes
+        and the dropdown expansion setting.
         """
         prefix = f"{number}. " if number is not None else ""
         if with_question_names:
@@ -242,7 +244,8 @@ class QuestionBase(
         heading = "\n\n".join(paragraphs)
         if with_question_types:
             heading += f" ({md.text(self.question_type)})"
-        return heading + "\n\n" + self._markdown_answer(option_notes)
+        view = md.AnswerView(option_notes=option_notes, expand_options=expand_options)
+        return heading + "\n\n" + self._markdown_answer(view)
 
     question_name: str = QuestionNameDescriptor()  # type: ignore[assignment]
     question_text: str = QuestionTextDescriptor()  # type: ignore[assignment]

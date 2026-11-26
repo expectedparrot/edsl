@@ -427,7 +427,7 @@ class QuestionExtract(QuestionBase):
         """
         return dict_to_pydantic_model(self.answer_template)
 
-    def _markdown_answer(self, option_notes):
+    def _markdown_answer(self, view):
         return "Extract the following fields.\n\n" + md.lines(
             f"- {md.text(key)} (e.g. {md.text(value)})"
             for key, value in self.answer_template.items()

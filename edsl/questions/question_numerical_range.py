@@ -104,7 +104,7 @@ class QuestionNumericalRange(QuestionBase):
         first, second = sorted((uniform(lower, upper), uniform(lower, upper)))
         return {"answer": {"min": first, "max": second}}
 
-    def _markdown_answer(self, option_notes):
+    def _markdown_answer(self, view):
         return (
             "Enter a minimum and maximum"
             + md.bounds(self.min_value, self.max_value)

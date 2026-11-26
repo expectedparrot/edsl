@@ -906,7 +906,7 @@ class QuestionCheckBox(QuestionBase):
             }
         return answer
 
-    def _markdown_answer(self, option_notes):
+    def _markdown_answer(self, view):
         if self.probabilistic_response is not None:
             return "Give the inclusion probability for each option.\n\n" + md.options(
                 self, "·"

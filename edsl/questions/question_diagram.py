@@ -119,7 +119,7 @@ class QuestionDiagram(QuestionBase):
             extracted_text="",
         )
 
-    def _markdown_answer(self, option_notes):
+    def _markdown_answer(self, view):
         return f"Generate a diagram ({md.text(self.output_format)})."
 
     @property

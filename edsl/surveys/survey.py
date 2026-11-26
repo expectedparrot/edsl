@@ -5094,11 +5094,13 @@ class Survey(Base):
         style: str = "table",
         with_question_names: bool = False,
         with_question_types: bool = False,
+        expand_options: bool = False,
     ) -> str:
         """Return the question table or a respondent-facing questionnaire with routing.
 
         The default table uses << >> for piping. The questionnaire preserves the
         authored templates, lists response options, and describes routing in survey order.
+        Pass `expand_options=True` to list every dropdown choice in that style.
 
         >>> from edsl import QuestionFreeText, Survey
         >>> survey = Survey([QuestionFreeText(question_name="name", question_text="Your name?")])
@@ -5116,11 +5118,12 @@ class Survey(Base):
                 self,
                 with_question_names=with_question_names,
                 with_question_types=with_question_types,
+                expand_options=expand_options,
             )
         if style != "table":
             raise ValueError("Markdown style must be 'table' or 'questionnaire'.")
-        if with_question_names or with_question_types:
-            raise ValueError("Heading options apply to the questionnaire style.")
+        if with_question_names or with_question_types or expand_options:
+            raise ValueError("Display options apply to the questionnaire style.")
         text = self.table().to_markdown_table()
         # Replace Jinja2 braces with << >> to indicate piping
         text = re.sub(r"\{\{", "<<", text)
