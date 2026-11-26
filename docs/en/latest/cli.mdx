@@ -279,6 +279,35 @@ Question-order blocks contain at least two contiguous, independent questions in 
 
 If validation fails, correct the reported problem before running the object.
 
+## Preview saved objects in Markdown
+
+```bash
+ep inspect agents.ep --markdown --page 2 --page-size 5
+ep inspect scenarios.ep --markdown
+ep inspect models.ep --markdown
+ep inspect job.ep --markdown --page-size 20
+ep inspect results.ep --markdown --page 3 > results-page-3.md
+```
+
+`ep inspect --markdown` starts at page 1 with 10 entries per page. The header shows the
+displayed range and total. It accepts the same packages, JSON files, or remote references
+as `ep inspect`. Local Markdown previews use the saved package contents. Plain
+`ep inspect` returns its JSON summary.
+
+| Object | What one entry contains |
+| --- | --- |
+| AgentList | One agent with its name, stacked trait labels and values, custom instructions, and trait descriptions. |
+| ScenarioList | One scenario. Short records share a table. Long or wide records use stacked fields. |
+| ModelList | One model with its inference service and parameters. |
+| Survey | One question with its original number and routing. Use `ep surveys show survey.ep --markdown --page 2 --page-size 5` to combine paging with the questionnaire display flags. |
+| Jobs | One saved question, agent, scenario, or model, in that order. The header shows component counts. Inspecting does not run the job. |
+| Results | One result with its answers, model, agent, scenario, and iteration. |
+| Collection | One typed object reference. |
+| Prompt or playbook | One line of saved prompt text. |
+
+For example, `agents.to_markdown(page=2, page_size=5)` returns the second page in Python.
+Omit the pagination flags on `ep surveys show survey.ep --markdown` for the full questionnaire.
+
 ## Run with language models
 
 For hosted execution, configure an Expected Parrot account and API key as described in [Managing Keys](/en/latest/api_keys). Check authentication and connectivity:

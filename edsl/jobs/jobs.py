@@ -23,6 +23,7 @@ from typing import (
     TYPE_CHECKING,
 )
 
+from edsl.utilities.object_markdown import MarkdownPreviewMixin
 from ..base import Base
 from ..utilities import remove_edsl_version
 from ..logger import get_logger
@@ -85,7 +86,7 @@ if TYPE_CHECKING:
 VisibilityType = Literal["private", "public", "unlisted"]
 
 
-class Jobs(Base):
+class Jobs(MarkdownPreviewMixin, Base):
     """A collection of agents, scenarios, models, and a survey that orchestrates interviews.
 
     The Jobs class is the central component for running large-scale experiments or simulations

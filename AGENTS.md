@@ -175,6 +175,7 @@ Inspect objects:
 ```bash
 ep inspect survey.ep
 ep inspect jobs.ep
+ep inspect agents.ep --markdown --page 2 --page-size 5
 ep metadata results.ep
 ```
 

@@ -87,6 +87,25 @@ def rule_note(survey, rule):
 
 
 def questionnaire(survey, *, with_question_names, with_question_types, expand_options):
+    items = questionnaire_items(
+        survey,
+        range(len(survey.questions)),
+        with_question_names=with_question_names,
+        with_question_types=with_question_types,
+        expand_options=expand_options,
+    )
+    return ("# " + text(survey.name or "Survey") + "\n\n" + items).rstrip()
+
+
+def questionnaire_items(
+    survey,
+    indices,
+    *,
+    with_question_names=False,
+    with_question_types=False,
+    expand_options=False,
+):
+    """Render a window of questions with numbering and routing from the full survey."""
     rules = survey.rule_collection.non_default_rules
     notes = defaultdict(list)
     option_notes = {}
@@ -99,8 +118,9 @@ def questionnaire(survey, *, with_question_names, with_question_types, expand_op
         for rule in sorted(rules, key=lambda r: (not r.before_rule, -r.priority)):
             notes[rule.current_q].append(rule_note(survey, rule))
 
-    sections = ["# " + text(survey.name or "Survey")]
-    for i, question in enumerate(survey.questions):
+    sections = []
+    for i in indices:
+        question = survey.questions[i]
         sections.append(
             question.to_markdown(
                 number=i + 1,
