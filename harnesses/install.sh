@@ -181,6 +181,32 @@ if result.get("status") != "ok":
     raise SystemExit(1)
 '
 printf '%s\n' "$skill_install"
+if [[ "$harness" == pi ]]; then
+  # Bind the extension to the same ep used for skill installation, including in a new shell.
+  pi_extensions="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/extensions"
+  if [[ "$setup" == project ]]; then pi_extensions="$PWD/.pi/extensions"; fi
+  "$edsl_env/bin/python" -I - "$edsl_cli" "$pi_extensions" <<'PYTHON'
+import json
+import os
+import sys
+from importlib.resources import files
+from pathlib import Path
+from tempfile import NamedTemporaryFile
+
+source = files("edsl").joinpath("harnesses", "pi", "survey-preview.ts")
+if not source.is_file():
+    sys.exit("The installed EDSL package is missing the Pi survey preview extension.")
+target = Path(sys.argv[2]) / "edsl-survey-preview.ts"
+target.parent.mkdir(parents=True, exist_ok=True)
+# Pi discovers this entry point at startup or on /reload.
+with NamedTemporaryFile("w", dir=target.parent, delete=False) as launcher:
+    launcher.write(f"import register from {json.dumps(str(source))};\n")
+    executable = json.dumps(os.path.abspath(sys.argv[1]))
+    launcher.write(f"export default pi => register(pi, {executable});\n")
+os.replace(launcher.name, target)
+print(f"Installed Pi survey preview in {target}")
+PYTHON
+fi
 if [[ "$setup" == user ]]; then
   # Give new shells a stable entry point without replacing an existing command.
   user_bin="$HOME/.local/bin"

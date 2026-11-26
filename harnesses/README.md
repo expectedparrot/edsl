@@ -36,6 +36,8 @@ requires that provider's key, while Expected Parrot account access can be used
 for available models. See [Managing Keys](https://docs.expectedparrot.com/en/latest/api_keys)
 for credential setup. The installer does not configure model-provider keys.
 
+The Pi installer also registers a survey preview tool. Ask Pi to “show me the updated survey” after an edit. Pi passes the saved survey to EDSL and renders the resulting Markdown in the conversation. The preview completes that turn. For a long survey you can ask for a page, for example “show me the first five questions.” If Pi is already running when you install the extension, use `/reload` to load it.
+
 To install and launch Pi from a local checkout:
 
 ```bash
