@@ -1,5 +1,7 @@
 # <img src="static/edsl-wordmark.svg" alt="EDSL" width="180" height="48">
 
+[![PyPI version](https://img.shields.io/pypi/v/edsl)](https://pypi.org/project/edsl/) [![MIT license](https://img.shields.io/badge/License-MIT-blue)](LICENSE) [![Y Combinator F25](https://img.shields.io/badge/Y%20Combinator-F25-ff6600)](https://www.ycombinator.com/companies/expected-parrot)
+
 EDSL is a Python library for surveys and simulations. You describe a study in natural language, and your coding agent uses EDSL to write and run it. The study design lives in code, so you can inspect it, ask the agent to change it, and run it again.
 
 [Full EDSL documentation](https://docs.expectedparrot.com/en/latest/index) · [Academic papers using or citing EDSL](https://docs.expectedparrot.com/en/latest/papers)
