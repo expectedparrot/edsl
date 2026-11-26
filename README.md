@@ -12,10 +12,10 @@ Choose your agent and paste the prompt into its chat. It will set up EDSL and ma
 Paste into Codex:
 
 ```text
-Follow https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for Codex, then make a three-question survey about coffee habits and show me the preview.
+Follow `ep skills show edsl-harness`. If unavailable, follow https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for Codex. Make a three-question survey about coffee habits and show me the preview.
 ```
 
-Need Codex first? Run this in your terminal, then paste the prompt above.
+Need Codex first? Run this in your project terminal. When the agent opens, ask: **Make a three-question survey about coffee habits and show me the preview.**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- codex --launch
@@ -29,10 +29,10 @@ curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harne
 Paste into Claude Code:
 
 ```text
-Follow https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for Claude Code, then make a three-question survey about coffee habits and show me the preview.
+Follow `ep skills show edsl-harness`. If unavailable, follow https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for Claude Code. Make a three-question survey about coffee habits and show me the preview.
 ```
 
-Need Claude Code first? Run this in your terminal, then paste the prompt above.
+Need Claude Code first? Run this in your project terminal. When the agent opens, ask: **Make a three-question survey about coffee habits and show me the preview.**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- claude-code --launch
@@ -46,10 +46,10 @@ curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harne
 Paste into OpenCode:
 
 ```text
-Follow https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for OpenCode, then make a three-question survey about coffee habits and show me the preview.
+Follow `ep skills show edsl-harness`. If unavailable, follow https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for OpenCode. Make a three-question survey about coffee habits and show me the preview.
 ```
 
-Need OpenCode first? Run this in your terminal, then paste the prompt above.
+Need OpenCode first? Run this in your project terminal. When the agent opens, ask: **Make a three-question survey about coffee habits and show me the preview.**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- opencode --launch
@@ -63,10 +63,10 @@ curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harne
 Paste into Pi:
 
 ```text
-Follow https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for Pi, then make a three-question survey about coffee habits and show me the preview.
+Follow `ep skills show edsl-harness`. If unavailable, follow https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for Pi. Make a three-question survey about coffee habits and show me the preview.
 ```
 
-Need Pi first? Run this in your terminal, then paste the prompt above.
+Need Pi first? Run this in your project terminal. When the agent opens, ask: **Make a three-question survey about coffee habits and show me the preview.**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- pi --launch
@@ -80,10 +80,10 @@ curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harne
 Paste into Google Antigravity CLI:
 
 ```text
-Follow https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for Google Antigravity CLI, then make a three-question survey about coffee habits and show me the preview.
+Follow `ep skills show edsl-harness`. If unavailable, follow https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for Google Antigravity CLI. Make a three-question survey about coffee habits and show me the preview.
 ```
 
-Need Google Antigravity CLI first? Run this in your terminal, then paste the prompt above.
+Need Google Antigravity CLI first? Run this in your project terminal. When the agent opens, ask: **Make a three-question survey about coffee habits and show me the preview.**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- antigravity --launch
@@ -97,10 +97,10 @@ curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harne
 Paste into Vercel fx:
 
 ```text
-Follow https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for Vercel fx, then make a three-question survey about coffee habits and show me the preview.
+Follow `ep skills show edsl-harness`. If unavailable, follow https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for Vercel fx. Make a three-question survey about coffee habits and show me the preview.
 ```
 
-Need Vercel fx first? Run this in your terminal, then paste the prompt above.
+Need Vercel fx first? Run this in your project terminal. When the agent opens, ask: **Make a three-question survey about coffee habits and show me the preview.**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- fx --launch

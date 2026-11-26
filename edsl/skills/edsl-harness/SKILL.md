@@ -11,23 +11,11 @@ Expected Parrot research package.
 
 ## Find the right EDSL guidance
 
-Use the `ep` executable from the active EDSL environment. If it is unavailable,
-try `python -m edsl` in that environment. Check the installed version and the
-skill catalog before relying on remembered APIs. Use the EDSL CLI as the
-canonical way to discover and retrieve skill content:
-
-```bash
-ep info
-ep skills list --routing
-ep skills search "<task topic>" --snippets
-ep skills show <skill-name>
-```
-
-These commands return JSON. Parse stdout as JSON and inspect `status`, `data`,
-and `warnings`. Search for the concrete task, then retrieve only the matching
-skill with `ep skills show <skill-name>`. Its `data.files` contain the skill
-Markdown and bundled references. Fetch an individual reference with
-`ep skills show <skill-name> --reference <relative-path>`.
+Use the installed `ep` CLI. For a simple survey, start with
+`ep skills show edsl-surveys --reference SKILL.md`. When the right skill is
+unclear, use `ep skills search "<task topic>" --snippets` and retrieve the
+matching skill's `SKILL.md`. Read additional references by relative path
+when the task calls for them. Parse the JSON status, data, and warnings.
 
 Do not locate skill files by resolving `edsl.__file__` or constructing paths
 under `site-packages`. Those paths are package internals and can bypass the

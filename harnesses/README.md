@@ -8,28 +8,22 @@ CLI.
 
 ## When someone pastes the README prompt into a running agent
 
-1. Set up EDSL in the user's project. Use its Python environment, or create one with Python 3.10–3.13. Install or update the build that includes the harness skill using the environment's interpreter:
+Start with `ep skills show edsl-harness`. If it returns `status: ok`, use the guidance in that response and proceed to the user's task. After a terminal install, the launched agent already has the skill and the matching `ep` on its path.
 
-   ```bash
-   python -m pip install --upgrade 'edsl @ git+https://github.com/expectedparrot/edsl.git@feat/edsl-harness-guidance'
-   ```
+If the command or skill is missing, install into a dedicated environment in the project. With uv:
 
-   With uv, use `uv pip install --python /path/to/environment/bin/python --upgrade` with the same package argument.
+```bash
+uv venv --python 3.12 .edsl-venv
+uv pip install --python .edsl-venv/bin/python 'edsl @ git+https://github.com/expectedparrot/edsl.git@feat/edsl-harness-guidance'
+```
 
-2. Find the named agent in the skill directory table below. Run `ep skills install --target <directory> --skill edsl-harness` with that directory expanded to its full path. Then run `ep skills show edsl-harness` and follow the guidance in this session. Use the same environment for each command.
-3. Create the survey the user asked for and save it as a local `.ep` package. Render it with `ep open survey.ep --output survey.html --no-browser` (substitute the actual filenames) and give the user a link to the HTML file. Creating this preview requires no Expected Parrot login or model-provider key. When the user asks for cloud work, check `ep auth status` and use `ep auth login` if a key is missing.
+Reuse `.edsl-venv` if it exists. Without uv, create it with `python3 -m venv .edsl-venv` using Python 3.10–3.13, then install the same package with `.edsl-venv/bin/python -m pip install`. Use `.edsl-venv/bin/ep` for subsequent commands, including `skills show edsl-harness`. That response supplies the skill for the current session. To make it available in future sessions, use `skills install --target <directory> --skill edsl-harness` with the named agent's directory from the table below.
+
+For the coffee survey, create the three questions, save a Survey package, and render it with `ep open survey.ep --output survey.html --no-browser`. Link the user to the HTML preview. This task runs locally.
 
 ## Installing the agent from a terminal
 
-Run the bootstrap script from the project directory. It installs the selected harness if missing, installs EDSL from the
-current branch into the active Python environment (using uv when available,
-otherwise pip), checks Expected Parrot authentication, and installs the
-`edsl-harness` skill in that harness's user skill directory. Add `--launch` to
-start the harness in the current directory after setup. Activate the Python
-environment where EDSL should be installed first. uv installs into the
-interpreter selected by `python3`. The bootstrap script supports macOS, Linux,
-and WSL. On native Windows, install the harness from its official guide first,
-then run the EDSL and skill setup steps in that environment.
+From the project directory, the installer sets up the selected agent, EDSL, and its routing skill. It uses the active virtual environment or creates `.edsl-venv` in the project. With `--launch`, the agent inherits that environment and can start directly on the survey. The script supports macOS, Linux, and WSL.
 
 The installer authenticates EDSL with Expected Parrot when needed. This is
 separate from model-provider credentials: direct inference with a provider
@@ -37,20 +31,7 @@ requires that provider's key, while Expected Parrot account access can be used
 for available models. See [Managing Keys](https://docs.expectedparrot.com/en/latest/api_keys)
 for credential setup. The installer does not configure model-provider keys.
 
-After installation, verify the CLI and skill catalog in the activated
-environment, then restart the harness to load the new skill:
-
-```bash
-ep info
-ep auth status
-ep skills list --routing
-ep skills search "survey" --snippets
-```
-
-To confirm the harness is using dynamic skill discovery, ask it to use
-`edsl-harness` for an EDSL survey task, find the relevant task skill through
-`ep skills`, and summarize the guidance. It should use the CLI catalog rather
-than inspect Python package installation paths.
+To install and launch Pi from a local checkout:
 
 ```bash
 bash harnesses/install.sh pi --launch

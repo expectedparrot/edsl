@@ -10,7 +10,7 @@ Usage: bash harnesses/install.sh <harness> [--launch]
 
 Harnesses: codex, claude-code, opencode, pi, antigravity, fx
 
-Activate the Python environment you want EDSL installed into before running.
+Uses the active virtual environment or a .edsl-venv in the current project.
 USAGE
 }
 
@@ -87,35 +87,36 @@ if ! command -v "$command_name" >/dev/null 2>&1; then
   export PATH="$HOME/.local/bin:$HOME/.bun/bin:$HOME/.cargo/bin:$PATH"
 fi
 
-if ! command -v python3 >/dev/null 2>&1; then
-  printf 'python3 is required. Install Python 3.10–3.13, activate the environment, and rerun this script.\n' >&2
-  exit 1
+edsl_env=${VIRTUAL_ENV:-"$PWD/.edsl-venv"}
+if [[ ! -x "$edsl_env/bin/python" ]]; then
+  if command -v uv >/dev/null 2>&1; then
+    uv venv --python 3.12 "$edsl_env"
+  else
+    python3 -m venv "$edsl_env"
+  fi
 fi
+export VIRTUAL_ENV="$edsl_env"
+export PATH="$edsl_env/bin:$PATH"
 
 printf 'Installing EDSL from feat/edsl-harness-guidance...\n'
-python3_path=$(command -v python3)
 edsl_requirement='edsl @ git+https://github.com/expectedparrot/edsl.git@feat/edsl-harness-guidance'
 if command -v uv >/dev/null 2>&1; then
-  printf 'Using uv for the package install.\n'
-  uv pip install --python "$python3_path" --upgrade "$edsl_requirement"
+  uv pip install --python "$edsl_env/bin/python" --upgrade "$edsl_requirement"
 else
-  printf 'uv is not installed; using pip.\n'
-  "$python3_path" -m pip install --upgrade "$edsl_requirement"
+  "$edsl_env/bin/python" -m pip install --upgrade "$edsl_requirement"
 fi
 
-run_ep() {
-  python3 -m edsl "$@"
-}
-
+# The console script imports the installed package even inside another EDSL checkout.
+edsl_cli="$edsl_env/bin/ep"
 printf 'Checking Expected Parrot authentication...\n'
-if auth_status=$(run_ep auth status); then
+if auth_status=$("$edsl_cli" auth status); then
   :
 else
   printf '%s\n' "$auth_status" >&2
   printf 'Could not check Expected Parrot authentication.\n' >&2
   exit 1
 fi
-if printf '%s' "$auth_status" | python3 -c '
+if printf '%s' "$auth_status" | "$edsl_env/bin/python" -c '
 import json, sys
 try:
     result = json.load(sys.stdin)
@@ -133,18 +134,18 @@ else
     exit 1
   fi
   printf 'No Expected Parrot key is configured. Starting browser login...\n'
-  run_ep auth login
+  "$edsl_cli" auth login
 fi
 
 printf 'Installing edsl-harness for %s...\n' "$harness"
-if skill_install=$(run_ep skills install --target "$skill_dir" --skill edsl-harness); then
+if skill_install=$("$edsl_cli" skills install --target "$skill_dir" --skill edsl-harness); then
   :
 else
   printf '%s\n' "$skill_install" >&2
   printf 'Could not install edsl-harness.\n' >&2
   exit 1
 fi
-printf '%s' "$skill_install" | python3 -c '
+printf '%s' "$skill_install" | "$edsl_env/bin/python" -c '
 import json, sys
 try:
     result = json.load(sys.stdin)
@@ -156,12 +157,11 @@ if result.get("status") != "ok":
     raise SystemExit(1)
 '
 printf '%s\n' "$skill_install"
+printf 'First prompt: Make a three-question survey about coffee habits and show me the preview.\n'
 if [[ "$launch" == true ]]; then
-  if [[ ! -r /dev/tty ]]; then
-    printf 'Setup complete. No terminal is available to launch %s. Start it from a terminal in %s.\n' "$command_name" "$PWD"
-    exit 0
+  if (: </dev/tty) 2>/dev/null; then
+    printf 'Setup complete. Launching %s in %s...\n' "$command_name" "$PWD"
+    exec "$command_name" < /dev/tty
   fi
-  printf 'Setup complete. Launching %s in %s...\n' "$command_name" "$PWD"
-  exec "$command_name" < /dev/tty
 fi
-printf 'Setup complete. Start %s in your project when ready.\n' "$command_name"
+printf 'To start from this environment: PATH=%q:"$PATH" %q\n' "$edsl_env/bin" "$command_name"
