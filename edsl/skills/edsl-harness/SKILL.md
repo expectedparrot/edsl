@@ -13,7 +13,8 @@ Expected Parrot research package.
 
 Use the `ep` executable from the active EDSL environment. If it is unavailable,
 try `python -m edsl` in that environment. Check the installed version and the
-skill catalog before relying on remembered APIs:
+skill catalog before relying on remembered APIs. Use the EDSL CLI as the
+canonical way to discover and retrieve skill content:
 
 ```bash
 ep info
@@ -23,10 +24,17 @@ ep skills show <skill-name>
 ```
 
 These commands return JSON. Parse stdout as JSON and inspect `status`, `data`,
-and `warnings`. Search for the concrete task, then load only the matching skill
-and any references it links. The installed package's skills match its EDSL
-version. If a relevant skill is missing, check the installed version and use
-that version's CLI help and documentation rather than guessing command flags.
+and `warnings`. Search for the concrete task, then retrieve only the matching
+skill with `ep skills show <skill-name>`. Its `data.files` contain the skill
+Markdown and bundled references. Fetch an individual reference with
+`ep skills show <skill-name> --reference <relative-path>`.
+
+Do not locate skill files by resolving `edsl.__file__` or constructing paths
+under `site-packages`. Those paths are package internals and can bypass the
+catalog for the active `ep` environment. The CLI returns the skills bundled
+with that installed EDSL version. If a relevant skill is missing, check the
+installed version and use that version's CLI help and documentation rather
+than guessing command flags.
 
 For durable EDSL objects and source conventions, use `edsl:edsl-study-files`.
 For question construction, use `edsl:edsl-surveys`; for a CLI or API edge case,
