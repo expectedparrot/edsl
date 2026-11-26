@@ -110,6 +110,24 @@ curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harne
 
 The installer sets up EDSL once for use across your projects. [Setup options](harnesses/README.md#installing-the-agent-from-a-terminal)
 
+## Build and Edit Surveys
+
+Ask your coding agent to make a coffee survey, then tell it to skip the brew question for people who don’t drink coffee. The updated questionnaire shows exactly where a “No” answer leads.
+
+![Pi builds a three-question coffee survey and previews the skip rule beside the No answer and the brew question.](videos/gifs/build-and-edit.gif)
+
+## Run with LLM-Simulated Personas
+
+One Expected Parrot API key gives you access to models from OpenAI, Anthropic, and Google through hosted inference. Here, each model answers the same survey as a night-shift nurse, a barista, and a tea drinker. Compare all nine interviews in one results table.
+
+![Pi creates three fictional personas and compares their coffee survey answers across three model providers.](videos/gifs/simulated-personas.gif)
+
+## Collect Responses from Real People
+
+Send the same survey to people by link or email invitation. This demo follows one test response from the browser form to the answers saved in EDSL Results.
+
+![Pi creates a respondent link, a browser submits the coffee survey, and Pi retrieves the three answers.](videos/gifs/human-responses.gif)
+
 ## Key features
 
 | Feature | What you can do |

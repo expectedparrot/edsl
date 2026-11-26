@@ -1,0 +1,2 @@
+Give this coffee survey three fictional respondents: a night-shift nurse, a specialty barista, and a tea drinker who avoids coffee. Show me their personas.
+Have one frontier model each from OpenAI, Anthropic, and Google take the survey as all three people. Show me the nine results.
