@@ -1,4 +1,4 @@
-# EDSL <img src="static/logo.png" alt="" width="48">
+# EDSL <img src="static/logo.png" alt="" width="64">
 
 EDSL is a Python library for creating surveys for people and AI models. You can ask several models the same questions and compare their answers in a dataset. You can send the same survey to people by sharing a URL or emailing them an invitation. You can also set up an AI interviewer to ask participants questions and follow up on their answers.
 
