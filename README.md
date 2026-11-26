@@ -134,15 +134,31 @@ Send the same survey to people by link or email invitation. This demo follows on
 
 ## Key features
 
-| Feature | What you can do |
+| What you want to do | What EDSL lets you do |
 | --- | --- |
-| Question types | Ask respondents to choose one or more options, rate items in a matrix, rank choices, allocate a budget, or enter a number or free-text answer. [Question catalog](https://docs.expectedparrot.com/en/latest/questions) |
-| Survey logic | Branch or stop based on an answer, pipe it into a later question, or repeat a group of follow-ups for each item a respondent lists. [Survey logic guide](https://docs.expectedparrot.com/en/latest/guides/survey_logic) |
-| Model access | Use one Expected Parrot API key to access hundreds of AI models, or use your own provider keys. |
-| Model comparison | Give several models the same survey and compare answers by model, scenario, or simulated persona. |
-| Human surveys | Share a survey by URL or send email invitations and collect responses. |
-| AI interviews | Give an AI interviewer a research question and let it ask participants follow-up questions. |
-| Data labeling | Apply the same questions to each document, image, or row in a dataset. |
-| Results | Filter answers, export them to CSV, and reuse cached model responses when repeating an analysis. |
+| Design a questionnaire | Mix rankings, matrices, budget allocations, scales, and open text. Branch on an answer, quote it in a later question, or ask a follow-up about each item someone lists. [Question catalog](https://docs.expectedparrot.com/en/latest/questions) · [Survey logic](https://docs.expectedparrot.com/en/latest/guides/survey_logic) |
+| Run a controlled experiment | Cross two versions of a message with the same personas and models. Compare ratings by wording, respondent profile, and model while holding the other inputs fixed. [Experimental conditions](https://docs.expectedparrot.com/en/latest/guides/experimental_conditions) |
+| Compare AI models | Ask hundreds of models the same questions with one Expected Parrot key, use your own provider keys, or connect a local model server. Compare which records the models disagree on. [Model access](https://docs.expectedparrot.com/en/latest/api_keys) · [Model comparisons](https://docs.expectedparrot.com/en/latest/guides/model_comparisons) |
+| Field the same study with people | Send a URL or email invitations, or recruit through Prolific with eligibility filters and a cost estimate. Retrieve responses for analysis alongside the simulations. [Human studies](https://docs.expectedparrot.com/en/latest/guides/human_studies) · [Prolific](https://docs.expectedparrot.com/en/latest/prolific) |
+| Conduct qualitative interviews | Put an AI-led interview next to a rating question. Have the interviewer probe the reason for the rating and retain the conversation transcript with the structured answers. [Interview guide](https://docs.expectedparrot.com/en/latest/guides/human_interviews) |
+| Label data and check agreement | Apply a codebook to documents, images, or spreadsheet rows. Give people the same labeling task, match answers by record ID, and inspect where people and models disagree. [Data labeling](https://docs.expectedparrot.com/en/latest/guides/data_labeling) · [Human validation](https://docs.expectedparrot.com/en/latest/research/human_validation) |
+| Trace and analyze answers | Inspect the prompt, model, persona, and scenario behind an answer. Query results with SQL, take selected columns into pandas, or export a CSV. [Results guide](https://docs.expectedparrot.com/en/latest/results) |
+| Rerun and share a study | Reuse cached model responses, save the survey and its inputs as a job, and share it so a collaborator can rerun the same design. [Caching](https://docs.expectedparrot.com/en/latest/cache) · [Saving and sharing](https://docs.expectedparrot.com/en/latest/guides/saving_objects) |
+
+<details>
+<summary>More study designs and tools</summary>
+
+| What you want to do | What EDSL lets you do |
+| --- | --- |
+| Test for order effects | In simulated interviews, shuffle choices while keeping “Other” last, reverse a rating scale, or draw questions from a pool. The results record what each interview received. [Randomization guide](https://docs.expectedparrot.com/en/latest/surveys) |
+| Pilot an instrument | Ask models to flag ambiguous wording before fielding a survey, or try two labeling instructions on identical records and see which answers change. [Survey pretesting](https://docs.expectedparrot.com/en/latest/research/pretesting) · [Prompt sensitivity](https://docs.expectedparrot.com/en/latest/research/prompt_sensitivity) |
+| Elicit population forecasts | Turn a questionnaire into a meta-survey. Describe a population and ask models to predict the share that would choose each option, then compare those forecasts with observed responses. [Meta-surveys](https://docs.expectedparrot.com/en/latest/meta_surveys) |
+| Score many items against a rubric | Batch choice and rating questions about the same material with a supported judgment model. Inspect the probability it assigned to each option alongside its selected answer. [Evaluations](https://docs.expectedparrot.com/en/latest/evaluations) |
+| Study how models use tools | Give a supported model web search in a direct provider run. Inspect the search events and citations returned by the provider alongside the answer. [Provider tools](https://docs.expectedparrot.com/en/latest/language_models#provider-tools) |
+| Manage larger runs | Estimate cost before launching, submit a background job, close the notebook, and retrieve the results when it finishes. [Costs](https://docs.expectedparrot.com/en/latest/costs) · [Background jobs](https://docs.expectedparrot.com/en/latest/guides/background_jobs) |
+| Coordinate participants across stages *(experimental)* | Have several participants propose ideas independently, then give a reviewer their proposals to choose from. Assign steps to people, models, or scripted respondents. [Respondent workflows](https://docs.expectedparrot.com/en/latest/workflows) |
+| Simulate markets or enforce quotas *(experimental)* | Let interviews read and update shared state. Reserve the last place in a survey group or collect bids and determine who wins a second-price auction. [Survey quotas](https://docs.expectedparrot.com/en/latest/shared-state/survey-quotas) · [Auction example](https://docs.expectedparrot.com/en/latest/shared-state/second-price-auction) |
+
+</details>
 
 For Python setup and a worked example, see the [installation guide](https://docs.expectedparrot.com/en/latest/installation) and [first survey tutorial](https://docs.expectedparrot.com/en/latest/starter_tutorial).
