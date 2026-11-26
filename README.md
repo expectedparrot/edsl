@@ -110,7 +110,7 @@ curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harne
 
 The installer sets up EDSL once for use across your projects. [Setup options](harnesses/README.md#installing-the-agent-from-a-terminal)
 
-![Pi creates a coffee survey, adds a skip rule, and displays the saved survey as Markdown. The No option points to question 3.](docs/assets/demos/edsl-agent-demo.gif)
+![Pi creates a coffee survey and adds a skip rule. The terminal shows the full Markdown from the saved survey, including “No → Go to question 3.”](docs/assets/demos/edsl-agent-demo.gif)
 
 [Watch the Pi terminal recording with playback controls (MP4)](docs/assets/demos/pi-survey-markdown.mp4)
 
