@@ -1,6 +1,8 @@
 # <img src="static/edsl-wordmark.svg" alt="EDSL" width="180" height="48">
 
-[![PyPI version](https://img.shields.io/pypi/v/edsl)](https://pypi.org/project/edsl/) [![MIT license](https://img.shields.io/badge/License-MIT-blue)](LICENSE) [![Y Combinator F25](https://img.shields.io/badge/Y%20Combinator-F25-ff6600)](https://www.ycombinator.com/companies/expected-parrot) [![Expected Parrot cache entry count](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fwww.expectedparrot.com%2Fapi%2Fremote-cache%2Fpublic-stats&query=%24.total_entries&label=EP+cache+entries&color=brightgreen)](https://www.expectedparrot.com/cache-stats)
+[![PyPI version](https://img.shields.io/pypi/v/edsl)](https://pypi.org/project/edsl/) [![MIT license](https://img.shields.io/badge/License-MIT-blue)](LICENSE) [![Y Combinator F25](https://img.shields.io/badge/Y%20Combinator-F25-ff6600)](https://www.ycombinator.com/companies/expected-parrot) [![Expected Parrot cache entry count](https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fwww.expectedparrot.com%2Fapi%2Fremote-cache%2Fpublic-stats&search=%22total_entries%22%5Cs%2A%3A%5Cs%2A%28%5Cd%7B1%2C3%7D%29%28%5Cd%7B3%7D%29%28%5Cd%7B3%7D%29%5Cb&replace=%241%2C%242%2C%243&label=EP+cache+entries&color=brightgreen)](https://www.expectedparrot.com/cache-stats)
+
+<!-- The cache badge groups 7–9 digits until expectedparrot/coopr#4586 deploys /api/remote-cache/badge.json with server-side number formatting. -->
 
 EDSL is a Python library for surveys and simulations. You describe a study in natural language, and your coding agent uses EDSL to write and run it. The study design lives in code, so you can inspect it, ask the agent to change it, and run it again.
 
