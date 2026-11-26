@@ -5,6 +5,7 @@ import re
 
 from pydantic import BaseModel, Field, model_validator, ValidationError, ConfigDict
 
+from . import markdown_layout as md
 from .question_base import QuestionBase
 from .descriptors import (
     QuestionOptionsDescriptor,
@@ -558,6 +559,14 @@ class QuestionRank(QuestionBase):
             "comment": random_string(),
         }
         return answer
+
+    def _markdown_answer(self, view):
+        count = self.num_selections
+        choices = f"**Choices** — {md.option_list(self.question_options)}"
+        if count is None:
+            return f"Rank all options in order of preference.\n\n{choices}"
+        slots = md.lines(f"{md.ordinal(i)} choice ______" for i in range(1, count + 1))
+        return f"Rank {count} in order of preference.\n\n{choices}\n\n{slots}"
 
     @property
     def question_html_content(self) -> str:

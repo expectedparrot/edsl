@@ -4,6 +4,7 @@ from typing import Union, Literal, Optional, List, Any
 from jinja2 import Template
 from pydantic import BaseModel, Field
 
+from . import markdown_layout as md
 from .question_base import QuestionBase
 from .descriptors import QuestionOptionsDescriptor, OtherOptionTextDescriptor
 from .decorators import inject_exception
@@ -333,6 +334,7 @@ class QuestionMultipleChoiceWithOther(QuestionBase):
     """
 
     question_type = "multiple_choice_with_other"
+    _markdown_answer = md.single_choice
     purpose = "When options are known but you want to allow for custom responses"
     question_options = QuestionOptionsDescriptor()
     other_option_text = OtherOptionTextDescriptor()

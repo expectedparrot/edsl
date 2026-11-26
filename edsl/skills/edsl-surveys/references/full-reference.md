@@ -96,6 +96,7 @@ Question.available()  # list all available types
 | `QuestionList` | List of items | `max_list_items` (see `loop_over` for per-item follow-ups) |
 | `QuestionRank` | Ordering | `question_options`, `num_selections` |
 | `QuestionMatrix` | Grid/table | `question_items`, `question_options` |
+| `QuestionCheckboxMatrix` | Multiple selections in each grid row | `question_items`, `question_options`, `min_selections`, `max_selections` |
 | `QuestionBudget` | Budget allocation | `question_options`, `budget_sum` |
 | `QuestionDemand` | Quantity demanded at each price | `prices` |
 | `QuestionDistribution` | Probability over outcomes or numeric intervals | `question_options`, `bins`, or `min_value`/`max_value`/`bucket_size` |

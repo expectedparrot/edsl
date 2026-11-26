@@ -5,6 +5,7 @@ from jinja2 import Template
 from pydantic import BaseModel, Field
 from ..utilities.bm25 import BM25Okapi
 
+from . import markdown_layout as md
 from .question_base import QuestionBase
 from .descriptors import QuestionOptionsDescriptor
 from .decorators import inject_exception
@@ -565,6 +566,20 @@ class QuestionDropdown(QuestionBase):
                 )
         else:
             return answer_codes
+
+    def _markdown_answer(self, view):
+        unit = "match" if self.top_k == 1 else "matches"
+        instruction = f"Search returns up to {self.top_k} {unit}."
+        choices = self.question_options
+        if not isinstance(choices, list):
+            return f"{instruction}\n\nOptions from {md.option_list(choices)}"
+        visible = choices if view.expand_options else choices[:5]
+        entries = [f"· {md.text(value)}" for value in visible]
+        remaining = len(choices) - len(visible)
+        if remaining:
+            noun = "choice" if remaining == 1 else "choices"
+            entries.append(f"*{remaining} more {noun}*")
+        return instruction + "\n\n" + md.lines(entries)
 
     @property
     def question_html_content(self) -> str:

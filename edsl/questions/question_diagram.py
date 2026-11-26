@@ -6,6 +6,7 @@ from uuid import uuid4
 from pydantic import BaseModel, field_validator
 
 from .decorators import inject_exception
+from . import markdown_layout as md
 from .question_base import QuestionBase
 from .response_validator_abc import ResponseValidatorABC
 
@@ -117,6 +118,9 @@ class QuestionDiagram(QuestionBase):
             mime_type=mime_type,
             extracted_text="",
         )
+
+    def _markdown_answer(self, view):
+        return f"Generate a diagram ({md.text(self.output_format)})."
 
     @property
     def question_html_content(self) -> str:

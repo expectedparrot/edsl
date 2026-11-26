@@ -41,6 +41,7 @@ class SurveyMessage(QuestionBase):
     """
 
     question_type = "survey_message"
+    _markdown_hint = "Continue without answering"
     _response_model = SurveyMessageResponse
     response_validator_class = SurveyMessageResponseValidator
 

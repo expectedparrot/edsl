@@ -2543,7 +2543,6 @@ class Survey(Base):
             new_survey._validate_question_sampling(self._question_sampling)
             new_survey._question_sampling = copy.deepcopy(self._question_sampling)
 
-
     @property
     def question_order(self) -> dict:
         """Return the versioned random question-order plan."""
@@ -5089,14 +5088,42 @@ class Survey(Base):
             include_question_name=include_question_name,
         )
 
-    def to_markdown(self) -> str:
-        """Generate a markdown string representation of the survey.
+    def to_markdown(
+        self,
+        *,
+        style: str = "table",
+        with_question_names: bool = False,
+        with_question_types: bool = False,
+        expand_options: bool = False,
+    ) -> str:
+        """Return the question table or a respondent-facing questionnaire with routing.
 
-        Converts Jinja2 braces ({{ }}) to << >> to indicate piping.
+        The default table uses << >> for piping. The questionnaire preserves the
+        authored templates, lists response options, and describes routing in survey order.
+        Pass `expand_options=True` to list every dropdown choice in that style.
 
-        Returns:
-            str: Markdown formatted string representation of the survey.
+        >>> from edsl import QuestionFreeText, Survey
+        >>> survey = Survey([QuestionFreeText(question_name="name", question_text="Your name?")])
+        >>> print(survey.to_markdown(style="questionnaire"))
+        # Survey
+        <BLANKLINE>
+        **1. “Your name?”**
+        <BLANKLINE>
+        *Free-text response*
         """
+        if style == "questionnaire":
+            from .survey_markdown import questionnaire
+
+            return questionnaire(
+                self,
+                with_question_names=with_question_names,
+                with_question_types=with_question_types,
+                expand_options=expand_options,
+            )
+        if style != "table":
+            raise ValueError("Markdown style must be 'table' or 'questionnaire'.")
+        if with_question_names or with_question_types or expand_options:
+            raise ValueError("Display options apply to the questionnaire style.")
         text = self.table().to_markdown_table()
         # Replace Jinja2 braces with << >> to indicate piping
         text = re.sub(r"\{\{", "<<", text)

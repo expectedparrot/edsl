@@ -19,6 +19,7 @@ import ast
 import json
 import re
 
+from . import markdown_layout as md
 from .question_base import QuestionBase
 from .descriptors import (
     AnswerKeysDescriptor,
@@ -836,6 +837,17 @@ class QuestionDict(QuestionBase):
     def _simulate_answer(self) -> dict:
         """Simulate an answer for the question."""
         return {"answer": self._get_default_answer(), "comment": None}
+
+    def _markdown_answer(self, view):
+        fields = []
+        for i, key in enumerate(self.answer_keys):
+            field = f"- {md.text(key)}"
+            if self.value_types:
+                field += f" ({md.text(self.value_types[i])})"
+            if self.value_descriptions:
+                field += f" — {md.text(self.value_descriptions[i])}"
+            fields.append(field)
+        return md.lines(fields)
 
 
 if __name__ == "__main__":

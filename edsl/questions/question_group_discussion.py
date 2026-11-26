@@ -38,6 +38,7 @@ from uuid import uuid4
 from pydantic import BaseModel, field_validator
 
 from .decorators import inject_exception
+from . import markdown_layout as md
 from .question_base import QuestionBase
 from .response_validator_abc import ResponseValidatorABC
 
@@ -508,6 +509,10 @@ class QuestionGroupDiscussion(QuestionBase):
                 )
                 rnd += 1
         return {"answer": transcript, "generated_tokens": None}
+
+    def _markdown_answer(self, view):
+        names = ", ".join(md.text(p["name"]) for p in self.participants)
+        return f"Group discussion with {names} (up to {self.max_rounds} rounds)."
 
     @property
     def question_html_content(self) -> str:

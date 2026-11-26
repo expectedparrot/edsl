@@ -82,6 +82,7 @@ _EXPORT_TO_MODULE = {
     "QuestionMultipleChoice": "questions",
     "ProbabilisticResponse": "questions",
     "QuestionCheckBox": "questions",
+    "QuestionCheckboxMatrix": "questions",
     "QuestionDate": "questions",
     "QuestionDateTime": "questions",
     "QuestionLinearScale": "questions",

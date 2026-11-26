@@ -40,6 +40,7 @@ from typing import (
     Callable,
 )
 
+from edsl.utilities.object_markdown import MarkdownPreviewMixin
 from ..base import DiffMethodsMixin
 
 from .exceptions import LanguageModelValueError
@@ -151,6 +152,7 @@ class classproperty:
 
 
 class LanguageModel(
+    MarkdownPreviewMixin,
     PersistenceMixin,
     RepresentationMixin,
     HashingMixin,
