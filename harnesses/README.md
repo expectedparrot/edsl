@@ -64,6 +64,11 @@ linked setup guide if the target does not discover the skill.
 | Vercel fx | `fx` | `~/.fx/skills` | [EP Agent fx guide](https://github.com/expectedparrot/ep-ra/tree/main/harnesses/fx) |
 | Meta Muse Code | `muse` | `~/.agents/skills` | [Muse Code](https://dev.meta.ai/products/muse-code) · [Skill discovery](https://dev.meta.ai/docs/muse-code/extending) |
 | Mistral Vibe | `vibe` | `~/.agents/skills` | [Vibe setup](https://docs.mistral.ai/vibe/code/cli) · [Skill discovery](https://docs.mistral.ai/vibe/code/cli/skills) |
+| GitHub Copilot CLI | `copilot` | `~/.agents/skills` | [Copilot CLI skills](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-skills) |
+| Cursor | `cursor` | `~/.cursor/skills` | [Cursor skills](https://cursor.com/docs/skills) |
+| Amp | `amp` | `~/.agents/skills` | [Amp skills](https://ampcode.com/docs/customize/skills) |
+| Kiro CLI | `kiro` | `~/.kiro/skills` | [Kiro skills](https://kiro.dev/docs/cli/skills/) |
+| Cline | `cline` | `~/.cline/skills` | [Cline skills](https://docs.cline.bot/customization/skills) |
 
 Muse Code and Vibe also discover project skills in `.agents/skills` after you trust the project directory.
 
@@ -73,6 +78,50 @@ If the harness accepts project instructions, add a short pointer such as:
 > EDSL version's relevant skills and package guidance.
 
 With router setup, rerun the installer to refresh the routing skill. With fx, a linked skill outside its trusted directories may require configuring a skill symlink authority. See the [fx troubleshooting guide](https://fx.sh/docs/using-fx/troubleshooting).
+
+## Amp, Kiro CLI, and Cline
+
+### Amp
+
+Paste into Amp:
+
+```text
+Run `ep skills show edsl-harness` and follow its guidance. If the command or skill is missing, use https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for Amp.
+```
+
+To install and launch from your terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- amp --launch
+```
+
+### Kiro CLI
+
+Paste into Kiro CLI:
+
+```text
+Run `ep skills show edsl-harness` and follow its guidance. If the command or skill is missing, use https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for Kiro CLI.
+```
+
+To install and launch from your terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- kiro --launch
+```
+
+### Cline
+
+Paste into Cline:
+
+```text
+Run `ep skills show edsl-harness` and follow its guidance. If the command or skill is missing, use https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for Cline.
+```
+
+To install and launch from your terminal, with npm installed:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- cline --launch
+```
 
 ## Project layout
 

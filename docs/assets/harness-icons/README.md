@@ -10,6 +10,8 @@ endorsement statements.
 - `antigravity.png`: Google Antigravity icon from [Google Developers](https://developers.google.com/static/focus/images/antigravity-icon_1440.png), resized to 64 pixels.
 - `vercel-fx.svg`: Vercel mark from [Simple Icons 15.15.0](https://github.com/simple-icons/simple-icons/blob/15.15.0/icons/vercel.svg), used to identify fx.
 - `meta.svg` and `mistralai.svg`: [Meta](https://github.com/simple-icons/simple-icons/blob/15.15.0/icons/meta.svg) and [Mistral AI](https://github.com/simple-icons/simple-icons/blob/15.15.0/icons/mistralai.svg) marks from Simple Icons 15.15.0.
+- `githubcopilot.svg`: [GitHub Copilot mark from Simple Icons 15.15.0](https://github.com/simple-icons/simple-icons/blob/15.15.0/icons/githubcopilot.svg).
+- `cursor.svg`: [Cursor favicon](https://cursor.com/favicon.svg).
 
 Simple Icons assets are CC0. Other marks remain the property of their
 respective owners.

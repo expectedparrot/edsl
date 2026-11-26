@@ -47,6 +47,40 @@ curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harne
 </details>
 
 <details>
+<summary><img src="docs/assets/harness-icons/githubcopilot.svg" width="22" height="22" alt=""> GitHub Copilot CLI</summary>
+
+Paste into GitHub Copilot CLI:
+
+```text
+Run `ep skills show edsl-harness` and follow its guidance. If the command or skill is missing, use https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for GitHub Copilot CLI.
+```
+
+Need GitHub Copilot CLI first? Run this in your project terminal.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- copilot --launch
+```
+
+</details>
+
+<details>
+<summary><img src="docs/assets/harness-icons/cursor.svg" width="22" height="22" alt=""> Cursor</summary>
+
+Paste into Cursor:
+
+```text
+Run `ep skills show edsl-harness` and follow its guidance. If the command or skill is missing, use https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for Cursor.
+```
+
+To install and launch Cursor Agent in your terminal, run this command.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- cursor --launch
+```
+
+</details>
+
+<details>
 <summary><img src="docs/assets/harness-icons/opencode.svg" width="22" height="22" alt=""> OpenCode</summary>
 
 Paste into OpenCode:
@@ -148,7 +182,7 @@ curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harne
 
 </details>
 
-The installer sets up EDSL once for use across your projects. [Setup options](harnesses/README.md#installing-the-agent-from-a-terminal)
+The installer sets up EDSL once for use across your projects. [Setup options](harnesses/README.md#installing-the-agent-from-a-terminal) · [Amp, Kiro CLI, and Cline setup](harnesses/README.md#amp-kiro-cli-and-cline)
 
 ## Build and Edit Surveys
 
