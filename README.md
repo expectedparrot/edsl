@@ -1,6 +1,8 @@
-# EDSL <img src="static/logo.png" alt="" width="64">
+# EDSL <img src="static/logo.png" alt="" width="64" align="middle">
 
-EDSL is a Python library for creating surveys for people and AI models. You can ask several models the same questions and compare their answers in a dataset. You can send the same survey to people by sharing a URL or emailing them an invitation. You can also set up an AI interviewer to ask participants questions and follow up on their answers.
+With EDSL, you define surveys in Python, from a single poll to a study with the question formats and branching logic you might use in Qualtrics. The questions, response options, and rules live together in code you can review, version, and reuse.
+
+Give the same survey to several AI models and compare their answers, or invite people to respond by URL or email. You can also set up an AI interviewer to ask follow-up questions based on what each participant says.
 
 ## The best way to use EDSL is with your coding agent
 
@@ -112,7 +114,8 @@ curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harne
 
 | Feature | What you can do |
 | --- | --- |
-| Survey design | Use multiple choice, scales, or free text. Branch on an answer or reuse it in a later question. |
+| Question types | Ask respondents to choose one or more options, rate items in a matrix, rank choices, allocate a budget, or enter a number or free-text answer. [Question catalog](https://docs.expectedparrot.com/en/latest/questions) |
+| Survey logic | Branch or stop based on an answer, pipe it into a later question, or repeat a group of follow-ups for each item a respondent lists. [Survey logic guide](https://docs.expectedparrot.com/en/latest/guides/survey_logic) |
 | Model comparison | Give several models the same survey and compare answers by model, scenario, or simulated persona. |
 | Human surveys | Share a survey by URL or send email invitations and collect responses. |
 | AI interviews | Give an AI interviewer a research question and let it ask participants follow-up questions. |
