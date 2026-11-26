@@ -6,18 +6,6 @@
 
 EDSL makes it easy to conduct computational social science and market research with AI. Use it to design and run surveys and experiments with many AI agents and large language models at once, or to perform complex data labeling and other research tasks. Results are formatted as specified datasets that can be replicated at no cost, and come with built-in methods for analysis, visualization and collaboration. 
 
-## Getting started
-
-1. Run `pip install edsl` to install the package. See the <a href="https://docs.expectedparrot.com/en/latest/installation" target="_blank" rel="noopener noreferrer">installation guide</a>.
-
-2. <a href="https://www.expectedparrot.com/login" target="_blank" rel="noopener noreferrer">Create an account</a> to run surveys at the Expected Parrot server and access a <a href="https://docs.expectedparrot.com/en/latest/remote_caching" target="_blank" rel="noopener noreferrer">universal remote cache</a> of stored responses for reproducing results.
-
-3. Choose whether to use your own keys for language models or get an Expected Parrot key to access all available models at once. Securely <a href="https://www.expectedparrot.com/getting-started/edsl-api-keys" target="_blank" rel="noopener noreferrer">manage keys</a>,  expenses and usage for your team from your account.
-
-4. Follow <a href="https://docs.expectedparrot.com/en/latest/starter_tutorial" target="_blank" rel="noopener noreferrer">Run your first survey</a>, then explore the <a href="https://docs.expectedparrot.com/en/latest/index#explore-the-docs" target="_blank" rel="noopener noreferrer">how-to guides and research examples</a>, including <a href="https://docs.expectedparrot.com/en/latest/guides/data_labeling" target="_blank" rel="noopener noreferrer">labeling data with survey questions</a>.
-
-5. Share workflows and survey results at <a href="https://www.expectedparrot.com/login" target="_blank" rel="noopener noreferrer">Coop</a>: a free platform for creating and sharing AI research.
-
 ## Use EDSL with coding harnesses
 
 For EDSL work, copy the one-line instruction for your coding agent. If you
@@ -278,3 +266,15 @@ Easily share workflows and projects privately or publicly at Coop: an integrated
 
 **Built-in tools for analysis**: 
 Analyze results as specified datasets from your account or workspace. Easily import data to use with your surveys and export results
+
+## Getting started
+
+1. Run `pip install edsl` to install the package. See the <a href="https://docs.expectedparrot.com/en/latest/installation" target="_blank" rel="noopener noreferrer">installation guide</a>.
+
+2. <a href="https://www.expectedparrot.com/login" target="_blank" rel="noopener noreferrer">Create an account</a> to run surveys at the Expected Parrot server and access a <a href="https://docs.expectedparrot.com/en/latest/remote_caching" target="_blank" rel="noopener noreferrer">universal remote cache</a> of stored responses for reproducing results.
+
+3. Choose whether to use your own keys for language models or get an Expected Parrot key to access all available models at once. Securely <a href="https://www.expectedparrot.com/getting-started/edsl-api-keys" target="_blank" rel="noopener noreferrer">manage keys</a>,  expenses and usage for your team from your account.
+
+4. Follow <a href="https://docs.expectedparrot.com/en/latest/starter_tutorial" target="_blank" rel="noopener noreferrer">Run your first survey</a>, then explore the <a href="https://docs.expectedparrot.com/en/latest/index#explore-the-docs" target="_blank" rel="noopener noreferrer">how-to guides and research examples</a>, including <a href="https://docs.expectedparrot.com/en/latest/guides/data_labeling" target="_blank" rel="noopener noreferrer">labeling data with survey questions</a>.
+
+5. Share workflows and survey results at <a href="https://www.expectedparrot.com/login" target="_blank" rel="noopener noreferrer">Coop</a>: a free platform for creating and sharing AI research.
