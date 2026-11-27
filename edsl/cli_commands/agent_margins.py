@@ -1,12 +1,16 @@
 """Build a synthetic panel from separate, exact trait counts."""
 
 import csv
+import json
+from collections import Counter
 from pathlib import Path
+from shlex import join
 
 import click
 from edsl.cli_shared import (
     EXIT_VALIDATION,
     error,
+    load_any_object,
     output,
     raw_output_written,
     save_edsl_object,
@@ -75,6 +79,9 @@ def from_margins(csv_file, seed, id_field, output_path):
             exit_code=EXIT_VALIDATION,
         )
     if not raw_output_written(saved):
+        tally_args = ["ep", "agents", "tally", output_path]
+        for field in list(margins)[:2]:
+            tally_args.extend(["--trait", field])
         output(
             {
                 "agent_count": len(agents),
@@ -82,8 +89,59 @@ def from_margins(csv_file, seed, id_field, output_path):
                 "seed": seed,
                 "id_field": id_field,
                 "saved": saved,
+                "tally_command": join(tally_args),
             },
             warnings=[
                 "Trait totals match the input. Joint counts in the generated panel are synthetic."
             ],
+        )
+
+
+@click.command("tally")
+@click.argument("agents_path", type=click.Path(exists=True))
+@click.option(
+    "--trait",
+    "traits",
+    multiple=True,
+    required=True,
+    help="Trait to count. Repeat for joint counts.",
+)
+@click.option(
+    "--limit",
+    type=click.IntRange(min=1),
+    help="Show only this many most frequent combinations.",
+)
+def tally(agents_path, traits, limit):
+    """Count observed trait combinations in a complete saved AgentList."""
+    from edsl import AgentList
+
+    try:
+        panel = load_any_object(agents_path, preview=True)
+        if not isinstance(panel, AgentList):
+            raise ValueError(f"Expected an AgentList, found {type(panel).__name__}.")
+        available = {key for agent in panel for key in agent.traits}
+        if missing := set(traits) - available:
+            raise ValueError(
+                f"Unknown traits {sorted(missing)}. Available traits: {sorted(available)}."
+            )
+        counts = Counter()
+        for agent in panel:
+            values = {key: agent.traits[key] for key in traits if key in agent.traits}
+            counts[json.dumps(values, sort_keys=True, allow_nan=False)] += 1
+        output(
+            {
+                "agent_count": len(panel),
+                "total_groups": len(counts),
+                "groups": [
+                    {"values": json.loads(key), "count": count}
+                    for key, count in counts.most_common(limit)
+                ],
+            }
+        )
+    except Exception as exc:
+        error(
+            "AGENTS_TALLY_ERROR",
+            str(exc),
+            suggestion="Choose traits from the saved AgentList. Repeat --trait for a joint count.",
+            exit_code=EXIT_VALIDATION,
         )

@@ -31,7 +31,9 @@ def test_generate_panel_from_exact_counts_and_reread_source(tmp_path):
         "-o",
         dest,
     )
-    assert invoke(*command)["data"]["agent_count"] == 10
+    summary = invoke(*command)["data"]
+    assert summary["agent_count"] == 10
+    assert invoke(*shlex.split(summary["tally_command"])[1:])["data"]["agent_count"] == 10
     agents = AgentList.git.load(dest, sync_coop=False)
     assert len({a.traits["person"] for a in agents}) == 10
     assert Counter(a.traits["mode"] for a in agents) == {"001": 7, "002": 3}
@@ -40,6 +42,15 @@ def test_generate_panel_from_exact_counts_and_reread_source(tmp_path):
         {"age": {"Older": 6, "Younger": 4}, "mode": {"001": 7, "002": 3}},
         seed=41,
         id_field="person",
+    )
+    tally = invoke("agents", "tally", dest, "--trait", "age", "--trait", "mode")["data"]
+    assert tally["agent_count"] == 10
+    assert {
+        (g["values"]["age"], g["values"]["mode"]): g["count"] for g in tally["groups"]
+    } == Counter((a.traits["age"], a.traits["mode"]) for a in agents)
+    assert (
+        invoke("agents", "tally", dest, "--trait", "missing", code=5)["error"]["code"]
+        == "AGENTS_TALLY_ERROR"
     )
     existing = dest.read_bytes()
     source.write_text(source.read_text().replace("Younger,4", "Younger,2"))

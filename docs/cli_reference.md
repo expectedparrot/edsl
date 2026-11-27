@@ -266,6 +266,7 @@ Each CSV row supplies `field,category,count`. For example, a panel with 60 rider
 
 ```bash
 ep agents from-margins margins.csv --seed 43 --id-field person_id -o agents.ep
+ep agents tally agents.ep --trait age --trait mode
 ```
 
 In Python, `AgentList.from_margins({"mode": {"Bus": 60, "Walk": 40}, "age": {"Older": 35, "Younger": 65}}, seed=43, id_field="person_id")` produces the same kind of panel.

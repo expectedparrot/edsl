@@ -6,7 +6,7 @@ tags: [edsl, reference]
 
 # EDSL AgentList
 
-For a synthetic panel built from separate category totals, use `ep agents from-margins margins.csv --seed 43 --id-field person_id -o agents.ep`. The CSV columns are `field,category,count`. Each trait must total the same population size. Rebuild from the supplied file for each seed. A cross-tabulation in this panel describes one possible assignment of traits. Population associations require joint data.
+For a synthetic panel built from separate category totals, use `ep agents from-margins margins.csv --seed 43 --id-field person_id -o agents.ep`. The CSV columns are `field,category,count`. Each trait must total the same population size. Rebuild from the supplied file for each seed. Read joint counts from the saved package with `ep agents tally agents.ep --trait age_group --trait commute_mode`, substituting the actual trait names. Verify the total before reporting any zero. A cross-tabulation in this panel describes one possible assignment of traits. Population associations require joint data.
 
 To revise one item in a saved list, run `ep agents edit-item agents.ep --index 0 --patch '{"traits":{"city":"Boston"}}'`. Use `--insert` to append or insert an item and `--remove --index N` to delete one. Add `--output revised.ep` to keep the original.
 
