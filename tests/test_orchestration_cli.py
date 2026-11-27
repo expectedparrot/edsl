@@ -147,3 +147,125 @@ def test_status_rejects_modified_pinned_experiment(tmp_path, monkeypatch):
     )
     assert status.exit_code == 5
     assert json.loads(status.output)["error"]["code"] == "VALIDATION_ERROR"
+
+
+def test_check_item_reads_the_committed_question_and_answer(tmp_path):
+    from edsl.workflows import scripted
+
+    builder = Workflow("Peer handoff")
+    reader = builder.step("review", Survey([QuestionFreeText(
+        question_name="note", question_text="What should change?"
+    )]), assigned_to=role("reader"))
+    editor = builder.step("decide", Survey([QuestionFreeText(
+        question_name="decision", question_text="Respond to " + reader.answer("note").template
+    )]), assigned_to=role("editor"), after=reader)
+    builder.step("revise", Survey([QuestionFreeText(question_name="revision", question_text="Revise it.")]),
+                 assigned_to=role("reader"), after=editor, when=editor.answer("decision").equals("Revise"))
+    agents = [
+        Agent(name=n, traits={"role": r})
+        for n, r in [("Mira", "reader"), ("Eden", "editor")]
+    ]
+    plan = (
+        ExecutionPlan()
+        .bind(role("reader"), human())
+        .bind(role("editor"), scripted(answers={"decision": "Accept"}))
+    )
+    definition = tmp_path / "protocol.json"
+    WorkflowExperiment(builder.compile(), [], agents, plan).save(definition)
+    responses = tmp_path / "responses.json"
+    responses.write_text(
+        json.dumps(
+            [
+                {
+                    "step": "review",
+                    "participant": "Mira",
+                    "answers": {"note": "Check weekday coverage."},
+                },
+                {
+                    "step": "decide",
+                    "participant": "Eden",
+                    "answers": {"decision": "Revise"},
+                },
+            ]
+        )
+    )
+    run = tmp_path / "pilot run"
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "orchestration",
+            "run",
+            "--file",
+            str(definition),
+            "--output",
+            str(run),
+            "--responses",
+            str(responses),
+            "--instance-id",
+            "pilot",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    envelope = json.loads(result.output)
+    assert envelope["data"]["scripted_replay_participants"] == ["Eden"]
+    assert (
+        envelope["warnings"]
+        and "--instance-id pilot" in envelope["data"]["check_item_command"]
+    )
+    path = run / "workflow.sqlite"
+    original = path.read_bytes()
+    prefix = ["orchestration", "check-item", str(run), "--instance-id", "pilot"]
+    args = prefix + ["--step", "decide", "--participant", "Eden"]
+    result = runner.invoke(
+        app,
+        args
+        + [
+            "--question",
+            "decision",
+            "--expect-text",
+            "Check weekday coverage.",
+            "--expect-answers",
+            '{"decision":"Accept"}',
+            "--expect-status",
+            "completed",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)["data"]
+    assert data["questions"] == {"decision": "Respond to Check weekday coverage."}
+    assert data["submitted"] and data["answer_keys"] == ["decision"]
+    bad = runner.invoke(
+        app,
+        args
+        + ["--expect-answers", '{"decision":"Revise"}', "--forbid-text", "coverage"],
+    )
+    issue = json.loads(bad.output)["error"]
+    assert bad.exit_code == 5 and issue["details"][0]["mismatched_answers"] == [
+        "decision"
+    ]
+    assert runner.invoke(app, args + ["--question", "absent"]).exit_code == 3
+    skipped = prefix + ["--step", "revise", "--participant", "Mira"]
+    assert runner.invoke(app, skipped + ["--expect-status", "skipped"]).exit_code == 0
+    assert runner.invoke(app, skipped + ["--forbid-text", "private"]).exit_code == 5
+    assert (
+        runner.invoke(
+            app, prefix + ["--step", "decide", "--participant", "Mira"]
+        ).exit_code
+        == 3
+    )
+    assert path.read_bytes() == original
+
+
+def test_check_item_on_an_empty_directory_creates_no_database(tmp_path):
+    args = [
+        "orchestration",
+        "check-item",
+        str(tmp_path),
+        "--step",
+        "review",
+        "--participant",
+        "Mira",
+    ]
+    result = CliRunner().invoke(app, args)
+    assert result.exit_code == 3 and not (tmp_path / "workflow.sqlite").exists()

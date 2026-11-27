@@ -8,6 +8,8 @@ tags: [edsl, surveys]
 
 Use this skill for EDSL API questions about survey construction and for implementing survey objects. Check installed-version help and schemas when CLI details may differ.
 
+When different participants own steps and one waits for another’s answer, use a respondent workflow. A Survey describes the questions one respondent answers. A `WorkflowExperiment` assigns each step to a participant, can release independent steps together and can skip optional steps. Read `ep skills show edsl-orchestration --reference SKILL.md`. Rehearse the saved definition with the supplied `step`, `participant`, and `answers` rows using `ep orchestration run --file experiment.json --responses responses.json --output rehearsal/`.
+
 For TypeSafe judgments or option probabilities in a batched Evaluation, use `ep skills show edsl-judgment-evaluations --reference SKILL.md`. Verify the delivered workload with `ep validate --file review.ep --type evaluation`.
 
 EDSL questions are stateless by default. When a later question depends on an earlier choice, pipe each relevant answer into its question text with `{{ question_name.answer }}` or use an appropriate memory mode. Do not add unrelated prior answers.

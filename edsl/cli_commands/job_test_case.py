@@ -12,28 +12,13 @@ from edsl.cli_shared import (
     EXIT_USAGE,
     EXIT_VALIDATION,
     error,
+    json_values_match,
     load_json_object,
     output,
     read_package_manifest,
     save_edsl_object,
 )
 from .job_prompt_preview import assigned_interview
-
-
-def _matches(expected, actual):
-    if type(expected) in (float, int) and type(actual) in (float, int):
-        return expected == actual
-    if type(expected) is not type(actual):
-        return False
-    if isinstance(expected, list):
-        return len(expected) == len(actual) and all(
-            _matches(x, y) for x, y in zip(expected, actual)
-        )
-    if isinstance(expected, dict):
-        return expected.keys() == actual.keys() and all(
-            _matches(v, actual[k]) for k, v in expected.items()
-        )
-    return expected == actual
 
 
 @click.command("test-case")
@@ -145,7 +130,7 @@ def test_case(jobs_path, interview_index, responses, expect, output_path):
         mismatches = {
             q: {"expected": v, "actual": answers.get(q)}
             for q, v in expected.items()
-            if q not in answers or not _matches(v, answers[q])
+            if q not in answers or not json_values_match(v, answers[q])
         }
         failures = interview.exceptions.unfixed_exceptions()
         failed = sorted(failures)

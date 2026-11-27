@@ -102,6 +102,22 @@ def private_output(path) -> Iterator[Path]:
         raise
 
 
+def json_values_match(expected, actual):
+    if type(expected) in (float, int) and type(actual) in (float, int):
+        return expected == actual
+    if type(expected) is not type(actual):
+        return False
+    if isinstance(expected, list):
+        return len(expected) == len(actual) and all(
+            json_values_match(x, y) for x, y in zip(expected, actual)
+        )
+    if isinstance(expected, dict):
+        return expected.keys() == actual.keys() and all(
+            json_values_match(v, actual[k]) for k, v in expected.items()
+        )
+    return expected == actual
+
+
 def load_json_object(value: str) -> dict:
     path = Path(value)
     try:
