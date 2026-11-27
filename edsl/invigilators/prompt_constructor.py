@@ -732,6 +732,7 @@ class PromptConstructor:
         qipb = QuestionInstructionPromptBuilder.from_prompt_constructor(self)
         _t_qipb_build = _time.time()
         prompt = qipb.build()
+        prompt.scenario_file_keys = qipb.rendered_file_keys
         _t_qipb_done = _time.time()
 
         with _timing_lock:
@@ -905,12 +906,10 @@ class PromptConstructor:
         _t5 = _time.time()
 
         # Handle file keys if present
-        file_keys = self.file_keys_from_question
-        if file_keys:
-            files_list = []
-            for key in file_keys:
-                files_list.append(self.scenario[key])
-            prompts["files_list"] = files_list
+        if question_instructions.scenario_file_keys:
+            prompts["files_list"] = [
+                self.scenario[key] for key in question_instructions.scenario_file_keys
+            ]
 
         # Append any files piped in from prior questions' answers.
         if prior_answer_files:

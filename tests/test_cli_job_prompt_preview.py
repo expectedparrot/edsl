@@ -237,3 +237,79 @@ def test_preview_verifies_portable_file_input_for_each_question(tmp_path):
     issue = preview(path, "missed", "--expect-files", "1", code=5)["error"]
     assert issue["code"] == "PROMPT_ATTACHMENT_MISMATCH"
     assert issue["details"][0]["attachments"] == []
+
+
+def test_conditional_files_follow_the_rendered_branch_in_display_order(tmp_path):
+    from hashlib import sha256
+
+    from edsl import FileStore
+
+    assets = {}
+    digests = {}
+    for name in ("full", "crop", "ref"):
+        source = tmp_path / f"{name}.txt"
+        source.write_text(name)
+        assets[name] = FileStore(str(source))
+        digests[name] = sha256(source.read_bytes()).hexdigest()
+    question = QuestionFreeText(
+        question_name="compare",
+        question_text=(
+            "{{ scenario }}. Literal <see file full>. {{ scenario.ref }} "
+            "{% if open %}{{ full }}{% else %}{{ scenario.crop }}{% endif %} {{ ref }}"
+        ),
+    )
+    job = Jobs(
+        survey=Survey(
+            [
+                question,
+                QuestionFreeText(
+                    question_name="inline_choice",
+                    question_text="{{ (scenario['full'] if open else scenario.crop) | upper }}",
+                ),
+            ]
+        ),
+        models=[Model("test")],
+        scenarios=ScenarioList([dict(assets, open=False), dict(assets, open=True)]),
+    )
+    path = tmp_path / "exhibits.ep"
+    job.git.save(path)
+    for i, name in enumerate(["crop", "full"]):
+        data = preview(
+            path,
+            "compare",
+            "--interview-index",
+            str(i),
+            "--expect-file-sha256",
+            digests["ref"].upper(),
+            "--expect-file-sha256",
+            digests[name],
+        )["data"]
+        assert [a["name"] for a in data["attachments"]] == ["ref.txt", f"{name}.txt"]
+        assert (
+            f"Literal <see file full>. <see file ref> <see file {name}> <see file ref>"
+            in data["user_prompt"]
+        )
+        inline = preview(
+            path,
+            "inline_choice",
+            "--interview-index",
+            str(i),
+            "--expect-file-sha256",
+            digests[name],
+        )["data"]
+        assert f"<see file {name}>".upper() in inline["user_prompt"]
+    issue = preview(
+        path,
+        "compare",
+        "--expect-file-sha256",
+        digests["crop"],
+        "--expect-file-sha256",
+        digests["ref"],
+        code=5,
+    )["error"]
+    assert issue["code"] == "PROMPT_ATTACHMENT_MISMATCH"
+    assert issue["details"][0]["expected_sha256"] == [digests["crop"], digests["ref"]]
+    assert (
+        preview(path, "compare", "--expect-file-sha256", "bad", code=5)["error"]["code"]
+        == "VALIDATION_ERROR"
+    )

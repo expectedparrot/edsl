@@ -4,6 +4,7 @@ from base64 import b64decode
 from hashlib import sha256
 from itertools import islice
 from pathlib import PureWindowsPath
+import re
 
 import click
 
@@ -58,6 +59,7 @@ def assigned_interview(jobs_path, interview_index, *, skip_retry=False):
 
 
 def register(group):
+
     @group.command("preview-prompt")
     @click.argument("jobs_path", type=click.Path(exists=True))
     @click.argument("question_name")
@@ -84,6 +86,12 @@ def register(group):
         type=click.IntRange(min=0),
         help="Require this many FileStore attachments in the rendered prompt.",
     )
+    @click.option(
+        "--expect-file-sha256",
+        multiple=True,
+        metavar="HEX",
+        help="Require exactly these attachment digests, in the given order. Repeat for each file.",
+    )
     def preview_prompt(
         jobs_path,
         question_name,
@@ -92,6 +100,7 @@ def register(group):
         expect_text,
         forbid_text,
         expect_files,
+        expect_file_sha256,
     ):
         """Render one question for an assigned interview in a saved Jobs file.
 
@@ -102,7 +111,14 @@ def register(group):
         from edsl.jobs.fetch_invigilator import FetchInvigilator
 
         try:
-            interview, planned_interviews = assigned_interview(jobs_path, interview_index)
+            expected_digests = [s.lower() for s in expect_file_sha256]
+            if any(not re.fullmatch(r"[0-9a-f]{64}", s) for s in expected_digests):
+                raise ValueError(
+                    "--expect-file-sha256 requires a 64-digit hexadecimal SHA-256 digest for each file."
+                )
+            interview, planned_interviews = assigned_interview(
+                jobs_path, interview_index
+            )
             survey = interview.survey
             prior = load_json_object(answers) if answers is not None else {}
             question = survey.get(question_name)
@@ -134,6 +150,16 @@ def register(group):
                     f"Expected {expect_files} attached files, found {len(data['attachments'])}.",
                     suggestion="Reference the FileStore field in every question that needs it, for example {{ scenario.artwork }}. Preview the saved job again.",
                     details=[data],
+                    exit_code=EXIT_VALIDATION,
+                )
+            if expected_digests and expected_digests != [
+                a["sha256"] for a in data["attachments"]
+            ]:
+                error(
+                    "PROMPT_ATTACHMENT_MISMATCH",
+                    "The attached files differ from the expected SHA-256 digests or order.",
+                    suggestion="Compare the listed attachments with the expected files for this interview. Check the scenario and question template.",
+                    details=[{**data, "expected_sha256": expected_digests}],
                     exit_code=EXIT_VALIDATION,
                 )
             missing = [
