@@ -190,6 +190,37 @@ def register(group):
                 fields[key] = value
         edit(survey_path, output, lambda s: update_question(s, name, fields))
 
+    @group.command("compose")
+    @click.argument("first", type=local_file)
+    @click.argument("second", type=local_file)
+    @click.option(
+        "--output", "-o", "destination", required=True, type=click.Path(dir_okay=False)
+    )
+    def compose(first, second, destination):
+        """Combine two survey modules in order, preserving routes, pages, and memory.
+
+        Normal completion continues to the next module. Explicit stop rules end
+        the entire survey. Use rename-question on copies to resolve name collisions.
+        """
+        from edsl.surveys.composition import compose_surveys
+
+        target = Path(destination)
+        if target.exists() and any(target.samefile(path) for path in (first, second)):
+            error(
+                "USAGE_ERROR",
+                "Choose an output distinct from both source surveys.",
+                exit_code=EXIT_USAGE,
+            )
+        try:
+            survey = compose_surveys(
+                _load_survey(first, preview=True), _load_survey(second, preview=True)
+            )
+            saved = _save_survey_edit(survey, destination)
+            if not raw_output_written(saved):
+                output(_survey_output(survey, saved))
+        except Exception as exc:
+            error("VALIDATION_ERROR", str(exc), exit_code=EXIT_VALIDATION)
+
     @group.command("rename-question", cls=SurveyEditCommand)
     @click.argument("survey_path", type=local_file)
     @click.argument("old_name")
