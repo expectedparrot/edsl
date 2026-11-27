@@ -1697,7 +1697,8 @@ class Survey(Base):
                 from ..instructions import Instruction
 
                 return Instruction
-            elif class_name == "ChangeInstruction":
+            # Version-free .ep packages store changes as just the keep/drop lists.
+            elif class_name == "ChangeInstruction" or pass_dict.keys() == {"keep", "drop"}:
                 from ..instructions import ChangeInstruction
 
                 return ChangeInstruction

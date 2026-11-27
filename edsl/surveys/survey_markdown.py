@@ -5,7 +5,7 @@ import re
 from operator import eq, ne
 from collections import defaultdict
 
-from ..questions.markdown_layout import text
+from ..questions.markdown_layout import question_text, text
 from ..questions.question_multiple_choice import QuestionMultipleChoice
 from .base import EndOfSurvey
 
@@ -124,6 +124,13 @@ def questionnaire_items(
     sections = []
     for i in indices:
         question = survey.questions[i]
+        if survey._instruction_names_to_instructions:
+            instructions = survey._relevant_instructions(question)
+            if instructions:
+                sections.append(f"**Instructions for question {i + 1}**")
+                for instruction in instructions:
+                    content = "\n\n".join(filter(None, (instruction.preamble, instruction.text)))
+                    sections.append(question_text(content))
         sections.append(
             question.to_markdown(
                 number=i + 1,
