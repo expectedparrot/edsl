@@ -1,0 +1,61 @@
+name: Sync research package catalog
+
+on:
+  schedule:
+    - cron: '17 7 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: sync-directory-catalog
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.repository == 'expectedparrot/edsl' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Check out EDSL main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Fetch the public directory catalog
+        run: |
+          git clone --quiet --depth 1 --filter=blob:none --no-checkout --branch main \
+            https://github.com/expectedparrot/directory.git "$RUNNER_TEMP/directory"
+          git -C "$RUNNER_TEMP/directory" show HEAD:packages.json > "$RUNNER_TEMP/directory/packages.json"
+
+      - name: Validate and copy the catalog
+        id: catalog
+        run: |
+          jq -es '
+            length == 1 and (.[0] | type == "array" and all(.[];
+              ([.name, .description, .repository, .readme_url] | all(.[]; type == "string"))
+              and (.methods | type == "array" and all(.[]; type == "string"))
+            ))
+          ' "$RUNNER_TEMP/directory/packages.json" > /dev/null
+
+          cp "$RUNNER_TEMP/directory/packages.json" edsl/skills/packages.json
+          git diff --stat -- edsl/skills/packages.json
+          echo "revision=$(git -C "$RUNNER_TEMP/directory" rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Create or update the catalog pull request
+        uses: peter-evans/create-pull-request@3ffccacd46053766916f087ce41d627c0b8cf2d1 # v8.1.3
+        with:
+          base: main
+          branch: automation/sync-directory-catalog
+          add-paths: edsl/skills/packages.json
+          delete-branch: true
+          commit-message: Refresh the EDSL research package catalog
+          title: Refresh the EDSL research package catalog
+          body: |
+            This updates the catalog bundled with `ep skills search` to match
+            [expectedparrot/directory at ${{ steps.catalog.outputs.revision }}](https://github.com/expectedparrot/directory/blob/${{ steps.catalog.outputs.revision }}/packages.json).
+
+            Users receive the updated catalog when they install an EDSL release that includes this change.
