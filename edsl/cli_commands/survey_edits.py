@@ -27,7 +27,7 @@ def update_question(survey, name, fields):
     protected = {"question_name", "question_type", "edsl_version", "edsl_class_name"}
     if protected.intersection(fields):
         raise ValueError(
-            "Use rename-question for names; update-question preserves the type."
+            "Use ep surveys rename-question to change a name or ep surveys replace-question to change its type."
         )
     old = survey.get(name)
     replacement = QuestionBase.from_dict({**old.to_dict(), **fields})
@@ -189,6 +189,56 @@ def register(group):
                     )
                 fields[key] = value
         edit(survey_path, output, lambda s: update_question(s, name, fields))
+
+    @group.command("replace-question", cls=SurveyEditCommand)
+    @click.argument("survey_path", type=local_file)
+    @click.argument("name")
+    @click.option(
+        "--question-json",
+        required=True,
+        help="New question definition as JSON or a file. Include type and its required fields. Defaults to the existing name and wording.",
+    )
+    @click.option(
+        "--output",
+        "-o",
+        type=click.Path(dir_okay=False),
+        help="Write a separate revision. Defaults to the input.",
+    )
+    def replace(survey_path, name, question_json, output):
+        """Replace a question, including its type, at its existing position.
+
+        Survey routes, groups, memory and references keep the same question name.
+        Supply all question-specific settings for the new definition.
+
+        \b
+        Example:
+          ep surveys replace-question intake.ep rating --question-json '{"type":"linear_scale","options":[1,2,3,4,5]}'
+        """
+        from .surveys import _build_question
+
+        def apply(survey):
+            spec = load_json_object(question_json)
+            original = survey.get(name)
+            for key in ("name", "question_name"):
+                if key in spec and spec[key] != name:
+                    raise ValueError(
+                        "The replacement must keep the existing name. Use rename-question for a name change."
+                    )
+            definition = {
+                "question_name": name,
+                "question_text": original.question_text,
+                **spec,
+            }
+            replacement = _build_question(definition)
+            if name in survey.questions_to_randomize and not hasattr(
+                replacement, "question_options"
+            ):
+                raise ValueError(
+                    f"Remove {name!r} from the option-randomization policy before replacing it with a question without choices."
+                )
+            return replace_question(survey, name, replacement)
+
+        edit(survey_path, output, apply)
 
     @group.command("compose")
     @click.argument("first", type=local_file)

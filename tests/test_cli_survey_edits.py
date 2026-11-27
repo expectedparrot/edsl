@@ -288,3 +288,69 @@ def test_compose_retains_question_scoped_randomization_and_rejects_dual_sample_p
     )
     with pytest.raises(ValueError, match="Both modules define question_sampling"):
         compose_surveys(first, second)
+
+
+def test_replace_question_type_retains_names_routes_groups_and_memory(tmp_path):
+    survey = Survey(
+        [
+            QuestionMultipleChoice(
+                question_name="rating",
+                question_text="How reliable?",
+                question_options=["1", "2", "3"],
+            ),
+            QuestionFreeText(question_name="why", question_text="Why?"),
+        ]
+    )
+    survey.add_skip_rule("why", "{{ rating.answer }} == 3")
+    survey.add_question_group("rating", "rating", "trip")
+    survey.set_full_memory_mode()
+    source, target = tmp_path / "source.ep", tmp_path / "revised.ep"
+    survey.git.save(source, sync_coop=False)
+    original = source.read_bytes()
+    invoke(
+        "surveys",
+        "replace-question",
+        source,
+        "rating",
+        "--question-json",
+        '{"type":"linear_scale","options":[1,2,3]}',
+        "-o",
+        target,
+    )
+    invoke(
+        "surveys",
+        "replace-question",
+        target,
+        "why",
+        "--question-json",
+        '{"type":"interview","text":"Follow up","interview_guide":"Explain {{ rating.answer }}"}',
+    )
+    changed = Survey.git.load(target, sync_coop=False)
+    assert changed.question_names == survey.question_names
+    assert changed.get("rating").question_type == "linear_scale"
+    assert changed.get("rating").question_text == "How reliable?"
+    assert changed.get("rating").question_options == [1, 2, 3]
+    assert changed.get("why").question_type == "interview"
+    assert changed.get("why").interview_guide == "Explain {{ rating.answer }}"
+    assert changed.rule_collection.to_dict() == survey.rule_collection.to_dict()
+    assert changed.question_groups == survey.question_groups
+    assert changed.memory_plan.to_dict()["survey_question_texts"] == [
+        "How reliable?",
+        "Follow up",
+    ]
+    assert source.read_bytes() == original
+    previous = target.read_bytes()
+    for definition in (
+        '{"type":"free_text","name":"new_name"}',
+        '{"type":"interview"}',
+    ):
+        invoke(
+            "surveys",
+            "replace-question",
+            target,
+            "why",
+            "--question-json",
+            definition,
+            success=False,
+        )
+    assert target.read_bytes() == previous

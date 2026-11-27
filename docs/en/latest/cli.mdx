@@ -218,6 +218,14 @@ Each path in `paths.json` lists the expected pages in order. Include the answers
 }
 ```
 
+To change a question's type while keeping its name, position, routing and group membership, supply a full replacement definition. For example, convert a rating stored as text choices to a scale with numeric options.
+
+```bash
+ep surveys replace-question intake.ep trip_score --question-json '{"type":"linear_scale","options":[1,2,3,4,5]}' -o revised.ep
+```
+
+The existing wording carries over if you omit it. Supply the new type's question-specific settings. Check any downstream expressions that compare answers against the old options.
+
 ### Place page directions and preview an independent judge
 
 For a grouped human survey, put directions immediately before the first question on the relevant page. Inspect the saved item's position in `data.item_order`.
