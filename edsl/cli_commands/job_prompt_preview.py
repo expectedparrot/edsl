@@ -72,6 +72,13 @@ def register(group):
     )
     @click.option("--answers", help="Sample earlier answers as a JSON object or file.")
     @click.option(
+        "--answer-file",
+        multiple=True,
+        type=(str, click.Path(exists=True, dir_okay=False, readable=True)),
+        metavar="QUESTION FILE",
+        help="Use a local file in an earlier file_upload answer. Repeat in upload order.",
+    )
+    @click.option(
         "--expect-text",
         multiple=True,
         help="Require this literal text in either prompt. Repeatable.",
@@ -97,6 +104,7 @@ def register(group):
         question_name,
         interview_index,
         answers,
+        answer_file,
         expect_text,
         forbid_text,
         expect_files,
@@ -129,6 +137,23 @@ def register(group):
                 raise ValueError(
                     f"--answers must name earlier questions. Invalid names: {sorted(invalid)}."
                 )
+            if answer_file:
+                from edsl import FileStore
+
+                answer_names = set(prior)
+                for name, path in answer_file:
+                    if (
+                        name not in earlier
+                        or survey.get(name).question_type != "file_upload"
+                    ):
+                        raise ValueError(
+                            f"--answer-file {name!r} must name an earlier file_upload question."
+                        )
+                    if name in answer_names:
+                        raise ValueError(
+                            f"Use either --answer-file or --answers for {name!r}."
+                        )
+                    prior.setdefault(name, []).append(FileStore(path))
             prompts = FetchInvigilator(interview, current_answers=prior)(
                 question
             ).get_prompts()
@@ -148,7 +173,7 @@ def register(group):
                 error(
                     "PROMPT_ATTACHMENT_MISMATCH",
                     f"Expected {expect_files} attached files, found {len(data['attachments'])}.",
-                    suggestion="Reference the FileStore field in every question that needs it, for example {{ scenario.artwork }}. Preview the saved job again.",
+                    suggestion="Check the FileStore references in this question. For an earlier upload, supply each local fixture with --answer-file QUESTION FILE in upload order.",
                     details=[data],
                     exit_code=EXIT_VALIDATION,
                 )

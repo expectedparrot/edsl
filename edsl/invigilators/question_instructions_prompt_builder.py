@@ -1,12 +1,12 @@
 from typing import Dict, Set, Any, Union, TYPE_CHECKING
 from warnings import warn
 import logging
-import re
-from uuid import uuid4
+from copy import copy
 import time as _time
 import threading
 
 from .prompt_constructor import PromptConstructor
+from .prompt_file_references import FileAnswerPlaceholder, PromptFileReferences
 
 # Thread-safe timing accumulators for build() sub-steps
 _build_timing_lock = threading.Lock()
@@ -47,28 +47,6 @@ if TYPE_CHECKING:
 from .question_template_replacements_builder import (
     QuestionTemplateReplacementsBuilder as QTRB,
 )
-
-
-class _FileReference(str):
-    """Carry a render-local tag through interpolation and ordinary text filters."""
-
-    def __new__(cls, key, marker):
-        public = f"<see file {key}>"
-        ref = super().__new__(cls, public + marker)
-        ref.public = public
-        return ref
-
-    def __eq__(self, other):
-        return self.public == (other.public if isinstance(other, _FileReference) else other)
-
-    def __ne__(self, other):
-        return not self == other
-
-    def __hash__(self):
-        return hash(self.public)
-
-    def __len__(self):
-        return len(self.public)
 
 
 class QuestionInstructionPromptBuilder:
@@ -113,7 +91,7 @@ class QuestionInstructionPromptBuilder:
         self.scenario = scenario
         self.prior_answers_dict = prior_answers_dict
         self.captured_variables = {}
-        self.rendered_file_keys = []
+        self.rendered_files = {}
 
     def build(self) -> "Prompt":
         """Builds the complete question instructions prompt with all necessary components.
@@ -326,52 +304,24 @@ class QuestionInstructionPromptBuilder:
         """
         # Build replacement dict
         _t0 = _time.time()
-        keys = self.qtrb.question_file_keys()
-        # A literal "<see file photo>" in prose must never attach a file.
-        # Track references in the actual render so conditionals and order agree
-        # with the text sent to the model, even with randomized templates.
-        markers = {}
-        if keys:
-            nonce = uuid4().int
-            markers = {f"[[{nonce}:{i}]]": key for i, key in enumerate(keys)}
-        file_refs = {key: _FileReference(key, token) for token, key in markers.items()}
+        files = PromptFileReferences()
+        scenario_refs = {
+            key: files.scenario_reference(key, self.scenario[key])
+            for key in self.qtrb.question_file_keys()
+        }
         replacement_dict = self.qtrb.build_replacement_dict(
-            prompt_data["data"], file_references=file_refs
+            prompt_data["data"], file_references=scenario_refs
         )
+        for name, question in self.prior_answers_dict.items():
+            answer = getattr(question, "answer", None)
+            if isinstance(answer, FileAnswerPlaceholder):
+                local = copy(question)
+                local.answer = FileAnswerPlaceholder(name, answer._files, files)
+                replacement_dict[name] = local
         _t1 = _time.time()
 
-        # Render with dict
         rendered_prompt = prompt_data["prompt"].render(replacement_dict)
-        if markers:
-            from ..prompts import Prompt
-
-            pattern = re.compile("|".join(map(re.escape, markers)))
-            self.rendered_file_keys = list(
-                dict.fromkeys(
-                    markers[token] for token in pattern.findall(rendered_prompt.text)
-                )
-            )
-
-            def restore(text):
-                return pattern.sub("", str(text))
-
-            def restore_captures(value):
-                if isinstance(value, str):
-                    return restore(value)
-                if isinstance(value, (list, tuple)):
-                    return type(value)(restore_captures(v) for v in value)
-                if isinstance(value, dict):
-                    return {
-                        restore_captures(k): restore_captures(v)
-                        for k, v in value.items()
-                    }
-                return value
-
-            public_prompt = Prompt(restore(rendered_prompt.text))
-            public_prompt.captured_variables = restore_captures(
-                rendered_prompt.captured_variables
-            )
-            rendered_prompt = public_prompt
+        rendered_prompt, self.rendered_files = files.resolve(rendered_prompt)
         _t2 = _time.time()
 
         with _build_timing_lock:

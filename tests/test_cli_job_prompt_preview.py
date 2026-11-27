@@ -313,3 +313,43 @@ def test_conditional_files_follow_the_rendered_branch_in_display_order(tmp_path)
         preview(path, "compare", "--expect-file-sha256", "bad", code=5)["error"]["code"]
         == "VALIDATION_ERROR"
     )
+
+
+def test_preview_uses_local_upload_fixtures_without_changing_the_saved_job(tmp_path):
+    from hashlib import sha256
+    from edsl import QuestionFileUpload
+
+    files = []
+    for directory in ("internal", "public"):
+        source = tmp_path / directory / "record.txt"
+        source.parent.mkdir()
+        source.write_text(directory)
+        files.append(str(source))
+    survey = Survey(
+        [
+            QuestionFileUpload(question_name="up", question_text="Upload both files."),
+            QuestionFreeText(
+                question_name="review", question_text="{{ up.answer[1] }}"
+            ),
+        ]
+    )
+    path = tmp_path / "packet.ep"
+    survey.by(Model("test")).git.save(path)
+    source = path.read_bytes()
+    args = ["--answer-file", "up", files[0], "--answer-file", "up", files[1]]
+    digest = sha256(b"public").hexdigest()
+    result = preview(path, "review", *args, "--expect-file-sha256", digest)["data"]
+    assert [f["sha256"] for f in result["attachments"]] == [digest]
+    assert (
+        preview(path, "review", *args, "--answers", '{"up":[]}', code=5)["error"][
+            "code"
+        ]
+        == "VALIDATION_ERROR"
+    )
+    assert (
+        preview(path, "review", "--answer-file", "review", files[0], code=5)["error"][
+            "code"
+        ]
+        == "VALIDATION_ERROR"
+    )
+    assert path.read_bytes() == source
