@@ -81,3 +81,41 @@ def test_search_and_link_commands_retrieve_the_identified_resource():
     example = next(row for row in data(["search", "fold", "--snippets"])["results"]
                    if row["name"] == "edsl-shared-state")["snippet"]
     assert "edsl/examples/" + fetch(example["show_command"])["example"] == example["path"]
+
+
+def test_item_completion_script_uses_the_exposed_interview(tmp_path):
+    import csv
+    import subprocess
+    import sys
+
+    from edsl import Agent, Model, Question, Results, Scenario, Survey
+    from edsl.results.result import Result
+
+    survey = Survey([Question("numerical", question_name="speed", question_text="Rate speed.")])
+    def interview(wave, shown, answer):
+        return Result(agent=Agent(), scenario=Scenario({"wave": wave}), model=Model("test"),
+                      iteration=0, survey=survey, answer={"speed": answer},
+                      randomization={"exposure_order": shown})
+
+    results = Results(survey=survey, data=[
+        interview(1, ["speed"], 0), interview(2, ["speed"], None), interview(2, [], 4),
+        interview(3, [], 9),
+    ])
+    path = tmp_path / "waves.ep"
+    results.git.save(path)
+    script = "scripts/item_completion.py"
+    reply = CliRunner().invoke(skills_command, ["show", "edsl-results-validation", "--script", script, "--human"])
+    assert reply.exit_code == 0, reply.output
+    program = tmp_path / "audit.py"
+    program.write_text(reply.output)
+    output = tmp_path / "coverage.csv"
+    subprocess.run([sys.executable, str(program), str(path), "--wave-field", "wave",
+                    "--item", "speed", "--min-score", "0", "--max-score", "10",
+                    "--output", str(output)], check=True)
+    with output.open(newline="") as file:
+        assert list(csv.reader(file)) == [
+            ["wave", "item", "exposed", "answered", "mean"],
+            ["1", "speed", "1", "1", "0.0"],
+            ["2", "speed", "1", "0", ""],
+            ["3", "speed", "0", "0", ""],
+        ]

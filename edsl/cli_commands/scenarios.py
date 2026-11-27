@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import warnings
 from pathlib import Path
 
 import click
@@ -13,6 +14,7 @@ from edsl.cli_shared import EXIT_ERROR, EXIT_USAGE, EXIT_VALIDATION, error, load
 def register(scenarios_group: click.Group) -> None:
     @scenarios_group.command("create")
     @click.option("--from-csv", "csv_path", default=None, type=click.Path(exists=True), help="Create from a CSV file.")
+    @click.option("--strict-rows", is_flag=True, help="Fail on a CSV record with a different number of fields than the header.")
     @click.option("--column-type", "column_specs", multiple=True, metavar="COLUMN=TYPE",
                   help="CSV header and type before snakifying (str, int, float). Repeat for each typed column; other values stay text.")
     @click.option("--from-xlsx", "xlsx_path", default=None, type=click.Path(exists=True), help="Create from an Excel file.")
@@ -28,6 +30,7 @@ def register(scenarios_group: click.Group) -> None:
     def create_scenarios(
         csv_path: str | None,
         column_specs: tuple[str, ...],
+        strict_rows: bool,
         xlsx_path: str | None,
         image_paths: tuple[str, ...],
         json_source: str | None,
@@ -65,8 +68,10 @@ def register(scenarios_group: click.Group) -> None:
                 exit_code=EXIT_USAGE,
             )
 
-        from edsl.scenarios.sources.csv_source import COLUMN_TYPES, ColumnTypeError
+        from edsl.scenarios.sources.csv_source import COLUMN_TYPES, ColumnTypeError, CSVRowWidthWarning
 
+        if strict_rows and not csv_path:
+            error("USAGE_ERROR", "--strict-rows requires --from-csv.", exit_code=EXIT_USAGE)
         if column_specs and not csv_path:
             error("USAGE_ERROR", "--column-type requires --from-csv.", exit_code=EXIT_USAGE)
         column_types = {}
@@ -81,8 +86,14 @@ def register(scenarios_group: click.Group) -> None:
         try:
             from edsl import Scenario, ScenarioList
 
+            import_warnings = []
             if csv_path:
-                scenarios = ScenarioList.from_source("csv", csv_path, snakify=snakify, column_types=column_types)
+                # Raw JSON output has no envelope; keep its diagnostics on stderr.
+                with warnings.catch_warnings(record=output_path != "-") as captured:
+                    warnings.simplefilter("error" if strict_rows else "always", CSVRowWidthWarning)
+                    scenarios = ScenarioList.from_source("csv", csv_path, snakify=snakify, column_types=column_types)
+                if captured:
+                    import_warnings = [str(w.message) for w in captured]
                 source = csv_path
             elif xlsx_path:
                 kwargs = {"snakify": snakify}
@@ -122,10 +133,11 @@ def register(scenarios_group: click.Group) -> None:
                     "scenario_count": len(scenarios),
                     "keys": sorted(_scenario_keys(scenarios)),
                     "saved": saved,
-                }
+                },
+                warnings=import_warnings,
             )
-        except ColumnTypeError as exc:
-            error("VALIDATION_ERROR", str(exc), suggestion="Check the CSV header, values and requested column types.", exit_code=EXIT_VALIDATION)
+        except (ColumnTypeError, CSVRowWidthWarning) as exc:
+            error("VALIDATION_ERROR", str(exc), suggestion="Check the CSV header, record widths, values and requested column types.", exit_code=EXIT_VALIDATION)
         except SystemExit:
             raise
         except Exception as e:

@@ -25,6 +25,8 @@ python -c "from edsl import Survey; q = Survey.git.load('priorities.ep', sync_co
 
 To present a saved survey in a terminal, run `ep surveys show survey.ep --markdown`. Add `--with-question-names` or `--with-question-types` to label the headings. Add `--expand-options` to list every dropdown choice. On success, stdout is Markdown you can include directly in your reply. Use `ep surveys show survey.ep` for the JSON summary.
 
+For branching, the last matching rule added to the same question and phase wins. Make a fallback exclude cases already routed elsewhere. Reopen the saved survey and execute each respondent path with `Survey.next_question`, including declined consent, fractional scores just beyond each tier’s cutoff, and the join. See [checking survey routes](references/checking-survey-routes.md). For repeated-measures designs, verify period balance, ordered transitions and the rendered question order together using the [counterbalancing example](references/counterbalancing.md).
+
 For detailed API behavior, use [survey reference](references/survey-reference.md), [full reference](references/full-reference.md), [composition contracts](references/composition-contracts.md), and [probabilistic responses](references/probabilistic-responses.md).
 
 Related EDSL guidance: `edsl:edsl-quirks` and `edsl:edsl-study-files`.

@@ -1181,7 +1181,6 @@ files = [
     {file = "filelock-3.20.0-py3-none-any.whl", hash = "sha256:339b4732ffda5cd79b13f4e2711a31b0365ce445d95d243bb996273d072546a2"},
     {file = "filelock-3.20.0.tar.gz", hash = "sha256:711e943b4ec6be42e1d4e6690b48dc175c822967466bb31c0c293f34334c13f4"},
 ]
-markers = {main = "extra == \"hf\" or extra == \"agent-building\""}
 
 [[package]]
 name = "fonttools"
@@ -6929,4 +6928,4 @@ viz = ["altair", "nbclient", "nbformat", "pydot", "termplotlib"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.14"
-content-hash = "8d24346f70a9f01d450f45f4987df05823c497d46c8bab94c662f6c318433d80"
+content-hash = "ac494ef5a387f9711fb664c0873d825f7e0b0280d6bc0aef8d7041581a64a0d9"

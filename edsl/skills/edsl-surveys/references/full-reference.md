@@ -311,9 +311,10 @@ Rules define conditional navigation through surveys using Jinja2 template expres
 | Skip a question | `survey.add_skip_rule(question, expression)` |
 | Navigate to question | `survey.add_rule(question, expression, next_question)` |
 | Stop early | `survey.add_stop_rule(question, expression)` |
-| Set priority | `survey.add_rule(q, expr, next_q, priority=1)` |
 | View rules | `survey.show_rules()` |
 | Jump to end | `survey.add_rule(q, expr, EndOfSurvey)` |
+
+The last matching rule added for the same question and phase wins. See [checking survey routes](checking-survey-routes.md) for exclusive conditions and boundary checks.
 
 Expression syntax: `"{{ question_name.answer }} == 'value'"`, `"{{ age.answer }} > 18"`, compound with `and`/`or`.
 

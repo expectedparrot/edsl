@@ -840,6 +840,26 @@ class TestObjectTransformCli:
         assert "--from-csv" in json.loads(result.output)["error"]["message"]
         assert not out.exists()
 
+    def test_csv_width_warnings_and_strict_validation(self, tmp_path):
+        src, dest = tmp_path / "fares.csv", tmp_path / "fares.ep"
+        src.write_text('id,fare,note\n0008,2,"two\nlines"\n0007,0\n0006,3,ok,extra\n')
+        args = ["scenarios", "create", "--from-csv", str(src), "--column-type", "fare=float"]
+        runner = CliRunner()
+        result = runner.invoke(cli_module.app, [*args, "--output", str(dest)])
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload["data"]["scenario_count"] == 1
+        assert payload["warnings"] == [
+            "Skipping record 3: found 2 fields, expected 3.",
+            "Skipping record 4: found 4 fields, expected 3.",
+        ]
+        original = dest.read_bytes()
+        result = runner.invoke(cli_module.app, [*args, "--strict-rows", "--output", str(dest)])
+        assert result.exit_code == 5, result.output
+        failure = json.loads(result.output)["error"]
+        assert failure["code"] == "VALIDATION_ERROR" and "record 3" in failure["message"]
+        assert dest.read_bytes() == original
+
     def test_scenarios_create_from_json_list_and_transform(self, tmp_path):
         from edsl import ScenarioList
 
@@ -7558,6 +7578,28 @@ class TestSurveys:
 
         assert result.exit_code == cli_module.EXIT_VALIDATION, result.output
         assert json.loads(result.output)["error"]["code"] == "INVALID_PINNED_OPTIONS"
+
+    def test_concurrent_in_place_appends_preserve_successful_edits(self, tmp_path):
+        from concurrent.futures import ThreadPoolExecutor
+        from edsl import Survey
+
+        path = tmp_path / "shared.ep"
+        def question(action, name):
+            args = ["surveys", action]
+            if action == "add-question":
+                args.append(str(path))
+            reply = run_cli(*args, "--output", str(path), "--question-type", "free_text",
+                            "--question-name", name, "--question-text", f"{name}?")
+            assert reply["status"] == "ok"
+
+        question("create", "opening")
+        additions = ["cost", "comfort", "timing"]
+        with ThreadPoolExecutor(max_workers=len(additions)) as pool:
+            list(pool.map(lambda name: question("add-question", name), additions))
+
+        names = Survey.git.load(path).question_names
+        assert names[0] == "opening"
+        assert sorted(names[1:]) == sorted(additions)
 
     def test_adaptive_choices_help_example_round_trips(self, tmp_path, monkeypatch):
         import shlex

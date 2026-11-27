@@ -20,6 +20,10 @@ if TYPE_CHECKING:
 COLUMN_TYPES = {"str": str, "int": int, "float": float}
 
 
+class CSVRowWidthWarning(UserWarning):
+    """A delimited record was skipped because it does not match the header width."""
+
+
 class ColumnTypeError(ScenarioError):
     """A requested column or its CSV value does not match the import schema."""
 
@@ -165,7 +169,8 @@ class DelimitedFileSource(Source):
         for record_number, row in enumerate(data_rows, start=2 if self.has_header else 1):
             if len(row) != len(new_header):
                 warnings.warn(
-                    f"Skipping row with {len(row)} values (expected {len(header)})"
+                    f"Skipping record {record_number}: found {len(row)} fields, expected {len(header)}.",
+                    CSVRowWidthWarning,
                 )
                 continue
 

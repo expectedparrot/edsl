@@ -1,6 +1,6 @@
 ---
 name: edsl-results-validation
-description: Compare simulated EDSL survey results with human responses. Check survey compatibility, choose population or record-level comparisons, and create a reproducible study-specific analysis script with clear uncertainty and limitations.
+description: Audit item completion by wave using exposure and answer records, or compare simulated EDSL survey results with human responses. Check survey compatibility, choose population or record-level comparisons, and create a reproducible study-specific analysis script with clear uncertainty and limitations.
 tags: [edsl, results, human-data, validation, analysis]
 ---
 
@@ -11,6 +11,8 @@ answer like real respondents, or wants to compare model-generated answers with
 human judgments. The first task is to identify what kind of comparison their
 study supports. Do not assume every human-versus-simulation comparison is the
 same problem.
+
+For item completion by wave, read the [exposure and answer audit](references/item-completion.md). For known complete exposure lists, run the [bundled numeric audit](scripts/item_completion.py) to compute the CSV from the saved rows. It counts zero-valued ratings and includes items that nobody saw.
 
 ## Choose the estimand before writing code
 
