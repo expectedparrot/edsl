@@ -222,6 +222,12 @@ def register(surveys_group: click.Group) -> None:
         Examples:
           ep surveys add-question survey.ep --question-type multiple_choice --question-name q1 --question-text "Pick one." --option A --option B
           ep surveys add-question survey.ep --question-type top_k --question-name top --question-text "Top two?" --option A --option B --option C --min-selections 2 --max-selections 2
+
+        \b
+        Offer only the choices selected earlier and verify the reopened survey:
+          ep surveys create --question-type checkbox --question-name priorities --question-text "Which two matter most?" --option Lighting --option Signage --option Cleanliness --min-selections 2 --max-selections 2 --output priorities.ep
+          ep surveys add-question priorities.ep --question-type multiple_choice --question-name favorite --question-text "Which is your favorite?" --question-json '{"question_options":"{{ priorities.answer }}"}'
+          python -c "from edsl import Survey; q = Survey.git.load('priorities.ep', sync_coop=False).get('favorite'); selected = ['Lighting', 'Signage']; assert q.render({'priorities': {'answer': selected}}).question_options == selected"
         """
         try:
             survey = _load_survey(survey_path)

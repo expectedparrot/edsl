@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import posixpath
 import re
+import shlex
 import shutil
 import subprocess
 import tempfile
@@ -81,42 +82,47 @@ def _resolve(skill: dict, name: str) -> dict | None:
     return next((item for item in skill["path"].rglob("*") if item.is_file() and item.name == name), None)
 
 
+def _show_command(name: str, option: str, path: str) -> str:
+    return shlex.join(["ep", "skills", "show", name, option, path])
+
+
+def _linked_markdown(current: Path, root: Path, content: str):
+    for target in _LINK.findall(content):
+        if target.startswith(("http://", "https://", "#")):
+            continue
+        local = (current.parent / target.split("#", 1)[0]).resolve()
+        if local.suffix.lower() == ".md" and local.is_relative_to(root) and local.is_file():
+            yield local
+
+
 def _read_skill_files(skill: dict) -> list[dict]:
-    root = skill["path"]
-    primary = root / "SKILL.md"
-    files = {primary}
-    pending = [primary]
+    root = skill["path"].resolve()
+    pending = [root / "SKILL.md"]
+    files = {}
     while pending:
         current = pending.pop()
-        text = current.read_text(encoding="utf-8")
-        for target in _LINK.findall(text):
-            if target.startswith(("http://", "https://", "#")):
-                continue
-            local = (current.parent / target.split("#", 1)[0]).resolve()
-            if (
-                local.suffix.lower() == ".md"
-                and local.is_file()
-                and local.is_relative_to(root.resolve())
-                and local not in files
-            ):
-                files.add(local)
-                pending.append(local)
-    return [{"path": p.relative_to(root).as_posix(), "content": p.read_text(encoding="utf-8")} for p in sorted(files)]
+        if current in files:
+            continue
+        content = current.read_text(encoding="utf-8")
+        files[current] = {"path": current.relative_to(root).as_posix(), "content": content}
+        pending.extend(_linked_markdown(current, root, content))
+    return [files[path] for path in sorted(files)]
 
 
-def _searchable_files(skill: dict) -> list[Path]:
-    markdown = list(skill["path"].rglob("*.md"))
-    examples = list(_example_paths(skill).values())
-    return sorted(set(markdown + _script_paths(skill) + examples))
+def _searchable_files(skill: dict) -> dict[Path, str]:
+    files = {skill["path"] / item["path"]: item["content"] for item in _read_skill_files(skill)}
+    for path in [*_script_paths(skill), *_example_paths(skill).values()]:
+        files[path] = path.read_text(encoding="utf-8", errors="replace")
+    return files
 
 
-def _find_snippet(skill: dict, query: str, context_lines: int = 1, max_chars: int = 360) -> dict | None:
+def _find_snippet(skill: dict, files: dict[Path, str], query: str, context_lines: int = 1, max_chars: int = 360) -> dict | None:
     """Return the first concise matching passage with its source location."""
     needle = query.casefold()
     if not needle:
         return None
-    for path in _searchable_files(skill):
-        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    for path in sorted(files):
+        lines = files[path].splitlines()
         offset = 0
         if path.name == "SKILL.md" and lines and lines[0].strip() == "---":
             closing = next((i for i in range(1, len(lines)) if lines[i].strip() == "---"), None)
@@ -132,11 +138,16 @@ def _find_snippet(skill: dict, query: str, context_lines: int = 1, max_chars: in
                 if len(passage) > max_chars:
                     passage = passage[: max_chars - 1].rstrip() + "…"
                 try:
-                    label = path.relative_to(skill["path"]).as_posix()
+                    resource = path.relative_to(skill["path"]).as_posix()
+                    label = resource
+                    option = "--reference" if path.suffix.lower() == ".md" else "--script"
                 except ValueError:
-                    label = f"edsl/examples/{path.relative_to(EXAMPLES_ROOT).as_posix()}"
+                    resource = path.relative_to(EXAMPLES_ROOT).as_posix()
+                    label = f"edsl/examples/{resource}"
+                    option = "--example"
                 return {
                     "path": label,
+                    "show_command": _show_command(skill["name"], option, resource),
                     "line": start + 1,
                     "text": passage,
                 }
@@ -241,6 +252,7 @@ def list_skills(human: bool, routing: bool):
     items = []
     for skill in _skills():
         item = {"name": skill["name"], "description": skill["description"]}
+        item["show_command"] = _show_command(skill["name"], "--reference", "SKILL.md")
         if routing:
             linked_references = [
                 file["path"] for file in _read_skill_files(skill)
@@ -258,15 +270,15 @@ def list_skills(human: bool, routing: bool):
                 "example_count": len(examples),
                 "show_command": f"ep skills show {skill['name']}",
                 "reference_commands": {
-                    reference: f"ep skills show {skill['name']} --reference {reference}"
+                    reference: _show_command(skill["name"], "--reference", reference)
                     for reference in linked_references
                 },
                 "script_commands": {
-                    script: f"ep skills show {skill['name']} --script {script}"
+                    script: _show_command(skill["name"], "--script", script)
                     for script in scripts
                 },
                 "example_commands": {
-                    example: f"ep skills show {skill['name']} --example {example}"
+                    example: _show_command(skill["name"], "--example", example)
                     for example in examples
                 },
             })
@@ -304,7 +316,7 @@ def search_skills(query: str, limit: int, human: bool, snippets: bool):
     for skill in _skills():
         name, description = skill["name"].casefold(), skill["description"].casefold()
         searchable_files = _searchable_files(skill)
-        body = "\n".join(p.read_text(encoding="utf-8", errors="replace") for p in searchable_files).casefold()
+        body = "\n".join(searchable_files.values()).casefold()
         if q == name:
             rank, match = 0, "exact_name"
         elif q in name:
@@ -316,8 +328,9 @@ def search_skills(query: str, limit: int, human: bool, snippets: bool):
         else:
             continue
         row = {"name": skill["name"], "description": skill["description"], "match": match}
+        row["show_command"] = _show_command(skill["name"], "--reference", "SKILL.md")
         if snippets:
-            row["snippet"] = _find_snippet(skill, q)
+            row["snippet"] = _find_snippet(skill, searchable_files, q)
         ranked.append((rank, skill["name"], row))
     ranked.sort(key=lambda item: (item[0], item[1]))
     results = [row for _, _, row in ranked[:limit]]
@@ -329,6 +342,7 @@ def search_skills(query: str, limit: int, human: bool, snippets: bool):
             if item.get("snippet"):
                 snippet = item["snippet"]
                 click.echo(f"  {snippet['path']}:{snippet['line']}: {snippet['text']}")
+            click.echo("  " + (item.get("snippet") or item)["show_command"])
     else:
         output({"query": query, "results": results})
 
@@ -405,11 +419,21 @@ def show_skill(name: str, reference_path: str | None, script_path: str | None, e
                 details=[{"available_references": available}],
             )
         files = [selected]
+    root = skill["path"].resolve()
+    references = {
+        linked.relative_to(root).as_posix()
+        for file in files
+        for linked in _linked_markdown(root / file["path"], root, file["content"])
+    }
+    reference_commands = {path: _show_command(name, "--reference", path) for path in sorted(references)}
+    examples = sorted(_example_paths(skill))
     data = {
         "name": skill["name"],
         "description": skill["description"],
         "files": files,
-        "examples": sorted(_example_paths(skill)),
+        "reference_commands": reference_commands,
+        "examples": examples,
+        "example_commands": {path: _show_command(name, "--example", path) for path in examples},
     }
     if reference_path is not None:
         data["reference"] = reference_path
@@ -434,6 +458,8 @@ def show_skill(name: str, reference_path: str | None, script_path: str | None, e
         click.echo(f"# {skill['name']}\n\n{skill['description']}")
         for item in files:
             click.echo(f"\n---\n\n## {item['path']}\n\n{item['content'].rstrip()}")
+        for command in reference_commands.values():
+            click.echo(command)
     else:
         output(data)
 

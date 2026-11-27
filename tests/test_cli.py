@@ -785,6 +785,61 @@ class TestObjectTransformCli:
         assert inspected["data"]["object_type"] == "ScenarioList"
         assert inspected["data"]["scenario_count"] == 2
 
+    def test_csv_column_types_round_trip(self, tmp_path):
+        from edsl import ScenarioList
+
+        src = tmp_path / "routes.csv"
+        out = tmp_path / "routes.ep"
+        src.write_text('ID,Ticket Price,seats,note\n0007,1.25,0,"Ferry, west"\n')
+        runner = CliRunner()
+        result = runner.invoke(cli_module.app, [
+            "scenarios", "create", "--from-csv", str(src), "--output", str(out),
+            "--column-type", "Ticket Price=float", "--column-type", "seats=int",
+        ])
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["status"] == "ok"
+        row = ScenarioList.git.load(out, sync_coop=False)[0]
+        assert dict(row) == {"id": "0007", "ticket_price": 1.25, "seats": 0, "note": "Ferry, west"}
+        assert type(row["seats"]) is int
+
+        original = out.read_bytes()
+        src.write_text('ID,Ticket Price,seats,note\n7,3,4,"two\nlines"\n8,free,0,x\n')
+        result = runner.invoke(cli_module.app, [
+            "scenarios", "create", "--from-csv", str(src), "--output", str(out),
+            "--column-type", "Ticket Price=float",
+        ])
+        assert result.exit_code == 5, result.output
+        message = json.loads(result.output)["error"]["message"]
+        assert all(fragment in message for fragment in ["row 3", "Ticket Price", "free", "float"])
+        assert out.read_bytes() == original
+
+    @pytest.mark.parametrize("header,specs,exit_code", [
+        ("sku,price", ["absent=int"], 5),
+        ("", ["price=float"], 5),
+        ("sku,price", ["price=number"], 2),
+        ("sku,price", ["price=int", "price=float"], 2),
+        ("sku,price", ["price"], 2),
+    ])
+    def test_invalid_csv_column_types(self, tmp_path, header, specs, exit_code):
+        src, out = tmp_path / "items.csv", tmp_path / "items.ep"
+        src.write_text(header)
+        args = ["scenarios", "create", "--from-csv", str(src), "--output", str(out)]
+        for spec in specs:
+            args.extend(["--column-type", spec])
+        result = CliRunner().invoke(cli_module.app, args)
+        assert result.exit_code == exit_code, result.output
+        assert json.loads(result.output)["status"] == "error"
+        assert not out.exists()
+
+    def test_column_types_require_csv(self, tmp_path):
+        out = tmp_path / "items.ep"
+        result = CliRunner().invoke(cli_module.app, [
+            "scenarios", "create", "--from-list", "1", "--column-type", "value=int", "--output", str(out),
+        ])
+        assert result.exit_code == 2
+        assert "--from-csv" in json.loads(result.output)["error"]["message"]
+        assert not out.exists()
+
     def test_scenarios_create_from_json_list_and_transform(self, tmp_path):
         from edsl import ScenarioList
 
@@ -7503,6 +7558,26 @@ class TestSurveys:
 
         assert result.exit_code == cli_module.EXIT_VALIDATION, result.output
         assert json.loads(result.output)["error"]["code"] == "INVALID_PINNED_OPTIONS"
+
+    def test_adaptive_choices_help_example_round_trips(self, tmp_path, monkeypatch):
+        import shlex
+        from edsl import Survey
+
+        monkeypatch.chdir(tmp_path)
+        runner = CliRunner()
+        help_text = runner.invoke(cli_module.app, ["surveys", "add-question", "--help"]).output
+        commands = [line.strip() for line in help_text.splitlines()
+                    if line.strip().startswith("ep surveys") and "priorities.ep" in line]
+        assert len(commands) == 2
+        for command in commands:
+            result = runner.invoke(cli_module.app, shlex.split(command)[1:])
+            assert result.exit_code == 0, result.output
+            assert json.loads(result.output)["status"] == "ok"
+        survey = Survey.git.load("priorities.ep", sync_coop=False)
+        assert survey.get("priorities").min_selections == survey.get("priorities").max_selections == 2
+        for selected in (["Lighting", "Signage"], ["Signage", "Cleanliness"]):
+            actual = survey.get("favorite").render({"priorities": {"answer": selected}})
+            assert actual.question_options == selected
 
     def test_surveys_create_and_add_question_from_fields(self, tmp_path):
         from edsl.surveys import Survey

@@ -53,3 +53,31 @@ def test_skills_search_indexes_example_source():
     )
     assert shared_state["match"] == "content"
     assert shared_state["snippet"]["path"].startswith("edsl/examples/shared_state/")
+
+
+def test_search_and_link_commands_retrieve_the_identified_resource():
+    import shlex
+
+    runner = CliRunner()
+
+    def data(args):
+        result = runner.invoke(skills_command, args)
+        assert result.exit_code == 0, result.output
+        return json.loads(result.output)["data"]
+
+    def fetch(command):
+        args = shlex.split(command)
+        assert args[:3] == ["ep", "skills", "show"]
+        return data(args[2:])
+
+    row = next(row for row in data(["search", "edsl-surveys"])["results"]
+               if row["name"] == "edsl-surveys")
+    entry = fetch(row["show_command"])
+    assert [item["path"] for item in entry["files"]] == ["SKILL.md"]
+    for path, command in entry["reference_commands"].items():
+        assert fetch(command)["files"][0]["path"] == path
+    assert "references/survey-reference.md" in entry["reference_commands"]
+
+    example = next(row for row in data(["search", "fold", "--snippets"])["results"]
+                   if row["name"] == "edsl-shared-state")["snippet"]
+    assert "edsl/examples/" + fetch(example["show_command"])["example"] == example["path"]
