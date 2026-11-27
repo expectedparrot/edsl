@@ -1,5 +1,8 @@
 """Local, name-based edits to native Survey objects."""
 
+import ast
+import sys
+from contextlib import redirect_stdout
 from pathlib import Path
 
 import click
@@ -59,8 +62,80 @@ def set_groups(survey, groups):
     return survey
 
 
+def replace_rule(
+    survey, question, expression, when, priority, destination, match_expression
+):
+    """Change one authored rule while preserving its position in the collection."""
+    from edsl.surveys.base import EndOfSurvey
+    from edsl.surveys.rules.rule import Rule
+    from edsl.surveys.rules.rule_collection import RuleCollection
+
+    current = survey._get_question_index(question)
+    rules = survey.rule_collection
+    matches = [
+        rule
+        for rule in rules.non_default_rules
+        if rule.current_q == current
+        and (when is None or rule.before_rule == (when == "before"))
+        and (priority is None or rule.priority == priority)
+        and (match_expression is None or rule.expression == match_expression)
+    ]
+    if not matches:
+        raise ValueError(
+            f"No matching custom rule on {question!r}. Inspect it with ep surveys show."
+        )
+    if len(matches) > 1:
+        choices = ", ".join(
+            f"--when {'before' if r.before_rule else 'after'} --priority {r.priority}"
+            for r in matches
+        )
+        raise ValueError(
+            f"Multiple rules on {question!r}. Select a phase and priority ({choices}), or use --match-expression."
+        )
+    old = matches[0]
+    next_q = old.next_q
+    if destination is not None:
+        if old.before_rule:
+            raise ValueError(
+                "A before-question rule skips its question. Use --next on an after-answer rule."
+            )
+        next_q = (
+            EndOfSurvey
+            if destination == "EndOfSurvey"
+            else survey._get_question_index(destination)
+        )
+    expression = expression.strip()
+    try:
+        ast.parse(expression, mode="eval")
+    except SyntaxError as exc:
+        raise ValueError(f"Invalid rule expression: {exc.msg}") from exc
+
+    # The native rule constructor validates references and rebuilds its parsed expression.
+    with redirect_stdout(sys.stderr):
+        updated = Rule(
+            current,
+            expression,
+            next_q,
+            survey.question_name_to_index,
+            old.priority,
+            old.before_rule,
+        )
+    if old.before_rule and current in updated.named_questions_by_index:
+        raise ValueError(
+            f"The answer to {question!r} is unavailable before the question is asked."
+        )
+    # Rebuild the collection so warmed rule lookups cannot retain the old rule.
+    survey.rule_collection = RuleCollection(
+        num_questions=rules.num_questions,
+        rules=[updated if rule is old else rule for rule in rules],
+        question_name_to_index=survey.question_name_to_index,
+    )
+    return survey
+
+
 def register(group):
     from .surveys import (
+        SurveyEditCommand,
         _load_survey,
         _save_survey_edit,
         _survey_output,
@@ -77,7 +152,7 @@ def register(group):
         except Exception as exc:
             error("VALIDATION_ERROR", str(exc), exit_code=EXIT_VALIDATION)
 
-    @group.command("update-question")
+    @group.command("update-question", cls=SurveyEditCommand)
     @click.argument("survey_path", type=local_file)
     @click.argument("name")
     @click.option("--patch", help="JSON object or file of question fields to change.")
@@ -111,7 +186,7 @@ def register(group):
                 fields[key] = value
         edit(survey_path, output, lambda s: update_question(s, name, fields))
 
-    @group.command("rename-question")
+    @group.command("rename-question", cls=SurveyEditCommand)
     @click.argument("survey_path", type=local_file)
     @click.argument("old_name")
     @click.argument("new_name")
@@ -125,7 +200,7 @@ def register(group):
         """Rename a question using the Survey renamer, including rule and piping references."""
         edit(survey_path, output, lambda s: s.with_renamed_question(old_name, new_name))
 
-    @group.command("set-groups")
+    @group.command("set-groups", cls=SurveyEditCommand)
     @click.argument("survey_path", type=local_file)
     @click.option(
         "--groups",
@@ -141,6 +216,62 @@ def register(group):
     def groups_cmd(survey_path, groups, output):
         """Replace all question group boundaries in one local edit."""
         edit(survey_path, output, lambda s: set_groups(s, load_json_object(groups)))
+
+    @group.command("replace-rule", cls=SurveyEditCommand)
+    @click.argument("survey_path", type=local_file)
+    @click.option(
+        "--question",
+        required=True,
+        help="Question where the existing rule is evaluated.",
+    )
+    @click.option("--expression", required=True, help="New condition for this rule.")
+    @click.option(
+        "--when",
+        type=click.Choice(["before", "after"]),
+        help="Select by evaluation phase.",
+    )
+    @click.option(
+        "--priority",
+        type=click.IntRange(min=0),
+        help="Select by existing rule priority.",
+    )
+    @click.option(
+        "--match-expression", help="Select a rule by its exact existing expression."
+    )
+    @click.option(
+        "--next",
+        "destination",
+        help="New destination for an after-answer rule: a question name or EndOfSurvey.",
+    )
+    @click.option(
+        "--output",
+        "-o",
+        type=click.Path(dir_okay=False),
+        help="Output path. Defaults to the input.",
+    )
+    def replace_rule_cmd(
+        survey_path,
+        question,
+        expression,
+        when,
+        priority,
+        destination,
+        match_expression,
+        output,
+    ):
+        """Replace one custom routing rule in place, preserving its precedence.
+
+        Inspect rules with ep surveys show. If a question has multiple rules,
+        select the intended one by phase and priority. Omit --next to keep the
+        destination. Recheck the saved file with ep surveys check-paths.
+        """
+        edit(
+            survey_path,
+            output,
+            lambda s: replace_rule(
+                s, question, expression, when, priority, destination, match_expression
+            ),
+        )
 
     @group.command("check-paths")
     @click.argument("survey_path", type=local_file)

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import webbrowser
+from pathlib import Path
 
 import click
 
@@ -19,6 +20,29 @@ from edsl.cli_shared import (
     raw_output_written,
     save_edsl_object,
 )
+
+
+class SurveyEditCommand(click.Command):
+    """Serialize in-place edits from load through save, across CLI processes."""
+
+    def invoke(self, ctx: click.Context):
+        from filelock import FileLock, Timeout
+
+        source = Path(ctx.params["survey_path"]).resolve()
+        output_path = ctx.params.get("output_path", ctx.params.get("output"))
+        if output_path == "-" or (output_path and Path(output_path).resolve() != source):
+            return super().invoke(ctx)
+
+        # The archive can be replaced during save. Lock a stable sibling path.
+        lock = FileLock(str(source.with_name(f".{source.name}.lock")))
+        try:
+            with lock.acquire(timeout=30):
+                return super().invoke(ctx)
+        except Timeout:
+            error("EDIT_CONFLICT", f"Another edit is still using {source}.",
+                  suggestion="Retry the edit after the other writer finishes.", exit_code=EXIT_ERROR)
+        except OSError as exc:
+            error("SURVEY_EDIT_ERROR", str(exc), exit_code=EXIT_ERROR)
 
 
 def register(surveys_group: click.Group) -> None:
@@ -188,7 +212,7 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("add-question")
+    @surveys_group.command("add-question", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option("--question-type", required=True, help="Question type, e.g. free_text or multiple_choice.")
     @click.option("--question-name", required=True, help="Question name.")
@@ -287,7 +311,7 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("add-instruction")
+    @surveys_group.command("add-instruction", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option("--name", required=True, help="Instruction name.")
     @click.option("--text", required=True, help="Instruction text or path to a text file.")
@@ -318,7 +342,7 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("set-memory")
+    @surveys_group.command("set-memory", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option("--full", "full_memory", is_flag=True, default=False, help="Remember all prior questions for each later question.")
     @click.option("--target", "targeted_memory", multiple=True, help="Targeted memory as FOCAL=PRIOR. Repeat for multiple prior questions.")
@@ -354,7 +378,7 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("set-option-randomization")
+    @surveys_group.command("set-option-randomization", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option(
         "--question",
@@ -430,7 +454,7 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("set-question-sampling")
+    @surveys_group.command("set-question-sampling", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option(
         "--eligible-question",
@@ -481,7 +505,7 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("add-question-group")
+    @surveys_group.command("add-question-group", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option("--name", "group_name", required=True, help="Question group name.")
     @click.option("--start", "start_question", required=True, help="First question in the group.")
@@ -510,7 +534,7 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("add-question-order-block")
+    @surveys_group.command("add-question-order-block", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option(
         "--name", "block_name", required=True, help="Stable name for this randomization block."
@@ -637,7 +661,7 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("set-scale-direction-randomization")
+    @surveys_group.command("set-scale-direction-randomization", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option(
         "--question",
@@ -714,7 +738,7 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("add-skip-rule")
+    @surveys_group.command("add-skip-rule", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option("--question", "question_name", required=True, help="Question name where the rule is evaluated.")
     @click.option("--expression", required=True, help="Expression that triggers the rule.")
@@ -751,7 +775,7 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("add-stop-rule")
+    @surveys_group.command("add-stop-rule", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option("--question", "question_name", required=True, help="Question name where the rule is evaluated.")
     @click.option("--expression", required=True, help="Expression that ends the survey when true.")
@@ -779,7 +803,7 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("drop-question")
+    @surveys_group.command("drop-question", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option("--question", "question_name", required=True, help="Question name to remove.")
     @click.option("--output", "-o", "output_path", default=None, help="Output .ep package, serialized file, or '-' for raw JSON stdout. Defaults to SURVEY_PATH.")
@@ -806,7 +830,7 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("move-question")
+    @surveys_group.command("move-question", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option("--question", "question_name", required=True, help="Question name to move.")
     @click.option("--index", required=True, type=int, help="New zero-based question index.")
@@ -941,7 +965,7 @@ def _survey_summary(survey, saved: dict | None = None) -> dict:
         "question_names": survey.question_names,
         "questions": [_question_summary(q) for q in survey.questions],
         "rule_count": len(rules),
-        "rules": [_rule_summary(rule) for rule in rules],
+        "rules": [_rule_summary(rule, survey.question_names) for rule in rules],
         "question_groups": getattr(survey, "question_groups", {}),
         "questions_to_randomize": getattr(survey, "questions_to_randomize", []),
         "options_to_pin": getattr(survey, "options_to_pin", {}),
@@ -972,8 +996,9 @@ def _question_summary(question) -> dict:
     return data
 
 
-def _rule_summary(rule) -> dict:
+def _rule_summary(rule, question_names) -> dict:
     return {
+        "question": question_names[rule.current_q] if rule.current_q in range(len(question_names)) else None,
         "current_q": rule.current_q,
         "expression": rule.expression,
         "next_q": rule.next_q,

@@ -299,7 +299,7 @@ def surveys(ctx):
         _output({
             "commands": [
                 "create", "add-question", "update-question", "rename-question", "drop-question", "move-question",
-                "set-groups", "check-paths",
+                "set-groups", "check-paths", "replace-rule",
                 "show", "questions", "add-skip-rule", "add-stop-rule",
                 "set-scale-direction-randomization",
             ],
