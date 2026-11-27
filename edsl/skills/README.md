@@ -34,5 +34,8 @@ release snapshot. Search recognizes related English word forms, so `forecast`
 finds `forecasting` and `coded interviews` finds `interview coding`. Multiword
 queries can match in any order within a method, description, or skill passage.
 To update a listing, edit `packages.json` in [expectedparrot/directory](https://github.com/expectedparrot/directory).
-Its catalog sync workflow proposes the updated `edsl/skills/packages.json` in
-an EDSL pull request. Users receive that snapshot in a release after it merges.
+EDSL's **Sync research package catalog** workflow checks directory main daily at
+07:17 UTC and can also be run manually from EDSL’s Actions tab on main.
+It uses EDSL’s built-in GitHub token to open or update one pull request with
+the new snapshot. The organization and repository Actions settings must allow
+pull request creation. Users receive the catalog in a release after the update merges.
