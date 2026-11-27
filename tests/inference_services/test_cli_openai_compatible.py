@@ -4,6 +4,7 @@ import json
 from types import SimpleNamespace
 from unittest.mock import Mock
 
+import pytest
 from click.testing import CliRunner
 
 import edsl.__main__ as cli_module
@@ -182,6 +183,66 @@ def test_run_reports_partial_results(tmp_path, monkeypatch):
     assert out["warnings"][-1]["code"] == "PARTIAL_RESULTS"
 
 
+@pytest.mark.parametrize(
+    ("answer", "failed", "expected_warning"),
+    [
+        (None, True, "Found answers in 0/1 result rows. 1/1 interviews failed."),
+        (0, True, "Found answers in 1/1 result rows. 1/1 interviews failed."),
+        (0, False, None),
+    ],
+)
+def test_run_reports_interview_outcomes(
+    tmp_path, monkeypatch, answer, failed, expected_warning
+):
+    from edsl import Agent, Model, QuestionNumerical, Scenario, Survey
+    from edsl.jobs import Jobs
+    from edsl.results import Result, Results
+
+    survey = Survey(
+        [
+            QuestionNumerical(question_name=name, question_text=name)
+            for name in ("first", "second")
+        ]
+    )
+    row = Result(
+        agent=Agent(),
+        scenario=Scenario(),
+        model=Model("test"),
+        iteration=0,
+        survey=survey,
+        answer={"first": answer, "second": None if failed else 1},
+        raw_model_response=(
+            {"second_response_metadata": {"failure": {"code": "UNKNOWN"}}}
+            if failed
+            else {}
+        ),
+    )
+    results = Results(survey=survey, data=[row])
+    monkeypatch.setattr(Jobs, "run", lambda self, **kwargs: results)
+    path = tmp_path / "results.ep"
+    reply = CliRunner().invoke(
+        cli_module.app, ["run", "--question", "hi", "--local", "--output", str(path)]
+    )
+    assert reply.exit_code == 0, reply.output
+    out = json.loads(reply.output)
+    meta = out["data"]["meta"]
+    saved_summary = Results.git.load(path, sync_coop=False).completion_summary()
+    assert (
+        meta["completion"]["answered_interviews"]
+        == saved_summary["answered_interviews"]
+        == int(answer is not None)
+    )
+    assert (
+        meta["failed_interview_count"]
+        == saved_summary["failed_interviews"]
+        == int(failed)
+    )
+    assert meta["run_status"] == ("partial" if failed else "complete")
+    assert [
+        w["message"] for w in out["warnings"] if w["code"] == "PARTIAL_RESULTS"
+    ] == ([expected_warning] if expected_warning else [])
+
+
 def test_run_fails_before_saving_zero_success_remote_results(tmp_path, monkeypatch):
     from edsl.coop import Coop
     from edsl.jobs import Jobs
@@ -279,6 +340,8 @@ def test_run_allows_and_reports_genuine_partial_remote_results(tmp_path, monkeyp
     assert out["data"]["meta"]["run_status"] == "partial"
     assert out["data"]["meta"]["completed_interview_count"] == 2
     assert out["data"]["meta"]["failed_interview_count"] == 1
+    partial = next(w for w in out["warnings"] if w["code"] == "PARTIAL_RESULTS")
+    assert partial["message"] == "Found answers in 0/2 result rows. 1/3 interviews failed."
     assert {warning["code"] for warning in out["warnings"]} >= {
         "REMOTE_PARTIAL_RESULTS",
         "PARTIAL_RESULTS",

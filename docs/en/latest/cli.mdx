@@ -340,6 +340,9 @@ ep run jobs.ep --output results.ep
 
 Blocking runs require an output file. Use `.ep` for a Results package or `.json` for serialized data.
 
+An `ok` response can include a `PARTIAL_RESULTS` warning. For example, “Found answers in 0/50 result rows. 50/50 interviews failed.”
+Check `data.meta.completion.answered_interviews` for the number of rows with at least one answer and `data.meta.failed_interview_count` for the number of unsuccessful interviews. An interview that answers one question and fails on another counts toward both.
+
 To disable remote inference, add `--local`. This runs execution on your machine but can still call a model provider over the network and incur charges. Provider credentials or a configured local model server are required for real model calls. See [Connect to your own model server](/en/latest/language_models#connect-to-your-own-model-server) for endpoint configuration.
 
 When overriding a saved job, `--agent_list`, `--scenario_list`, and `--model_list` replace the corresponding component. `--model` replaces the model list with one model; it cannot be combined with `--model_list`.
