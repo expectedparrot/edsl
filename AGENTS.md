@@ -150,6 +150,8 @@ ep validate --file jobs.json
 ep validate --json '{"type":"free_text","question_text":"Say hi"}'
 ```
 
+For a saved judgment Evaluation, `ep validate --file review.ep --type evaluation` compiles the workload locally and reports the number of result rows, provider requests, and judgments. Restrict the compiled scenario field names with repeated `--allow-scenario-field` options when testing a blinded evaluation.
+
 If validation fails, use the JSON error envelope. Do not continue by trying to run the same invalid input.
 
 ## Object Formats

@@ -7,6 +7,7 @@ from edsl import (
     Agent,
     AgentList,
     Collection,
+    JudgmentModel,
     Jobs,
     Model,
     ModelList,
@@ -89,6 +90,7 @@ def test_all_package_types_and_prompt(tmp_path):
         job.scenarios,
         job.survey,
         collection,
+        job.survey.to_evaluation().by(JudgmentModel()),
         Results.example(),
     ]
     assert {type(obj).__name__ for obj in objects} == set(GIT_OBJECT_MODULES)

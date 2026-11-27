@@ -184,6 +184,13 @@ def _summary(obj, sample: int) -> dict:
                 ],
             }
         )
+    elif class_name == "Evaluation":
+        data.update({
+            "question_names": list(obj.survey.question_names),
+            "scenario_count": len(obj.scenarios), "agent_count": len(obj.agents),
+            "models": [{"service": model.service_name, "model": model.model} for model in obj.models],
+            "scenario_fields": sorted({key for scenario in obj.scenarios for key in scenario}),
+        })
     elif class_name == "Results":
         columns = sorted(getattr(obj, "columns", []) or [])
         data.update(

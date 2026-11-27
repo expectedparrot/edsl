@@ -8,6 +8,8 @@ tags: [edsl, surveys]
 
 Use this skill for EDSL API questions about survey construction and for implementing survey objects. Check installed-version help and schemas when CLI details may differ.
 
+For TypeSafe judgments or option probabilities in a batched Evaluation, use `ep skills show edsl-judgment-evaluations --reference SKILL.md`. Verify the delivered workload with `ep validate --file review.ep --type evaluation`.
+
 EDSL questions are stateless by default. When a later question depends on an earlier choice, pipe each relevant answer into its question text with `{{ question_name.answer }}` or use an appropriate memory mode. Do not add unrelated prior answers.
 
 For a separate auditor or judge on one item, keep the original question type. Use `ep surveys set-question-model survey.ep audit --service openai --model gpt-4o-mini --system-prompt "Apply the eligibility criteria."`. Pipe the earlier choice into the audit question or configure targeted memory. Reopen the package with `ep surveys preview-prompt survey.ep audit --answers '{"application":"renewal"}'` and check the model, system prompt, and actual choice in the user prompt.

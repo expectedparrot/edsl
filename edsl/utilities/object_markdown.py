@@ -113,6 +113,7 @@ def _groups(obj):
         Agent,
         AgentList,
         Collection,
+        Evaluation,
         Jobs,
         ModelList,
         Prompt,
@@ -124,14 +125,16 @@ def _groups(obj):
     from ..language_models.language_model import LanguageModel
     from ..questions.question_base import QuestionBase
 
-    if isinstance(obj, Jobs):
+    if isinstance(obj, (Jobs, Evaluation)):
         groups = [
             ("Questions", obj.survey.questions),
             ("Agents", obj.agents),
             ("Scenarios", obj.scenarios),
-            ("Models", obj.models),
+            ("Judgment models" if isinstance(obj, Evaluation) else "Models", obj.models),
         ]
         summary = " · ".join(f"{label} {len(items)}" for label, items in groups)
+        if isinstance(obj, Evaluation):
+            return "Evaluation", summary, groups
         plan = obj.assignment_summary()
         layout = {"Assignment mode": plan["assignment_mode"]}
         if plan["interviews_per_iteration"] is not None:
@@ -187,6 +190,8 @@ def _section(obj, kind, items, indices, question_options):
             return questionnaire_items(survey, indices, **question_options)
         return obj.to_markdown(**question_options)
     entries = ((i + 1, items[i]) for i in indices)
+    if kind == "Judgment models":
+        return _rows("Model", ((n, {"service": m.service_name, "model": m.model}) for n, m in entries))
     if kind == "Files":
         return _fields(items[0])
     if kind == "Scenarios":

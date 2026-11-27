@@ -178,6 +178,7 @@ GIT_OBJECT_MODULES = {
     "Survey": "edsl.surveys",
     "AgentList": "edsl.agents",
     "Jobs": "edsl.jobs",
+    "Evaluation": "edsl.evaluations",
     "Results": "edsl.results",
     "Collection": "edsl.collections",
     "ScenarioList": "edsl.scenarios",
@@ -197,7 +198,7 @@ def load_git_object(path: Path, *, sync_coop: bool = True):
     error(
         "UNSUPPORTED_OBJECT",
         f"Object package type does not support push: {class_name or 'unknown'}",
-        suggestion="Currently supported package types: Survey, AgentList, Jobs, Results, ScenarioList, ModelList, Collection. Prompts use JSON files instead.",
+        suggestion="Currently supported package types: Survey, AgentList, Jobs, Evaluation, Results, ScenarioList, ModelList, Collection. Prompts use JSON files instead.",
         exit_code=EXIT_USAGE,
     )
 
@@ -229,6 +230,10 @@ def load_openable_json(path: Path, *, preview: bool = False):
         from edsl.agents import AgentList
 
         return AgentList.from_dict(data)
+    if class_name == "Evaluation":
+        from edsl.evaluations import Evaluation
+
+        return Evaluation.from_dict(data)
     if class_name == "Jobs":
         from edsl.jobs import Jobs
 
