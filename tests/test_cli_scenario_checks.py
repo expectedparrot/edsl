@@ -1,6 +1,7 @@
 """Verify saved typed rows and the failure envelope consumed by auditors."""
 
 import json
+import zipfile
 
 from click.testing import CliRunner
 
@@ -152,6 +153,37 @@ def test_show_exports_ordered_json_rows_and_reopens_as_a_native_package(tmp_path
     assert runner.invoke(app, args + ["-o", str(source)]).exit_code == 2
     empty = json.loads(runner.invoke(app, args + ["--offset", "9"]).output)["data"]
     assert empty["rows"] == [] and not empty["has_more"]
+
+
+def test_show_explains_how_to_rebuild_a_non_git_package_from_csv(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    source = tmp_path / "buildable.ep"
+    with zipfile.ZipFile(source, "w") as archive:
+        archive.writestr(
+            "manifest.json",
+            json.dumps({"edsl_class_name": "ScenarioList", "n_scenarios": 1}),
+        )
+        archive.writestr("scenarios/000001.json", json.dumps({"frame": "compact"}))
+    original = source.read_bytes()
+    runner = CliRunner()
+    result = runner.invoke(app, ["scenarios", "show", source.name])
+    assert result.exit_code == 5, result.output
+    issue = json.loads(result.output)["error"]
+    assert issue["code"] == "VALIDATION_ERROR"
+    assert "not a Git-backed EDSL package" in issue["message"]
+
+    create = "ep scenarios create --from-csv SOURCE.csv --output rebuilt.ep"
+    show = "ep scenarios show rebuilt.ep --limit 1"
+    assert create in issue["suggestion"] and show in issue["suggestion"]
+    assert "total_rows" in issue["suggestion"]
+    (tmp_path / "SOURCE.csv").write_text("frame\ncompact\nlongtail\n")
+    created = runner.invoke(app, create.split()[1:])
+    assert created.exit_code == 0, created.output
+    reopened = runner.invoke(app, show.split()[1:])
+    assert reopened.exit_code == 0, reopened.output
+    data = json.loads(reopened.output)["data"]
+    assert data["total_rows"] == 2 and data["rows"] == [{"frame": "compact"}]
+    assert source.read_bytes() == original
 
 
 def test_validate_rejects_a_manifest_only_package_with_actionable_json(

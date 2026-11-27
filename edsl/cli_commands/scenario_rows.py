@@ -44,6 +44,19 @@ def show(scenarios_path, offset, limit, output_path):
 
     try:
         obj = load_any_object(str(scenarios_path), preview=True)
+    except Exception as exc:
+        suggestion = "Pass a saved ScenarioList."
+        if scenarios_path.suffix == ".ep":
+            suggestion = (
+                "If you have the source CSV, rebuild into a new file, for example "
+                "'ep scenarios create --from-csv SOURCE.csv --output rebuilt.ep'. "
+                "Run 'ep scenarios show rebuilt.ep --limit 1' and check total_rows."
+            )
+        error(
+            "VALIDATION_ERROR", str(exc), suggestion=suggestion, exit_code=EXIT_VALIDATION
+        )
+
+    try:
         if not isinstance(obj, ScenarioList):
             raise ValueError(f"Expected ScenarioList, found {type(obj).__name__}.")
         end = min(offset + limit, len(obj)) if limit else len(obj)
