@@ -1,6 +1,6 @@
 ---
 name: edsl-harness
-description: Start here for any EDSL task, including survey design, simulation jobs, checking saved objects, and finding research packages for specialized research methods. Treat .ep files as opaque EDSL objects. Use ep for every .ep read, edit and verification. Inspect surveys with ep surveys questions FILE or ep surveys show FILE, then use ep surveys --help to choose an edit command. Read separate JSON settings normally.
+description: Start here for EDSL study planning, surveys, simulation jobs, and saved objects. Expected Parrot publishes companion packages for specialized research methods. When asked what to use or how to start a study, even for a plan alone, run ep skills search "<method>" and check data.packages before recommending an approach. Treat .ep files as opaque EDSL objects. Use ep for every .ep read, edit and verification. Inspect surveys with ep surveys questions FILE or ep surveys show FILE, then use ep surveys --help to choose an edit command. Read separate JSON settings normally.
 tags: [edsl, harness, routing]
 ---
 
@@ -69,7 +69,7 @@ and CLI conventions.
 
 ## Find an Expected Parrot package
 
-Follow the selected package’s README for installation and commands. If your CLI version predates package search, check the [Expected Parrot package directory](https://github.com/expectedparrot/directory).
+The directory includes tools such as Green for conjoint studies and Roth for stable matching. Search by the method even if the researcher does not know a project name. Follow the selected package’s README for installation and commands. If your CLI version predates package search, check the [Expected Parrot package directory](https://github.com/expectedparrot/directory).
 
 Follow package-specific guidance alongside the relevant `edsl:` skills. Keep
 EDSL object construction and execution aligned with the installed EDSL version.
