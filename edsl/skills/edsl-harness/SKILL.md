@@ -9,6 +9,8 @@ tags: [edsl, harness, routing]
 Use this skill when the task involves EDSL APIs, EDSL CLI commands, or an
 Expected Parrot research package.
 
+When a user asks you to run or pilot a study with simulated respondents, execute the interviews through EDSL. Base your findings on answers you verified in the resulting `Results` object. If the run fails or produces no answers, say so. Label illustrative responses as examples.
+
 At the start of a task, search the installed catalog for the specific operations in the request with `ep skills search`, then load the matching skill and the reference that covers those operations. Before finishing, reopen the requested outputs from a clean directory using the public EDSL loader for their object type and check the behavior the user asked for.
 
 The search matches a literal substring. Use one distinctive keyword per search. If no matches come back, try a shorter term, then inspect the names and descriptions from `ep skills list`. Open the matching SKILL.md and its relevant reference.
