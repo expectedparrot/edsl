@@ -62,6 +62,7 @@ import json
 
 # Import for refactoring to Source classes
 
+from edsl.utilities.object_markdown import MarkdownPreviewMixin
 from ..dataset.dataset import SUPPORTED_TABLE_FORMATS
 
 try:
@@ -129,7 +130,7 @@ TableFormat: TypeAlias = Literal[
 data_class = list
 
 
-class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
+class ScenarioList(MarkdownPreviewMixin, MutableSequence, Base, ScenarioListOperationsMixin):
     """
     A collection of Scenario objects with advanced operations for manipulation and analysis.
 

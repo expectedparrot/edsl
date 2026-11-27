@@ -8,6 +8,7 @@ from functools import lru_cache
 
 from jinja2 import meta, Undefined
 from jinja2.sandbox import SandboxedEnvironment
+from edsl.utilities.object_markdown import MarkdownPreviewMixin
 from ..utilities.jinja import make_environment
 
 from .exceptions import TemplateRenderError, PromptValueError, PromptImplementationError
@@ -129,7 +130,7 @@ def _cached_render(text: str, frozen_replacements: frozenset) -> str:
     return result
 
 
-class Prompt(str, PersistenceMixin, RepresentationMixin):
+class Prompt(MarkdownPreviewMixin, str, PersistenceMixin, RepresentationMixin):
     """Class for creating a prompt to be used in a survey."""
 
     default_instructions: Optional[str] = "Do good things, friendly LLM!"

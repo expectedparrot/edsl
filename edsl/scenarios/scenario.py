@@ -22,6 +22,7 @@ import copy
 from collections import UserDict
 from typing import Union, List, Optional, TYPE_CHECKING, Dict, Any, Iterable, Mapping
 
+from edsl.utilities.object_markdown import MarkdownPreviewMixin
 from ..base import Base
 from .exceptions import ScenarioError
 
@@ -35,7 +36,7 @@ if TYPE_CHECKING:
     from .contrib.qr_code import QRCodeList
 
 
-class Scenario(Base, UserDict):
+class Scenario(MarkdownPreviewMixin, Base, UserDict):
     """
     A dictionary-like object that stores key-value pairs for parameterizing questions.
 

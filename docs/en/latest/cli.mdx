@@ -180,6 +180,33 @@ ep inspect survey.ep
 
 `add-question` updates the survey package in place. A job built earlier retains its saved survey, so rebuild the job to include the new question. Use `ep agents create --help` and `ep scenarios create --help` for creating respondent profiles and scenario data from files.
 
+To read a survey in the terminal, print its Markdown questionnaire or save it for review:
+
+```bash
+ep surveys show survey.ep --markdown
+ep surveys show survey.ep --markdown --with-question-names --with-question-types > questionnaire.md
+```
+
+Use either heading flag independently. With both flags, a heading reads
+`3. [age] “What is your age?” (numerical)`. By default it reads `3. “What is your age?”`.
+Dropdowns show the first five choices and a count of the remaining choices. Add
+`--expand-options` to list them all. This flag only changes the preview. The
+dropdown's `top_k` determines how many matches a search returns.
+
+Budget questions show an allocation table with the total above it. Demand questions
+pair each price with an empty quantity cell. Rank questions show the available
+choices followed by the requested number of blank ranking positions.
+Group discussions list their stages in order. Active survey instructions appear before
+each question they apply to, including when you open that question on a later page.
+Matrix questions display items as rows and response options as columns. Questions appear
+in authored order with response options and routing. Jinja expressions and control
+tags in question text appear as inline code, so you can see where answers or scenario
+values will be inserted and which wording is conditional.
+For example, a Yes/No question can display `○ No → Go to question 3`. The skipped question also shows its skip
+condition above the answer choices, even on a page by itself. More complex
+conditions appear at the question where they are evaluated. The flag writes Markdown
+directly to stdout on success. Omit it for the normal JSON summary.
+
 Set answer-option randomization on a survey with `set-option-randomization`. Repeat `--question` for each question; use `--pin-options` with a JSON object or a path to one when some options should stay in their original positions. This works for static choices and whole option lists resolved from scenarios or prior answers:
 
 ```bash
@@ -254,6 +281,37 @@ Required questions count toward `--sample-size`; questions outside the eligible 
 Question-order blocks contain at least two contiguous, independent questions in declared order. Custom branching, internal piping or memory dependencies, and instructions inside a block are not supported. `questions_to_randomize` continues to randomize answer options. Humanize currently reports a capability error for surveys with question-order blocks or question sampling.
 
 If validation fails, correct the reported problem before running the object.
+
+## Preview saved objects in Markdown
+
+```bash
+ep inspect agents.ep --markdown --page 2 --page-size 5
+ep inspect scenarios.ep --markdown
+ep inspect models.ep --markdown
+ep inspect job.ep --markdown --page-size 20
+ep inspect results.ep --markdown --page 3 > results-page-3.md
+```
+
+`ep inspect --markdown` starts at page 1 with 10 entries per page. The header shows the
+displayed range and total. It accepts the same packages, JSON files, or remote references
+as `ep inspect`. Local Markdown previews use the saved package contents. Plain
+`ep inspect` returns its JSON summary.
+
+| Object | What one entry contains |
+| --- | --- |
+| AgentList | One agent with its name, stacked trait labels and values, custom instructions, and trait descriptions. |
+| ScenarioList | One scenario. Short records share a table. Long or wide records use stacked fields. |
+| ModelList | One model with its inference service and parameters. |
+| Survey | One question with its original number and routing. Use `ep surveys show survey.ep --markdown --page 2 --page-size 5` to combine paging with the questionnaire display flags. |
+| Jobs | One saved question, agent, scenario, or model, in that order. The header shows component counts. Inspecting does not run the job. |
+| Results | One result with its answers, model, agent, scenario, and iteration. |
+| Collection | One typed object reference. |
+| Prompt or playbook | One line of saved prompt text. |
+
+For example, `agents.to_markdown(page=2, page_size=5)` returns the second page in Python.
+Use `ep inspect survey.ep --markdown` for the same quick, paged look you would give
+any study object. Use `ep surveys show survey.ep --markdown` to read or export the
+whole questionnaire, or to include question names, types, or all dropdown choices.
 
 ## Run with language models
 

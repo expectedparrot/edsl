@@ -2,6 +2,7 @@ from html import escape
 from typing import Optional, List, TYPE_CHECKING
 from collections import UserList
 
+from edsl.utilities.object_markdown import MarkdownPreviewMixin
 from ..base import Base
 
 if TYPE_CHECKING:
@@ -15,7 +16,7 @@ if TYPE_CHECKING:
     from ..language_models import LanguageModel
 
 
-class ModelList(Base, UserList):
+class ModelList(MarkdownPreviewMixin, Base, UserList):
     __documentation__ = """https://docs.expectedparrot.com/en/latest/language_models#compare-models-on-matched-inputs"""
     git = ModelListGitDescriptor()
 

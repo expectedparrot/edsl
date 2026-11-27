@@ -201,6 +201,7 @@ class QuestionFreeText(QuestionBase):
     """
 
     question_type = "free_text"
+    _markdown_hint = "Free-text response"
     _response_model = FreeTextResponse
     response_validator_class = FreeTextResponseValidator
 

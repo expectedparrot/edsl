@@ -186,21 +186,23 @@ def load_git_object(path: Path, *, sync_coop: bool = True):
     )
 
 
-def load_any_object(target: str, expected_object_type: str | None = None):
+def load_any_object(
+    target: str, expected_object_type: str | None = None, *, preview: bool = False
+):
     if target == "-":
-        return load_openable_json(Path("-"))
+        return load_openable_json(Path("-"), preview=preview)
     path = Path(target)
     if path.exists():
         if path.is_dir() or path.suffix == ".ep":
-            return load_git_object(path)
-        return load_openable_json(path)
+            return load_git_object(path, sync_coop=not preview)
+        return load_openable_json(path, preview=preview)
 
     from edsl.coop import Coop
 
     return Coop().pull(target, expected_object_type=expected_object_type)
 
 
-def load_openable_json(path: Path):
+def load_openable_json(path: Path, *, preview: bool = False):
     data = read_serialized_object(path)
     class_name = data.get("edsl_class_name", "")
     if class_name == "Survey":
@@ -231,6 +233,23 @@ def load_openable_json(path: Path):
         from edsl.collections import Collection
 
         return Collection.from_dict(data)
+    if preview:
+        if class_name == "Agent":
+            from edsl.agents import Agent
+
+            return Agent.from_dict(data)
+        if class_name in ("Scenario", "FileStore"):
+            from edsl.scenarios import Scenario
+
+            return Scenario.from_dict(data)
+        if class_name == "QuestionBase":
+            from edsl.questions.question_base import QuestionBase
+
+            return QuestionBase.from_dict(data)
+        if "model" in data and "inference_service" in data and "parameters" in data:
+            from edsl.language_models.language_model import LanguageModel
+
+            return LanguageModel.from_dict(data)
     if is_serialized_prompt(data):
         from edsl.prompts import Prompt
 
@@ -241,6 +260,21 @@ def load_openable_json(path: Path):
         suggestion="Expected a serialized Survey, AgentList, Jobs, Results, ScenarioList, ModelList, Collection, or Prompt.",
         exit_code=EXIT_USAGE,
     )
+
+
+def markdown_page(obj, page, page_size, **question_options) -> str:
+    """Adapt Markdown pagination defaults and validation to the CLI error envelope."""
+    from edsl.utilities.object_markdown import MarkdownPageError, object_markdown
+
+    try:
+        return object_markdown(
+            obj,
+            page=1 if page is None else page,
+            page_size=10 if page_size is None else page_size,
+            **question_options,
+        )
+    except MarkdownPageError as exc:
+        error("USAGE_ERROR", str(exc), exit_code=EXIT_USAGE)
 
 
 def is_serialized_prompt(data) -> bool:
