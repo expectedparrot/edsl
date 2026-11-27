@@ -1,0 +1,371 @@
+[
+  {
+    "name": "Epiq",
+    "description": "Epiq is a local-first epistemic database for evidence-backed research.",
+    "methods": [
+      "evidence database",
+      "claim tracking"
+    ],
+    "repository": "https://github.com/expectedparrot/epiq",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/epiq/HEAD/README.md"
+  },
+  {
+    "name": "Conversation",
+    "description": "Conversation is an EDSL-based package for simulating structured, multi-agent conversations.",
+    "methods": [
+      "focus groups",
+      "multi-agent conversation",
+      "group discussion"
+    ],
+    "repository": "https://github.com/expectedparrot/conversation",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/conversation/HEAD/README.md"
+  },
+  {
+    "name": "Aivis",
+    "description": "Aivis is an agent-facing CLI for measuring how brands and competitors appear in AI-generated answers.",
+    "methods": [
+      "AI visibility",
+      "brand visibility"
+    ],
+    "repository": "https://github.com/expectedparrot/aivis",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/aivis/HEAD/README.md"
+  },
+  {
+    "name": "Ariel",
+    "description": "Ariel is an agent-first fair-division package for rent, indivisible goods, bivalued chores, project credit, and shared fares.",
+    "methods": [
+      "fair division",
+      "rent division"
+    ],
+    "repository": "https://github.com/expectedparrot/ariel",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/ariel/HEAD/README.md"
+  },
+  {
+    "name": "Bewley",
+    "description": "Bewley is a local-first qualitative-coding CLI for interview transcripts and other text corpora.",
+    "methods": [
+      "qualitative coding",
+      "thematic analysis",
+      "interview coding"
+    ],
+    "repository": "https://github.com/expectedparrot/bewley",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/bewley/HEAD/README.md"
+  },
+  {
+    "name": "Bower",
+    "description": "Bower is a CLI for hypothesis-driven stakeholder studies.",
+    "methods": [
+      "stakeholder interviews",
+      "stakeholder analysis"
+    ],
+    "repository": "https://github.com/expectedparrot/bower",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/bower/HEAD/README.md"
+  },
+  {
+    "name": "Dewey",
+    "description": "Dewey is an agent-facing CLI for auditable literature reviews.",
+    "methods": [
+      "literature review",
+      "citation discovery"
+    ],
+    "repository": "https://github.com/expectedparrot/dewey",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/dewey/HEAD/README.md"
+  },
+  {
+    "name": "Flyvbjerg",
+    "description": "Flyvbjerg is an agent-facing CLI for reference-class forecasting and outside-view analysis.",
+    "methods": [
+      "reference class forecasting",
+      "outside view"
+    ],
+    "repository": "https://github.com/expectedparrot/flyvbjerg",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/flyvbjerg/HEAD/README.md"
+  },
+  {
+    "name": "Green",
+    "description": "Green is an agent-first toolkit for conjoint analysis and discrete-choice experiments.",
+    "methods": [
+      "conjoint analysis",
+      "discrete choice",
+      "choice experiment",
+      "willingness to pay",
+      "WTP",
+      "MaxDiff",
+      "best worst scaling",
+      "Gabor-Granger",
+      "Van Westendorp",
+      "price sensitivity"
+    ],
+    "repository": "https://github.com/expectedparrot/green",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/green/HEAD/README.md"
+  },
+  {
+    "name": "Golden",
+    "description": "Golden is an agent-first CLI for evidence-backed consumer decisions.",
+    "methods": [
+      "consumer decision",
+      "preference interviews"
+    ],
+    "repository": "https://github.com/expectedparrot/golden",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/golden/HEAD/README.md"
+  },
+  {
+    "name": "Helmer",
+    "description": "Helmer is an agent-first CLI for Delphi expert elicitation.",
+    "methods": [
+      "Delphi",
+      "expert elicitation"
+    ],
+    "repository": "https://github.com/expectedparrot/helmer",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/helmer/HEAD/README.md"
+  },
+  {
+    "name": "Ishikawa",
+    "description": "Ishikawa is an agent-friendly Python CLI for cause-and-effect analysis and fishbone diagrams.",
+    "methods": [
+      "fishbone diagram",
+      "root cause analysis"
+    ],
+    "repository": "https://github.com/expectedparrot/ishikawa",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/ishikawa/HEAD/README.md"
+  },
+  {
+    "name": "Kahn",
+    "description": "Kahn is a two-axis strategic scenario-planning CLI.",
+    "methods": [
+      "scenario planning",
+      "scenario matrix"
+    ],
+    "repository": "https://github.com/expectedparrot/kahn",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/kahn/HEAD/README.md"
+  },
+  {
+    "name": "Katz",
+    "description": "Katz is a version-aware ledger for reviewing academic manuscripts.",
+    "methods": [
+      "manuscript review"
+    ],
+    "repository": "https://github.com/expectedparrot/katz",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/katz/HEAD/README.md"
+  },
+  {
+    "name": "Langley",
+    "description": "Langley is an agent-first implementation of Richards Heuer's Analysis of Competing Hypotheses method.",
+    "methods": [
+      "analysis of competing hypotheses",
+      "ACH"
+    ],
+    "repository": "https://github.com/expectedparrot/langley",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/langley/HEAD/README.md"
+  },
+  {
+    "name": "McCall",
+    "description": "McCall is an agent-facing CLI for pretesting and refining job posts with EDSL candidate simulations.",
+    "methods": [
+      "job posting experiments",
+      "job advertisements"
+    ],
+    "repository": "https://github.com/expectedparrot/mccall",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/mccall/HEAD/README.md"
+  },
+  {
+    "name": "MCDA",
+    "description": "MCDA is an agent-first, JSON-enveloped CLI for multi-criteria decision analysis.",
+    "methods": [
+      "multi criteria decision analysis",
+      "weighted criteria"
+    ],
+    "repository": "https://github.com/expectedparrot/mcda",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/mcda/HEAD/README.md"
+  },
+  {
+    "name": "Messick",
+    "description": "Messick is an agent-first package for pretesting, revising, and validating EDSL survey instruments.",
+    "methods": [
+      "survey validation",
+      "psychometrics"
+    ],
+    "repository": "https://github.com/expectedparrot/messick",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/messick/HEAD/README.md"
+  },
+  {
+    "name": "Niles",
+    "description": "Niles is a local-first CRM CLI for relationship work.",
+    "methods": [
+      "contact management",
+      "CRM"
+    ],
+    "repository": "https://github.com/expectedparrot/niles",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/niles/HEAD/README.md"
+  },
+  {
+    "name": "Oneheart",
+    "description": "Oneheart is a CLI for designing and recording Concordia-backed multi-agent social simulations.",
+    "methods": [
+      "social simulation",
+      "Concordia"
+    ],
+    "repository": "https://github.com/expectedparrot/oneheart",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/oneheart/HEAD/README.md"
+  },
+  {
+    "name": "Premortem",
+    "description": "Premortem facilitates a structured, Gary Klein-style pre-mortem for a decision, project, launch, or strategy.",
+    "methods": [
+      "pre-mortem",
+      "prospective hindsight"
+    ],
+    "repository": "https://github.com/expectedparrot/premortem",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/premortem/HEAD/README.md"
+  },
+  {
+    "name": "Pruefung",
+    "description": "Pruefung is an agent-first CLI for building, checking, deploying, and grading quizzes and exams with EDSL-native questions.",
+    "methods": [
+      "exam grading",
+      "quiz design"
+    ],
+    "repository": "https://github.com/expectedparrot/pruefung",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/pruefung/HEAD/README.md"
+  },
+  {
+    "name": "Raiffa",
+    "description": "Raiffa turns sourced beliefs into auditable decision policies using finite influence diagrams.",
+    "methods": [
+      "influence diagrams",
+      "decision analysis"
+    ],
+    "repository": "https://github.com/expectedparrot/raiffa",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/raiffa/HEAD/README.md"
+  },
+  {
+    "name": "Roth",
+    "description": "Roth collects preferences on both sides of a market and computes one-to-one stable matches using deferred acceptance.",
+    "methods": [
+      "stable matching",
+      "deferred acceptance"
+    ],
+    "repository": "https://github.com/expectedparrot/roth",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/roth/HEAD/README.md"
+  },
+  {
+    "name": "Spence",
+    "description": "Spence is an applicant tracking CLI built on EDSL humanize.",
+    "methods": [
+      "applicant tracking"
+    ],
+    "repository": "https://github.com/expectedparrot/spence",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/spence/HEAD/README.md"
+  },
+  {
+    "name": "Stanton",
+    "description": "Stanton is a local numerical estimation workbench for people and agents.",
+    "methods": [
+      "numerical estimation",
+      "Fermi estimate"
+    ],
+    "repository": "https://github.com/expectedparrot/stanton",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/stanton/HEAD/README.md"
+  },
+  {
+    "name": "Tommy",
+    "description": "Tommy is an agent-facing CLI for preparing realistic sales roleplays with Expected Parrot.",
+    "methods": [
+      "sales roleplay"
+    ],
+    "repository": "https://github.com/expectedparrot/tommy",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/tommy/HEAD/README.md"
+  },
+  {
+    "name": "Treffen",
+    "description": "Treffen is an agent-first CLI for preparing better meetings.",
+    "methods": [
+      "meeting preparation"
+    ],
+    "repository": "https://github.com/expectedparrot/treffen",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/treffen/HEAD/README.md"
+  },
+  {
+    "name": "Umriss",
+    "description": "Umriss is an agent-facing CLI for constructing auditable digital twins from published survey marginals.",
+    "methods": [
+      "population calibration",
+      "survey marginals",
+      "synthetic population"
+    ],
+    "repository": "https://github.com/expectedparrot/umriss",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/umriss/HEAD/README.md"
+  },
+  {
+    "name": "Urteil",
+    "description": "Urteil is an agent-first CLI for rubric evaluation, LLM ratings, and auditable scoring.",
+    "methods": [
+      "rubric evaluation",
+      "rubric scoring"
+    ],
+    "repository": "https://github.com/expectedparrot/urteil",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/urteil/HEAD/README.md"
+  },
+  {
+    "name": "UXTest",
+    "description": "UXTest is an agent-first CLI for running synthetic-user UX studies against live web pages.",
+    "methods": [
+      "usability testing",
+      "synthetic user testing"
+    ],
+    "repository": "https://github.com/expectedparrot/uxtest",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/uxtest/HEAD/README.md"
+  },
+  {
+    "name": "Vorhersage",
+    "description": "Vorhersage is a forecasting workbench for agents.",
+    "methods": [
+      "probability forecasting",
+      "binary event forecasting"
+    ],
+    "repository": "https://github.com/expectedparrot/vorhersage",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/vorhersage/HEAD/README.md"
+  },
+  {
+    "name": "Voting",
+    "description": "Voting is a JSON-first toolkit for preference research and group-decision analysis.",
+    "methods": [
+      "social choice",
+      "ranked ballots",
+      "voting rules"
+    ],
+    "repository": "https://github.com/expectedparrot/voting",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/voting/HEAD/README.md"
+  },
+  {
+    "name": "Zugunruhe",
+    "description": "Zugunruhe is an agent-focused migration CLI for moving Qualtrics and SurveyMonkey instruments to EDSL and Expected Parrot.",
+    "methods": [
+      "survey migration",
+      "Qualtrics import",
+      "SurveyMonkey import"
+    ],
+    "repository": "https://github.com/expectedparrot/zugunruhe",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/zugunruhe/HEAD/README.md"
+  },
+  {
+    "name": "Zwicky",
+    "description": "Zwicky is a general morphological-analysis CLI for exploring product and feature design spaces.",
+    "methods": [
+      "morphological analysis",
+      "design space"
+    ],
+    "repository": "https://github.com/expectedparrot/zwicky",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/zwicky/HEAD/README.md"
+  },
+  {
+    "name": "Zwill",
+    "description": "Zwill is an open validation harness for survey digital twins.",
+    "methods": [
+      "digital twin validation",
+      "survey digital twins"
+    ],
+    "repository": "https://github.com/expectedparrot/zwill",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/zwill/HEAD/README.md"
+  }
+]

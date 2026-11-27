@@ -15,6 +15,8 @@ For a pilot, inspect a saved decision prompt for one respondent. Check the syste
 
 Keep object construction in readable source files, export named EDSL objects, and save durable objects with their supported `.git.save(...)` interface. Build `Jobs` from the saved component objects with `ep jobs build`; run it with `ep run ... --output results.ep`. Do not run inference as an import-time side effect of a Python source file.
 
+Before writing a study-specific builder or analyzer, search for the research method with `ep skills search "<method>"`. Its `data.packages` entries link to the candidate READMEs in the [Expected Parrot package directory](https://github.com/expectedparrot/directory). For example, Green builds discrete-choice studies, Conversation manages multi-agent discussions, and Umriss calibrates synthetic populations against survey marginals. When a package fits the brief, follow its repository’s installation and agent guidance, including any EDSL version pin. Check which files it exports or imports when handing work between the package and `ep`.
+
 Use `ep inspect agents.ep --markdown --page 1 --page-size 5` to present a page of agents with stacked traits and instructions. The same command previews saved scenarios, models, jobs, results, surveys, collections, and prompts. Check the exit code before presenting the Markdown.
 
 Common files include `study_survey.py`, `study_scenario_list.py`, `study_agent_list.py`, and optionally `study_model_list.py`. Use `ep models create` for ordinary model selections when it covers the needed configuration.

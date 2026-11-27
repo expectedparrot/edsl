@@ -53,3 +53,41 @@ def test_skills_search_indexes_example_source():
     )
     assert shared_state["match"] == "content"
     assert shared_state["snippet"]["path"].startswith("edsl/examples/shared_state/")
+
+
+def test_skills_search_discovers_public_packages_by_method():
+    runner = CliRunner()
+    for query in ("MaxDiff", "best-worst scaling", "green"):
+        result = runner.invoke(skills_command, ["search", query, "--limit", "1", "--snippets"])
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)["data"]
+        package, = data["packages"]
+        assert package["name"] == "Green"
+        assert package["kind"] == "external_package"
+        assert "MaxDiff" in package["methods"]
+        assert package["repository"] == "https://github.com/expectedparrot/green"
+        assert package["readme_url"] == "https://raw.githubusercontent.com/expectedparrot/green/HEAD/README.md"
+        assert all(skill["name"] != "Green" for skill in data["results"])
+
+    human = runner.invoke(skills_command, ["search", "MaxDiff", "--human"])
+    assert human.exit_code == 0
+    assert "Green [external package]" in human.output
+    assert package["readme_url"] in human.output
+
+
+def test_skills_search_keeps_unrelated_packages_out():
+    result = CliRunner().invoke(skills_command, ["search", "edsl-shared-state", "--limit", "1"])
+    assert result.exit_code == 0
+    data = json.loads(result.output)["data"]
+    assert [row["name"] for row in data["results"]] == ["edsl-shared-state"]
+    assert data["packages"] == []
+
+
+def test_directory_catalog_entries_are_unique_and_searchable():
+    catalog = json.loads(Path("edsl/skills/packages.json").read_text())
+    assert len({p["name"].casefold() for p in catalog}) == len(catalog)
+    assert len({p["repository"] for p in catalog}) == len(catalog)
+    for entry in catalog:
+        assert entry["repository"].startswith("https://github.com/expectedparrot/")
+        assert entry["description"]
+        assert entry["methods"] and all(entry["methods"])

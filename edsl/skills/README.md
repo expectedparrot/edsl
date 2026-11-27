@@ -25,3 +25,10 @@ are fetchable with `ep skills show <name> --example <path>` and listed by
 `ep skills list --routing`. Search indexes skill references, scripts, and
 assigned example source. The CLI returns code for inspection; it does not
 execute bundled scripts or examples.
+
+Search by method with `ep skills search "best worst scaling"`. The JSON response
+lists bundled skills under `data.results` and public companion packages under
+`data.packages`. Each package includes method keywords, its repository and a
+README link. `--limit` applies to each list. Search works offline using a
+release snapshot. Maintainers refresh `edsl/skills/packages.json` from
+`packages.json` in [expectedparrot/directory](https://github.com/expectedparrot/directory).

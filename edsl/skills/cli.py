@@ -292,13 +292,47 @@ def list_skills(human: bool, routing: bool):
         output({"skills": items})
 
 
+def _package_matches(query: str, limit: int) -> list[dict]:
+    """Search the public directory snapshot shipped with this EDSL version."""
+    def words(text: str) -> tuple[str, ...]:
+        return tuple(re.findall(r"[^\W_]+", text.casefold()))
+
+    terms = words(query)
+    if not terms:
+        return []
+    required = set(terms) - {"a", "an", "and", "for", "in", "of", "the", "to", "with"}
+    if not required:
+        return []
+
+    catalog = json.loads((SKILLS_ROOT / "packages.json").read_text(encoding="utf-8"))
+    ranked = []
+    for package in catalog:
+        methods = [words(method) for method in package["methods"]]
+        if terms == words(package["name"]):
+            rank = 0
+        elif terms in methods:
+            rank = 1
+        elif any(required.issubset(method) for method in methods):
+            rank = 2
+        elif required.issubset(words(package["description"])):
+            rank = 3
+        else:
+            continue
+        ranked.append((rank, package["name"], package))
+    return [
+        {**package, "kind": "external_package"}
+        for _, _, package in sorted(ranked, key=lambda item: item[:2])[:limit]
+    ]
+
+
 @skills.command("search")
 @click.argument("query")
-@click.option("--limit", type=click.IntRange(1, 50), default=10, show_default=True)
+@click.option("--limit", type=click.IntRange(1, 50), default=10, show_default=True,
+              help="Maximum matches in each of the skill and package lists.")
 @click.option("--human", is_flag=True, help="Print readable text instead of JSON.")
 @click.option("--snippets", is_flag=True, help="Include a matching passage with source file and line number.")
 def search_skills(query: str, limit: int, human: bool, snippets: bool):
-    """Search bundled skill names, descriptions, and text."""
+    """Search bundled skills and public research packages by name or method."""
     q = query.casefold().strip()
     ranked = []
     for skill in _skills():
@@ -321,16 +355,20 @@ def search_skills(query: str, limit: int, human: bool, snippets: bool):
         ranked.append((rank, skill["name"], row))
     ranked.sort(key=lambda item: (item[0], item[1]))
     results = [row for _, _, row in ranked[:limit]]
+    packages = _package_matches(query, limit)
     if human:
-        if not results:
-            click.echo("No matching EDSL skills found.")
+        if not results and not packages:
+            click.echo("No matching EDSL skills or research packages found.")
         for item in results:
             click.echo(f"{item['name']} [{item['match']}] — {item['description']}")
             if item.get("snippet"):
                 snippet = item["snippet"]
                 click.echo(f"  {snippet['path']}:{snippet['line']}: {snippet['text']}")
+        for package in packages:
+            click.echo(f"{package['name']} [external package] — {package['description']}")
+            click.echo(f"  README: {package['readme_url']}")
     else:
-        output({"query": query, "results": results})
+        output({"query": query, "results": results, "packages": packages})
 
 
 @skills.command("show")
