@@ -361,7 +361,7 @@ Rules:
 - `ep run jobs.ep` without `--output` should return `USAGE_ERROR`.
 - Use `--output results.ep` for a package.
 - Use `--output results.json` for serialized JSON.
-- Use `--local` to disable remote inference.
+- Use `--local` to run EDSL on this machine. Hosted models still call their providers.
 - Use `--fresh` to ignore cache.
 - Use `--n N` for iterations.
 - Use `--progress` only when human-facing progress on stderr is acceptable.
@@ -427,6 +427,13 @@ ep jobs preview-prompt jobs.ep clarity --interview-index 0 --expect-text "assign
 ```
 
 Use literal phrases from the study when checking prompts. Each expectation is tested against the selected interview’s system and user text. A count or text mismatch returns a JSON error and exit code 5.
+
+To rehearse with scripted replies before fieldwork, use the saved job's assignment plan. The replies JSON maps question names to raw test-model replies. Use `--expect` for decoded answers. Results include each row's displayed options and answers.
+
+```bash
+ep jobs test-case jobs.ep --interview-index 1 --responses replies.json --expect expected.json
+ep jobs test-case jobs.ep --all --iterations 4 --responses replies.json -o rehearsal.ep
+```
 
 Remote job management:
 

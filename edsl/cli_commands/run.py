@@ -55,7 +55,7 @@ def register(app: click.Group) -> None:
     @click.option("--results_description", default=None, help="Description for the remote results object.")
     @click.option("--fresh", is_flag=True, default=False, help="Ignore cache.")
     @click.option("--n", "-n", "iterations", default=1, type=int, show_default=True, help="Number of iterations per question/scenario/agent/model combination.")
-    @click.option("--local", is_flag=True, default=False, help="Disable remote inference and run locally.")
+    @click.option("--local", is_flag=True, default=False, help="Run EDSL on this machine. Hosted models still call their providers.")
     @click.option("--allow-partial", is_flag=True, default=False, help="Save and return usable partial remote results.")
     @click.option("--max-concurrency", default=None, type=click.IntRange(min=1), help="Maximum concurrent local interviews.")
     @click.option("--api-timeout", default=None, type=click.FloatRange(min=0.001), help="Local model API timeout in seconds.")
@@ -69,8 +69,8 @@ def register(app: click.Group) -> None:
             iterations, local, allow_partial, max_concurrency, api_timeout, save, output_path, input_path):
         """Run question(s) and get results.
 
-        For a local regression case with different replies to each question,
-        use ep jobs test-case JOB.ep --responses replies.json --expect answers.json.
+        For a scripted rehearsal with local test models, use ep jobs test-case
+        JOB.ep --all --responses replies.json --output rehearsal.ep.
 
         \b
         Examples:

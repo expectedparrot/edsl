@@ -18,7 +18,7 @@ from edsl.cli_shared import (
     read_package_manifest,
     save_edsl_object,
 )
-from .job_prompt_preview import assigned_interview
+from .job_prompt_preview import assigned_interview, assigned_interviews
 
 
 @click.command("test-case")
@@ -26,9 +26,20 @@ from .job_prompt_preview import assigned_interview
 @click.option(
     "--interview-index",
     type=click.IntRange(min=0),
-    default=0,
-    show_default=True,
-    help="Zero-based interview in the saved job's assignment order.",
+    default=None,
+    help="Zero-based interview in the saved job's assignment order (default 0).",
+)
+@click.option(
+    "--all",
+    "all_interviews",
+    is_flag=True,
+    help="Rehearse every assigned interview with the same reply map.",
+)
+@click.option(
+    "--iterations",
+    "-n",
+    type=click.IntRange(min=1),
+    help="Iterations for --all. Defaults to the saved job schedule.",
 )
 @click.option(
     "--responses",
@@ -46,19 +57,26 @@ from .job_prompt_preview import assigned_interview
     type=click.Path(path_type=Path),
     help="Save the successful interview as Results (.ep or .json).",
 )
-def test_case(jobs_path, interview_index, responses, expect, output_path):
-    """Run one local regression case through EDSL's normal interview and validation code.
+def test_case(
+    jobs_path,
+    interview_index,
+    all_interviews,
+    iterations,
+    responses,
+    expect,
+    output_path,
+):
+    """Rehearse a saved job with local test models and EDSL's normal answer validation.
 
     Supply model replies as JSON values. --expect checks the final answer after
     EDSL translates and validates it. A failed case exits 5.
 
     \b
     Example:
+      ep jobs test-case study.ep --all -n 4 --responses replies.json -o rehearsal.ep
       ep jobs test-case study.ep --interview-index 1 --responses replies.json --expect answers.json -o passed.ep
     """
-    from edsl import Model, Results
-    from edsl.caching import Cache
-    from edsl.results import Result
+    from edsl import Results
     from edsl.tasks import TaskHistory
 
     try:
@@ -86,10 +104,25 @@ def test_case(jobs_path, interview_index, responses, expect, output_path):
                         "The output package already contains another object type.",
                         exit_code=EXIT_USAGE,
                     )
-        interview, planned = assigned_interview(
-            jobs_path, interview_index, skip_retry=True
-        )
-        names = interview.survey.question_names
+        if all_interviews and interview_index is not None:
+            error(
+                "USAGE_ERROR",
+                "Choose either --all or --interview-index.",
+                exit_code=EXIT_USAGE,
+            )
+        if iterations is not None and not all_interviews:
+            error("USAGE_ERROR", "--iterations requires --all.", exit_code=EXIT_USAGE)
+        if all_interviews:
+            survey, interviews, planned = assigned_interviews(
+                jobs_path, iterations=iterations, skip_retry=True
+            )
+            cases = enumerate(interviews)
+        else:
+            index = interview_index or 0
+            interview, planned = assigned_interview(jobs_path, index, skip_retry=True)
+            survey = interview.survey
+            cases = [(index, interview)]
+        names = survey.question_names
         unknown = (replies.keys() | expected.keys()) - set(names)
         if unknown:
             error(
@@ -107,65 +140,31 @@ def test_case(jobs_path, interview_index, responses, expect, output_path):
             )
             for q, value in replies.items()
         }
-        model = Model("test", canned_response=canned)
-        interview.model = model
-        interview.cache = Cache()
-        for question in interview.survey.questions:
-            if getattr(question, "_model", None) is not None:
-                question._model = Model(
-                    "test", canned_response=canned.get(question.question_name, "")
-                )
-        with redirect_stdout(sys.stderr):
-            asyncio.run(interview.async_conduct_interview())
-            result = Result.from_interview(interview)
-        answers = result.answer
-        data = {
-            "interview_index": interview_index,
-            "planned_interviews": planned,
-            "indices": interview.indices,
-            "iteration": interview.iteration,
-            "model": "test",
-            "answers": answers,
-        }
-        mismatches = {
-            q: {"expected": v, "actual": answers.get(q)}
-            for q, v in expected.items()
-            if q not in answers or not json_values_match(v, answers[q])
-        }
-        failures = interview.exceptions.unfixed_exceptions()
-        failed = sorted(failures)
-        reasons = {
-            q: str(entries[-1].exception)[:500]
-            for q, entries in failures.items()
-            if entries
-        }
-        raw = result.get("raw_model_response", {})
-        missing = [
-            q
-            for q in names
-            if q not in replies and isinstance(raw.get(f"{q}_raw_model_response"), dict)
-        ]
-        if failed or missing or mismatches:
+        rows = []
+        completed = []
+        count = 0
+        for index, interview in cases:
+            row, case = _run_case(interview, index, planned, canned, expected)
+            count += 1
+            if output_path is not None:
+                rows.append(row)
+                completed.append(interview)
+        if not count:
             error(
                 "JOB_TEST_CASE_FAILED",
-                "The scripted interview failed its checks.",
-                suggestion="Review the model replies, the assigned scenario, and the expected final answer values.",
-                details=[
-                    {
-                        **data,
-                        "failed_questions": failed,
-                        "failure_reasons": reasons,
-                        "missing_responses": missing,
-                        "mismatches": mismatches,
-                    }
-                ],
+                "The saved job produced no assigned interviews.",
                 exit_code=EXIT_VALIDATION,
             )
+        data = (
+            {"tested_interviews": count, "planned_interviews": planned, "model": "test"}
+            if all_interviews
+            else case
+        )
         if output_path is not None:
             results = Results(
-                survey=interview.survey,
-                data=[result],
-                task_history=TaskHistory(interviews=[interview]),
+                survey=survey,
+                data=rows,
+                task_history=TaskHistory(interviews=completed),
             )
             if output_path.suffix == ".ep":
                 info = results.git.save(
@@ -189,3 +188,73 @@ def test_case(jobs_path, interview_index, responses, expect, output_path):
             suggestion="Check the job path, interview index and JSON inputs.",
             exit_code=EXIT_VALIDATION,
         )
+
+
+def _run_case(interview, interview_index, planned, canned, expected):
+    from edsl import Model
+    from edsl.caching import Cache
+    from edsl.results import Result
+
+    model = Model("test", canned_response=canned)
+    interview.model = model
+    interview.cache = Cache()
+    overrides = [
+        (q, q._model)
+        for q in interview.survey.questions
+        if getattr(q, "_model", None) is not None
+    ]
+    try:
+        for question, _ in overrides:
+            question._model = Model(
+                "test", canned_response=canned.get(question.question_name, "")
+            )
+        with redirect_stdout(sys.stderr):
+            asyncio.run(interview.async_conduct_interview())
+            result = Result.from_interview(interview)
+    finally:
+        for question, original_model in overrides:
+            question._model = original_model
+    answers = result.answer
+    data = {
+        "interview_index": interview_index,
+        "planned_interviews": planned,
+        "indices": interview.indices,
+        "iteration": interview.iteration,
+        "model": "test",
+        "answers": answers,
+    }
+    mismatches = {
+        q: {"expected": v, "actual": answers.get(q)}
+        for q, v in expected.items()
+        if q not in answers or not json_values_match(v, answers[q])
+    }
+    failures = interview.exceptions.unfixed_exceptions()
+    failed = sorted(failures)
+    reasons = {
+        q: str(entries[-1].exception)[:500]
+        for q, entries in failures.items()
+        if entries
+    }
+    raw = result.get("raw_model_response", {})
+    missing = [
+        q
+        for q in interview.survey.question_names
+        if q not in canned and isinstance(raw.get(f"{q}_raw_model_response"), dict)
+    ]
+    if failed or missing or mismatches:
+        error(
+            "JOB_TEST_CASE_FAILED",
+            "The scripted interview failed its checks.",
+            suggestion="Review the model replies, the assigned scenario, and the expected final answer values.",
+            details=[
+                {
+                    **data,
+                    "failed_questions": failed,
+                    "failure_reasons": reasons,
+                    "missing_responses": missing,
+                    "mismatches": mismatches,
+                }
+            ],
+            exit_code=EXIT_VALIDATION,
+        )
+    return result, data

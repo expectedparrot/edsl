@@ -29,8 +29,8 @@ def _attachment_summary(file):
     }
 
 
-def assigned_interview(jobs_path, interview_index, *, skip_retry=False):
-    """Select from the same realized assignment order used by the job runner."""
+def assigned_interviews(jobs_path, *, iterations=None, skip_retry=False):
+    """Expand the saved job once in its normal assignment and iteration order."""
     from edsl.jobs import Jobs
     from edsl.jobs.async_interview_runner import AsyncInterviewRunner
 
@@ -39,18 +39,28 @@ def assigned_interview(jobs_path, interview_index, *, skip_retry=False):
         raise ValueError(f"Expected Jobs, found {type(job).__name__}.")
     job.run_config.parameters.skip_retry = skip_retry
     job.replace_missing_objects()
-    planned_interviews = len(job) * job.run_config.parameters.n
     if job.treatment_assignment:
-        job.run_config.parameters.n = (
-            job.treatment_assignment.planned_iterations
-        )
-        planned_interviews = (
-            len(job.agents) * len(job.models) * job.run_config.parameters.n
-        )
+        scheduled = job.treatment_assignment.planned_iterations
+        if iterations is not None and iterations != scheduled:
+            raise ValueError(
+                f"The saved treatment schedule requires {scheduled} iterations."
+            )
+        job.run_config.parameters.n = scheduled
+        planned_interviews = len(job.agents) * len(job.models) * scheduled
+    else:
+        if iterations is not None:
+            job.run_config.parameters.n = iterations
+        planned_interviews = len(job) * job.run_config.parameters.n
     interviews = AsyncInterviewRunner(job, job.run_config)._expand_interviews()
-    interview = next(
-        islice(interviews, interview_index, interview_index + 1), None
+    return job.survey, interviews, planned_interviews
+
+
+def assigned_interview(jobs_path, interview_index, *, skip_retry=False):
+    """Select one interview without executing the preceding interviews."""
+    _, interviews, planned_interviews = assigned_interviews(
+        jobs_path, skip_retry=skip_retry
     )
+    interview = next(islice(interviews, interview_index, interview_index + 1), None)
     if interview is None:
         raise ValueError(
             f"No assigned interview at index {interview_index}. This job plans {planned_interviews} interviews."

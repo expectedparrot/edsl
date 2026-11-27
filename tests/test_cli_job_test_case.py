@@ -156,3 +156,106 @@ def test_override_uses_scripted_model_and_remains_local(tmp_path, monkeypatch):
     assert result.exit_code == 0, result.stdout
     assert not connections
     assert path.read_bytes() == source
+
+
+def test_batch_runs_each_iteration_and_preserves_prior_output_on_late_failure(tmp_path):
+    from edsl import QuestionMultipleChoice
+
+    survey = Survey(
+        [
+            QuestionMultipleChoice(
+                question_name="choice",
+                question_text="Choose.",
+                question_options="{{ scenario.menu }}",
+                use_code=True,
+            )
+        ]
+    )
+    job = survey.by(
+        Scenario({"menu": ["Tea", "Coffee"]}), Scenario({"menu": ["Rice", "Beans"]})
+    ).by(Model("test"))
+    path = tmp_path / "job.ep"
+    output = tmp_path / "rehearsal.ep"
+    job.git.save(path, sync_coop=False)
+    original = path.read_bytes()
+    args = [
+        "jobs",
+        "test-case",
+        str(path),
+        "--responses",
+        '{"choice":0}',
+        "-o",
+        str(output),
+    ]
+    runner = CliRunner()
+    result = runner.invoke(app, [*args, "--all", "-n", "4"])
+    assert result.exit_code == 0, result.stdout
+    data = json.loads(result.stdout)["data"]
+    assert data["tested_interviews"] == data["planned_interviews"] == 8
+    saved = Results.git.load(output, sync_coop=False)
+    assert [(r["iteration"], r.answer["choice"]) for r in saved] == [
+        (i, correct) for correct in ("Tea", "Rice") for i in range(4)
+    ]
+    assert all(row.model.model == "test" for row in saved)
+    previous = output.read_bytes()
+    failure = runner.invoke(
+        app, [*args, "--all", "-n", "4", "--expect", '{"choice":"Tea"}']
+    )
+    assert failure.exit_code == 5
+    details = json.loads(failure.stdout)["error"]["details"][0]
+    assert (
+        details["interview_index"] == 4
+        and details["mismatches"]["choice"]["actual"] == "Rice"
+    )
+    for extra in [["--iterations", "2"], ["--all", "--interview-index", "0"]]:
+        assert runner.invoke(app, [*args, *extra]).exit_code == 2
+    assert output.read_bytes() == previous and path.read_bytes() == original
+
+
+def test_batch_respects_planned_treatment_schedule(tmp_path):
+    from edsl import QuestionFreeText
+
+    job = (
+        Survey(
+            [
+                QuestionFreeText(
+                    question_name="q", question_text="Describe {{ scenario.topic }}."
+                )
+            ]
+        )
+        .by(Scenario({"topic": "math"}), Scenario({"topic": "music"}))
+        .by(Agent(name="reader"))
+        .by(Model("test"))
+    )
+    job.set_treatment_assignment(
+        {
+            "version": 1,
+            "conditions": {"A": 0, "B": 1},
+            "unit": "agent_iteration",
+            "planned_iterations": 2,
+            "schedule": {"agent:0|iteration:0": "B", "agent:0|iteration:1": "A"},
+        }
+    )
+    src = tmp_path / "assigned.ep"
+    dst = tmp_path / "rehearsal.ep"
+    job.git.save(src, sync_coop=False)
+    args = [
+        "jobs",
+        "test-case",
+        str(src),
+        "--all",
+        "--responses",
+        '{"q":"read"}',
+        "-o",
+        str(dst),
+    ]
+    runner = CliRunner()
+    good = runner.invoke(app, args)
+    assert good.exit_code == 0, good.stdout
+    saved = Results.git.load(dst, sync_coop=False)
+    assert [(r["iteration"], r.scenario["topic"]) for r in saved] == [
+        (1, "math"),
+        (0, "music"),
+    ]
+    failure = runner.invoke(app, [*args, "-n", "4"])
+    assert failure.exit_code == 5 and "requires 2 iterations" in failure.stdout

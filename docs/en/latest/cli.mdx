@@ -417,6 +417,24 @@ Use `ep inspect survey.ep --markdown` for the same quick, paged look you would g
 any study object. Use `ep surveys show survey.ep --markdown` to read or export the
 whole questionnaire, or to include question names, types, or all dropdown choices.
 
+## Rehearse a saved job with scripted responses
+
+A rehearsal exercises routing, option order, answer decoding and validation using a local test model. Give each question that will be asked a scripted reply. For example, if `station` is a coded multiple-choice question and `reason` is free text, save this as `replies.json`.
+
+```json
+{"station": 1, "reason": "Step-free route"}
+```
+
+Check the second interview's decoded station against the study brief, or run the same replies over every assignment and save the actual prompts and answers.
+
+```bash
+ep jobs test-case jobs.ep --interview-index 1 --responses replies.json --expect '{"station":"Creek"}'
+ep jobs test-case jobs.ep --all --iterations 2 --responses replies.json --output rehearsal.ep
+ep results select --file rehearsal.ep --column scenario.line --column answer.station
+```
+
+The rehearsal substitutes test models for both job and per-question models. A skipped question can omit its reply. A failed check identifies the interview, question and mismatch, exits with code 5 and preserves any existing output. Omit `--iterations` to use the job's saved treatment schedule.
+
 ## Run with language models
 
 For hosted execution, configure an Expected Parrot account and API key as described in [Managing Keys](/en/latest/api_keys). Check authentication and connectivity:
