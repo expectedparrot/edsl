@@ -66,6 +66,7 @@ def register(app: click.Group) -> None:
           ep inspect survey.ep
           ep inspect agents.ep --sample 5
           ep inspect results.ep --sample 10
+          ep results check-assignments results.ep --against jobs.ep --iterations 2
           ep inspect <uuid> --type Survey
           ep inspect <uuid> --type AgentList --save agents.ep
           ep inspect agents.ep --markdown --page 2 --page-size 5
@@ -126,6 +127,9 @@ def _summary(obj, sample: int) -> dict:
         "object_type": class_name,
         "length": len(obj) if hasattr(obj, "__len__") else None,
     }
+
+    if class_name in {"Jobs", "Results"}:
+        data["assignment_coverage_command"] = "ep results check-assignments RESULTS_FILE --against JOBS_FILE --iterations N"
 
     if class_name == "Survey":
         questions = getattr(obj, "questions", [])
