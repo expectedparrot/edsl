@@ -13,8 +13,10 @@ from edsl.cli_shared import EXIT_ERROR, EXIT_USAGE, error, load_any_object, outp
 
 def register(scenarios_group: click.Group) -> None:
     from . import list_edits
+    from .scenario_checks import check_rows
 
     list_edits.register(scenarios_group, "ScenarioList")
+    scenarios_group.add_command(check_rows)
 
     @scenarios_group.command("create")
     @click.option("--from-csv", "csv_path", default=None, type=click.Path(exists=True), help="Create from a CSV file.")
