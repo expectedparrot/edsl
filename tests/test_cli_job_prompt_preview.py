@@ -198,3 +198,42 @@ def test_inspect_counts_actual_paired_identifiers_without_disclosing_values():
         ]
         == 0
     )
+
+
+def test_preview_verifies_portable_file_input_for_each_question(tmp_path):
+    from hashlib import sha256
+    from edsl import FileStore
+
+    source = tmp_path / "notes.txt"
+    payload = b"Notes for this study"
+    source.write_bytes(payload)
+    survey = Survey(
+        [
+            QuestionFreeText(
+                question_name="read", question_text="Read {{ scenario.asset }}."
+            ),
+            QuestionFreeText(
+                question_name="missed", question_text="What does the attachment say?"
+            ),
+        ]
+    )
+    job = Jobs(
+        survey=survey,
+        scenarios=ScenarioList([{"asset": FileStore(str(source))}]),
+        models=[Model("test")],
+    )
+    path = tmp_path / "job.ep"
+    job.git.save(path)
+    source.unlink()
+    attachments = preview(path, "read", "--expect-files", "1")["data"]["attachments"]
+    assert attachments == [
+        {
+            "name": "notes.txt",
+            "mime_type": "text/plain",
+            "size_bytes": len(payload),
+            "sha256": sha256(payload).hexdigest(),
+        }
+    ]
+    issue = preview(path, "missed", "--expect-files", "1", code=5)["error"]
+    assert issue["code"] == "PROMPT_ATTACHMENT_MISMATCH"
+    assert issue["details"][0]["attachments"] == []

@@ -1,6 +1,9 @@
 """Preview a saved job's text prompts without running model inference."""
 
+from base64 import b64decode
+from hashlib import sha256
 from itertools import islice
+from pathlib import PureWindowsPath
 
 import click
 
@@ -11,6 +14,18 @@ from edsl.cli_shared import (
     load_json_object,
     output,
 )
+
+
+def _attachment_summary(file):
+    """Inspect embedded bytes without reconstructing the original file on disk."""
+    content = b64decode(file.base64_string)
+    name = file.get("path")
+    return {
+        "name": PureWindowsPath(name).name if name else None,
+        "mime_type": file.mime_type,
+        "size_bytes": len(content),
+        "sha256": sha256(content).hexdigest(),
+    }
 
 
 def register(group):
@@ -35,8 +50,19 @@ def register(group):
         multiple=True,
         help="Reject this literal text in either prompt. Repeatable.",
     )
+    @click.option(
+        "--expect-files",
+        type=click.IntRange(min=0),
+        help="Require this many FileStore attachments in the rendered prompt.",
+    )
     def preview_prompt(
-        jobs_path, question_name, interview_index, answers, expect_text, forbid_text
+        jobs_path,
+        question_name,
+        interview_index,
+        answers,
+        expect_text,
+        forbid_text,
+        expect_files,
     ):
         """Render one question for an assigned interview in a saved Jobs file.
 
@@ -66,7 +92,9 @@ def register(group):
                 islice(interviews, interview_index, interview_index + 1), None
             )
             if interview is None:
-                raise ValueError(f"No assigned interview at index {interview_index}. This job plans {planned_interviews} interviews.")
+                raise ValueError(
+                    f"No assigned interview at index {interview_index}. This job plans {planned_interviews} interviews."
+                )
             survey = interview.survey
             prior = load_json_object(answers) if answers is not None else {}
             question = survey.get(question_name)
@@ -87,8 +115,19 @@ def register(group):
                 "indices": interview.indices,
                 "iteration": interview.iteration,
                 "question_name": question_name,
+                "attachments": [
+                    _attachment_summary(f) for f in prompts.get("files_list", [])
+                ],
                 **texts,
             }
+            if expect_files is not None and len(data["attachments"]) != expect_files:
+                error(
+                    "PROMPT_ATTACHMENT_MISMATCH",
+                    f"Expected {expect_files} attached files, found {len(data['attachments'])}.",
+                    suggestion="Reference the FileStore field in every question that needs it, for example {{ scenario.artwork }}. Preview the saved job again.",
+                    details=[data],
+                    exit_code=EXIT_VALIDATION,
+                )
             missing = [
                 s for s in expect_text if not any(s in text for text in texts.values())
             ]
