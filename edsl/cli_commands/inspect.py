@@ -95,6 +95,12 @@ def register(app: click.Group) -> None:
                 )
             obj = load_any_object(target, expected_object_type=object_type)
             data = _summary(obj, sample=3 if sample is None else max(0, sample))
+            if isinstance(data.get("stored_survey"), dict) and data["object_type"] == "Results" and Path(target).exists():
+                from shlex import quote
+
+                data["stored_survey"]["compare_command"] = (
+                    f"ep results check-survey {quote(target)} --against JOB_OR_SURVEY"
+                )
             from edsl.language_models.output_token_policy import token_limit_warnings
 
             model_warnings = token_limit_warnings(getattr(obj, "models", []))
@@ -210,6 +216,16 @@ def _summary(obj, sample: int) -> dict:
         path = Path(str(obj))
         data["repr"] = str(path) if path.exists() else repr(obj)
 
+    if class_name in {"Jobs", "Results"}:
+        survey = getattr(obj, "survey", None)
+        if survey is not None:
+            data["stored_survey"] = {
+                "question_count": len(survey.questions),
+                "sample_questions": [
+                    {"question_name": q.question_name, "question_type": q.question_type,
+                     "question_text": q.question_text} for q in survey.questions[:sample]
+                ],
+            }
     return data
 
 

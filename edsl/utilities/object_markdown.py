@@ -152,6 +152,13 @@ def _groups(obj):
                 {"Treatment design": obj.treatment_assignment.design_id}
             )
         return "Jobs", summary, groups
+    if isinstance(obj, Results) and obj.survey is not None:
+        questions = obj.survey.questions
+        sample = "\n".join(
+            f"- **{_text(q.question_name)}** {_text(q.question_text)}" for q in questions[:3]
+        )
+        summary = f"**Saved survey** ({len(questions)} questions)\n\n{sample}"
+        return "Results", summary, [("Results", obj)]
     if isinstance(obj, Survey):
         return obj.name or "Survey", "", [("Questions", obj.questions)]
     if isinstance(obj, Collection):

@@ -728,16 +728,22 @@ def register(surveys_group: click.Group) -> None:
     @surveys_group.command("questions")
     @click.argument("survey_path")
     def survey_questions(survey_path: str):
-        """List Survey questions.
+        """List questions from a Survey or the instrument saved inside Jobs or Results.
 
         Example:
           ep surveys questions survey.ep
         """
         try:
-            survey = _load_survey(survey_path, preview=True)
+            from edsl import Jobs, Results, Survey
+
+            source = load_any_object(survey_path, preview=True)
+            survey = source.survey if isinstance(source, (Jobs, Results)) else source
+            if not isinstance(survey, Survey):
+                error("UNSUPPORTED_OBJECT", f"No saved survey found in {type(source).__name__}.", exit_code=EXIT_USAGE)
             output(
                 {
                     "object_type": "Survey",
+                    "source_object_type": type(source).__name__,
                     "question_count": len(survey.questions),
                     "questions": [_question_summary(q) for q in survey.questions],
                 }
@@ -1021,7 +1027,7 @@ def _question_summary(question) -> dict:
         data["model_override"] = model_override(question)
     if hasattr(question, "question_options"):
         data["question_options"] = getattr(question, "question_options")
-    for attr in ("min_value", "max_value", "question_items", "num_selections", "min_selections", "max_selections"):
+    for attr in ("option_labels", "min_value", "max_value", "question_items", "num_selections", "min_selections", "max_selections"):
         if hasattr(question, attr):
             data[attr] = getattr(question, attr)
     return data

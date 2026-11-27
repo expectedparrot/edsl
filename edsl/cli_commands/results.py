@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
 import click
 
-from edsl.cli_shared import EXIT_ERROR, error, load_results_object, output
+from edsl.cli_shared import EXIT_ERROR, EXIT_USAGE, EXIT_VALIDATION, error, load_any_object, load_results_object, output
 
 
 def _bounded(value, text_chars: int):
@@ -138,7 +139,95 @@ def _review(
     }
 
 
+def _survey_differences(expected, recorded):
+    # Compare their JSON representation: e.g. serialized page bounds can be lists
+    # or tuples depending on which file format carried the identical instrument.
+    expected_data, recorded_data = (
+        json.loads(json.dumps(survey.to_dict(add_edsl_version=False)))
+        for survey in (expected, recorded)
+    )
+
+    # Job and Results archives may restore Pydantic model properties in different
+    # orders. JSON Schema treats the list of required property names as a set.
+    for data in (expected_data, recorded_data):
+        for question in data["questions"]:
+            schema = question.get("pydantic_model_schema")
+            if isinstance(schema, dict) and isinstance(schema.get("required"), list):
+                schema["required"].sort()
+
+    def changed_fields(a, b):
+        return sorted(
+            key for key in a.keys() | b.keys()
+            if key not in a or key not in b
+            or json.dumps(a[key], sort_keys=True) != json.dumps(b[key], sort_keys=True)
+        )
+
+    sections = changed_fields(expected_data, recorded_data)
+    if not sections:
+        return {}
+    wanted, found = (
+        {q["question_name"]: q for q in data["questions"] if "question_name" in q}
+        for data in (expected_data, recorded_data)
+    )
+    changed = []
+    for name in sorted(wanted.keys() & found.keys()):
+        fields = changed_fields(wanted[name], found[name])
+        if fields:
+            changed.append({
+                "question": name,
+                "differences": {
+                    field: {
+                        side: _bounded(question[field], 600)
+                        for side, question in (("expected", wanted[name]), ("recorded", found[name]))
+                        if field in question
+                    }
+                    for field in fields
+                },
+            })
+    return {
+        "different_survey_fields": sections,
+        "missing_questions": sorted(wanted.keys() - found.keys()),
+        "extra_questions": sorted(found.keys() - wanted.keys()),
+        "changed_questions": changed,
+    }
+
+
 def register(results_group: click.Group) -> None:
+    @results_group.command("check-survey")
+    @click.argument("results_path", type=click.Path(exists=True))
+    @click.option("--against", required=True, type=click.Path(exists=True), help="Expected local Jobs or Survey file.")
+    def check_survey(results_path, against):
+        """Check the survey saved in Results against the intended instrument.
+
+        Compares the full stored definition, including questions, instructions, rules,
+        and memory. Check respondent coverage and completed answers separately.
+        """
+        from edsl import Jobs, Results, Survey
+
+        try:
+            results = load_any_object(results_path, preview=True)
+            reference = load_any_object(against, preview=True)
+            expected = reference.survey if isinstance(reference, Jobs) else reference
+            if not isinstance(results, Results) or not isinstance(expected, Survey):
+                error("UNSUPPORTED_OBJECT", "Supply Results and an expected Jobs or Survey file.", exit_code=EXIT_USAGE)
+            actual = results.survey
+            if actual is None:
+                error("MISSING_SURVEY", "The Results have no stored survey definition.",
+                      suggestion="Inspect saved question_text columns or prompts for individual records.", exit_code=EXIT_VALIDATION)
+            files = {"results_path": results_path, "expected_path": against}
+            differences = _survey_differences(expected, actual)
+            if differences:
+                error(
+                    "SURVEY_MISMATCH",
+                    f"The survey in {results_path} differs from the instrument in {against}.",
+                    suggestion="Review the differences before reusing these responses.",
+                    details=[{**files, "survey_matches": False, **differences}],
+                    exit_code=EXIT_VALIDATION,
+                )
+            output({**files, "survey_matches": True, "question_count": len(actual.questions)})
+        except Exception as exc:
+            error("VALIDATION_ERROR", str(exc), exit_code=EXIT_VALIDATION)
+
     @results_group.command("columns")
     @click.option("--file", "file_path", required=True, help="Path to serialized Results .ep, JSON, or JSON.gz.")
     def results_columns(file_path):
