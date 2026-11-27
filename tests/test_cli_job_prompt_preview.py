@@ -136,3 +136,65 @@ def test_build_can_assert_cardinality_and_pair_aligned_rows(tmp_path):
         paths["job"], "q", "--interview-index", "1", "--expect-text", "Second"
     )["data"]
     assert second["indices"]["agent"] == second["indices"]["scenario"] == 1
+
+
+def test_inspect_reveals_default_cross_and_surfaces_plan_on_wrong_command(tmp_path):
+    q = QuestionFreeText(question_name="clarity", question_text="Rate {{ topic }}.")
+    job = Jobs(
+        survey=Survey([q]),
+        agents=[Agent(traits={"id": i}) for i in range(2)],
+        scenarios=ScenarioList([{"topic": "One"}, {"topic": "Two"}]),
+        models=[Model("test")],
+    )
+    runner = CliRunner()
+    for mode, expected_count in [("cross", 4), ("zip", 2)]:
+        if mode == "zip":
+            job.zip_assign()
+        path = str(tmp_path / f"{mode} study.ep")
+        job.git.save(path)
+        info = json.loads(runner.invoke(app, ["inspect", path]).output)["data"]
+        assert (info["assignment_mode"], info["interviews_per_iteration"]) == (
+            mode,
+            expected_count,
+        )
+        markdown = runner.invoke(app, ["inspect", path, "--markdown"])
+        assert markdown.exit_code == 0
+        assert (
+            f"**Assigned interviews per iteration**  \n{expected_count}"
+            in markdown.output
+        )
+        redirect = runner.invoke(app, ["surveys", "show", path])
+        assert redirect.exit_code == 2
+        issue = json.loads(redirect.output)["error"]
+        assert issue["code"] == "UNSUPPORTED_OBJECT"
+        assert issue["details"] == [job.assignment_summary()]
+        assert "ep inspect" in issue["suggestion"]
+
+
+def test_inspect_counts_actual_paired_identifiers_without_disclosing_values():
+    agents = [
+        Agent(traits={"research_id": v}) for v in ("test-secret-1", "test-secret-2")
+    ]
+    scenarios = ScenarioList(
+        [{"research_id": "test-secret-2"}, {"research_id": "test-secret-1"}]
+    )
+    survey = Survey(
+        [QuestionFreeText(question_name="q", question_text="Review {{ research_id }}.")]
+    )
+    job = Jobs(
+        survey=survey, agents=agents, scenarios=scenarios, models=[Model("test")]
+    )
+    assert "paired_identifier_counts" not in job.assignment_summary()
+    job.zip_assign()
+    summary = job.assignment_summary()
+    assert summary["paired_identifier_counts"] == {
+        "research_id": {"compared": 2, "mismatched": 2}
+    }
+    assert "test-secret-" not in json.dumps(summary)
+    job.scenarios[0], job.scenarios[1] = job.scenarios[1], job.scenarios[0]
+    assert (
+        job.assignment_summary()["paired_identifier_counts"]["research_id"][
+            "mismatched"
+        ]
+        == 0
+    )

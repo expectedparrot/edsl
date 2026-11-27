@@ -132,15 +132,18 @@ def _groups(obj):
             ("Models", obj.models),
         ]
         summary = " · ".join(f"{label} {len(items)}" for label, items in groups)
-        if obj._include_expression:
-            summary += "\n\n" + _fields({"Interview filter": obj._include_expression})
-        elif obj._assignment_plan is not None:
-            summary += "\n\n" + _fields(
-                {
-                    "Assignment mode": obj._assignment_plan.mode,
-                    "Assigned interviews": len(obj._assignment_plan),
-                }
+        plan = obj.assignment_summary()
+        layout = {"Assignment mode": plan["assignment_mode"]}
+        if plan["interviews_per_iteration"] is not None:
+            layout["Assigned interviews per iteration"] = plan["interviews_per_iteration"]
+        for field, comparison in plan.get("paired_identifier_counts", {}).items():
+            layout[f"Paired {field}"] = (
+                f"{comparison['mismatched']} of {comparison['compared']} interviews "
+                "pair an agent and scenario with different IDs."
             )
+        if "interview_filter" in plan:
+            layout["Interview filter"] = plan["interview_filter"]
+        summary += "\n\n" + _fields(layout)
         if obj.treatment_assignment is not None:
             summary += "\n\n" + _fields(
                 {"Treatment design": obj.treatment_assignment.design_id}

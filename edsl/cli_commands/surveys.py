@@ -962,9 +962,21 @@ def _load_survey(path: str, *, preview=False):
 
     survey = load_any_object(path, preview=preview)
     if not isinstance(survey, Survey):
+        from edsl.jobs import Jobs
+        from shlex import quote
+
+        suggestion = f"Use ep inspect {quote(str(path))} to review this object's contents."
+        if isinstance(survey, Jobs):
+            error(
+                "UNSUPPORTED_OBJECT",
+                "This file contains a Jobs object with an embedded survey.",
+                suggestion=suggestion + " Use ep jobs preview-prompt to inspect an assigned interview.",
+                details=[survey.assignment_summary()], exit_code=EXIT_USAGE,
+            )
         error(
             "UNSUPPORTED_OBJECT",
             f"Expected a Survey object, got {type(survey).__name__}.",
+            suggestion=suggestion,
             exit_code=EXIT_USAGE,
         )
     return survey

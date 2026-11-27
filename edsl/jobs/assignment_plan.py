@@ -221,6 +221,29 @@ class AssignmentPlan:
         for row in self.rows:
             yield row.agent_index, row.scenario_index, row.model_index
 
+    def paired_identifier_counts(self, agents, scenarios):
+        """Compare static ID fields shared by each assigned agent and scenario.
+
+        Report counts only. Values may identify respondents, and mismatches can be
+        intentional in designs that explicitly pair different people.
+        """
+        comparisons = {}
+        for agent_i, scenario_i, _ in self.iter_indices():
+            traits = agents[agent_i]._traits
+            scenario = scenarios[scenario_i]
+            for field in traits.keys() & scenario.keys():
+                if not isinstance(field, str) or not (field == "id" or field.endswith("_id")):
+                    continue
+                left, right = traits[field], scenario[field]
+                if not isinstance(left, (str, int)) or not isinstance(right, (str, int)):
+                    continue
+                if left == "" or right == "" or isinstance(left, bool) or isinstance(right, bool):
+                    continue
+                counts = comparisons.setdefault(field, {"compared": 0, "mismatched": 0})
+                counts["compared"] += 1
+                counts["mismatched"] += left != right
+        return comparisons
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "assignment_mode": self.mode,

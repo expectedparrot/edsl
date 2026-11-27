@@ -143,10 +143,7 @@ def register(jobs_group: click.Group) -> None:
                         exit_code=EXIT_VALIDATION,
                     )
                 job.zip_assign()
-            plan = {
-                "assignment_mode": "zip" if pair_agents_scenarios else "cross",
-                "interviews_per_iteration": len(job),
-            }
+            plan = job.assignment_summary()
             if expect_interviews is not None and expect_interviews != plan["interviews_per_iteration"]:
                 error(
                     "INTERVIEW_COUNT_MISMATCH",

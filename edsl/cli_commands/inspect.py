@@ -178,6 +178,7 @@ def _summary(obj, sample: int) -> dict:
                 "agent_count": _safe_len(getattr(obj, "agents", None)),
                 "scenario_count": _safe_len(getattr(obj, "scenarios", None)),
                 "model_count": _safe_len(getattr(obj, "models", None)),
+                **obj.assignment_summary(),
                 "output_token_policies": [
                     model_token_policy(model) for model in obj.models
                 ],
