@@ -1,5 +1,8 @@
 """Local edits to individual items in the three lists used to build a job."""
 
+import json
+import shlex
+
 import click
 
 from edsl.cli_shared import (
@@ -15,6 +18,14 @@ from edsl.cli_shared import (
 
 
 def register(group, object_type):
+    patch_help = (
+        "JSON object or file. Change only the supplied fields, merging nested objects."
+    )
+    if object_type == "AgentList":
+        patch_help += (
+            ' Put agent traits under "traits", e.g. {"traits":{"region":"North"}}.'
+        )
+
     @group.command("edit-item")
     @click.argument("path", type=click.Path(exists=True, dir_okay=False))
     @click.option(
@@ -24,7 +35,7 @@ def register(group, object_type):
     )
     @click.option(
         "--patch",
-        help="JSON object or file. Change only the supplied fields, merging nested objects.",
+        help=patch_help,
     )
     @click.option("--insert", help="Insert an item from a JSON object or file.")
     @click.option("--remove", is_flag=True, help="Remove the item at --index.")
@@ -75,6 +86,8 @@ def register(group, object_type):
                 # Verify requested values before committing the package.
                 recorded = item.to_dict(add_edsl_version=False)
                 if _merge_fields(recorded, fields) != recorded:
+                    if patch is not None and object_type == "AgentList":
+                        _explain_misplaced_traits(original, recorded, fields)
                     raise ValueError(
                         f"The supplied fields cannot be stored on this {object_type} item."
                     )
@@ -94,6 +107,26 @@ def register(group, object_type):
                 )
         except Exception as exc:
             error("VALIDATION_ERROR", str(exc), exit_code=EXIT_VALIDATION)
+
+
+def _explain_misplaced_traits(original, recorded, fields):
+    misplaced = fields.keys() - recorded.keys()
+    if not misplaced or not misplaced.issubset(original["traits"]):
+        return
+
+    nested = fields.get("traits", {})
+    if not isinstance(nested, dict) or misplaced.intersection(nested):
+        return
+
+    corrected = {key: value for key, value in fields.items() if key not in misplaced}
+    corrected["traits"] = {**nested, **{key: fields[key] for key in sorted(misplaced)}}
+    argument = shlex.quote(json.dumps(corrected, ensure_ascii=False))
+    error(
+        "VALIDATION_ERROR",
+        f"Put the following agent traits under 'traits': {', '.join(sorted(misplaced))}.",
+        suggestion=f"Use --patch {argument}",
+        exit_code=EXIT_VALIDATION,
+    )
 
 
 def _merge_fields(original, patch):

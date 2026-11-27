@@ -1,4 +1,5 @@
 import json
+import shlex
 
 import pytest
 from click.testing import CliRunner
@@ -69,6 +70,39 @@ def test_local_list_edits(tmp_path, monkeypatch, group, items, patch, expected):
     if group == "agents":
         run(dest, "--patch", '{"traitz":{"x":5}}', "--index", "0", success=False)
         assert dest.read_bytes() == before
+
+
+def test_flat_agent_trait_error_suggests_a_replayable_patch(tmp_path):
+    path = tmp_path / "roster.ep"
+    AgentList(
+        [Agent(name="Noor", traits={"region": "West", "years": 7, "role": "planner"})]
+    ).git.save(path)
+    original = path.read_bytes()
+    command = ["agents", "edit-item", str(path), "--index", "0"]
+    fields = {"region": "King's North", "name": "Nora", "traits": {"years": 8}}
+    runner = CliRunner()
+    result = runner.invoke(app, [*command, "--patch", json.dumps(fields)])
+    assert result.exit_code == 5
+    problem = json.loads(result.output)["error"]
+    assert problem["code"] == "VALIDATION_ERROR"
+    assert "region" in problem["message"]
+    assert path.read_bytes() == original
+
+    flag, corrected = shlex.split(problem["suggestion"].removeprefix("Use "))
+    assert flag == "--patch"
+    assert json.loads(corrected) == {
+        "name": "Nora",
+        "traits": {"region": "King's North", "years": 8},
+    }
+    retry = runner.invoke(app, [*command, flag, corrected])
+    assert retry.exit_code == 0, retry.output
+    agent = AgentList.git.load(path, sync_coop=False)[0]
+    assert agent.name == "Nora"
+    assert dict(agent.traits) == {
+        "region": "King's North",
+        "years": 8,
+        "role": "planner",
+    }
 
 
 def test_edit_job_replaces_selected_components_locally(tmp_path, monkeypatch):
