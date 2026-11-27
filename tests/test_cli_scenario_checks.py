@@ -121,3 +121,63 @@ def test_conditional_rules_are_skipped_only_when_the_guard_is_false(tmp_path):
     assert all(
         item["evaluation_errors"]["capacity"] == "ExpectedBoolean" for item in errors
     )
+
+
+def test_show_exports_ordered_json_rows_and_reopens_as_a_native_package(tmp_path):
+    from click.testing import CliRunner
+    from edsl import ScenarioList
+    from edsl.__main__ import app
+    import json
+
+    source = tmp_path / "source.ep"
+    rows = [{"id": "003", "value": None}, {"id": "007", "value": [True, 0]}]
+    ScenarioList(rows).git.save(source)
+    runner = CliRunner()
+    args = ["scenarios", "show", str(source)]
+    page = json.loads(
+        runner.invoke(app, args + ["--offset", "1", "--limit", "1"]).output
+    )["data"]
+    assert page["rows"] == rows[1:] and not page["has_more"] and page["total_rows"] == 2
+    exported = tmp_path / "rows.json"
+    result = runner.invoke(app, args + ["--limit", "0", "-o", str(exported)])
+    assert result.exit_code == 0 and json.loads(exported.read_text()) == rows
+    saved = tmp_path / "saved.ep"
+    assert (
+        runner.invoke(
+            app, ["scenarios", "create", "--from-json", str(exported), "-o", str(saved)]
+        ).exit_code
+        == 0
+    )
+    assert [dict(row) for row in ScenarioList.git.load(saved, sync_coop=False)] == rows
+    assert runner.invoke(app, args + ["-o", str(source)]).exit_code == 2
+    empty = json.loads(runner.invoke(app, args + ["--offset", "9"]).output)["data"]
+    assert empty["rows"] == [] and not empty["has_more"]
+
+
+def test_validate_rejects_a_manifest_only_package_with_actionable_json(
+    tmp_path, monkeypatch
+):
+    from click.testing import CliRunner
+    from edsl.__main__ import app
+    from edsl.base import git_package
+    import json
+    import zipfile
+
+    path = tmp_path / "sample.ep"
+    with zipfile.ZipFile(path, "w") as z:
+        z.writestr("manifest.json", json.dumps({"edsl_class_name": "ScenarioList"}))
+    worktree = tmp_path / "unpacked"
+
+    def temporary_worktree(_):
+        worktree.mkdir()
+        return worktree
+
+    monkeypatch.setattr(git_package, "new_package_worktree", temporary_worktree)
+    result = CliRunner().invoke(
+        app, ["validate", "--file", str(path), "--type", "scenario_list"]
+    )
+    issue = json.loads(result.output)["error"]
+    assert result.exit_code == 5 and issue["code"] == "INVALID_PACKAGE"
+    assert str(path) in issue["message"] and str(worktree) not in issue["message"]
+    assert "scenarios create --from-json" in issue["suggestion"]
+    assert not worktree.exists() and path.exists()

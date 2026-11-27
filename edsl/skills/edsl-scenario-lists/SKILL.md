@@ -6,6 +6,8 @@ tags: [edsl, reference]
 
 # EDSL ScenarioList
 
+For a custom sampling or analysis script, export the records with `ep scenarios show frame.ep --limit 0 -o rows.json`. Work with the JSON array, then write the selected records through `ep scenarios create --from-json selected.json -o selected.ep`. Reopen the output with `ep validate --file selected.ep --type scenario_list`. In Python, use `ScenarioList.git.load(path, sync_coop=False)` and `ScenarioList(rows).git.save(output_path, sync_coop=False)` when the script needs native EDSL types.
+
 To revise one item in a saved list, run `ep scenarios edit-item scenarios.ep --index 0 --patch '{"city":"Boston"}'`. Use `--insert` to append or insert an item and `--remove --index N` to delete one. Add `--output revised.ep` to keep the original.
 
 To verify a saved dataset against arithmetic or eligibility rules, run `ep scenarios check-rows data.ep --require bounds "0 <= low <= high <= eligible"`. Repeat `--require NAME EXPRESSION` for each independent check. When a rule applies only to some records, use `--require-if NAME WHEN EXPRESSION`, for example `--require-if stock "active" "units > 0"`. The report counts skipped rows for each rule. Add `--id-field` when a reviewer needs record identifiers. The CLI checks every row. For a complete audit file, pass `--limit 0`. Otherwise the report lists up to 20 failed rows and sets `truncated` when there are more.

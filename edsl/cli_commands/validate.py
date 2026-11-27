@@ -9,6 +9,7 @@ from typing import Optional
 import click
 
 from edsl.cli_shared import (
+    EXIT_NOT_FOUND,
     EXIT_USAGE,
     EXIT_VALIDATION,
     error,
@@ -39,9 +40,22 @@ def register(app: click.Group) -> None:
 
             path = Path(file_path)
             if path.is_dir() or path.suffix == ".ep":
-                loaded = load_any_object(file_path, preview=True)
-                loaded_type = loaded.__class__.__name__
-                raw = loaded.to_dict()
+                if not path.exists():
+                    error("FILE_NOT_FOUND", f"Package does not exist: {path}", exit_code=EXIT_NOT_FOUND)
+                try:
+                    loaded = load_any_object(file_path, preview=True)
+                    loaded_type = loaded.__class__.__name__
+                    raw = loaded.to_dict()
+                except Exception as exc:
+                    error(
+                        "INVALID_PACKAGE", f"Could not reopen {path}: {exc}",
+                        suggestion=(
+                            "Create the package with EDSL. For a ScenarioList, save the records as a JSON "
+                            "array and run 'ep scenarios create --from-json rows.json -o repaired.ep'."
+                            if force_type == "scenario_list" else
+                            "Use the matching ep create command or the object's .git.save(path) method, then validate the saved package."
+                        ), exit_code=EXIT_VALIDATION,
+                    )
             else:
                 raw = read_serialized_object(path)
         elif json_data:
