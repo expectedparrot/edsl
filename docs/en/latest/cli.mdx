@@ -180,6 +180,56 @@ ep inspect survey.ep
 
 `add-question` updates the survey package in place. A job built earlier retains its saved survey, so rebuild the job to include the new question. Use `ep agents create --help` and `ep scenarios create --help` for creating respondent profiles and scenario data from files.
 
+### Edit a saved survey locally
+
+Use `ep surveys` to revise a local file from the terminal. Each successful in-place edit to a `.ep` package records a revision when its contents change. Pass `--output` to write a separate file. These edits work offline.
+
+```bash
+ep surveys update-question travel.ep mode --option Walk --option Bus --option Train --option Other --output revised.ep
+ep surveys update-question revised.ep mode --question-text "How do you usually get to work?"
+ep surveys rename-question revised.ep mode commute_mode
+ep surveys show revised.ep --markdown --with-question-names
+```
+
+Repeated `--option` flags supply the complete ordered choice list. For typed values or other question fields, pass a JSON object or filename with `--patch`. Renaming updates references inside the survey, including answer piping, memory, and skip rules. Review any separate settings files or scripts that refer to the old name.
+
+For a survey with questions named `channel`, `receipt`, and `notes`, this example shows the receipt page only to in-store respondents. It carries existing browser settings into a new local file.
+
+```bash
+ep surveys add-skip-rule checkout.ep --question receipt --expression "{{ channel.answer }} == 'Online'"
+ep surveys set-groups checkout.ep --groups '{"start":["channel","channel"],"details":["receipt","receipt"],"finish":["notes","notes"]}'
+ep humanize schema create --survey checkout.ep --base-schema settings.json --presentation group --optional receipt --output revised-settings.json
+ep surveys check-paths checkout.ep --schema revised-settings.json --paths paths.json
+```
+
+Each path in `paths.json` lists the expected pages in order. Include the answers that affect routing. The command checks the end of the survey and exits with a validation error at the first mismatch.
+
+```json
+{
+  "store": [
+    {"page": ["channel"], "answers": {"channel": "Store"}},
+    {"page": ["receipt"]},
+    {"page": ["notes"]}
+  ],
+  "online": [
+    {"page": ["channel"], "answers": {"channel": "Online"}},
+    {"page": ["notes"]}
+  ]
+}
+```
+
+### Edit the inputs to a simulation
+
+Use `edit-item` with a local agent, scenario, or model list. Positions start at zero. A patch merges nested fields, so changing one trait or model parameter preserves its siblings. Insert without an index to append, or use `--remove --index N` to delete an item. Pass `--output` to write a separate list.
+
+```bash
+ep agents edit-item people.ep --index 0 --patch '{"traits":{"city":"Boston"}}'
+ep scenarios edit-item topics.ep --insert '{"topic":"commuting"}'
+ep models edit-item panel.ep --index 0 --patch '{"parameters":{"temperature":0.2}}' --output panel-v2.ep
+```
+
+Apply revised inputs to a saved job with `ep jobs edit study.ep --survey revised.ep --models panel-v2.ep --output study-v2.ep`. Each supplied file replaces that component. You can add `--agents` and `--scenarios` in the same command. Running the revised job is a separate step.
+
 To read a survey in the terminal, print its Markdown questionnaire or save it for review:
 
 ```bash

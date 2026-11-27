@@ -11,6 +11,10 @@ from edsl.cli_shared import EXIT_ERROR, EXIT_USAGE, error, load_any_object, outp
 
 
 def register(scenarios_group: click.Group) -> None:
+    from . import list_edits
+
+    list_edits.register(scenarios_group, "ScenarioList")
+
     @scenarios_group.command("create")
     @click.option("--from-csv", "csv_path", default=None, type=click.Path(exists=True), help="Create from a CSV file.")
     @click.option("--from-xlsx", "xlsx_path", default=None, type=click.Path(exists=True), help="Create from an Excel file.")

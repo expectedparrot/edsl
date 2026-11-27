@@ -59,125 +59,108 @@ class QuestionRenamer:
         if new_name in survey.question_name_to_index:
             raise SurveyError(f"Question name '{new_name}' already exists in survey.")
 
+        if (
+            new_name in survey.question_groups
+            or new_name in survey._instruction_names_to_instructions
+        ):
+            raise SurveyError(
+                f"Name {new_name!r} already belongs to a group or instruction."
+            )
+
         if not new_name.isidentifier():
             raise SurveyError(
                 f"New question name '{new_name}' is not a valid Python identifier."
             )
 
-        # Create a copy of the survey to work with
-        new_survey = survey.duplicate()
+        # Work on serialized data so construction rebuilds rule and name caches.
+        from copy import deepcopy
 
-        # 1. Update the question name itself
-        question_index = new_survey.question_name_to_index[old_name]
-        target_question = new_survey.questions[question_index]
-        target_question.question_name = new_name
+        data = deepcopy(survey.to_dict())
 
-        # 2. Update all rules that reference the old question name
-        for rule in new_survey.rule_collection:
-            # Update expressions - handle both old format (q1) and new format ({{ q1.answer }})
-            # Old format: 'q1' or 'q1.answer' (standalone references)
-            rule.expression = re.sub(
-                rf"\b{re.escape(old_name)}\.answer\b",
-                f"{new_name}.answer",
-                rule.expression,
-            )
-            rule.expression = re.sub(
-                rf"\b{re.escape(old_name)}\b(?!\.)", new_name, rule.expression
-            )
+        def rename(name):
+            return new_name if name == old_name else name
 
-            # New format: {{ q1.answer }} (Jinja2 template references)
-            rule.expression = re.sub(
-                rf"\{{\{{\s*{re.escape(old_name)}\.answer\s*\}}\}}",
-                f"{{{{ {new_name}.answer }}}}",
-                rule.expression,
-            )
-            rule.expression = re.sub(
-                rf"\{{\{{\s*{re.escape(old_name)}\s*\}}\}}",
-                f"{{{{ {new_name} }}}}",
-                rule.expression,
-            )
+        def rename_keys(mapping):
+            return {rename(name): value for name, value in mapping.items()}
 
-        # Update the shared question_name_to_index mapping (all rules share this)
-        shared_map = new_survey.rule_collection.question_name_to_index
-        if old_name in shared_map:
-            index = shared_map.pop(old_name)
-            shared_map[new_name] = index
+        def rename_names(names):
+            return [rename(name) for name in names]
 
-        # 3. Update memory plans
-        new_memory_plan_data = {}
-        for focal_question, memory in new_survey.memory_plan.data.items():
-            # Update focal question name if it matches
-            new_focal = new_name if focal_question == old_name else focal_question
+        # Match literals first. An answer label or an attribute with the same
+        # spelling as the question is data, not a reference to the question.
+        tokens = re.compile(
+            r"""'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|[.|]\s*\w+|\b\w+\b"""
+        )
 
-            # Update prior questions list (Memory class stores questions in data attribute)
-            if hasattr(memory, "data"):
-                new_prior_questions = [
-                    new_name if prior_q == old_name else prior_q
-                    for prior_q in memory.data
-                ]
-                # Create new memory object with updated prior questions
-                from .memory.memory import Memory
+        def expression(text):
+            return tokens.sub(lambda match: rename(match.group()), text)
 
-                new_memory = Memory(prior_questions=new_prior_questions)
-                new_memory_plan_data[new_focal] = new_memory
-            else:
-                new_memory_plan_data[new_focal] = memory
-
-        new_survey.memory_plan.data = new_memory_plan_data
-
-        # Update the memory plan's internal question name list
-        if hasattr(new_survey.memory_plan, "survey_question_names"):
-            new_survey.memory_plan.survey_question_names = [
-                new_name if q_name == old_name else q_name
-                for q_name in new_survey.memory_plan.survey_question_names
-            ]
-
-        # 4. Update piping references in all questions
-        def update_piping_in_text(text: str) -> str:
-            """Update piping references in text strings."""
-            # Handle {{ old_name.answer }} format
-            text = re.sub(
-                rf"\{{\{{\s*{re.escape(old_name)}\.answer\s*\}}\}}",
-                f"{{{{ {new_name}.answer }}}}",
+        def piping(text):
+            return re.sub(
+                r"\{\{.*?\}\}|\{%.*?%\}",
+                lambda m: expression(m.group()),
                 text,
+                flags=re.S,
             )
-            # Handle {{ old_name }} format
-            text = re.sub(
-                rf"\{{\{{\s*{re.escape(old_name)}\s*\}}\}}",
-                f"{{{{ {new_name} }}}}",
-                text,
+
+        def update_templates(value):
+            if isinstance(value, str):
+                return piping(value)
+            if isinstance(value, list):
+                return [update_templates(item) for item in value]
+            if isinstance(value, dict):
+                return {key: update_templates(item) for key, item in value.items()}
+            return value
+
+        items = data["questions"] = update_templates(data["questions"])
+        for item in items:
+            if item.get("question_name") == old_name:
+                item["question_name"] = new_name
+
+        data["question_groups"] = rename_keys(data["question_groups"])
+        collection = data["rule_collection"]
+        collection["question_name_to_index"] = rename_keys(
+            collection["question_name_to_index"]
+        )
+        for rule in collection["rules"]:
+            # Templates can also appear within quoted strings in rule expressions.
+            rule["expression"] = expression(piping(rule["expression"]))
+            rule["question_name_to_index"] = rename_keys(rule["question_name_to_index"])
+
+        memory = data["memory_plan"]
+        memory["survey_question_names"] = rename_names(memory["survey_question_names"])
+        memory["survey_question_texts"] = [
+            item["question_text"] for item in items if "question_name" in item
+        ]
+        memory["data"] = rename_keys(memory["data"])
+        for entry in memory["data"].values():
+            entry["prior_questions"] = rename_names(entry["prior_questions"])
+
+        if "questions_to_randomize" in data:
+            data["questions_to_randomize"] = rename_names(
+                data["questions_to_randomize"]
             )
-            return text
+        if "options_to_pin" in data:
+            data["options_to_pin"] = rename_keys(data["options_to_pin"])
+        if "scale_direction_randomization" in data:
+            policy = data["scale_direction_randomization"]
+            policy["questions"] = rename_names(policy["questions"])
+        if "question_sampling" in data:
+            policy = data["question_sampling"]
+            for key in ("eligible_questions", "required_questions"):
+                policy[key] = rename_names(policy[key])
+        for block in data.get("question_order", {}).get("blocks", []):
+            block["questions"] = rename_names(block["questions"])
 
-        for question in new_survey.questions:
-            # Update question text
-            question.question_text = update_piping_in_text(question.question_text)
+        def rename_answer_refs(value):
+            if isinstance(value, list):
+                return [rename_answer_refs(item) for item in value]
+            if isinstance(value, dict):
+                if set(value) == {"$answer"}:
+                    return {"$answer": rename(value["$answer"])}
+                return {key: rename_answer_refs(item) for key, item in value.items()}
+            return value
 
-            # Update question options if they exist
-            if hasattr(question, "question_options") and question.question_options:
-                question.question_options = [
-                    update_piping_in_text(option) if isinstance(option, str) else option
-                    for option in question.question_options
-                ]
-
-        # 5. Update instructions
-        for (
-            instruction_name,
-            instruction,
-        ) in new_survey._instruction_names_to_instructions.items():
-            if hasattr(instruction, "text"):
-                instruction.text = update_piping_in_text(instruction.text)
-
-        # 6. Update question groups - only if the renamed question is a key (not just in ranges)
-        # Question groups use indices for ranges, so we don't need to update those
-        # But if someone created a group with the same name as a question, we should handle that
-        if old_name in new_survey.question_groups:
-            group_range = new_survey.question_groups.pop(old_name)
-            new_survey.question_groups[new_name] = group_range
-
-        # 7. Update pseudo indices
-        if old_name in new_survey._pseudo_indices:
-            pseudo_index = new_survey._pseudo_indices.pop(old_name)
-            new_survey._pseudo_indices[new_name] = pseudo_index
-
-        return new_survey
+        for stage, anchors in data.get("state_steps", {}).items():
+            data["state_steps"][stage] = rename_answer_refs(rename_keys(anchors))
+        return type(survey).from_dict(data)

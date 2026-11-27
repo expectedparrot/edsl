@@ -102,6 +102,22 @@ def private_output(path) -> Iterator[Path]:
         raise
 
 
+def load_json_object(value: str) -> dict:
+    path = Path(value)
+    try:
+        is_file = path.is_file()
+    except OSError:
+        is_file = False
+    raw = path.read_text(encoding="utf-8") if is_file else value
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as e:
+        error("INVALID_JSON", f"Failed to parse JSON: {e}", exit_code=EXIT_USAGE)
+    if not isinstance(data, dict):
+        error("USAGE_ERROR", "JSON input must be an object.", exit_code=EXIT_USAGE)
+    return data
+
+
 def read_json_file(path: str) -> dict:
     """Read and parse a JSON file, or emit an error."""
     if path == "-":
@@ -338,7 +354,7 @@ def save_results(results_obj, output_path: str) -> dict:
     return {"path": str(path), "format": "json", "object_type": "Results"}
 
 
-def save_edsl_object(obj, output_path: str, object_type: str | None = None) -> dict:
+def save_edsl_object(obj, output_path: str, object_type: str | None = None, *, sync_coop: bool = True) -> dict:
     class_name = object_type or type(obj).__name__
     if output_path == "-":
         _write_raw_object_json(obj)
@@ -360,7 +376,7 @@ def save_edsl_object(obj, output_path: str, object_type: str | None = None) -> d
         )
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.suffix == ".ep":
-        info = obj.git.save(path)
+        info = obj.git.save(path) if sync_coop else obj.git.save(path, sync_coop=False)
         return {
             "path": info.get("path", str(path)),
             "format": "ep",

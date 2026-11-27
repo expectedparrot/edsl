@@ -2750,6 +2750,7 @@ class TestJobsCli:
         out = json.loads(result.output)
         assert out["data"]["commands"] == [
             "build",
+            "edit",
             "set-treatment-assignment",
             "list",
             "status",

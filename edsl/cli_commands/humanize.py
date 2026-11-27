@@ -698,6 +698,8 @@ def register(humanize: click.Group) -> None:
     @humanize_schema.command("create")
     @click.option("--survey", "survey_path", required=True, type=click.Path(exists=True), help="Survey .ep, JSON, or package directory.")
     @click.option("--output", "-o", "output_path", default=None, help="Write schema JSON to this path. Use a .json.gz suffix for gzip. Omit to return it in the JSON envelope.")
+    @click.option("--base-schema", type=click.Path(exists=True, dir_okay=False), help="Start from existing local browser settings and preserve unspecified fields.")
+    @click.option("--presentation", type=click.Choice(["question", "group"]), help="Display one question or one question group per page.")
     @click.option("--optional", "optional_questions", multiple=True, help="Question to mark optional. Repeat or use 'all'.")
     @click.option("--required", "required_questions", multiple=True, help="Question to mark required. Repeat or use 'all'.")
     @click.option("--format", "format_specs", multiple=True, help="QUESTION=radio|dropdown|input. Repeat for multiple questions.")
@@ -725,6 +727,8 @@ def register(humanize: click.Group) -> None:
     def humanize_schema_create(
         survey_path,
         output_path,
+        base_schema,
+        presentation,
         optional_questions,
         required_questions,
         format_specs,
@@ -771,10 +775,10 @@ def register(humanize: click.Group) -> None:
             clear_logo=False,
         )
         try:
-            survey = _load_survey_object(survey_path)
+            survey = _load_survey_object(survey_path, local=True)
             schema = _build_humanize_schema_from_controls(
                 survey=survey,
-                base_schema=None,
+                base_schema=_read_json_or_gzip(base_schema) if base_schema else None,
                 optional_questions=optional_questions,
                 required_questions=required_questions,
                 format_specs=format_specs,
@@ -800,6 +804,8 @@ def register(humanize: click.Group) -> None:
                 back_button=back_button,
                 no_back_past_questions=no_back_past_questions,
             )
+            if presentation is not None:
+                schema.setdefault("survey", {})["presentation"] = presentation
             _validate_humanize_schema(survey, schema)
             data = {"schema": schema, "valid": True}
             if output_path:
@@ -3007,9 +3013,9 @@ def register(humanize: click.Group) -> None:
             )
 
 
-    def _load_costable_object(path: Path):
+    def _load_costable_object(path: Path, *, local=False):
         if path.is_dir() or path.suffix == ".ep":
-            return load_git_object(path)
+            return load_git_object(path, sync_coop=not local)
         return load_openable_json(path)
 
     def _build_humanize_schema_from_controls(
@@ -3287,10 +3293,10 @@ def register(humanize: click.Group) -> None:
         return {"path": str(path), "format": "json", "object_type": "HumanizeSchema"}
 
 
-    def _load_survey_object(path: str):
+    def _load_survey_object(path: str, *, local=False):
         from edsl.surveys import Survey
 
-        obj = _load_costable_object(Path(path))
+        obj = _load_costable_object(Path(path), local=local)
         if not isinstance(obj, Survey):
             error(
                 "UNSUPPORTED_OBJECT",

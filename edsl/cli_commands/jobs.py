@@ -15,6 +15,7 @@ from edsl.cli_shared import (
     EXIT_VALIDATION,
     error,
     jsonable,
+    load_any_object,
     load_git_object,
     load_openable_json,
     output,
@@ -97,6 +98,44 @@ def register(jobs_group: click.Group) -> None:
                 suggestion="Check that inputs are the expected Survey, AgentList, ScenarioList, and ModelList objects.",
                 exit_code=EXIT_USAGE,
             )
+
+    local_file = click.Path(exists=True, dir_okay=False)
+
+    @jobs_group.command("edit")
+    @click.argument("path", type=local_file)
+    @click.option("--survey", type=local_file, help="Replace the survey from a local file.")
+    @click.option("--agents", type=local_file, help="Replace the entire agent list.")
+    @click.option("--scenarios", type=local_file, help="Replace the entire scenario list.")
+    @click.option("--models", type=local_file, help="Replace the entire model list.")
+    @click.option("--output", "-o", "destination", type=click.Path(dir_okay=False), help="Defaults to the input file.")
+    def edit_job(path, survey, agents, scenarios, models, destination):
+        """Replace components of a saved job locally without running it."""
+        from edsl import AgentList, Jobs, ModelList, ScenarioList, Survey
+
+        components = (
+            ("survey", survey, Survey), ("agents", agents, AgentList),
+            ("scenarios", scenarios, ScenarioList), ("models", models, ModelList),
+        )
+        if not any(source for _, source, _ in components):
+            error("USAGE_ERROR", "Supply at least one component to replace.", exit_code=EXIT_USAGE)
+        try:
+            job = load_any_object(path, preview=True)
+            if not isinstance(job, Jobs):
+                raise ValueError(f"Expected Jobs, got {type(job).__name__}.")
+            changed = []
+            for name, source, expected in components:
+                if source is None:
+                    continue
+                component = load_any_object(source, preview=True)
+                if not isinstance(component, expected):
+                    raise ValueError(f"--{name} requires {expected.__name__}, got {type(component).__name__}.")
+                setattr(job, name, component)
+                changed.append(name)
+            saved = save_edsl_object(job, destination or path, sync_coop=False)
+            if not raw_output_written(saved):
+                output({"object_type": "Jobs", "replaced": changed, "saved": saved})
+        except Exception as exc:
+            error("VALIDATION_ERROR", str(exc), exit_code=EXIT_VALIDATION)
 
     @jobs_group.command("set-treatment-assignment")
     @click.argument("jobs_path", type=click.Path(exists=True))

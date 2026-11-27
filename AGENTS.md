@@ -240,6 +240,7 @@ ep agents create --from-csv people.csv --codebook '{"age":"Age in years"}' --out
 Transform existing agent lists:
 
 ```bash
+ep agents edit-item agents.ep --index 0 --patch '{"traits":{"city":"Boston"}}'
 ep agents transform agents.ep --help
 ```
 
@@ -258,6 +259,7 @@ ep scenarios create --from-image image1.png --from-image image2.png --output ima
 Transform existing scenario lists:
 
 ```bash
+ep scenarios edit-item scenarios.ep --insert '{"city":"Boston"}'
 ep scenarios transform scenarios.ep --help
 ```
 
@@ -270,6 +272,8 @@ Survey commands let agents construct surveys without writing Python.
 ```bash
 ep surveys create --question-type free_text --question-name q0 --question-text "What do you think?" --output survey.ep
 ep surveys add-question survey.ep --question-type multiple_choice --question-name q1 --question-text "Pick one." --option A --option B
+ep surveys update-question survey.ep q1 --option A --option B --option C
+ep surveys rename-question survey.ep q0 introduction --output renamed.ep
 ep surveys questions survey.ep
 ep surveys show survey.ep
 ep surveys show survey.ep --markdown
@@ -420,6 +424,7 @@ ep jobs errors <job_uuid> --output error.md
 ep jobs manifest <job_uuid>
 ep jobs page <job_uuid> --page 0 --page_size 100
 ep jobs cancel <job_uuid> --yes
+ep jobs edit jobs.ep --survey revised.ep --output revised.jobs.ep
 ep jobs cost jobs.ep --iterations 3
 ```
 

@@ -270,6 +270,10 @@ def register(app: click.Group) -> None:
             warnings=warnings,
         )
 
+    from . import list_edits
+
+    list_edits.register(models, "ModelList")
+
     @models.command("create")
     @click.option("--model", "models", multiple=True, help="Model name. Repeat for multiple models.")
     @click.option(
