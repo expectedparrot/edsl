@@ -1,6 +1,6 @@
 ---
 name: edsl-harness
-description: Use EDSL's installed, version-matched skills and Expected Parrot package guidance when creating, running, or debugging EDSL work.
+description: Start here for any EDSL task, including preparing research files, building surveys or simulation jobs, and checking saved objects. Treat .ep files as opaque EDSL objects. Use ep for every .ep read, edit and verification. Inspect surveys with ep surveys questions FILE or ep surveys show FILE, then use ep surveys --help to choose an edit command. Read separate JSON settings normally.
 tags: [edsl, harness, routing]
 ---
 
@@ -8,6 +8,12 @@ tags: [edsl, harness, routing]
 
 Use this skill when the task involves EDSL APIs, EDSL CLI commands, or an
 Expected Parrot research package.
+
+At the start of a task, search the installed catalog for the specific operations in the request with `ep skills search`, then load the matching skill and the reference that covers those operations. Before finishing, reopen the requested outputs from a clean directory using the public EDSL loader for their object type and check the behavior the user asked for.
+
+The search matches a literal substring. Use one distinctive keyword per search. If no matches come back, try a shorter term, then inspect the names and descriptions from `ep skills list`. Open the matching SKILL.md and its relevant reference.
+
+For local edits to existing .ep files, start with the object's CLI commands (for surveys, `ep surveys --help`). Use their local edit and verification commands, and inspect the help for any companion browser settings.
 
 ## Find the right EDSL guidance
 
