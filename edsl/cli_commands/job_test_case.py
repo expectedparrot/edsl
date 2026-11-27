@@ -51,6 +51,11 @@ from .job_prompt_preview import assigned_interview, assigned_interviews
     help="JSON object or file of expected final EDSL answers keyed by question name.",
 )
 @click.option(
+    "--expect-rejection",
+    metavar="QUESTION",
+    help="Pass only if the named question rejects its scripted reply in answer validation.",
+)
+@click.option(
     "--output",
     "-o",
     "output_path",
@@ -64,6 +69,7 @@ def test_case(
     iterations,
     responses,
     expect,
+    expect_rejection,
     output_path,
 ):
     """Rehearse a saved job with local test models and EDSL's normal answer validation.
@@ -82,6 +88,17 @@ def test_case(
     try:
         replies = load_json_object(responses)
         expected = load_json_object(expect) if expect is not None else {}
+        if expect_rejection is not None:
+            if (
+                expect_rejection not in replies
+                or expect_rejection in expected
+                or output_path is not None
+            ):
+                error(
+                    "USAGE_ERROR",
+                    "--expect-rejection requires a scripted reply for that question, no expected answer for it, and no Results output.",
+                    exit_code=EXIT_USAGE,
+                )
         if output_path is not None:
             source = Path(jobs_path)
             same_input = output_path.exists() and output_path.samefile(source)
@@ -144,7 +161,9 @@ def test_case(
         completed = []
         count = 0
         for index, interview in cases:
-            row, case = _run_case(interview, index, planned, canned, expected)
+            row, case = _run_case(
+                interview, index, planned, canned, expected, expect_rejection
+            )
             count += 1
             if output_path is not None:
                 rows.append(row)
@@ -160,6 +179,8 @@ def test_case(
             if all_interviews
             else case
         )
+        if all_interviews and expect_rejection is not None:
+            data.update(expected_rejection=expect_rejection, validation_rejected=True)
         if output_path is not None:
             results = Results(
                 survey=survey,
@@ -190,7 +211,10 @@ def test_case(
         )
 
 
-def _run_case(interview, interview_index, planned, canned, expected):
+def _run_case(
+    interview, interview_index, planned, canned, expected, expect_rejection=None
+):
+    from edsl.questions.exceptions import QuestionAnswerValidationError
     from edsl import Model
     from edsl.caching import Cache
     from edsl.results import Result
@@ -241,10 +265,24 @@ def _run_case(interview, interview_index, planned, canned, expected):
         for q in interview.survey.question_names
         if q not in canned and isinstance(raw.get(f"{q}_raw_model_response"), dict)
     ]
-    if failed or missing or mismatches:
+    if expect_rejection is not None:
+        rejected = bool(failures.get(expect_rejection)) and isinstance(
+            failures[expect_rejection][-1].exception, QuestionAnswerValidationError
+        )
+        data.update(expected_rejection=expect_rejection, validation_rejected=rejected)
+        unexpected_failure = set(failed) != {expect_rejection} or not rejected
+    else:
+        unexpected_failure = bool(failed)
+    if unexpected_failure or missing or mismatches:
+        message = "The scripted interview failed its checks."
+        if expect_rejection is not None and not rejected:
+            if expect_rejection in answers and answers[expect_rejection] is not None:
+                message = f"{expect_rejection!r} accepted the scripted reply. Expected answer validation to reject it."
+            else:
+                message = f"No answer-validation rejection was recorded for {expect_rejection!r}. Check routing and interview errors."
         error(
             "JOB_TEST_CASE_FAILED",
-            "The scripted interview failed its checks.",
+            message,
             suggestion="Review the model replies, the assigned scenario, and the expected final answer values.",
             details=[
                 {

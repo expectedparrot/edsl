@@ -109,6 +109,11 @@ def register(group):
         metavar="HEX",
         help="Require exactly these attachment digests, in the given order. Repeat for each file.",
     )
+    @click.option(
+        "--expect-comments",
+        type=click.BOOL,
+        help="Check the question’s include_comment setting. Inspect the rendered text for custom instructions.",
+    )
     def preview_prompt(
         jobs_path,
         question_name,
@@ -119,6 +124,7 @@ def register(group):
         forbid_text,
         expect_files,
         expect_file_sha256,
+        expect_comments,
     ):
         """Render one question for an assigned interview in a saved Jobs file.
 
@@ -174,11 +180,23 @@ def register(group):
                 "indices": interview.indices,
                 "iteration": interview.iteration,
                 "question_name": question_name,
+                "include_comment": getattr(question, "include_comment", None),
                 "attachments": [
                     _attachment_summary(f) for f in prompts.get("files_list", [])
                 ],
                 **texts,
             }
+            if (
+                expect_comments is not None
+                and data["include_comment"] != expect_comments
+            ):
+                error(
+                    "PROMPT_COMMENT_MISMATCH",
+                    "The question’s include_comment setting differs from the requested value.",
+                    suggestion="Set include_comment on the question and inspect both rendered prompts for instructions asking for an explanation.",
+                    details=[data],
+                    exit_code=EXIT_VALIDATION,
+                )
             if expect_files is not None and len(data["attachments"]) != expect_files:
                 error(
                     "PROMPT_ATTACHMENT_MISMATCH",

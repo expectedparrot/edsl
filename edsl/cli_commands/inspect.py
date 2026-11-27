@@ -206,6 +206,7 @@ def _summary(obj, sample: int) -> dict:
                 "scenario_count": _safe_len(getattr(obj, "scenarios", None)),
                 "model_count": _safe_len(getattr(obj, "models", None)),
                 **obj.assignment_summary(),
+                "rehearsal_command": "ep jobs variants JOBS_FILE --help",
                 "output_token_policies": [
                     model_token_policy(model) for model in obj.models
                 ],

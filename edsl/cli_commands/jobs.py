@@ -71,7 +71,9 @@ def scenario_field_warnings(job):
 def register(jobs_group: click.Group) -> None:
     from . import job_prompt_preview
     from .job_test_case import test_case
+    from .job_variants import variants
 
+    jobs_group.add_command(variants)
     job_prompt_preview.register(jobs_group)
     jobs_group.add_command(test_case)
 
