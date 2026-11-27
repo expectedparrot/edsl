@@ -1,6 +1,6 @@
 ---
 name: edsl-harness
-description: Start here for any EDSL task, including preparing research files, building surveys or simulation jobs, and checking saved objects. Treat .ep files as opaque EDSL objects. Use ep for every .ep read, edit and verification. Inspect surveys with ep surveys questions FILE or ep surveys show FILE, then use ep surveys --help to choose an edit command. Read separate JSON settings normally.
+description: Start here for any EDSL task, including survey design, simulation jobs, checking saved objects, and finding research packages for specialized research methods. Treat .ep files as opaque EDSL objects. Use ep for every .ep read, edit and verification. Inspect surveys with ep surveys questions FILE or ep surveys show FILE, then use ep surveys --help to choose an edit command. Read separate JSON settings normally.
 tags: [edsl, harness, routing]
 ---
 
@@ -11,9 +11,9 @@ Expected Parrot research package.
 
 When a user asks you to run or pilot a study with simulated respondents, execute the interviews through EDSL. Base your findings on answers you verified in the resulting `Results` object. If the run fails or produces no answers, say so. Label illustrative responses as examples.
 
-At the start of a task, search the installed catalog for the specific operations in the request with `ep skills search`, then load the matching skill and the reference that covers those operations. Before finishing, reopen the requested outputs from a clean directory using the public EDSL loader for their object type and check the behavior the user asked for.
+For a study design, search by research method first with `ep skills search "<method>"` (for example, `qualitative coding` or `expert elicitation`). Read a promising `data.packages` README and choose between the package and core EDSL based on the requested design and outputs. Briefly explain your choice. For implementation details, search the specific EDSL operation and load its matching skill and reference. Before finishing, reopen the requested outputs from a clean directory using the public EDSL loader for their object type and check the behavior the user asked for.
 
-The search matches a literal substring. Use one distinctive keyword per search. If no matches come back, try a shorter term, then inspect the names and descriptions from `ep skills list`. Open the matching SKILL.md and its relevant reference.
+Bundled skills match a literal substring. Use one distinctive keyword per search. If no matches come back, try a shorter term, then inspect the names and descriptions from `ep skills list`. Open the matching SKILL.md and its relevant reference.
 
 For local edits to existing .ep files, start with the object's CLI commands (for surveys, `ep surveys --help`). Use their local edit and verification commands, and inspect the help for any companion browser settings.
 
@@ -69,13 +69,7 @@ and CLI conventions.
 
 ## Find an Expected Parrot package
 
-For work that appears to need a specialized Expected Parrot package beyond
-EDSL's core capabilities, consult the [Expected Parrot package directory](https://github.com/expectedparrot/directory).
-Choose a package that matches the user's task, then read its own repository
-README and agent guidance before installing or using it. The directory is a
-catalog, not an installer or a guarantee that a package is already present.
-Install only the package needed for the requested work, using its documented
-instructions; do not guess its CLI, dependencies, or file layout.
+Follow the selected package’s README for installation and commands. If your CLI version predates package search, check the [Expected Parrot package directory](https://github.com/expectedparrot/directory).
 
 Follow package-specific guidance alongside the relevant `edsl:` skills. Keep
 EDSL object construction and execution aligned with the installed EDSL version.

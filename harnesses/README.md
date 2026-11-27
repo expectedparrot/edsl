@@ -132,9 +132,8 @@ by inspecting the workspace and preserve its existing organization.
 
 ## Package discovery
 
-When the task calls for a method-specific tool, use the [Expected Parrot
-package directory](https://github.com/expectedparrot/directory) to discover
-candidate packages. Then read the chosen package's own README and bundled agent
+When the task calls for a method-specific tool, search by method with `ep skills search "<method>"`. The
+`data.packages` matches come from the [Expected Parrot package directory](https://github.com/expectedparrot/directory). Then read the chosen package's own README and bundled agent
 guidance. Use its documented installation and commands; the directory itself
 is a catalog.
 
