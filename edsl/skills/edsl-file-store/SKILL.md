@@ -13,3 +13,5 @@ A later model question can receive a file from a prior upload. Use `{{ upload.an
 `FileStore` also provides helpers such as `extract_text()`, `mime_type`, `is_image()`, and `to_scenario_list()` for supported formats. File upload answers can be converted with `FileStore.from_file_upload_answer`; generated image answers can be passed to later image-generation questions. See the [detailed FileStore guide](references/detailed-guide.md).
 
 Related bundles: `edsl:edsl-scenario-lists`, `edsl:edsl-surveys`.
+
+A scenario can store the file field's name in another field. For example, `{{ scenario[scenario.pick] }}` attaches the `crop` file when `pick` is `"crop"`. Use `ep jobs preview-prompt` with `--interview-index` and `--expect-file-sha256` to verify each selection in a saved job.

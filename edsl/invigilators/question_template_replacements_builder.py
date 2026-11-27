@@ -239,6 +239,10 @@ class QuestionTemplateReplacementsBuilder:
                     node.arg.value, str
                 ):
                     referenced.add(node.arg.value)
+                elif not isinstance(node.arg, nodes.Const):
+                    # A computed subscript can select any public file. Each file
+                    # is eligible here; only tags in the final render attach it.
+                    referenced.update(key for key in scenario_file_keys if not key.startswith("_"))
 
         # These are candidates. The render decides attachment order and which
         # candidates survive expressions such as {{ scenario.full if open else scenario.crop }}.

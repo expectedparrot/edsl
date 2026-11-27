@@ -315,6 +315,41 @@ def test_conditional_files_follow_the_rendered_branch_in_display_order(tmp_path)
     )
 
 
+def test_computed_scenario_file_key_in_saved_job(tmp_path):
+    from hashlib import sha256
+    from edsl import FileStore
+
+    files = {}
+    for key in ("crop", "full"):
+        source = tmp_path / f"{key}.txt"
+        source.write_bytes(key.encode())
+        files[key] = FileStore(str(source))
+    question = QuestionFreeText(
+        question_name="inspect_asset",
+        question_text="Inspect {{ scenario[scenario.pick] }}.",
+    )
+    choices = ["crop", "full", "ordinary"]
+    scenarios = ScenarioList(
+        [dict(files, pick=key, ordinary="a caption") for key in choices]
+    )
+    path = tmp_path / "study.ep"
+    question.by(scenarios).by(Model("test")).git.save(path, sync_coop=False)
+    for i, key in enumerate(choices):
+        flags = (
+            ["--expect-file-sha256", sha256(key.encode()).hexdigest()]
+            if key in files
+            else ["--expect-files", "0"]
+        )
+        record = preview(path, "inspect_asset", "--interview-index", str(i), *flags)[
+            "data"
+        ]
+        expected = f"<see file {key}>" if key in files else "a caption"
+        assert f"Inspect {expected}." in record["user_prompt"]
+        assert [f["name"] for f in record["attachments"]] == (
+            [f"{key}.txt"] if key in files else []
+        )
+
+
 def test_preview_uses_local_upload_fixtures_without_changing_the_saved_job(tmp_path):
     from hashlib import sha256
     from edsl import QuestionFileUpload
