@@ -3605,6 +3605,37 @@ class TestHumanizeCli:
         out = json.loads(result.output)
         assert out["data"]["valid"] is True
 
+    def test_schema_validate_interview_context_and_languages(self, tmp_path):
+        from edsl import QuestionFreeText, QuestionInterview, Survey
+
+        survey = Survey([
+            QuestionFreeText(question_name="rating", question_text="Rating?"),
+            QuestionFreeText(question_name="other", question_text="Any other comments about {{ rating.answer }}?"),
+            QuestionInterview(question_name="followup", question_text="Your experience",
+                              interview_guide="{% if rating.answer == 'low' %}What went wrong?{% else %}Why {{ rating.answer }}?{% endif %}"),
+        ])
+        path, schema = tmp_path / "study.ep", tmp_path / "web.json"
+        survey.git.save(path, sync_coop=False)
+        run_cli("humanize", "schema", "create", "--survey", str(path), "--output", str(schema),
+                "--interview-mode", "followup=both", "--text-language", "followup=spanish",
+                "--voice-language", "followup=french")
+        check = ["humanize", "schema", "validate", "--survey", str(path), "--schema", str(schema)]
+        report = run_cli(*check, "--answers", '{"rating":"low","other":"private detail"}')["data"]
+        assert report["rendered_question_texts"]["other"] == "Any other comments about low?"
+        info = report["interviews"]["followup"]
+        assert info["prior_question_references"] == ["rating"]
+        assert info["unreferenced_sample_answers"] == ["other"]
+        assert info["rendered_interview_guide"] == "What went wrong?"
+        assert info["languages"] == {"text": "spanish", "voice": "french"}
+        assert info["missing_sample_answers"] == []
+        assert "private detail" not in json.dumps(info)
+        assert run_cli(*check, "--answers", "{}")["data"]["interviews"]["followup"]["missing_sample_answers"] == ["rating"]
+        assert run_cli(*check, "--answers", '{"typo":3}', expect_exit=5)["error"]["code"] == "VALIDATION_ERROR"
+        rejected = run_cli("humanize", "schema", "create", "--survey", str(path), "--interview-mode", "other=both", expect_exit=5)
+        assert "'free_text'" in rejected["error"]["message"]
+        assert "--replace" in rejected["error"]["suggestion"]
+        assert "--question-type interview" in rejected["error"]["suggestion"]
+
     def test_humanize_schema_create_from_direct_controls(self, tmp_path):
         from edsl.questions import (
             QuestionFreeText,

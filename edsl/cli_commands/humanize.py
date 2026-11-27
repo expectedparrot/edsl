@@ -24,6 +24,7 @@ from edsl.cli_shared import (
     error,
     jsonable,
     load_git_object,
+    load_json_object,
     load_openable_json,
     private_output,
     output,
@@ -675,15 +676,17 @@ def register(humanize: click.Group) -> None:
     @humanize_schema.command("validate")
     @click.option("--survey", "survey_path", required=True, type=click.Path(exists=True), help="Survey .ep, JSON, or package directory.")
     @click.option("--schema", "schema_path", required=True, type=click.Path(exists=True), help="Humanize schema JSON.")
-    def humanize_schema_validate(survey_path, schema_path):
-        """Validate a humanize schema against a survey."""
+    @click.option("--answers", help="Sample answers as JSON or a file. Render local question wording and interview guides for all branches. Use surveys check-paths for routing.")
+    def humanize_schema_validate(survey_path, schema_path, answers):
+        """Validate the saved schema and report interview languages and prior question references."""
         try:
-            from edsl.coop.coop_humanize_schema import validate_humanize_schema
+            from .humanize_interviews import describe_survey_context
 
-            survey = _load_survey_object(survey_path)
+            survey = _load_survey_object(survey_path, local=True)
             humanize_schema_data = _read_json_or_gzip(schema_path)
-            validate_humanize_schema(survey, humanize_schema_data)
-            output({"valid": True})
+            _validate_humanize_schema(survey, humanize_schema_data, survey_path)
+            samples = load_json_object(answers) if answers is not None else None
+            output({"valid": True, **describe_survey_context(survey, humanize_schema_data, samples)})
         except SystemExit:
             raise
         except Exception as e:
@@ -707,6 +710,7 @@ def register(humanize: click.Group) -> None:
     @click.option("--comment", "comment_specs", multiple=True, help="QUESTION=LABEL comment field. Repeat for multiple questions.")
     @click.option("--select-exact-answer", "exact_answer_specs", multiple=True, help="QUESTION=ANSWER multiple-choice attention check.")
     @click.option("--interview-mode", "interview_mode_specs", multiple=True, help="QUESTION=text|voice|both.")
+    @click.option("--text-language", "text_language_specs", multiple=True, help="QUESTION=LANGUAGE for typed interviews. Use with --voice-language for both modes.")
     @click.option("--voice-language", "voice_language_specs", multiple=True, help="QUESTION=LANGUAGE for voice interviews.")
     @click.option("--interviewer-name", "interviewer_name_specs", multiple=True, help="QUESTION=NAME for text interviews.")
     @click.option("--end-interview-message", "end_message_specs", multiple=True, help="QUESTION=MESSAGE shown when a text interview ends.")
@@ -737,6 +741,7 @@ def register(humanize: click.Group) -> None:
         exact_answer_specs,
         interview_mode_specs,
         voice_language_specs,
+        text_language_specs,
         interviewer_name_specs,
         end_message_specs,
         end_policy_specs,
@@ -761,7 +766,7 @@ def register(humanize: click.Group) -> None:
           ep humanize schema create --survey survey.ep --output humanize.json
           ep humanize schema create --survey survey.ep --optional feedback --format rating=dropdown --comment rating="Why?"
           ep humanize schema create --survey survey.ep --slider age:18:99:1 --output humanize.json
-          ep humanize schema create --survey survey.ep --interview-mode interview=both --voice-language interview=spanish
+          ep humanize schema create --survey survey.ep --interview-mode interview=both --text-language interview=spanish --voice-language interview=spanish
           ep humanize schema create --survey survey.ep --logo-asset <asset-uuid> --logo-alt "Acme Research logo"
           ep humanize schema create --survey survey.ep --javascript rating:question.ready=rating.js --output humanize.json
         """
@@ -787,6 +792,7 @@ def register(humanize: click.Group) -> None:
                 exact_answer_specs=exact_answer_specs,
                 interview_mode_specs=interview_mode_specs,
                 voice_language_specs=voice_language_specs,
+                text_language_specs=text_language_specs,
                 interviewer_name_specs=interviewer_name_specs,
                 end_message_specs=end_message_specs,
                 end_policy_specs=end_policy_specs,
@@ -806,7 +812,7 @@ def register(humanize: click.Group) -> None:
             )
             if presentation is not None:
                 schema.setdefault("survey", {})["presentation"] = presentation
-            _validate_humanize_schema(survey, schema)
+            _validate_humanize_schema(survey, schema, survey_path)
             data = {"schema": schema, "valid": True}
             if output_path:
                 data["saved"] = _write_json_schema(schema, output_path)
@@ -1728,6 +1734,7 @@ def register(humanize: click.Group) -> None:
     @click.option("--comment", "comment_specs", multiple=True, help="QUESTION=LABEL comment field. Repeat for multiple questions.")
     @click.option("--select-exact-answer", "exact_answer_specs", multiple=True, help="QUESTION=ANSWER multiple-choice attention check.")
     @click.option("--interview-mode", "interview_mode_specs", multiple=True, help="QUESTION=text|voice|both.")
+    @click.option("--text-language", "text_language_specs", multiple=True, help="QUESTION=LANGUAGE for typed interviews. Use with --voice-language for both modes.")
     @click.option("--voice-language", "voice_language_specs", multiple=True, help="QUESTION=LANGUAGE for voice interviews.")
     @click.option("--interviewer-name", "interviewer_name_specs", multiple=True, help="QUESTION=NAME for text interviews.")
     @click.option("--end-interview-message", "end_message_specs", multiple=True, help="QUESTION=MESSAGE shown when a text interview ends.")
@@ -1760,6 +1767,7 @@ def register(humanize: click.Group) -> None:
         exact_answer_specs,
         interview_mode_specs,
         voice_language_specs,
+        text_language_specs,
         interviewer_name_specs,
         end_message_specs,
         end_policy_specs,
@@ -1798,6 +1806,7 @@ def register(humanize: click.Group) -> None:
             exact_answer_specs,
             interview_mode_specs,
             voice_language_specs,
+            text_language_specs,
             interviewer_name_specs,
             end_message_specs,
             end_policy_specs,
@@ -1851,6 +1860,7 @@ def register(humanize: click.Group) -> None:
                 exact_answer_specs=exact_answer_specs,
                 interview_mode_specs=interview_mode_specs,
                 voice_language_specs=voice_language_specs,
+                text_language_specs=text_language_specs,
                 interviewer_name_specs=interviewer_name_specs,
                 end_message_specs=end_message_specs,
                 end_policy_specs=end_policy_specs,
@@ -1870,7 +1880,7 @@ def register(humanize: click.Group) -> None:
                 no_back_past_questions=no_back_past_questions,
             )
             if survey is not None and validate_schema:
-                _validate_humanize_schema(survey, _schema_for_local_validation(schema))
+                _validate_humanize_schema(survey, _schema_for_local_validation(schema), survey_path)
 
             uploaded_asset = None
             if logo_file:
@@ -3030,6 +3040,7 @@ def register(humanize: click.Group) -> None:
         exact_answer_specs,
         interview_mode_specs,
         voice_language_specs,
+        text_language_specs,
         interviewer_name_specs,
         end_message_specs,
         end_policy_specs,
@@ -3059,6 +3070,7 @@ def register(humanize: click.Group) -> None:
             exact_answer_specs,
             interview_mode_specs,
             voice_language_specs,
+            text_language_specs,
             interviewer_name_specs,
             end_message_specs,
             end_policy_specs,
@@ -3114,6 +3126,10 @@ def register(humanize: click.Group) -> None:
         for question_name, language in _parse_key_value_specs(voice_language_specs, "--voice-language"):
             entry = _question_entry(questions, question_name)
             entry.setdefault("voice_interview_config", {})["language"] = language
+
+        for question_name, language in _parse_key_value_specs(text_language_specs, "--text-language"):
+            entry = _question_entry(questions, question_name)
+            entry.setdefault("text_interview_config", {})["language"] = language
 
         for question_name, interviewer_name in _parse_key_value_specs(interviewer_name_specs, "--interviewer-name"):
             entry = _question_entry(questions, question_name)
@@ -3272,10 +3288,28 @@ def register(humanize: click.Group) -> None:
         return parsed
 
 
-    def _validate_humanize_schema(survey, schema: dict) -> None:
-        from edsl.coop.coop_humanize_schema import validate_humanize_schema
+    def _validate_humanize_schema(survey, schema: dict, survey_path: str) -> None:
+        from shlex import join
+        from edsl.coop.coop_humanize_schema import validate_humanize_schema, HumanizeSchemaValidationError
 
-        validate_humanize_schema(survey, schema)
+        try:
+            validate_humanize_schema(survey, schema)
+        except HumanizeSchemaValidationError:
+            entries = schema.get("questions") if isinstance(schema, dict) else None
+            for q in survey.questions:
+                entry = entries.get(q.question_name) if isinstance(entries, dict) else None
+                interview_keys = {"interview_mode", "text_interview_config", "voice_interview_config"}
+                if q.question_type != "interview" and isinstance(entry, dict) and interview_keys.intersection(entry):
+                    command = join(["ep", "surveys", "add-question", survey_path, "--replace",
+                                    "--question-name", q.question_name, "--question-type", "interview",
+                                    "--question-text", str(q.question_text), "--question-json",
+                                    json.dumps({"interview_guide": "Ask about the participant's experience."})])
+                    error("VALIDATION_ERROR",
+                          f"Interview settings on {q.question_name!r} require an interview question. "
+                          f"The saved question has type {q.question_type!r}.",
+                          suggestion=f"Replace the question in place, adapting the guide, then revalidate: {command}",
+                          exit_code=EXIT_VALIDATION)
+            raise
 
 
     def _write_json_schema(schema: dict, output_path: str) -> dict:

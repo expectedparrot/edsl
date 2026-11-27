@@ -250,6 +250,7 @@ def register(surveys_group: click.Group) -> None:
         \b
         Examples:
           ep surveys add-question survey.ep --question-type multiple_choice --question-name q1 --question-text "Pick one." --option A --option B
+          ep surveys add-question survey.ep --question-type interview --question-name followup --question-text "Tell us about your experience." --question-json '{"interview_guide":"Ask why they chose {{ rating.answer }}."}'
           ep surveys add-question survey.ep --question-type top_k --question-name top --question-text "Top two?" --option A --option B --option C --min-selections 2 --max-selections 2
         """
         try:
