@@ -417,6 +417,15 @@ Rules:
 
 ## Jobs Commands
 
+For local study design, `ep jobs build` reports the assignment mode and planned interviews per iteration. Pass `--expect-interviews` to catch unintended combinations before writing the job. For one scenario per agent, align the two files in the same respondent order and pair them explicitly.
+
+```bash
+ep jobs build --survey survey.ep --agents agents.ep --scenarios scenarios.ep --pair-agents-scenarios --expect-interviews 24 --output jobs.ep
+ep jobs preview-prompt jobs.ep clarity --interview-index 0 --expect-text "assigned lesson" --forbid-text "other lesson"
+```
+
+Use literal phrases from the study when checking prompts. Each expectation is tested against the selected interview’s system and user text. A count or text mismatch returns a JSON error and exit code 5.
+
 Remote job management:
 
 ```bash

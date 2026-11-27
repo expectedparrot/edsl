@@ -62,19 +62,35 @@ def scenario_field_warnings(job):
             "These scenario fields have no direct reference in the survey's question "
             "or instruction templates. Keeping fields for routing or analysis can be "
             "intentional. Pipe any details respondents should see into the relevant "
-            "question. For simulated respondent profiles, consider an AgentList."
+            "question. For simulated respondent profiles, consider an AgentList. "
+            "Check an assigned interview with ep jobs preview-prompt JOBS_FILE QUESTION_NAME."
         ),
     }]
 
 
 def register(jobs_group: click.Group) -> None:
+    from . import job_prompt_preview
+
+    job_prompt_preview.register(jobs_group)
+
     @jobs_group.command("build")
     @click.option("--survey", "survey_path", required=True, type=click.Path(exists=True), help="Survey object package/file.")
     @click.option("--agents", "agents_path", default=None, type=click.Path(exists=True), help="AgentList object package/file.")
     @click.option("--scenarios", "scenarios_path", default=None, type=click.Path(exists=True), help="ScenarioList object package/file.")
     @click.option("--models", "models_path", default=None, type=click.Path(exists=True), help="ModelList object package/file.")
     @click.option("--output", "-o", "output_path", required=True, help="Output Jobs .ep package or serialized file.")
-    def jobs_build(survey_path, agents_path, scenarios_path, models_path, output_path):
+    @click.option(
+        "--pair-agents-scenarios", is_flag=True,
+        help="Pair agent and scenario rows by position. Supply equal lengths in matching order. Each pair uses every selected model.",
+    )
+    @click.option(
+        "--expect-interviews", type=click.IntRange(min=0),
+        help="Require this many planned interviews per iteration before saving.",
+    )
+    def jobs_build(
+        survey_path, agents_path, scenarios_path, models_path, output_path,
+        pair_agents_scenarios, expect_interviews,
+    ):
         """Build a Jobs object from saved EDSL object packages/files.
 
         \b
@@ -89,6 +105,7 @@ def register(jobs_group: click.Group) -> None:
         Next:
           ep run --jobs jobs.ep --local --output results.ep
           ep run --jobs jobs.ep --background
+          ep jobs preview-prompt jobs.ep QUESTION_NAME
           ep jobs cost jobs.ep
         """
         try:
@@ -117,12 +134,33 @@ def register(jobs_group: click.Group) -> None:
                 if len(models) > 0:
                     job = job.by(models)
 
+            if pair_agents_scenarios:
+                if not agents or not scenarios or len(agents) != len(scenarios):
+                    error(
+                        "VALIDATION_ERROR",
+                        "Pairing requires nonempty --agents and --scenarios lists of equal length.",
+                        suggestion="Align the two inputs in respondent order before pairing.",
+                        exit_code=EXIT_VALIDATION,
+                    )
+                job.zip_assign()
+            plan = {
+                "assignment_mode": "zip" if pair_agents_scenarios else "cross",
+                "interviews_per_iteration": len(job),
+            }
+            if expect_interviews is not None and expect_interviews != plan["interviews_per_iteration"]:
+                error(
+                    "INTERVIEW_COUNT_MISMATCH",
+                    f"Expected {expect_interviews} interviews per iteration, but this job plans {len(job)}.",
+                    suggestion="Check component counts. For one scenario per agent, align both lists by respondent and use --pair-agents-scenarios.",
+                    details=[plan], exit_code=EXIT_VALIDATION,
+                )
             saved = save_edsl_object(job, output_path, object_type="Jobs")
             if raw_output_written(saved):
                 return
             output(
                 {
                     "object_type": "Jobs",
+                    **plan,
                     "question_count": len(survey.questions),
                     "question_names": list(survey.question_names),
                     "agent_count": len(agents) if agents is not None else 0,
