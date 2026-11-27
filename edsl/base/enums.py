@@ -132,6 +132,7 @@ service_to_api_keyname = {
     InferenceServiceType.OPEN_ROUTER.value: "OPEN_ROUTER_API_KEY",
     InferenceServiceType.META.value: "META_API_KEY",
     InferenceServiceType.OLLAMA.value: "OLLAMA_API_KEY",
+    InferenceServiceType.OPENAI_COMPATIBLE.value: "OPENAI_COMPATIBLE_API_KEY",
 }
 
 
