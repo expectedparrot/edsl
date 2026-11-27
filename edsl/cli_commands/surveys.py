@@ -406,6 +406,7 @@ def register(surveys_group: click.Group) -> None:
         default=None,
         help="JSON object (or path to one) mapping question names to option values kept in their original positions.",
     )
+    @click.option("--add", is_flag=True, help="Add shuffle targets and pins while retaining the existing policy. The default replaces the policy.")
     @click.option("--clear", is_flag=True, help="Clear option randomization and pinned options.")
     @click.option("--output", "-o", "output_path", default=None, help="Output .ep package, serialized file, or '-' for raw JSON stdout. Defaults to SURVEY_PATH.")
     def set_option_randomization(
@@ -413,6 +414,7 @@ def register(surveys_group: click.Group) -> None:
         question_names: tuple[str, ...],
         pin_options_json: str | None,
         clear: bool,
+        add: bool,
         output_path: str | None,
     ):
         """Configure per-interview answer-option randomization.
@@ -421,10 +423,11 @@ def register(surveys_group: click.Group) -> None:
         Examples:
           ep surveys set-option-randomization survey.ep --question q0
           ep surveys set-option-randomization survey.ep --question q0 --pin-options '{"q0":["Other"]}'
+          ep surveys set-option-randomization survey.ep --add --question stall --pin-options '{"stall":["No preference"]}'
           ep surveys set-option-randomization survey.ep --clear
         """
-        if clear and (question_names or pin_options_json):
-            error("USAGE_ERROR", "--clear cannot be combined with --question or --pin-options.", exit_code=EXIT_USAGE)
+        if clear and (add or question_names or pin_options_json):
+            error("USAGE_ERROR", "--clear cannot be combined with --add, --question or --pin-options.", exit_code=EXIT_USAGE)
         if not clear and not question_names:
             error("USAGE_ERROR", "Provide at least one --question or use --clear.", exit_code=EXIT_USAGE)
         if len(set(question_names)) != len(question_names):
@@ -432,6 +435,9 @@ def register(surveys_group: click.Group) -> None:
 
         try:
             survey = _load_survey(survey_path, preview=True)
+            previous_questions = list(survey.questions_to_randomize or [])
+            previous_pins = dict(survey.options_to_pin or {})
+            warnings = []
             if clear:
                 survey.questions_to_randomize = []
                 survey.options_to_pin = {}
@@ -451,13 +457,32 @@ def register(surveys_group: click.Group) -> None:
                     if not isinstance(values, list):
                         error("INVALID_PINNED_OPTIONS", f"Pinned options for {question_name!r} must be a JSON list.", exit_code=EXIT_VALIDATION)
 
-                survey.questions_to_randomize = list(question_names)
-                survey.options_to_pin = pin_options
+                if add:
+                    survey.questions_to_randomize = list(dict.fromkeys([*previous_questions, *question_names]))
+                    combined = {name: list(values) for name, values in previous_pins.items()}
+                    for name, values in pin_options.items():
+                        pins = combined.setdefault(name, [])
+                        for value in values:
+                            if value not in pins:
+                                pins.append(value)
+                    survey.options_to_pin = combined
+                else:
+                    removed = [q for q in previous_questions if q not in question_names]
+                    unpinned = [q for q, values in previous_pins.items()
+                                if any(v not in pin_options.get(q, []) for v in values)]
+                    if removed or unpinned:
+                        warnings.append(
+                            f"Replaced the option-order policy. Removed shuffle targets: {removed}. "
+                            f"Removed pinned options from: {unpinned}. "
+                            "Use --add on the original survey to retain existing targets and pins."
+                        )
+                    survey.questions_to_randomize = list(question_names)
+                    survey.options_to_pin = pin_options
 
             saved = _save_survey_edit(survey, output_path or survey_path)
             if raw_output_written(saved):
                 return
-            output(_survey_summary(survey, saved=saved))
+            output(_survey_summary(survey, saved=saved), warnings=warnings)
         except SystemExit:
             raise
         except Exception as e:

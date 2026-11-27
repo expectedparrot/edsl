@@ -7492,6 +7492,72 @@ class TestSurveys:
         assert "review" in result.output
         assert "set-option-randomization" in result.output
 
+    def test_extend_option_randomization_keeps_existing_targets_and_pins(
+        self, tmp_path
+    ):
+        from edsl import QuestionMultipleChoice, Survey
+
+        path = tmp_path / "original.ep"
+        revised = tmp_path / "updated.ep"
+        questions = [
+            QuestionMultipleChoice(
+                question_name=name,
+                question_text="Pick one.",
+                question_options=["A", "B", "Other"],
+            )
+            for name in ["original", "new"]
+        ]
+        Survey(
+            questions,
+            questions_to_randomize=["original"],
+            options_to_pin={"original": ["B"]},
+        ).git.save(path)
+        original = path.read_bytes()
+        base = ["surveys", "set-option-randomization"]
+        flags = ["--add", "--question", "new", "--pin-options", '{"new":["Other"]}']
+        runner = CliRunner()
+        result = runner.invoke(
+            cli_module.app, base + [str(path), *flags, "-o", str(revised)]
+        )
+        assert result.exit_code == 0, result.output
+        again = runner.invoke(cli_module.app, base + [str(revised), *flags])
+        data = json.loads(again.output)["data"]
+        assert data["questions_to_randomize"] == ["original", "new"]
+        assert data["options_to_pin"] == {"original": ["B"], "new": ["Other"]}
+        more = runner.invoke(
+            cli_module.app,
+            base
+            + [
+                str(revised),
+                "--add",
+                "--question",
+                "original",
+                "--pin-options",
+                '{"original":["B","Other"]}',
+            ],
+        )
+        assert json.loads(more.output)["data"]["options_to_pin"]["original"] == [
+            "B",
+            "Other",
+        ]
+        assert (
+            runner.invoke(
+                cli_module.app, base + [str(revised), "--add", "--clear"]
+            ).exit_code
+            == 2
+        )
+        replace = runner.invoke(
+            cli_module.app, base + [str(revised), "--question", "new"]
+        )
+        response = json.loads(replace.output)
+        assert replace.exit_code == 0 and response["data"][
+            "questions_to_randomize"
+        ] == ["new"]
+        assert (
+            "original" in response["warnings"][0] and "--add" in response["warnings"][0]
+        )
+        assert path.read_bytes() == original
+
     def test_surveys_set_option_randomization_for_dynamic_options(self, tmp_path):
         from edsl.questions import QuestionMultipleChoice
         from edsl.surveys import Survey
