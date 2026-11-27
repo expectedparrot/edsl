@@ -368,10 +368,13 @@ def register(app: click.Group) -> None:
             meta["failed_interview_count"] = failed_count
             meta["completed_interview_count"] = max(result_count - failed_count, 0)
             if failed_count:
-                envelope_warnings.append({
-                    "code": "PARTIAL_RESULTS",
-                    "message": f"{failed_count} of {result_count} interviews had unfixed exceptions.",
-                })
+                message = f"{failed_count}/{result_count} interviews failed."
+                if completion is not None:
+                    message = (
+                        f"Found answers in {completion['answered_interviews']}/{completion['row_count']} "
+                        f"result rows. {message}"
+                    )
+                envelope_warnings.append({"code": "PARTIAL_RESULTS", "message": message})
 
         output({"results": [], "meta": meta}, warnings=envelope_warnings)
 
