@@ -8,7 +8,7 @@ from pathlib import Path
 
 import click
 
-from edsl.cli_shared import EXIT_ERROR, EXIT_USAGE, error, jsonable, load_results_object, output
+from edsl.cli_shared import EXIT_ERROR, EXIT_USAGE, error, load_results_object, output
 
 
 def register(costs_group: click.Group) -> None:
@@ -29,11 +29,13 @@ def register(costs_group: click.Group) -> None:
 
         try:
             actual_cost = actual
-            raw_actual_cost = None
+            cost_details = None
             if actual_from:
-                results_obj = load_results_object(actual_from)
-                raw_actual_cost = jsonable(results_obj.compute_job_cost())
-                actual_cost = _extract_usd(raw_actual_cost)
+                results_obj = load_results_object(actual_from, sync_coop=False)
+                from edsl.results.cost_reconciliation import recorded_costs
+
+                cost_details = recorded_costs(results_obj)
+                actual_cost = cost_details["actual_cost_usd"]
 
             record = {
                 "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -47,14 +49,18 @@ def register(costs_group: click.Group) -> None:
                 "source": actual_from,
                 "note": note,
             }
-            if raw_actual_cost is not None:
-                record["raw_actual_cost"] = raw_actual_cost
+            if cost_details is not None:
+                record["raw_actual_cost"] = actual_cost
+                record["cost_details"] = cost_details
 
             path = Path(output_path)
             path.parent.mkdir(parents=True, exist_ok=True)
             with path.open("a", encoding="utf-8") as f:
                 f.write(json.dumps(record, default=str) + "\n")
-            output({"path": str(path), "record": record})
+            warnings = []
+            if actual_from and actual_cost is None:
+                warnings.append({"code": "INCOMPLETE_COST_METADATA", "message": "The ledger records the known subtotal and leaves actual_cost_usd null."})
+            output({"path": str(path), "record": record}, warnings=warnings)
         except SystemExit:
             raise
         except Exception as e:
@@ -64,30 +70,3 @@ def register(costs_group: click.Group) -> None:
                 suggestion="Check cost values, Results file, and ledger output path.",
                 exit_code=EXIT_ERROR,
             )
-
-
-def _extract_usd(value):
-    if isinstance(value, (int, float)):
-        return float(value)
-    if isinstance(value, dict):
-        for key in (
-            "total_cost_usd",
-            "actual_cost_usd",
-            "cost_usd",
-            "usd",
-            "estimated_total_cost_usd",
-        ):
-            if key in value and value[key] is not None:
-                return float(value[key])
-    for key in (
-        "total_cost_usd",
-        "actual_cost_usd",
-        "cost_usd",
-        "usd",
-        "estimated_total_cost_usd",
-    ):
-        if hasattr(value, key):
-            attr = getattr(value, key)
-            if attr is not None:
-                return float(attr)
-    return None

@@ -268,7 +268,11 @@ class ResultsSerializer:
 
         # Result rows
         for result in self.results.data:
-            yield json.dumps(result.to_dict(add_edsl_version=True))
+            # An older archive may have no cache evidence at all. Keep its
+            # immutable payload stable when reopened and saved again.
+            yield json.dumps(result.to_dict(
+                add_edsl_version=True, include_cache_info=bool(result.get("cache_used_dict"))
+            ))
 
     def to_jsonl(
         self,

@@ -424,7 +424,7 @@ def _write_raw_object_json(obj) -> None:
     sys.stdout.write("\n")
 
 
-def load_results_object(file_path: str):
+def load_results_object(file_path: str, *, sync_coop: bool = True):
     from edsl.results import Results
 
     if file_path == "-":
@@ -432,7 +432,7 @@ def load_results_object(file_path: str):
         return Results.from_dict(data)
     path = Path(file_path)
     if path.is_dir() or path.suffix == ".ep":
-        return Results.git.load(path)
+        return Results.git.load(path, sync_coop=sync_coop)
     if path.name.endswith(".json.gz"):
         data = read_serialized_object(path)
     else:

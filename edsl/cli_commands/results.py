@@ -118,7 +118,9 @@ def _review(
         for row in rows[:max_rows]
     ]
     try:
-        cost = _bounded(results_obj.compute_job_cost(), text_chars)
+        from edsl.results.cost_reconciliation import recorded_costs
+
+        cost = recorded_costs(results_obj)["actual_cost_usd"]
     except Exception:
         cost = None
     return {
@@ -549,10 +551,23 @@ def register(results_group: click.Group) -> None:
           ep costs log --output costs.jsonl --actual-from results.ep
         """
         try:
-            from edsl.cli_shared import jsonable
+            from edsl.results.cost_reconciliation import recorded_costs
 
-            results_obj = load_results_object(file_path)
-            output({"cost": jsonable(results_obj.compute_job_cost())})
+            results_obj = load_results_object(file_path, sync_coop=False)
+            report = recorded_costs(results_obj)
+            warnings = []
+            if report["actual_cost_usd"] is None:
+                message = "The saved responses establish only a subtotal. Consult the original run accounting for a total."
+                if report["unknown_cache_status_calls"]:
+                    message = (
+                        f"{report['unknown_cache_status_calls']} responses lack a cache-hit flag. "
+                        f"Their recorded prices total ${report['known_value_unknown_cache_status_usd']:.6f} "
+                        f"with {report['unpriced_unknown_cache_status_calls']} unpriced. "
+                        "Those amounts cannot be assigned to cache hits or new charges from this file. "
+                        "Leave the actual total unknown."
+                    )
+                warnings.append({"code": "INCOMPLETE_COST_METADATA", "message": message})
+            output({"cost": report["actual_cost_usd"], **report}, warnings=warnings)
         except SystemExit:
             raise
         except Exception as e:
