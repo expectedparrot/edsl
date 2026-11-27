@@ -109,6 +109,37 @@ def test_package_search_recognizes_word_forms_across_research_methods():
         assert {p["name"] for p in json.loads(result.output)["data"]["packages"]} == expected
 
 
+def test_package_search_recovers_supported_partial_matches():
+    runner = CliRunner()
+    for query, expected in (
+        ("forecasting scoring probabilities", ["Vorhersage"]),
+        ("staff hiring application database", ["Spence"]),
+        ("sensitivity analysis", []),  # "price sensitivity" and "conjoint analysis" are separate methods.
+    ):
+        result = runner.invoke(skills_command, ["search", query, "--limit", "1"])
+        assert result.exit_code == 0, result.output
+        assert [p["name"] for p in json.loads(result.output)["data"]["packages"]] == expected
+
+
+def test_partial_package_search_weights_rare_terms(tmp_path, monkeypatch):
+    from edsl.skills import cli
+
+    monkeypatch.setattr(cli, "SKILLS_ROOT", tmp_path)
+    catalog = [
+        {"name": name, "methods": [], "description": terms}
+        for name, terms in [
+            ("Alpha", "candidate panel"),
+            ("Beta", "candidate attrition"),
+            ("Gamma", "candidate panel"),
+            ("Delta", "candidate panel"),
+        ]
+    ]
+    (tmp_path / "packages.json").write_text(json.dumps(catalog))
+    result = CliRunner().invoke(skills_command, ["search", "candidate panel attrition", "--limit", "2"])
+    assert result.exit_code == 0, result.output
+    assert [p["name"] for p in json.loads(result.output)["data"]["packages"]] == ["Beta", "Alpha"]
+
+
 def test_inflected_skill_search_reports_the_source_passage(tmp_path, monkeypatch):
     from edsl.skills import cli
 

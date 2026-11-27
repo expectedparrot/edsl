@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
+import math
 import posixpath
 import re
 import shutil
 import subprocess
 import tempfile
 import webbrowser
+from collections import Counter
 from functools import lru_cache
 from pathlib import Path
 from urllib.parse import unquote
@@ -316,6 +318,43 @@ def list_skills(human: bool, routing: bool):
         output({"skills": items})
 
 
+def _partial_package_matches(query: _SearchQuery, catalog: list[dict]) -> list[dict]:
+    """Rank multi-term overlap across package fields by TF-IDF cosine similarity."""
+    # "EDSL" identifies the catalog as a whole and adds no evidence of intent.
+    terms = query.stems - {"edsl"}
+    if len(terms) < 2:
+        return []
+    documents = []
+    frequencies = Counter()
+    for package in catalog:
+        fields = [package["name"], *package["methods"], package["description"]]
+        counts = Counter()
+        same_field_match = False
+        for field in fields:
+            stems = [query.stem(word) for word in _words(field)]
+            counts.update(stems)
+            if len(terms.intersection(stems)) >= 2:
+                same_field_match = True
+        if same_field_match:
+            documents.append((package, counts))
+        frequencies.update(counts.keys())
+    idf = {
+        term: 1 + math.log((1 + len(catalog)) / (1 + freq))
+        for term, freq in frequencies.items()
+    }
+    ranked = []
+    for package, counts in documents:
+        overlap = terms.intersection(counts)
+        if len(overlap) * 2 < len(terms):
+            continue
+        weights = {term: (1 + math.log(count)) * idf[term] for term, count in counts.items()}
+        # Query length is constant across candidates, so its norm cancels for ranking.
+        score = sum(weights[term] * idf[term] for term in sorted(overlap))
+        norm = math.sqrt(sum(weight * weight for weight in weights.values()))
+        ranked.append((score / norm, package))
+    return [package for _, package in sorted(ranked, key=lambda item: (-item[0], item[1]["name"]))]
+
+
 def _package_matches(query: _SearchQuery, limit: int) -> list[dict]:
     """Search the public directory snapshot shipped with this EDSL version."""
     if not query.keywords:
@@ -340,10 +379,10 @@ def _package_matches(query: _SearchQuery, limit: int) -> list[dict]:
         else:
             continue
         ranked.append((rank, package["name"], package))
-    return [
-        {**package, "kind": "external_package"}
-        for _, _, package in sorted(ranked, key=lambda item: item[:2])[:limit]
-    ]
+    matches = [package for _, _, package in sorted(ranked, key=lambda item: item[:2])]
+    if not matches:
+        matches = _partial_package_matches(query, catalog)
+    return [{**package, "kind": "external_package"} for package in matches[:limit]]
 
 
 @skills.command("search")
