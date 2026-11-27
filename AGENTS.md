@@ -275,6 +275,7 @@ ep surveys add-question survey.ep --question-type multiple_choice --question-nam
 ep surveys update-question survey.ep q1 --option A --option B --option C
 ep surveys rename-question survey.ep q0 introduction --output renamed.ep
 ep surveys questions survey.ep
+ep surveys check-paths survey.ep --cases paths.json
 ep surveys show survey.ep
 ep surveys show survey.ep --markdown
 ep surveys add-skip-rule survey.ep --question q1 --expression "{{ q0.answer }} == 'skip'"

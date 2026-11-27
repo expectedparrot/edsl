@@ -147,20 +147,51 @@ def register(group):
     @click.option(
         "--schema",
         type=local_file,
-        required=True,
         help="Browser settings JSON for grouped presentation.",
     )
     @click.option(
         "--paths",
-        required=True,
         help="JSON object or file of named paths, each a list of {page, answers} steps.",
     )
-    def check_paths(survey_path, schema, paths):
-        """Check the pages shown to each respondent through the end of the survey."""
-        from edsl.coop.coop_humanize_schema import validate_humanize_schema
+    @click.option(
+        "--cases",
+        type=click.Path(exists=True, dir_okay=False, path_type=Path),
+        help="JSON file of named question-level cases with answers and expected_path.",
+    )
+    def check_paths(survey_path, schema, paths, cases):
+        """Check respondent routes through the end of a saved survey.
+
+        Use --cases to check individual questions. Write the expectations from
+        the research brief before constructing the survey. Supply answers for
+        questions used in rules. Optional scenario and agent dictionaries supply
+        rule context. Use --schema and --paths together to check grouped pages.
+
+        \b
+        ep surveys check-paths survey.ep --cases paths.json
+        {"cases":[{"name":"declines","answers":{"consent":"No"},"expected_path":["consent"]}]}
+        """
+        if cases is not None and (paths is not None or schema is not None):
+            error(
+                "USAGE_ERROR",
+                "Use either --cases or --schema with --paths.",
+                exit_code=EXIT_USAGE,
+            )
+        if cases is None and (paths is None or schema is None):
+            error(
+                "USAGE_ERROR",
+                "Provide --cases, or both --schema and --paths.",
+                exit_code=EXIT_USAGE,
+            )
 
         try:
             survey = _load_survey(survey_path, preview=True)
+            if cases is not None:
+                from .survey_paths import check_question_paths
+
+                return check_question_paths(survey, cases)
+
+            from edsl.coop.coop_humanize_schema import validate_humanize_schema
+
             settings = read_serialized_object(Path(schema))
             validate_humanize_schema(survey, settings)
             if settings.get("survey", {}).get("presentation") != "group":
