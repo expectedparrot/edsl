@@ -210,7 +210,9 @@ def register(app: click.Group) -> None:
                    suggestion="Use 'ep jobs results <job_uuid> --output results.ep' after the job completes.",
                    exit_code=EXIT_USAGE)
 
-        envelope_warnings = []
+        from .jobs import scenario_field_warnings
+
+        envelope_warnings = scenario_field_warnings(job)
         from edsl.config import CONFIG
         original_api_timeout = CONFIG.EDSL_API_TIMEOUT
         try:

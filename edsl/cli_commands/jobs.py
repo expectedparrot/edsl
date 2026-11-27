@@ -25,6 +25,48 @@ from edsl.cli_shared import (
 )
 
 
+def scenario_field_warnings(job):
+    """Report scenario columns without a direct reference in authored survey templates."""
+    fields = job.scenarios.parameters
+    if not fields or not job.survey.questions:
+        return []
+    from jinja2 import TemplateError
+    from edsl.workflows.visibility import template_references
+
+    unused = set(fields)
+    for item in job.survey.recombined_questions_and_instructions():
+        if getattr(item, "question_type", None) == "functional":
+            return []  # Python code can read arbitrary scenario keys.
+        try:
+            for path in template_references(item.to_dict(add_edsl_version=False)):
+                if path[0] == "scenario":
+                    # Whole-scenario, dynamic-key and mapping-method access may
+                    # consume any field. Static analysis cannot rule fields out.
+                    if (
+                        len(path) == 1
+                        or not isinstance(path[1], str)
+                        or path[1] in vars(dict)
+                    ):
+                        return []
+                    unused.discard(path[1])
+                else:
+                    unused.discard(path[0])
+        except TemplateError:
+            return []  # A diagnostic must not prevent saving a supported survey.
+    if not unused:
+        return []
+    return [{
+        "code": "UNREFERENCED_SCENARIO_FIELDS",
+        "fields": sorted(unused),
+        "message": (
+            "These scenario fields have no direct reference in the survey's question "
+            "or instruction templates. Keeping fields for routing or analysis can be "
+            "intentional. Pipe any details respondents should see into the relevant "
+            "question. For simulated respondent profiles, consider an AgentList."
+        ),
+    }]
+
+
 def register(jobs_group: click.Group) -> None:
     @jobs_group.command("build")
     @click.option("--survey", "survey_path", required=True, type=click.Path(exists=True), help="Survey object package/file.")
@@ -87,7 +129,8 @@ def register(jobs_group: click.Group) -> None:
                     "scenario_count": len(scenarios) if scenarios is not None else 0,
                     "model_count": len(models) if models is not None else 0,
                     "saved": saved,
-                }
+                },
+                warnings=scenario_field_warnings(job),
             )
         except SystemExit:
             raise
@@ -133,7 +176,7 @@ def register(jobs_group: click.Group) -> None:
                 changed.append(name)
             saved = save_edsl_object(job, destination or path, sync_coop=False)
             if not raw_output_written(saved):
-                output({"object_type": "Jobs", "replaced": changed, "saved": saved})
+                output({"object_type": "Jobs", "replaced": changed, "saved": saved}, warnings=scenario_field_warnings(job))
         except Exception as exc:
             error("VALIDATION_ERROR", str(exc), exit_code=EXIT_VALIDATION)
 

@@ -250,6 +250,8 @@ ep models edit-item panel.ep --index 0 --patch '{"parameters":{"temperature":0.2
 
 Apply revised inputs to a saved job with `ep jobs edit study.ep --survey revised.ep --models panel-v2.ep --output study-v2.ep`. Each supplied file replaces that component. You can add `--agents` and `--scenarios` in the same command. Running the revised job is a separate step.
 
+With a ScenarioList, `ep jobs build` returns a JSON warning when a field has no direct reference in the survey's question or instruction templates. For example, a question that uses `{{ product }}` with scenario columns `product` and `record_id` returns a warning with `"code": "UNREFERENCED_SCENARIO_FIELDS"` and `"fields": ["record_id"]`. The job is still saved. An ID used to join results can stay as metadata. A characteristic meant to influence an answer should reach the relevant question. The same advisory appears in the JSON from `ep jobs edit` and `ep run`. Analysis skips dynamic access to the whole scenario and functional questions, where the fields used can depend on runtime data.
+
 To read a survey in the terminal, print its Markdown questionnaire or save it for review:
 
 ```bash
