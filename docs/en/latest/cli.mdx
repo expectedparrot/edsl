@@ -432,6 +432,18 @@ ep results export results.ep \
   --output randomization.csv
 ```
 
+### Check a saved sample against its job
+
+If a job assigned two riders to two stations for two iterations, eight rows can still include the same rider/station/wave twice. Compare the Results with the original job before certifying the sample.
+
+```bash
+ep results check-assignments pilot.ep --against transit-job.ep --iterations 2
+```
+
+The command works locally, respects the job's assignment plan and ignores Results row order. Use the iteration count from the run request. A saved treatment schedule supplies its own count. The check compares agent, scenario and model definitions as well as their assignment slots. For a scripted rehearsal that deliberately substituted a test model, add `--allow-test-model`. Historical rows without indices need a unique matching component for each missing index.
+
+Success returns the planned and recorded counts. Exit code 5 includes counts and examples of missing, duplicate or unexpected assignments, rows with changed component data, and rows whose identities could not be resolved. `--limit` bounds examples per category. Validate answer completion and the survey definition separately.
+
 ## Automation conventions
 
 - Discover commands and schemas from the installed version before generating inputs.

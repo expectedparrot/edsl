@@ -1,10 +1,10 @@
 ---
 name: edsl-results-validation
-description: Compare simulated EDSL survey results with human responses. Check survey compatibility, choose population or record-level comparisons, and create a reproducible study-specific analysis script with clear uncertainty and limitations.
+description: Audit assignment coverage in saved EDSL Results against the planned Jobs. Compare simulated EDSL survey results with human responses. Check survey compatibility, choose population or record-level comparisons, and create a reproducible study-specific analysis script with clear uncertainty and limitations.
 tags: [edsl, results, human-data, validation, analysis]
 ---
 
-# Compare simulated results with human responses
+# Audit saved Results and compare simulated results with human responses
 
 Use this skill when a user wants to understand whether simulated respondents
 answer like real respondents, or wants to compare model-generated answers with
@@ -38,6 +38,8 @@ available `Results` APIs for loaded objects. Humanize results can be retrieved
 with `Coop().get_human_survey_responses(uuid)` when the user supplies or has
 already authorized use of the survey UUID. Do not publish data, submit a job,
 or contact respondents as part of this analysis.
+
+When certifying that saved simulation Results cover a planned sample, run `ep results check-assignments pilot.ep --against study.ep --iterations 2` with the intended number of iterations. The command checks the joint respondent, scenario, model and iteration, including the contents of each assigned component. Inspect the error's counts and examples for missing or duplicated waves and changed stimuli. A matching row count alone can hide a missing respondent or iteration. Check completed answers separately.
 
 Before calculating a comparison, make a compact compatibility table for every
 question being considered:

@@ -14,4 +14,6 @@ Common files include `study_survey.py`, `study_scenario_list.py`, `study_agent_l
 
 Use the installed CLI help and `edsl:edsl-surveys` for current APIs. A scenario field must be consumed by the survey where required by the installed EDSL validation rules. `Agent.name` is a distinct constructor field, not a trait.
 
+To audit whether saved Results cover the intended sample, compare them directly with the original Jobs package: `ep results check-assignments results.ep --against study.ep -n 2` for a two-wave study. The error details identify a missing wave even when a duplicate keeps the total row count correct.
+
 This skill covers EDSL file and object conventions only. Study design choices, cost approval, remote execution policies, reporting workflows, and EP Agent scaffolds belong to the separately managed EP Agent environment (`ep-agent:workflow-file-layout`, `ep-agent:workflow-model-selection`).
