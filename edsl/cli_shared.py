@@ -186,7 +186,7 @@ GIT_OBJECT_MODULES = {
 }
 
 
-def load_git_object(path: Path, *, sync_coop: bool = True):
+def load_git_object(path: Path, *, sync_coop: bool = True, ref: str = "HEAD"):
     import importlib
 
     manifest = read_package_manifest(path)
@@ -194,7 +194,7 @@ def load_git_object(path: Path, *, sync_coop: bool = True):
     module_name = GIT_OBJECT_MODULES.get(class_name)
     if module_name:
         object_class = getattr(importlib.import_module(module_name), class_name)
-        return object_class.git.load(path, sync_coop=sync_coop)
+        return object_class.git.load(path, ref=ref, sync_coop=sync_coop)
     error(
         "UNSUPPORTED_OBJECT",
         f"Object package type does not support push: {class_name or 'unknown'}",
@@ -204,8 +204,19 @@ def load_git_object(path: Path, *, sync_coop: bool = True):
 
 
 def load_any_object(
-    target: str, expected_object_type: str | None = None, *, preview: bool = False
+    target: str, expected_object_type: str | None = None, *,
+    preview: bool = False, ref: str | None = None,
 ):
+    if ref is not None:
+        path = Path(target)
+        if not (path.is_dir() or (path.is_file() and path.suffix == ".ep")):
+            error(
+                "USAGE_ERROR", "--ref requires a local git-backed package.",
+                suggestion="Pass the local .ep path and a commit from ep log.", exit_code=EXIT_USAGE,
+            )
+        if not ref or ref.startswith("-"):
+            error("USAGE_ERROR", "Invalid revision.", suggestion="Use a commit from ep log.", exit_code=EXIT_USAGE)
+        return load_git_object(path, sync_coop=False, ref=ref)
     if target == "-":
         return load_openable_json(Path("-"), preview=preview)
     path = Path(target)

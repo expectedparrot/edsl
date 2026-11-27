@@ -727,7 +727,8 @@ def register(surveys_group: click.Group) -> None:
 
     @surveys_group.command("questions")
     @click.argument("survey_path")
-    def survey_questions(survey_path: str):
+    @click.option("--ref", "--commit", help="Read the questions at a local package revision from ep log.")
+    def survey_questions(survey_path: str, ref: str | None):
         """List questions from a Survey or the instrument saved inside Jobs or Results.
 
         Example:
@@ -736,7 +737,7 @@ def register(surveys_group: click.Group) -> None:
         try:
             from edsl import Jobs, Results, Survey
 
-            source = load_any_object(survey_path, preview=True)
+            source = load_any_object(survey_path, preview=True, ref=ref)
             survey = source.survey if isinstance(source, (Jobs, Results)) else source
             if not isinstance(survey, Survey):
                 error("UNSUPPORTED_OBJECT", f"No saved survey found in {type(source).__name__}.", exit_code=EXIT_USAGE)
@@ -744,6 +745,7 @@ def register(surveys_group: click.Group) -> None:
                 {
                     "object_type": "Survey",
                     "source_object_type": type(source).__name__,
+                    **({"commit": source.git.commit} if ref is not None else {}),
                     "question_count": len(survey.questions),
                     "questions": [_question_summary(q) for q in survey.questions],
                 }

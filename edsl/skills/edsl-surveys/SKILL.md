@@ -20,6 +20,8 @@ For branching surveys, **before building or editing**, write named cases in `pat
 
 To combine existing questionnaires, run `ep surveys compose first.ep second.ep -o combined.ep`. Normal completion continues into the next module. Explicit stop rules end the whole survey. Resolve duplicate question names using `ep surveys rename-question first.ep old new -o revised.ep` before composing. Verify the join and early exits with `ep surveys check-paths`.
 
+To restore selected fields from an approved draft, find the revision with `ep log survey.ep` and read its wording and choices with `ep surveys questions survey.ep --ref COMMIT`. Apply those fields to the current package with `ep surveys update-question`. This also updates the wording stored in its memory plan.
+
 For local edits, start with `ep surveys questions survey.ep`. Change wording or choices with `ep surveys update-question survey.ep NAME --question-text "..."` or repeated `--option` flags (the full ordered list). Use `--patch` for other fields, and `rename-question` for names used in piping, memory, or rules. Add `--output revised.ep` to keep the source. Use `ep surveys set-groups` to replace page boundaries, `ep humanize schema create --base-schema existing.json` to preserve browser settings, and `ep surveys check-paths --help` to verify grouped routes using sample answers.
 
 To present a saved survey in a terminal, run `ep surveys show survey.ep --markdown`. Add `--with-question-names` or `--with-question-types` to label the headings. Add `--expand-options` to list every dropdown choice. On success, stdout is Markdown you can include directly in your reply. Use `ep surveys show survey.ep` for the JSON summary.

@@ -22,6 +22,7 @@ from edsl.cli_shared import (
 def register(app: click.Group) -> None:
     @app.command("inspect")
     @click.argument("target")
+    @click.option("--ref", "--commit", help="Read a local package revision from ep log.")
     @click.option(
         "--type",
         "object_type",
@@ -52,6 +53,7 @@ def register(app: click.Group) -> None:
     )
     def inspect_object(
         target: str,
+        ref: str | None,
         object_type: str | None,
         sample: int | None,
         markdown: bool,
@@ -64,6 +66,7 @@ def register(app: click.Group) -> None:
         \b
         Examples:
           ep inspect survey.ep
+          ep inspect survey.ep --ref HEAD~1 --markdown
           ep inspect agents.ep --sample 5
           ep inspect results.ep --sample 10
           ep inspect <uuid> --type Survey
@@ -72,6 +75,15 @@ def register(app: click.Group) -> None:
           ep inspect prompt.json
         """
         try:
+            if ref is not None and save_path and save_path != "-":
+                source, dest = Path(target), Path(save_path)
+                same_file = dest.exists() and source.exists() and dest.samefile(source)
+                inside_package = source.is_dir() and source.resolve() in dest.resolve().parents
+                if same_file or inside_package:
+                    error(
+                        "USAGE_ERROR", "A revision must be exported outside the source package.",
+                        suggestion="Choose a separate --save path.", exit_code=EXIT_USAGE,
+                    )
             if markdown:
                 if sample is not None or save_path == "-":
                     error(
@@ -80,11 +92,11 @@ def register(app: click.Group) -> None:
                         exit_code=EXIT_USAGE,
                     )
                 obj = load_any_object(
-                    target, expected_object_type=object_type, preview=True
+                    target, expected_object_type=object_type, preview=True, ref=ref
                 )
                 rendered = markdown_page(obj, page, page_size)
                 if save_path:
-                    save_edsl_object(obj, save_path)
+                    save_edsl_object(obj, save_path, sync_coop=ref is None)
                 click.echo(rendered)
                 return
             if page is not None or page_size is not None:
@@ -93,9 +105,18 @@ def register(app: click.Group) -> None:
                     "Pagination requires --markdown.",
                     exit_code=EXIT_USAGE,
                 )
-            obj = load_any_object(target, expected_object_type=object_type)
-            data = _summary(obj, sample=3 if sample is None else max(0, sample))
-            if isinstance(data.get("stored_survey"), dict) and data["object_type"] == "Results" and Path(target).exists():
+            obj = load_any_object(target, expected_object_type=object_type, ref=ref)
+            sample_count = 3 if sample is None else max(0, sample)
+            data = _summary(obj, sample=sample_count)
+            if ref is not None:
+                data["commit"] = obj.git.commit
+                if data["object_type"] == "Survey":
+                    from .surveys import _question_summary
+
+                    data["sample_questions"] = [
+                        _question_summary(q) for q in obj.questions[:sample_count]
+                    ]
+            if ref is None and isinstance(data.get("stored_survey"), dict) and data["object_type"] == "Results" and Path(target).exists():
                 from shlex import quote
 
                 data["stored_survey"]["compare_command"] = (
@@ -105,7 +126,7 @@ def register(app: click.Group) -> None:
 
             model_warnings = token_limit_warnings(getattr(obj, "models", []))
             if save_path:
-                data["saved"] = save_edsl_object(obj, save_path)
+                data["saved"] = save_edsl_object(obj, save_path, sync_coop=ref is None)
                 if raw_output_written(data["saved"]):
                     return
             output(
@@ -121,7 +142,7 @@ def register(app: click.Group) -> None:
             error(
                 "INSPECT_ERROR",
                 f"Failed to inspect object: {e}",
-                suggestion="Check the path, UUID, URL, or --type value.",
+                suggestion="Check the revision with ep log." if ref is not None else "Check the path, UUID, URL, or --type value.",
                 exit_code=EXIT_ERROR,
             )
 
