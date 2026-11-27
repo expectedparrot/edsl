@@ -48,7 +48,7 @@ the chat. It stops the assistant knowing it and bringing it up.
 With `can_fill_answers` on: `multiple_choice`, `likert_five`, `yes_no`,
 `linear_scale`, `multiple_choice_with_other`, `checkbox`, `checkbox_with_other`,
 `top_k`, `rank`, `numerical`, `numerical_range`, `free_text`, `edit`, `email`,
-`list`, `budget`, `matrix`, `distribution`, `url`.
+`list`, `budget`, `matrix`, `checkbox_matrix`, `distribution`, `url`.
 
 For `edit`, it always fills in the whole revised text, starting from `text_to_edit`,
 never just the changes.

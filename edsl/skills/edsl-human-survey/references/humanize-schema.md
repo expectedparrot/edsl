@@ -306,6 +306,7 @@ Supported on every question type except `compute` and `image_generation` (both a
 | `free_text` | yes | — | — |
 | `budget` | yes | — | — |
 | `checkbox` | yes | — | — |
+| `checkbox_matrix` | yes | — | — |
 | `checkbox_with_other` | yes | — | — |
 | `date` | yes | — | — |
 | `date_time` | yes | — | — |
