@@ -13,7 +13,7 @@ When a user asks you to run or pilot a study with simulated respondents, execute
 
 For a study design, search by research method first with `ep skills search "<method>"` (for example, `qualitative coding` or `expert elicitation`). Read a promising `data.packages` README and choose between the package and core EDSL based on the requested design and outputs. Briefly explain your choice. For implementation details, search the specific EDSL operation and load its matching skill and reference. Before finishing, reopen the requested outputs from a clean directory using the public EDSL loader for their object type and check the behavior the user asked for.
 
-Bundled skills match a literal substring. Use one distinctive keyword per search. If no matches come back, try a shorter term, then inspect the names and descriptions from `ep skills list`. Open the matching SKILL.md and its relevant reference.
+Use a distinctive method or short phrase. Search recognizes related English word forms and can match words in a different order. If a search returns no matches, try another term for the method or inspect `ep skills list` for bundled guidance. Open the matching SKILL.md and its relevant reference.
 
 For local edits to existing .ep files, start with the object's CLI commands (for surveys, `ep surveys --help`). Use their local edit and verification commands, and inspect the help for any companion browser settings.
 
