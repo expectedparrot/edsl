@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import click
 
@@ -131,6 +132,7 @@ def register(scenarios_group: click.Group) -> None:
     @click.option("--shuffle", is_flag=True, default=False, help="Shuffle scenarios.")
     @click.option("--seed", default=None, help="Seed for sample/shuffle.")
     @click.option("--output", "-o", "output_path", default=None, help="Output .ep package, serialized file, or '-' for raw JSON stdout. Defaults to SCENARIOS_PATH.")
+    @click.option("--fresh-package", is_flag=True, help="Write transformed rows to a single-revision .ep file without the source codebook or package history. Requires a separate --output; replaces any archive there.")
     def transform_scenarios(
         scenarios_path: str,
         select_fields: tuple[str, ...],
@@ -141,6 +143,7 @@ def register(scenarios_group: click.Group) -> None:
         shuffle: bool,
         seed: str | None,
         output_path: str | None,
+        fresh_package: bool,
     ):
         """Transform an existing ScenarioList.
 
@@ -153,7 +156,14 @@ def register(scenarios_group: click.Group) -> None:
         try:
             from edsl import ScenarioList
 
-            scenarios = load_any_object(scenarios_path)
+            destination = Path(output_path or scenarios_path)
+            if fresh_package:
+                source = Path(scenarios_path)
+                if not output_path or destination.suffix != ".ep" or (
+                    source.exists() and destination.exists() and destination.samefile(source)
+                ):
+                    error("USAGE_ERROR", "--fresh-package requires a separate .ep output path.", exit_code=EXIT_USAGE)
+            scenarios = load_any_object(scenarios_path, preview=fresh_package)
             if not isinstance(scenarios, ScenarioList):
                 error("UNSUPPORTED_OBJECT", f"Expected a ScenarioList object, got {type(scenarios).__name__}.", exit_code=EXIT_USAGE)
 
@@ -171,7 +181,28 @@ def register(scenarios_group: click.Group) -> None:
             if sample_n is not None:
                 scenarios = scenarios.sample(sample_n, seed=seed)
 
-            saved = save_edsl_object(scenarios, output_path or scenarios_path, object_type="ScenarioList")
+            warnings = []
+            if fresh_package:
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                with TemporaryDirectory(dir=destination.parent) as folder:
+                    fresh = Path(folder) / destination.name
+                    extract = ScenarioList(list(scenarios))
+                    saved = save_edsl_object(extract, str(fresh), "ScenarioList", sync_coop=False)
+                    fresh.replace(destination)
+                saved.update(path=str(destination), history="fresh")
+            else:
+                retains_history = destination.suffix == ".ep" and destination.exists()
+                saved = save_edsl_object(scenarios, str(destination), object_type="ScenarioList")
+                if retains_history and (select_fields or drop_fields or filter_expression or sample_n is not None):
+                    warnings.append({
+                        "code": "PACKAGE_HISTORY_RETAINED",
+                        "message": (
+                            "Earlier revisions remain in this .ep file and may contain excluded "
+                            "rows or fields. For a shareable extract, repeat the transform from "
+                            "the original source with --fresh-package and a separate --output. "
+                            "Verify the delivered history with 'ep log'."
+                        ),
+                    })
             if raw_output_written(saved):
                 return
             output(
@@ -180,7 +211,8 @@ def register(scenarios_group: click.Group) -> None:
                     "scenario_count": len(scenarios),
                     "keys": sorted(_scenario_keys(scenarios)),
                     "saved": saved,
-                }
+                },
+                warnings=warnings,
             )
         except SystemExit:
             raise

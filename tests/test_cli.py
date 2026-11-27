@@ -785,6 +785,35 @@ class TestObjectTransformCli:
         assert inspected["data"]["object_type"] == "ScenarioList"
         assert inspected["data"]["scenario_count"] == 2
 
+    def test_scenarios_extract_distinguishes_existing_package_history(self, tmp_path):
+        from edsl import Scenario, ScenarioList
+
+        source = tmp_path / "source.ep"
+        dest = tmp_path / "partner.ep"
+        rows = ScenarioList([Scenario({"code": "P01", "private": "old value"})], codebook={"private": "roster"})
+        rows.git.save(source, sync_coop=False)
+        args = ["scenarios", "transform", str(source), "--select", "code", "-o", str(dest)]
+        assert run_cli(*args)["warnings"] == []
+        rows.git.save(dest, sync_coop=False)
+        response = run_cli(*args)
+        assert response["data"]["keys"] == ["code"]
+        assert response["warnings"][0]["code"] == "PACKAGE_HISTORY_RETAINED"
+        assert ScenarioList.git.load(dest, ref="HEAD~1", sync_coop=False)[0]["private"] == "old value"
+        original = source.read_bytes()
+        fresh = run_cli(*args, "--fresh-package")
+        assert fresh["data"]["saved"]["history"] == "fresh"
+        reopened = ScenarioList.git.load(dest, sync_coop=False)
+        assert list(map(dict, reopened)) == [{"code": "P01"}]
+        assert len(reopened.git.log()) == 1
+        assert reopened.codebook == {}
+        assert source.read_bytes() == original
+        alias = tmp_path / "same.ep"
+        alias.symlink_to(source)
+        for target in (alias, source, tmp_path / "output.csv"):
+            err = run_cli("scenarios", "transform", str(source), "-o", str(target), "--fresh-package", expect_exit=2)
+            assert err["error"]["code"] == "USAGE_ERROR"
+        assert source.read_bytes() == original
+
     def test_scenarios_create_from_json_list_and_transform(self, tmp_path):
         from edsl import ScenarioList
 
