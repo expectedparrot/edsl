@@ -3614,6 +3614,8 @@ class TestHumanizeCli:
             QuestionInterview(question_name="followup", question_text="Your experience",
                               interview_guide="{% if rating.answer == 'low' %}What went wrong?{% else %}Why {{ rating.answer }}?{% endif %}"),
         ])
+        survey.add_targeted_memory("followup", "other")
+        survey.add_targeted_memory("followup", "rating")
         path, schema = tmp_path / "study.ep", tmp_path / "web.json"
         survey.git.save(path, sync_coop=False)
         run_cli("humanize", "schema", "create", "--survey", str(path), "--output", str(schema),
@@ -3622,6 +3624,10 @@ class TestHumanizeCli:
         check = ["humanize", "schema", "validate", "--survey", str(path), "--schema", str(schema)]
         report = run_cli(*check, "--answers", '{"rating":"low","other":"private detail"}')["data"]
         assert report["rendered_question_texts"]["other"] == "Any other comments about low?"
+        diagnostic = run_cli(*check)["warnings"]
+        assert len(diagnostic) == 1 and diagnostic[0]["code"] == "INTERVIEW_MEMORY_NOT_PIPED"
+        assert diagnostic[0]["prior_questions"] == ["other"]
+        assert "{{ other.answer }}" in diagnostic[0]["message"]
         info = report["interviews"]["followup"]
         assert info["prior_question_references"] == ["rating"]
         assert info["unreferenced_sample_answers"] == ["other"]

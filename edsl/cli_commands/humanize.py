@@ -686,7 +686,8 @@ def register(humanize: click.Group) -> None:
             humanize_schema_data = _read_json_or_gzip(schema_path)
             _validate_humanize_schema(survey, humanize_schema_data, survey_path)
             samples = load_json_object(answers) if answers is not None else None
-            output({"valid": True, **describe_survey_context(survey, humanize_schema_data, samples)})
+            context, warnings = describe_survey_context(survey, humanize_schema_data, samples)
+            output({"valid": True, **context}, warnings=warnings)
         except SystemExit:
             raise
         except Exception as e:

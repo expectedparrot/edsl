@@ -30,6 +30,7 @@ def describe_survey_context(survey, schema, answers=None):
     env = make_environment()
     interviews = {}
     question_texts = {}
+    warnings = []
     prior = set()
     context = {}
     for q in survey.questions:
@@ -67,6 +68,21 @@ def describe_survey_context(survey, schema, answers=None):
                 row["missing_sample_answers"] = sorted((refs & prior) - answers.keys())
                 if refs - prior:
                     row["other_template_variables"] = sorted(refs - prior)
+            unpiped = sorted(set(survey.memory_plan.get(name, ())) - refs)
+            if unpiped:
+                sample_pipe = "{{ " + unpiped[0] + ".answer }}"
+                warnings.append(
+                    {
+                        "code": "INTERVIEW_MEMORY_NOT_PIPED",
+                        "question": name,
+                        "prior_questions": unpiped,
+                        "message": (
+                            f"The simulation memory for {name!r} includes {', '.join(unpiped)}. "
+                            "Its browser interview text and guide do not reference those questions. "
+                            f"If the interviewer needs a prior answer, pipe it into the guide, e.g. {sample_pipe}."
+                        ),
+                    }
+                )
             interviews[name] = row
         prior.add(name)
         if answers is not None:
@@ -76,4 +92,4 @@ def describe_survey_context(survey, schema, answers=None):
         summary["interviews"] = interviews
     if answers is not None:
         summary["rendered_question_texts"] = question_texts
-    return summary
+    return summary, warnings
