@@ -22,6 +22,15 @@ survey order, with unique names that do not collide with question names.
 `survey.create_allowable_groups(max_group_size=3)` can construct groups based on
 dependencies; inspect its result and isolate each interview in its own group.
 
+To display directions above the fields on an existing page, insert an instruction before its first question. For example, if page two groups `clinic_visits` through `hospital_visits`, run:
+
+```bash
+ep surveys add-instruction survey.ep --name visit_directions --text "Count visits during the past month." --before clinic_visits
+ep surveys show survey.ep
+```
+
+Check that `item_order` contains `visit_directions` immediately before `clinic_visits` and validate the grouped schema. The group endpoints remain `clinic_visits` and `hospital_visits`.
+
 Questions on the same page must render independently. Place a question that
 pipes another answer on a later page. Skip conditions based on an earlier page
 are allowed; do not promise live conditional updates within the current page.

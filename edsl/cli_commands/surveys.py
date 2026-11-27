@@ -317,7 +317,8 @@ def register(surveys_group: click.Group) -> None:
     @click.option("--text", required=True, help="Instruction text or path to a text file.")
     @click.option("--preamble", default="You were given the following instructions:", show_default=True, help="Instruction preamble.")
     @click.option("--output", "-o", "output_path", default=None, help="Output .ep package, serialized file, or '-' for raw JSON stdout. Defaults to SURVEY_PATH.")
-    def add_instruction(survey_path: str, name: str, text: str, preamble: str, output_path: str | None):
+    @click.option("--before", metavar="QUESTION", help="Insert immediately before this question. Defaults to appending the instruction.")
+    def add_instruction(survey_path: str, name: str, text: str, preamble: str, output_path: str | None, before: str | None):
         """Add an Instruction object to a Survey.
 
         Example:
@@ -327,7 +328,19 @@ def register(surveys_group: click.Group) -> None:
             from edsl.instructions import Instruction
 
             survey = _load_survey(survey_path, preview=True)
-            survey = survey.add_instruction(Instruction(name=name, text=_read_text_or_value(text), preamble=preamble))
+            instruction = Instruction(name=name, text=_read_text_or_value(text), preamble=preamble)
+            if name in survey.question_names or name in survey._instruction_names_to_instructions:
+                error("VALIDATION_ERROR", f"A survey item named {name!r} already exists.", exit_code=EXIT_VALIDATION)
+            if before is None:
+                survey.add_instruction(instruction)
+            else:
+                if before not in survey.question_names:
+                    error("VALIDATION_ERROR", f"Unknown question {before!r}.", exit_code=EXIT_VALIDATION)
+                data = survey.to_dict()
+                items = data["questions"]
+                index = next(i for i, item in enumerate(items) if item.get("question_name") == before)
+                items.insert(index, instruction.to_dict())
+                survey = type(survey).from_dict(data)
             saved = _save_survey_edit(survey, output_path or survey_path)
             if raw_output_written(saved):
                 return
@@ -976,6 +989,7 @@ def _survey_summary(survey, saved: dict | None = None) -> dict:
         "question_order": survey.question_order,
         "memory_plan": _memory_plan_summary(survey),
         "instructions": _instruction_summary(survey),
+        "item_order": [item.name for item in survey.recombined_questions_and_instructions()],
     }
     if saved is not None:
         data["saved"] = saved
@@ -988,6 +1002,10 @@ def _question_summary(question) -> dict:
         "question_type": question.question_type,
         "question_text": question.question_text,
     }
+    if getattr(question, "_is_thinking_question", False):
+        from .survey_question_model import model_override
+
+        data["model_override"] = model_override(question)
     if hasattr(question, "question_options"):
         data["question_options"] = getattr(question, "question_options")
     for attr in ("min_value", "max_value", "question_items", "num_selections", "min_selections", "max_selections"):
@@ -1144,7 +1162,11 @@ def _memory_plan_summary(survey) -> dict:
 def _instruction_summary(survey) -> list[dict]:
     instructions = getattr(survey, "_instruction_names_to_instructions", {}) or {}
     return [
-        {"name": name, "text": getattr(instruction, "text", str(instruction))}
+        (
+            {"name": name, "text": instruction.text}
+            if hasattr(instruction, "text")
+            else {"name": name, "keep": instruction.keep, "drop": instruction.drop}
+        )
         for name, instruction in instructions.items()
     ]
 

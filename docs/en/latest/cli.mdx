@@ -218,6 +218,26 @@ Each path in `paths.json` lists the expected pages in order. Include the answers
 }
 ```
 
+### Place page directions and preview an independent judge
+
+For a grouped human survey, put directions immediately before the first question on the relevant page. Inspect the saved item's position in `data.item_order`.
+
+```bash
+ep surveys add-instruction care.ep --name visit_directions --text "Count visits during the past month." --before clinic_visits
+ep surveys show care.ep
+```
+
+For a simulated study, a single question can use a different model and system prompt while keeping its type and answer options. Here a respondent chooses an application type and an independent reviewer evaluates it. Render a sample prompt locally to verify that the auditor receives that choice.
+
+```bash
+ep surveys create --question-type multiple_choice --question-name application --question-text "Which application type?" --option New --option Renewal -o eligibility.ep
+ep surveys add-question eligibility.ep --question-type multiple_choice --question-name audit --question-text 'Review this application type: {{ application.answer }}' --option Pass --option Review
+ep surveys set-question-model eligibility.ep audit --service openai --model gpt-4o-mini --system-prompt "Apply the eligibility criteria."
+ep surveys preview-prompt eligibility.ep audit --answers '{"application":"Renewal"}'
+```
+
+The preview returns the model override and rendered user and system prompts without calling a provider. Use `--traits` and `--scenario` to supply additional sample inputs as JSON. For a question that inherits the job's model, the preview uses the test model. Use `ep surveys set-question-model eligibility.ep audit --clear` to restore the job's model and agent persona.
+
 ### Edit the inputs to a simulation
 
 Use `edit-item` with a local agent, scenario, or model list. Positions start at zero. A patch merges nested fields, so changing one trait or model parameter preserves its siblings. Insert without an index to append, or use `--remove --index N` to delete an item. Pass `--output` to write a separate list.

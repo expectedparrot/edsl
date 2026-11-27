@@ -152,6 +152,10 @@ def register(group):
         except Exception as exc:
             error("VALIDATION_ERROR", str(exc), exit_code=EXIT_VALIDATION)
 
+    from .survey_question_model import register as register_question_model
+
+    register_question_model(group, edit)
+
     @group.command("update-question", cls=SurveyEditCommand)
     @click.argument("survey_path", type=local_file)
     @click.argument("name")

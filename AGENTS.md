@@ -281,7 +281,7 @@ ep surveys add-skip-rule survey.ep --question q1 --expression "{{ q0.answer }} =
 ep surveys replace-rule survey.ep --question q1 --expression "{{ q0.answer }} in ['skip', 'pass']" --output revised.ep
 ep surveys check-paths revised.ep --cases paths.json
 ep surveys add-stop-rule survey.ep --question q1 --expression "{{ q1.answer }} == 'done'"
-ep surveys add-instruction survey.ep --text "Answer as briefly as possible."
+ep surveys add-instruction survey.ep --name response_style --text "Answer as briefly as possible." --before q1
 ep surveys set-memory survey.ep --help
 ep surveys add-question-group survey.ep --help
 ep surveys move-question survey.ep --help
@@ -289,6 +289,8 @@ ep surveys drop-question survey.ep --help
 ```
 
 Use `ep surveys show survey.ep --markdown` to present the questionnaire in a terminal. Add `--with-question-names` or `--with-question-types` to label the headings. Add `--expand-options` to list every dropdown choice. On success, stdout contains Markdown. On failure, inspect the JSON error envelope.
+
+For an independent judge or other per-question model, use `ep surveys set-question-model survey.ep NAME --service openai --model gpt-4o-mini --system-prompt "Apply the rubric."` and keep the original answer type. Pipe or configure memory for any prior answer the judge needs. Inspect the saved override and rendered prompts with `ep surveys preview-prompt survey.ep NAME --answers '{"q0":"sample answer"}'`. For grouped page directions, check `data.item_order` in `ep surveys show survey.ep`.
 
 Use `ep surveys review survey.ep` only when a local review UI is appropriate for the task.
 
