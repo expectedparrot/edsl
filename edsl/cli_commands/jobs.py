@@ -70,8 +70,10 @@ def scenario_field_warnings(job):
 
 def register(jobs_group: click.Group) -> None:
     from . import job_prompt_preview
+    from .job_test_case import test_case
 
     job_prompt_preview.register(jobs_group)
+    jobs_group.add_command(test_case)
 
     @jobs_group.command("build")
     @click.option("--survey", "survey_path", required=True, type=click.Path(exists=True), help="Survey object package/file.")

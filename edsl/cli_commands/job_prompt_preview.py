@@ -28,6 +28,35 @@ def _attachment_summary(file):
     }
 
 
+def assigned_interview(jobs_path, interview_index, *, skip_retry=False):
+    """Select from the same realized assignment order used by the job runner."""
+    from edsl.jobs import Jobs
+    from edsl.jobs.async_interview_runner import AsyncInterviewRunner
+
+    job = load_any_object(jobs_path, preview=True)
+    if not isinstance(job, Jobs):
+        raise ValueError(f"Expected Jobs, found {type(job).__name__}.")
+    job.run_config.parameters.skip_retry = skip_retry
+    job.replace_missing_objects()
+    planned_interviews = len(job) * job.run_config.parameters.n
+    if job.treatment_assignment:
+        job.run_config.parameters.n = (
+            job.treatment_assignment.planned_iterations
+        )
+        planned_interviews = (
+            len(job.agents) * len(job.models) * job.run_config.parameters.n
+        )
+    interviews = AsyncInterviewRunner(job, job.run_config)._expand_interviews()
+    interview = next(
+        islice(interviews, interview_index, interview_index + 1), None
+    )
+    if interview is None:
+        raise ValueError(
+            f"No assigned interview at index {interview_index}. This job plans {planned_interviews} interviews."
+        )
+    return interview, planned_interviews
+
+
 def register(group):
     @group.command("preview-prompt")
     @click.argument("jobs_path", type=click.Path(exists=True))
@@ -70,31 +99,10 @@ def register(group):
         isolation. Use surveys check-paths to verify that routing reaches it.
         Text checks are case-sensitive.
         """
-        from edsl.jobs import Jobs
-        from edsl.jobs.async_interview_runner import AsyncInterviewRunner
         from edsl.jobs.fetch_invigilator import FetchInvigilator
 
         try:
-            job = load_any_object(jobs_path, preview=True)
-            if not isinstance(job, Jobs):
-                raise ValueError(f"Expected Jobs, found {type(job).__name__}.")
-            job.replace_missing_objects()
-            planned_interviews = len(job) * job.run_config.parameters.n
-            if job.treatment_assignment:
-                job.run_config.parameters.n = (
-                    job.treatment_assignment.planned_iterations
-                )
-                planned_interviews = (
-                    len(job.agents) * len(job.models) * job.run_config.parameters.n
-                )
-            interviews = AsyncInterviewRunner(job, job.run_config)._expand_interviews()
-            interview = next(
-                islice(interviews, interview_index, interview_index + 1), None
-            )
-            if interview is None:
-                raise ValueError(
-                    f"No assigned interview at index {interview_index}. This job plans {planned_interviews} interviews."
-                )
+            interview, planned_interviews = assigned_interview(jobs_path, interview_index)
             survey = interview.survey
             prior = load_json_object(answers) if answers is not None else {}
             question = survey.get(question_name)

@@ -69,6 +69,9 @@ def register(app: click.Group) -> None:
             iterations, local, allow_partial, max_concurrency, api_timeout, save, output_path, input_path):
         """Run question(s) and get results.
 
+        For a local regression case with different replies to each question,
+        use ep jobs test-case JOB.ep --responses replies.json --expect answers.json.
+
         \b
         Examples:
           ep run --question "What is 2+2?" --model gpt-4o
@@ -370,10 +373,16 @@ def register(app: click.Group) -> None:
             meta["failed_interview_count"] = failed_count
             meta["completed_interview_count"] = max(result_count - failed_count, 0)
             if failed_count:
-                envelope_warnings.append({
+                warning = {
                     "code": "PARTIAL_RESULTS",
                     "message": f"{failed_count} of {result_count} interviews had unfixed exceptions.",
-                })
+                }
+                if local and job.models and all(getattr(m, "model", None) == "test" for m in job.models):
+                    warning["suggestion"] = (
+                        "For a local regression check, use ep jobs test-case JOB.ep "
+                        "--responses replies.json --expect answers.json. Supply a separate reply for each question."
+                    )
+                envelope_warnings.append(warning)
 
         output({"results": [], "meta": meta}, warnings=envelope_warnings)
 
