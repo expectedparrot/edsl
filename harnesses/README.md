@@ -137,3 +137,12 @@ package directory](https://github.com/expectedparrot/directory) to discover
 candidate packages. Then read the chosen package's own README and bundled agent
 guidance. Use its documented installation and commands; the directory itself
 is a catalog.
+
+## Testing the published installers
+
+From the repository root, run `python3 harnesses/tests/smoke_readme.py codex pi`
+with Docker running. Use `--all` to test every harness. Each case runs the
+published README command as a new Linux user in its own disposable container,
+checks the skill and launcher, and creates and reopens a local survey. The test
+uses a placeholder Expected Parrot key and a loopback URL. Browser login,
+interactive launch, and agent conversations require separate tests.
