@@ -28,6 +28,7 @@ from edsl.cli_commands import research_agent as research_agent_commands
 from edsl.cli_commands import present as present_commands
 from edsl.cli_commands import report as report_commands
 from edsl.cli_commands import results as results_commands
+from edsl.cli_commands.results_assignments import check_assignments
 from edsl.cli_commands import run as run_commands
 from edsl.cli_commands import run_manifest as run_manifest_commands
 from edsl.cli_commands import schema as schema_commands
@@ -425,6 +426,7 @@ profiles_commands.register(app, profiles)
 present_commands.register(app)
 report_commands.register(report)
 results_commands.register(results)
+results.add_command(check_assignments)
 state_commands.register(app, results)
 orchestration_commands.register(app)
 run_commands.register(app)
