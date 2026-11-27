@@ -11,7 +11,10 @@ from edsl.cli_shared import EXIT_ERROR, EXIT_USAGE, error, load_any_object, outp
 
 
 def register(agents_group: click.Group) -> None:
+    from .agent_margins import from_margins
     from . import list_edits
+
+    agents_group.add_command(from_margins)
 
     list_edits.register(agents_group, "AgentList")
 

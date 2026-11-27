@@ -1,7 +1,6 @@
 import os
 import re
 from typing import Any, Optional, List, TYPE_CHECKING
-from anthropic import AsyncAnthropic
 
 from ..inference_service_abc import InferenceServiceABC
 from ..decorators import report_errors_async
@@ -11,6 +10,18 @@ from .message_builder import MessageBuilder
 if TYPE_CHECKING:
     from ...language_models import LanguageModel
     from ...scenarios.file_store import FileStore as Files
+
+
+def _create_client(*, api_key):
+    try:
+        from anthropic import AsyncAnthropic
+    except ImportError as exc:
+        from ..exceptions import InferenceServiceDependencyError
+
+        raise InferenceServiceDependencyError(
+            "Local Anthropic inference requires the anthropic SDK. Install edsl[inference]."
+        ) from exc
+    return AsyncAnthropic(api_key=api_key)
 
 
 class AnthropicService(InferenceServiceABC):
@@ -264,7 +275,7 @@ class AnthropicService(InferenceServiceABC):
                                     "text": f"[Unsupported file '{filename}' of type '{file_entry.mime_type}'. File content cannot be processed.]",
                                 }
                             )
-                client = AsyncAnthropic(api_key=self.api_token)
+                client = _create_client(api_key=self.api_token)
 
                 create_kwargs = dict(
                     model=model_name,

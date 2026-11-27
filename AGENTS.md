@@ -230,6 +230,8 @@ Important replacement rule: component override flags replace the corresponding c
 
 ## Creating Agent Lists
 
+For separate population totals by trait, use `ep agents from-margins margins.csv --seed 43 --id-field person_id -o people.ep`. The source columns are `field,category,count`. Each trait total must agree. The output preserves those totals and assigns synthetic trait combinations.
+
 Create `AgentList` objects from tabular data.
 
 ```bash
@@ -268,6 +270,8 @@ ep scenarios transform scenarios.ep --help
 Use `ep scenarios create --help` for supported source types and options.
 
 ## Creating And Editing Surveys
+
+For an imported questionnaire, use `ep surveys check-wording survey.ep --expected approved.json --forbid-text "Read the response card."`. The JSON maps question IDs to approved text or ordered lists of phrases, including option labels. The command renders model inputs. Run `ep surveys check-paths` separately for routing.
 
 Survey commands let agents construct surveys without writing Python.
 
@@ -323,6 +327,8 @@ Use `--refresh` only when a newly changed catalog must be fetched immediately.
 The `--search` value is a substring, not a shell wildcard.
 
 ## Running Jobs
+
+Use `ep jobs test-case jobs.ep --all --response-rows replies.json -o rehearsal.ep` to check a study-specific analyzer offline with real Results. Supply one question-to-reply map per assigned interview in schedule order.
 
 Blocking runs must write completed results to a file. Do not expect completed result rows in stdout.
 

@@ -35,7 +35,7 @@ def test_anthropic_request_uses_temperature_one_for_affected_models(monkeypatch)
             self.messages = DummyMessages()
 
     monkeypatch.setattr(
-        "edsl.inference_services.services.anthropic_service.AsyncAnthropic",
+        "edsl.inference_services.services.anthropic_service._create_client",
         DummyAnthropicClient,
     )
 
@@ -85,7 +85,7 @@ def test_manual_thinking_uses_valid_temperature_and_fits_output_limit(monkeypatc
             self.messages = DummyMessages()
 
     monkeypatch.setattr(
-        "edsl.inference_services.services.anthropic_service.AsyncAnthropic",
+        "edsl.inference_services.services.anthropic_service._create_client",
         DummyAnthropicClient,
     )
     model_class = AnthropicService.create_model("claude-3-7-sonnet-20250219")
@@ -116,7 +116,7 @@ def test_manual_thinking_is_disabled_when_output_limit_is_too_small(monkeypatch)
             self.messages = DummyMessages()
 
     monkeypatch.setattr(
-        "edsl.inference_services.services.anthropic_service.AsyncAnthropic",
+        "edsl.inference_services.services.anthropic_service._create_client",
         DummyAnthropicClient,
     )
     model_class = AnthropicService.create_model("claude-3-7-sonnet-20250219")
@@ -144,7 +144,7 @@ def test_anthropic_request_omits_temperature_for_fable(monkeypatch):
             self.messages = DummyMessages()
 
     monkeypatch.setattr(
-        "edsl.inference_services.services.anthropic_service.AsyncAnthropic",
+        "edsl.inference_services.services.anthropic_service._create_client",
         DummyAnthropicClient,
     )
 
@@ -175,7 +175,7 @@ def test_anthropic_request_preserves_temperature_for_legacy_models(monkeypatch):
             self.messages = DummyMessages()
 
     monkeypatch.setattr(
-        "edsl.inference_services.services.anthropic_service.AsyncAnthropic",
+        "edsl.inference_services.services.anthropic_service._create_client",
         DummyAnthropicClient,
     )
 
@@ -185,3 +185,19 @@ def test_anthropic_request_preserves_temperature_for_legacy_models(monkeypatch):
     asyncio.run(model.async_execute_model_call("hello"))
 
     assert captured_kwargs["temperature"] == 0.2
+
+
+def test_reopen_model_without_anthropic_sdk(monkeypatch):
+    import sys
+    import pytest
+    from edsl import Model
+    from edsl.language_models import LanguageModel
+    from edsl.inference_services.exceptions import InferenceServiceDependencyError
+    from edsl.inference_services.services.anthropic_service import _create_client
+
+    monkeypatch.setitem(sys.modules, "anthropic", None)
+    original = Model("claude-example", service_name="anthropic", temperature=0.2)
+    restored = LanguageModel.from_dict(original.to_dict())
+    assert restored.to_dict() == original.to_dict()
+    with pytest.raises(InferenceServiceDependencyError, match="Local Anthropic inference"):
+        _create_client(api_key="test")

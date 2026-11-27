@@ -14,6 +14,8 @@ Use `ep inspect agents.ep --markdown --page 1 --page-size 5` to present a page o
 
 Before reusing archived responses, run `ep results check-survey results.ep --against jobs.ep` to compare the saved survey definitions, then verify the expected respondent or scenario IDs and their counts in Results.
 
+When delivering an analysis before fieldwork, exercise the script on a real saved Results package. Use `ep jobs test-case jobs.ep --all --response-rows replies.json -o rehearsal.ep`; the JSON array contains one question-to-reply map per assigned interview, in schedule order. Try contrasting decisions whose aggregate you can calculate independently. For a price-choice study, include a shopper who always selects the same side in a counterbalanced design. If every price then has 50% upgrade share, those decisions do not identify a switching price. Under a monotone price threshold, always upgrading gives a lower bound at the highest premium and never upgrading gives an upper bound at the lowest. In Python, iterate `Results.git.load(path, sync_coop=False)` and read `row.answer["choice"]`, `row.scenario["price"]`, and `row.model.model`. For a model-by-wording comparison, reload the delivered Jobs package and verify one assignment per model and wording. Compare the model-specific signs with the pooled effect.
+
 Common files include `study_survey.py`, `study_scenario_list.py`, `study_agent_list.py`, and optionally `study_model_list.py`. Use `ep models create` for ordinary model selections when it covers the needed configuration.
 
 Use the installed CLI help and `edsl:edsl-surveys` for current APIs. A scenario field must be consumed by the survey where required by the installed EDSL validation rules. `Agent.name` is a distinct constructor field, not a trait.

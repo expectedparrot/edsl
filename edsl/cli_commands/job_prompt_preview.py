@@ -235,7 +235,9 @@ def register(group):
                     ],
                     exit_code=EXIT_VALIDATION,
                 )
-            output(data)
+            from .survey_question_model import presentation_warnings
+
+            output(data, warnings=presentation_warnings(question, data))
         except Exception as exc:
             error(
                 "VALIDATION_ERROR",

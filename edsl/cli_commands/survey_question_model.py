@@ -5,6 +5,27 @@ import click
 from edsl.cli_shared import EXIT_USAGE, EXIT_VALIDATION, error, load_json_object, output
 
 
+def presentation_warnings(question, prompts):
+    """Flag literal authored wording missing from a custom model presentation."""
+    text = question.question_text
+    if not getattr(question, "_question_presentation", None) or not isinstance(
+        text, str
+    ):
+        return []
+    if any(token in text for token in ("{{", "{%", "{#")):
+        return []
+    wording = " ".join(text.split())
+    if wording and all(
+        wording not in " ".join(prompts[key].split())
+        for key in ("system_prompt", "user_prompt")
+    ):
+        return [
+            f"Custom question_presentation for {question.question_name!r} omits the authored question text from the rendered prompts. "
+            "Inspect the respondent wording. Include {{ question_text }} in the presentation if it should be shown."
+        ]
+    return []
+
+
 def model_override(question):
     """Describe the runtime override without exposing model connection credentials."""
     return {
@@ -137,7 +158,8 @@ def register(group, edit):
                 load_json_object(value) if value is not None else {}
                 for value in (answers, traits, scenario)
             ]
-            output(preview(survey, name, *args))
+            data = preview(survey, name, *args)
+            output(data, warnings=presentation_warnings(survey.get(name), data))
         except Exception as exc:
             error(
                 "VALIDATION_ERROR",

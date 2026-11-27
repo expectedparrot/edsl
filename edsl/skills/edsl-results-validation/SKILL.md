@@ -12,6 +12,8 @@ human judgments. The first task is to identify what kind of comparison their
 study supports. Do not assume every human-versus-simulation comparison is the
 same problem.
 
+When analyzing a saved Results package, inspect the typed columns with `ep results columns --file results.ep`. Use `ep results export results.ep --column model.model --column "scenario.*" --column "answer.*" --output responses.csv` or iterate the reloaded Results in Python. Keep groups with missing reviews. Report the denominator for each rate or spread. When comparing treatments across models, calculate within-model differences before pooling and check the direction for each model.
+
 ## Choose the estimand before writing code
 
 There are two distinct goals:

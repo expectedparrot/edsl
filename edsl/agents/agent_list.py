@@ -926,6 +926,40 @@ class AgentList(MarkdownPreviewMixin, UserList, Base, AgentListOperationsMixin):
         return AgentListFactories.example(randomize=randomize, codebook=codebook)
 
     @classmethod
+    def from_margins(
+        cls, margins: dict[str, dict[str, int]], *, seed: int, id_field: str = "agent_id"
+    ) -> "AgentList":
+        """Generate synthetic agents matching exact category counts for every trait.
+
+        Each trait is shuffled independently. Its association with other traits is
+        synthetic. Counts must be nonnegative integers and trait totals must agree.
+
+        >>> panel = AgentList.from_margins({"mode": {"Walk": 2, "Bus": 1}}, seed=12)
+        >>> sorted(a.traits["mode"] for a in panel)
+        ['Bus', 'Walk', 'Walk']
+        """
+        from random import Random
+
+        if not margins or not id_field or id_field in margins:
+            raise ValueError("Supply at least one trait and a distinct, nonempty ID field.")
+        totals = {}
+        for field, counts in margins.items():
+            if not field or not counts or any(type(v) is not int or v < 0 for v in counts.values()):
+                raise ValueError(f"Trait {field!r} needs nonnegative integer category counts.")
+            totals[field] = sum(counts.values())
+        population = next(iter(totals.values()))
+        if len(set(totals.values())) != 1 or not population:
+            raise ValueError(f"All traits must have the same positive total. Observed totals: {totals}")
+        rng = Random(seed)
+        rows = [{id_field: str(index + 1)} for index in range(population)]
+        for field, counts in margins.items():
+            values = [category for category, count in counts.items() for _ in range(count)]
+            rng.shuffle(values)
+            for row, value in zip(rows, values):
+                row[field] = value
+        return cls([Agent(name=row[id_field], traits=row) for row in rows])
+
+    @classmethod
     @wraps(AgentListFactories.from_list)
     def from_list(
         cls,

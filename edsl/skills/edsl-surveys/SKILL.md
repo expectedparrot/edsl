@@ -6,6 +6,10 @@ tags: [edsl, surveys]
 
 # Build an EDSL survey
 
+For a questionnaire imported from a field manual, keep staff notes in an interviewer guide. `question_presentation` controls the prompt shown to the model. Extract approved wording into a JSON object keyed by question ID. For a response card, use an ordered list of the stem and approved option labels. Run `ep surveys check-wording survey.ep --expected stems.json --forbid-text "Read the response card."` with each distinctive staff phrase. Inspect failures with `ep surveys preview-prompt`. When a custom presentation contains staff directions, keep the directions in a guide and apply the reported `restore_default_presentation` command. Rerun the wording check on the saved file. Exercise both branches and the scored endpoints on the saved survey.
+
+For a group discussion with private ballots, finish every baseline ballot before the first discussion turn. Maintain the analyst’s before/after ratings keyed by participant separately from the public transcript. Save or return both to the analyst. Construct each speaker’s prompt from their own persona and the public turns available at that point. Rehearse a single-person rating change and verify both the change report and the inputs seen by the other participants.
+
 Use this skill for EDSL API questions about survey construction and for implementing survey objects. Check installed-version help and schemas when CLI details may differ.
 
 When different participants own steps and one waits for another’s answer, use a respondent workflow. A Survey describes the questions one respondent answers. A `WorkflowExperiment` assigns each step to a participant, can release independent steps together and can skip optional steps. Read `ep skills show edsl-orchestration --reference SKILL.md`. Rehearse the saved definition with the supplied `step`, `participant`, and `answers` rows using `ep orchestration run --file experiment.json --responses responses.json --output rehearsal/`.

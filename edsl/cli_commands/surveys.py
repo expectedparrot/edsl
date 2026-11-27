@@ -48,6 +48,9 @@ class SurveyEditCommand(click.Command):
 def register(surveys_group: click.Group) -> None:
     from . import survey_edits
 
+    from .survey_wording import check_wording
+
+    surveys_group.add_command(check_wording)
     survey_edits.register(surveys_group)
 
     @surveys_group.command("export-docx")
@@ -151,7 +154,7 @@ def register(surveys_group: click.Group) -> None:
     @click.option("--use-code/--no-use-code", default=None, help="Use option indices instead of option text where supported.")
     @click.option("--include-comment/--no-include-comment", default=None, help="Include or omit answer comments where supported.")
     @click.option("--answering-instructions", default=None, help="Custom answering instructions or path.")
-    @click.option("--question-presentation", default=None, help="Custom question presentation template or path.")
+    @click.option("--question-presentation", default=None, help="Respondent-facing template or path. Include {{ question_text }} to render the authored stem.")
     @click.option("--param", "params", multiple=True, help="Escape hatch: extra constructor param as KEY=JSON.")
     @click.option("--question-json", default=None, help="Question spec JSON string or path. Merged after direct flags.")
     @click.option("--output", "-o", "output_path", required=True, help="Output .ep package, serialized file, or '-' for raw JSON stdout.")
@@ -238,7 +241,7 @@ def register(surveys_group: click.Group) -> None:
     @click.option("--use-code/--no-use-code", default=None, help="Use option indices instead of option text where supported.")
     @click.option("--include-comment/--no-include-comment", default=None, help="Include or omit answer comments where supported.")
     @click.option("--answering-instructions", default=None, help="Custom answering instructions or path.")
-    @click.option("--question-presentation", default=None, help="Custom question presentation template or path.")
+    @click.option("--question-presentation", default=None, help="Respondent-facing template or path. Include {{ question_text }} to render the authored stem.")
     @click.option("--param", "params", multiple=True, help="Escape hatch: extra constructor param as KEY=JSON.")
     @click.option("--question-json", default=None, help="Question spec JSON string or path. Merged after direct flags.")
     @click.option("--index", default=None, type=int, help="Insert question at this zero-based index. Defaults to append.")
@@ -688,8 +691,10 @@ def register(surveys_group: click.Group) -> None:
                 else:
                     rendered = survey.to_markdown(style="questionnaire", **flags)
                 click.echo(rendered)
+                for hint in _presentation_hint(survey):
+                    click.echo(hint, err=True)
                 return
-            output(_survey_summary(survey))
+            output(_survey_summary(survey), warnings=_presentation_hint(survey))
         except SystemExit:
             raise
         except Exception as e:
@@ -773,7 +778,8 @@ def register(surveys_group: click.Group) -> None:
                     **({"commit": source.git.commit} if ref is not None else {}),
                     "question_count": len(survey.questions),
                     "questions": [_question_summary(q) for q in survey.questions],
-                }
+                },
+                warnings=_presentation_hint(survey),
             )
         except SystemExit:
             raise
@@ -974,6 +980,13 @@ def _build_question_from_fields(
 
 def _save_survey_edit(survey, path: str) -> dict:
     return save_edsl_object(survey, path, object_type="Survey", sync_coop=False)
+
+
+def _presentation_hint(survey):
+    names = [q.question_name for q in survey.questions if getattr(q, "_question_presentation", None)]
+    if names:
+        return [f"Custom respondent-facing presentations on {', '.join(names)}. Check the model-visible wording with ep surveys check-wording and use --forbid-text for staff-only notes."]
+    return []
 
 
 def _survey_output(survey, saved: dict) -> dict:

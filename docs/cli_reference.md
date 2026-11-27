@@ -243,6 +243,33 @@ ep jobs test-case study.ep --interview-index 0 --responses '{"count":5}' --expec
 
 Use the expected answer type for your question. String labels on a multiple-choice count return a string. When only whole totals are valid, also try `--responses '{"count":2.5}' --expect-rejection count`. Answer repair can accept a reply by converting it to an allowed value. The rejection check requires an answer-validation failure on the named question. An accepted answer, skipped question, or unrelated interview error fails the check. The comment flag checks the question setting. Read the rendered prompts for custom wording and inspect retained raw responses when disclosure matters. These commands exercise local EDSL model interviews.
 
+### Rehearse an analysis before fieldwork
+
+For different scripted choices across the saved schedule, put a JSON array such as `[{"choice":"Left"},{"choice":"Right"}]` in `replies.json`. Supply one reply map per interview. Use `--iterations` to match the intended number of repeats.
+
+```bash
+ep jobs test-case plans.ep --all --response-rows replies.json -o rehearsal.ep
+python analyze.py rehearsal.ep
+```
+
+### Check the rendered questionnaire against a field copy
+
+In `approved.json`, map each question ID to its approved wording or an ordered list such as `{"mode":["How did you get here today?","Bus","Walk","Other"]}`. Include every question. Repeat `--forbid-text` for staff-only phrases. A mismatch identifies the affected questions and exits with code 5. For templated wording supply concrete expected text and sample inputs.
+
+```bash
+ep surveys check-wording survey.ep --expected approved.json --forbid-text "Read the response card."
+```
+
+### Generate a synthetic panel from population totals
+
+Each CSV row supplies `field,category,count`. For example, a panel with 60 riders and 40 walkers can also match the age totals for those 100 people. The command independently shuffles each trait using the seed and assigns a unique ID. The joint distribution is synthetic.
+
+```bash
+ep agents from-margins margins.csv --seed 43 --id-field person_id -o agents.ep
+```
+
+In Python, `AgentList.from_margins({"mode": {"Bus": 60, "Walk": 40}, "age": {"Older": 35, "Younger": 65}}, seed=43, id_field="person_id")` produces the same kind of panel.
+
 ## Remote Jobs
 
 ```bash

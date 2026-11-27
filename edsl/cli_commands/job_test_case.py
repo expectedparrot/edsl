@@ -16,6 +16,7 @@ from edsl.cli_shared import (
     load_json_object,
     output,
     read_package_manifest,
+    read_json_file,
     save_edsl_object,
 )
 from .job_prompt_preview import assigned_interview, assigned_interviews
@@ -43,8 +44,12 @@ from .job_prompt_preview import assigned_interview, assigned_interviews
 )
 @click.option(
     "--responses",
-    required=True,
     help="JSON object or file of test-model replies keyed by question name.",
+)
+@click.option(
+    "--response-rows",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="With --all, read a JSON array of reply maps, one per assigned interview in schedule order.",
 )
 @click.option(
     "--expect",
@@ -68,6 +73,7 @@ def test_case(
     all_interviews,
     iterations,
     responses,
+    response_rows,
     expect,
     expect_rejection,
     output_path,
@@ -86,14 +92,22 @@ def test_case(
     from edsl.tasks import TaskHistory
 
     try:
-        replies = load_json_object(responses)
+        if (responses is None) == (response_rows is None):
+            error(
+                "USAGE_ERROR",
+                "Supply exactly one of --responses or --response-rows.",
+                exit_code=EXIT_USAGE,
+            )
+        if response_rows is not None and not all_interviews:
+            error(
+                "USAGE_ERROR",
+                "--response-rows requires --all.",
+                exit_code=EXIT_USAGE,
+            )
+        replies = load_json_object(responses) if responses is not None else {}
         expected = load_json_object(expect) if expect is not None else {}
         if expect_rejection is not None:
-            if (
-                expect_rejection not in replies
-                or expect_rejection in expected
-                or output_path is not None
-            ):
+            if expect_rejection in expected or output_path is not None:
                 error(
                     "USAGE_ERROR",
                     "--expect-rejection requires a scripted reply for that question, no expected answer for it, and no Results output.",
@@ -105,7 +119,16 @@ def test_case(
             inside_input = (
                 source.is_dir() and source.resolve() in output_path.resolve().parents
             )
-            if output_path.suffix not in {".ep", ".json"} or same_input or inside_input:
+            if (
+                output_path.suffix not in {".ep", ".json"}
+                or same_input
+                or inside_input
+                or (
+                    response_rows
+                    and output_path.exists()
+                    and output_path.samefile(response_rows)
+                )
+            ):
                 error(
                     "USAGE_ERROR",
                     "Choose a separate Results .ep or .json output file.",
@@ -139,30 +162,57 @@ def test_case(
             interview, planned = assigned_interview(jobs_path, index, skip_retry=True)
             survey = interview.survey
             cases = [(index, interview)]
-        names = survey.question_names
-        unknown = (replies.keys() | expected.keys()) - set(names)
-        if unknown:
-            error(
-                "USAGE_ERROR",
-                f"Unknown question names: {sorted(unknown)}.",
-                suggestion=f"Available questions: {names}",
-                exit_code=EXIT_USAGE,
-            )
 
-        canned = {
-            q: (
-                value
-                if isinstance(value, str)
-                else json.dumps(value, ensure_ascii=False)
-            )
-            for q, value in replies.items()
-        }
+        def prepare(reply_map):
+            if expect_rejection is not None and expect_rejection not in reply_map:
+                error(
+                    "USAGE_ERROR",
+                    f"Supply a scripted reply for {expect_rejection!r} in every case.",
+                    exit_code=EXIT_USAGE,
+                )
+            unknown = (reply_map.keys() | expected.keys()) - set(survey.question_names)
+            if unknown:
+                error(
+                    "USAGE_ERROR",
+                    f"Unknown question names: {sorted(unknown)}.",
+                    suggestion=f"Available questions: {survey.question_names}",
+                    exit_code=EXIT_USAGE,
+                )
+            return {
+                q: (
+                    value
+                    if isinstance(value, str)
+                    else json.dumps(value, ensure_ascii=False)
+                )
+                for q, value in reply_map.items()
+            }
+
+        per_interview = None
+        if response_rows is not None:
+            values = read_json_file(str(response_rows))
+            if (
+                not isinstance(values, list)
+                or len(values) != planned
+                or not all(isinstance(v, dict) for v in values)
+            ):
+                error(
+                    "USAGE_ERROR",
+                    f"--response-rows requires an array of {planned} JSON objects, one per planned interview.",
+                    exit_code=EXIT_USAGE,
+                )
+            per_interview = [prepare(value) for value in values]
+        canned = prepare(replies) if per_interview is None else None
         rows = []
         completed = []
         count = 0
         for index, interview in cases:
             row, case = _run_case(
-                interview, index, planned, canned, expected, expect_rejection
+                interview,
+                index,
+                planned,
+                per_interview[index] if per_interview is not None else canned,
+                expected,
+                expect_rejection,
             )
             count += 1
             if output_path is not None:
