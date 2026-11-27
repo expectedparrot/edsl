@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import tempfile
 import webbrowser
+from functools import lru_cache
 from pathlib import Path
 from urllib.parse import unquote
 
@@ -110,10 +111,33 @@ def _searchable_files(skill: dict) -> list[Path]:
     return sorted(set(markdown + _script_paths(skill) + examples))
 
 
-def _find_snippet(skill: dict, query: str, context_lines: int = 1, max_chars: int = 360) -> dict | None:
+def _words(text: str) -> tuple[str, ...]:
+    return tuple(re.findall(r"[^\W_]+", text.casefold()))
+
+
+class _SearchQuery:
+    """Match English word forms within a single catalog field or source line."""
+
+    def __init__(self, text: str):
+        from snowballstemmer import stemmer
+
+        self.text = text.casefold().strip()
+        self.words = _words(text)
+        self.keywords = set(self.words) - {"a", "an", "and", "for", "in", "of", "the", "to", "with"}
+        # One stemmer and vocabulary cache per search, shared across all documents.
+        self.stem = lru_cache(maxsize=8192)(stemmer("english").stemWord)
+        self.stems = {self.stem(word) for word in self.keywords}
+
+    def matches_words(self, words: tuple[str, ...]) -> bool:
+        return bool(self.stems) and self.stems.issubset(self.stem(word) for word in words)
+
+    def matches(self, text: str) -> bool:
+        return self.matches_words(_words(text))
+
+
+def _find_snippet(skill: dict, query: _SearchQuery, *, literal: bool, context_lines: int = 1, max_chars: int = 360) -> dict | None:
     """Return the first concise matching passage with its source location."""
-    needle = query.casefold()
-    if not needle:
+    if not query.text:
         return None
     for path in _searchable_files(skill):
         lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
@@ -125,7 +149,7 @@ def _find_snippet(skill: dict, query: str, context_lines: int = 1, max_chars: in
         for index, line in enumerate(lines):
             if index < offset:
                 continue
-            if needle in line.casefold():
+            if query.text in line.casefold() or (not literal and query.matches(line)):
                 start, end = max(0, index - context_lines), min(len(lines), index + context_lines + 1)
                 start = max(start, offset)
                 passage = " ".join(part.strip() for part in lines[start:end] if part.strip())
@@ -292,30 +316,27 @@ def list_skills(human: bool, routing: bool):
         output({"skills": items})
 
 
-def _package_matches(query: str, limit: int) -> list[dict]:
+def _package_matches(query: _SearchQuery, limit: int) -> list[dict]:
     """Search the public directory snapshot shipped with this EDSL version."""
-    def words(text: str) -> tuple[str, ...]:
-        return tuple(re.findall(r"[^\W_]+", text.casefold()))
-
-    terms = words(query)
-    if not terms:
+    if not query.keywords:
         return []
-    required = set(terms) - {"a", "an", "and", "for", "in", "of", "the", "to", "with"}
-    if not required:
-        return []
-
     catalog = json.loads((SKILLS_ROOT / "packages.json").read_text(encoding="utf-8"))
     ranked = []
     for package in catalog:
-        methods = [words(method) for method in package["methods"]]
-        if terms == words(package["name"]):
+        methods = [_words(method) for method in package["methods"]]
+        description = _words(package["description"])
+        if query.words == _words(package["name"]):
             rank = 0
-        elif terms in methods:
+        elif query.words in methods:
             rank = 1
-        elif any(required.issubset(method) for method in methods):
+        elif any(query.keywords.issubset(method) for method in methods):
             rank = 2
-        elif required.issubset(words(package["description"])):
+        elif query.keywords.issubset(description):
             rank = 3
+        elif any(query.matches_words(method) for method in methods):
+            rank = 4
+        elif query.matches_words(description):
+            rank = 5
         else:
             continue
         ranked.append((rank, package["name"], package))
@@ -333,7 +354,8 @@ def _package_matches(query: str, limit: int) -> list[dict]:
 @click.option("--snippets", is_flag=True, help="Include a matching passage with source file and line number.")
 def search_skills(query: str, limit: int, human: bool, snippets: bool):
     """Search bundled skills and public research packages by name or method."""
-    q = query.casefold().strip()
+    search = _SearchQuery(query)
+    q = search.text
     ranked = []
     for skill in _skills():
         name, description = skill["name"].casefold(), skill["description"].casefold()
@@ -343,19 +365,25 @@ def search_skills(query: str, limit: int, human: bool, snippets: bool):
             rank, match = 0, "exact_name"
         elif q in name:
             rank, match = 1, "name"
+        elif search.matches(name):
+            rank, match = 2, "name"
         elif q in description:
-            rank, match = 2, "description"
+            rank, match = 3, "description"
+        elif search.matches(description):
+            rank, match = 4, "description"
         elif q in body:
-            rank, match = 3, "content"
+            rank, match = 5, "content"
+        elif any(search.matches(line) for line in body.splitlines()):
+            rank, match = 6, "content"
         else:
             continue
         row = {"name": skill["name"], "description": skill["description"], "match": match}
         if snippets:
-            row["snippet"] = _find_snippet(skill, q)
+            row["snippet"] = _find_snippet(skill, search, literal=q in body)
         ranked.append((rank, skill["name"], row))
     ranked.sort(key=lambda item: (item[0], item[1]))
     results = [row for _, _, row in ranked[:limit]]
-    packages = _package_matches(query, limit)
+    packages = _package_matches(search, limit)
     if human:
         if not results and not packages:
             click.echo("No matching EDSL skills or research packages found.")

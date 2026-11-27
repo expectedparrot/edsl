@@ -91,3 +91,35 @@ def test_directory_catalog_entries_are_unique_and_searchable():
         assert entry["repository"].startswith("https://github.com/expectedparrot/")
         assert entry["description"]
         assert entry["methods"] and all(entry["methods"])
+
+
+def test_package_search_recognizes_word_forms_across_research_methods():
+    runner = CliRunner()
+    for query, expected in (
+        ("forecast", {"Flyvbjerg", "Vorhersage"}),
+        ("forecasts", {"Flyvbjerg", "Vorhersage"}),
+        ("rank ballots", {"Voting"}),
+        ("coded interviews", {"Bewley"}),
+        ("review manuscripts", {"Katz"}),
+        ("forec", set()),
+        ("forecast ballots", set()),
+    ):
+        result = runner.invoke(skills_command, ["search", query])
+        assert result.exit_code == 0, result.output
+        assert {p["name"] for p in json.loads(result.output)["data"]["packages"]} == expected
+
+
+def test_inflected_skill_search_reports_the_source_passage(tmp_path, monkeypatch):
+    from edsl.skills import cli
+
+    monkeypatch.setattr(cli, "SKILLS_ROOT", tmp_path)
+    (tmp_path / "packages.json").write_text("[]")
+    skill = tmp_path / "edsl-demo"
+    skill.mkdir()
+    (skill / "SKILL.md").write_text("# Methods\n\nAnalysts coded the interviews independently.\n")
+    result = CliRunner().invoke(skills_command, ["search", "interview coding", "--snippets"])
+    assert result.exit_code == 0, result.output
+    hit, = json.loads(result.output)["data"]["results"]
+    assert hit["match"] == "content"
+    assert hit["snippet"]["path"] == "SKILL.md"
+    assert "coded the interviews" in hit["snippet"]["text"]

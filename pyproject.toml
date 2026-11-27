@@ -34,6 +34,7 @@ requests = "^2.32.0"
 restrictedpython = "^7.0"
 rich = "^13.7.0"
 simpleeval = "^0.9.13"
+snowballstemmer = "^3.0.1"
 tenacity = "^8.2.3"
 psutil = "^6.1.0"
 
