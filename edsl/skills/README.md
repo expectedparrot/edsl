@@ -33,5 +33,6 @@ README link. `--limit` applies to each list. Search works offline using a
 release snapshot. Search recognizes related English word forms, so `forecast`
 finds `forecasting` and `coded interviews` finds `interview coding`. Multiword
 queries can match in any order within a method, description, or skill passage.
-Maintainers refresh `edsl/skills/packages.json` from
-`packages.json` in [expectedparrot/directory](https://github.com/expectedparrot/directory).
+To update a listing, edit `packages.json` in [expectedparrot/directory](https://github.com/expectedparrot/directory).
+Its catalog sync workflow proposes the updated `edsl/skills/packages.json` in
+an EDSL pull request. Users receive that snapshot in a release after it merges.
