@@ -1,89 +1,110 @@
 [
   {
     "name": "Epiq",
-    "description": "Epiq is a local-first epistemic database for evidence-backed research.",
+    "description": "Build a research database from entities, questions and source excerpts. Trace each claim to its evidence, inspect how answers changed, and export the dataset to a table or spreadsheet.",
     "methods": [
       "evidence database",
-      "claim tracking"
+      "claim tracking",
+      "source provenance",
+      "evidence tracking"
     ],
     "repository": "https://github.com/expectedparrot/epiq",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/epiq/HEAD/README.md"
   },
   {
     "name": "Conversation",
-    "description": "Conversation is an EDSL-based package for simulating structured, multi-agent conversations.",
+    "description": "Simulate a group discussion or focus group with EDSL agents. Set the turn order, run conversations in parallel, and analyze what participants say in response to one another.",
     "methods": [
       "focus groups",
       "multi-agent conversation",
-      "group discussion"
+      "group discussion",
+      "turn taking",
+      "simulated focus group"
     ],
     "repository": "https://github.com/expectedparrot/conversation",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/conversation/HEAD/README.md"
   },
   {
     "name": "Aivis",
-    "description": "Aivis is an agent-facing CLI for measuring how brands and competitors appear in AI-generated answers.",
+    "description": "Track how often AI models mention or recommend a brand alongside its competitors. Repeat a set of prompts over time and measure share of voice, sentiment and citation influence.",
     "methods": [
       "AI visibility",
-      "brand visibility"
+      "brand visibility",
+      "share of voice",
+      "brand mentions"
     ],
     "repository": "https://github.com/expectedparrot/aivis",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/aivis/HEAD/README.md"
   },
   {
     "name": "Ariel",
-    "description": "Ariel is an agent-first fair-division package for rent, indivisible goods, bivalued chores, project credit, and shared fares.",
+    "description": "Split rent and assign rooms from housemates’ valuations. Check that rents add up and nobody prefers someone else’s room at its assigned price. Also allocate indivisible goods, chores, credit or shared fares.",
     "methods": [
       "fair division",
-      "rent division"
+      "rent division",
+      "rent splitting",
+      "envy-free room allocation",
+      "fair allocation"
     ],
     "repository": "https://github.com/expectedparrot/ariel",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/ariel/HEAD/README.md"
   },
   {
     "name": "Bewley",
-    "description": "Bewley is a local-first qualitative-coding CLI for interview transcripts and other text corpora.",
+    "description": "Code interview transcripts and other text. Build a codebook, annotate passages, write analytic memos, and export evidence tables linking themes to the words participants used.",
     "methods": [
       "qualitative coding",
       "thematic analysis",
-      "interview coding"
+      "interview coding",
+      "open coding",
+      "transcript analysis",
+      "codebook"
     ],
     "repository": "https://github.com/expectedparrot/bewley",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/bewley/HEAD/README.md"
   },
   {
     "name": "Bower",
-    "description": "Bower is a CLI for hypothesis-driven stakeholder studies.",
+    "description": "Plan a stakeholder study around a business hypothesis. Tailor interview questions to each stakeholder, collect human or simulated responses, and trace findings to the supporting interviews.",
     "methods": [
       "stakeholder interviews",
-      "stakeholder analysis"
+      "stakeholder analysis",
+      "stakeholder research",
+      "hypothesis-driven interviews"
     ],
     "repository": "https://github.com/expectedparrot/bower",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/bower/HEAD/README.md"
   },
   {
     "name": "Dewey",
-    "description": "Dewey is an agent-facing CLI for auditable literature reviews.",
+    "description": "Conduct a literature review from a collection of papers. Follow citation trails, screen studies for inclusion, extract evidence into a matrix, and trace synthesis claims back to findings.",
     "methods": [
       "literature review",
-      "citation discovery"
+      "citation discovery",
+      "citation tracking",
+      "screening papers",
+      "evidence extraction",
+      "research synthesis"
     ],
     "repository": "https://github.com/expectedparrot/dewey",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/dewey/HEAD/README.md"
   },
   {
     "name": "Flyvbjerg",
-    "description": "Flyvbjerg is an agent-facing CLI for reference-class forecasting and outside-view analysis.",
+    "description": "Forecast from historical results for comparable projects. Build a reference class from past cases, record sources and missing observations, and use the resulting distribution as an outside view of a new estimate.",
     "methods": [
       "reference class forecasting",
-      "outside view"
+      "outside view",
+      "historical benchmarking",
+      "comparable project estimates",
+      "reference class distribution"
     ],
     "repository": "https://github.com/expectedparrot/flyvbjerg",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/flyvbjerg/HEAD/README.md"
   },
   {
     "name": "Green",
-    "description": "Green is an agent-first toolkit for conjoint analysis and discrete-choice experiments.",
+    "description": "Design conjoint choice tasks or best-worst surveys and export EDSL fieldwork. Estimate trade-offs, willingness to pay and preference shares from respondents’ choices. Simulate how changing an attribute affects market share.",
     "methods": [
       "conjoint analysis",
       "discrete choice",
@@ -94,276 +115,346 @@
       "best worst scaling",
       "Gabor-Granger",
       "Van Westendorp",
-      "price sensitivity"
+      "price sensitivity",
+      "attribute trade-offs",
+      "choice-based conjoint",
+      "feature prioritization"
     ],
     "repository": "https://github.com/expectedparrot/green",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/green/HEAD/README.md"
   },
   {
     "name": "Golden",
-    "description": "Golden is an agent-first CLI for evidence-backed consumer decisions.",
+    "description": "Help a consumer compare products. Elicit preferences and constraints, collect sourced product information, then compare utility against price and see how sensitive the decision is to the inputs.",
     "methods": [
       "consumer decision",
-      "preference interviews"
+      "preference interviews",
+      "product comparison",
+      "utility versus price"
     ],
     "repository": "https://github.com/expectedparrot/golden",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/golden/HEAD/README.md"
   },
   {
     "name": "Helmer",
-    "description": "Helmer is an agent-first CLI for Delphi expert elicitation.",
+    "description": "Run a Delphi panel in repeated rounds. Collect expert estimates, return anonymous group feedback alongside each expert’s previous answer, and track consensus, revisions and disagreement.",
     "methods": [
       "Delphi",
-      "expert elicitation"
+      "expert elicitation",
+      "anonymous expert panel",
+      "expert consensus",
+      "Delphi rounds"
     ],
     "repository": "https://github.com/expectedparrot/helmer",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/helmer/HEAD/README.md"
   },
   {
     "name": "Ishikawa",
-    "description": "Ishikawa is an agent-friendly Python CLI for cause-and-effect analysis and fishbone diagrams.",
+    "description": "Investigate why a problem occurs. Build a fishbone diagram of candidate causes, follow chains of why questions, and track evidence and corrective actions for each explanation.",
     "methods": [
       "fishbone diagram",
-      "root cause analysis"
+      "root cause analysis",
+      "cause and effect diagram",
+      "cause investigation"
     ],
     "repository": "https://github.com/expectedparrot/ishikawa",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/ishikawa/HEAD/README.md"
   },
   {
     "name": "Kahn",
-    "description": "Kahn is a two-axis strategic scenario-planning CLI.",
+    "description": "Use two-axis scenario planning to build a matrix of four plausible futures. Turn critical uncertainties into narratives and compare how a policy or strategy performs across those futures.",
     "methods": [
       "scenario planning",
-      "scenario matrix"
+      "scenario matrix",
+      "four futures",
+      "strategic scenarios",
+      "two by two scenario matrix"
     ],
     "repository": "https://github.com/expectedparrot/kahn",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/kahn/HEAD/README.md"
   },
   {
     "name": "Katz",
-    "description": "Katz is a version-aware ledger for reviewing academic manuscripts.",
+    "description": "Review successive versions of an academic manuscript. Anchor findings to a section and Git revision, track which concerns were resolved, and produce a review report.",
     "methods": [
-      "manuscript review"
+      "manuscript review",
+      "manuscript revisions",
+      "peer review findings"
     ],
     "repository": "https://github.com/expectedparrot/katz",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/katz/HEAD/README.md"
   },
   {
     "name": "Langley",
-    "description": "Langley is an agent-first implementation of Richards Heuer's Analysis of Competing Hypotheses method.",
+    "description": "Compare rival explanations using an evidence matrix. Score observations for consistency with competing hypotheses, identify contradicting evidence, and test how the ranking changes when a key observation is challenged.",
     "methods": [
       "analysis of competing hypotheses",
-      "ACH"
+      "ACH",
+      "hypothesis comparison",
+      "evidence matrix",
+      "diagnostic evidence"
     ],
     "repository": "https://github.com/expectedparrot/langley",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/langley/HEAD/README.md"
   },
   {
     "name": "McCall",
-    "description": "McCall is an agent-facing CLI for pretesting and refining job posts with EDSL candidate simulations.",
+    "description": "Pretest job advertisements with simulated candidates. Compare variants of a posting against the same role requirements and inspect how candidate personas interpret each version.",
     "methods": [
       "job posting experiments",
-      "job advertisements"
+      "job advertisements",
+      "job ad pretesting",
+      "job post variants"
     ],
     "repository": "https://github.com/expectedparrot/mccall",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/mccall/HEAD/README.md"
   },
   {
     "name": "MCDA",
-    "description": "MCDA is an agent-first, JSON-enveloped CLI for multi-criteria decision analysis.",
+    "description": "Rank alternatives against multiple criteria with explicit weights, thresholds and performance scores. Compare weighted-sum and ELECTRE III results and retain the judgments behind the ranking.",
     "methods": [
       "multi criteria decision analysis",
-      "weighted criteria"
+      "weighted criteria",
+      "weighted sum",
+      "ELECTRE III",
+      "multi-criteria ranking"
     ],
     "repository": "https://github.com/expectedparrot/mcda",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/mcda/HEAD/README.md"
   },
   {
     "name": "Messick",
-    "description": "Messick is an agent-first package for pretesting, revising, and validating EDSL survey instruments.",
+    "description": "Pretest and validate a survey instrument. Track the construct each question should measure, revise items, and record the evidence supporting each version and its intended use.",
     "methods": [
       "survey validation",
-      "psychometrics"
+      "psychometrics",
+      "instrument validation",
+      "questionnaire pretesting"
     ],
     "repository": "https://github.com/expectedparrot/messick",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/messick/HEAD/README.md"
   },
   {
     "name": "Niles",
-    "description": "Niles is a local-first CRM CLI for relationship work.",
+    "description": "Maintain contact records, interaction notes and follow-up tasks for a team. Connect intake surveys to relationship histories and review proposed updates before applying them.",
     "methods": [
       "contact management",
-      "CRM"
+      "CRM",
+      "relationship management",
+      "contact follow-up"
     ],
     "repository": "https://github.com/expectedparrot/niles",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/niles/HEAD/README.md"
   },
   {
     "name": "Oneheart",
-    "description": "Oneheart is a CLI for designing and recording Concordia-backed multi-agent social simulations.",
+    "description": "Design and run Concordia social simulations. Define agent roles, treatments and outcome measurements, generate pilot code, and export results from experiments on interacting agents.",
     "methods": [
       "social simulation",
-      "Concordia"
+      "Concordia",
+      "agent interactions",
+      "multi-agent experiment"
     ],
     "repository": "https://github.com/expectedparrot/oneheart",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/oneheart/HEAD/README.md"
   },
   {
     "name": "Premortem",
-    "description": "Premortem facilitates a structured, Gary Klein-style pre-mortem for a decision, project, launch, or strategy.",
+    "description": "Ask stakeholders to imagine a project has failed and explain what went wrong. Map failure modes into a causal graph, prioritize mitigations, and record open research questions.",
     "methods": [
       "pre-mortem",
-      "prospective hindsight"
+      "prospective hindsight",
+      "failure modes",
+      "project risk workshop"
     ],
     "repository": "https://github.com/expectedparrot/premortem",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/premortem/HEAD/README.md"
   },
   {
     "name": "Pruefung",
-    "description": "Pruefung is an agent-first CLI for building, checking, deploying, and grading quizzes and exams with EDSL-native questions.",
+    "description": "Create and grade quizzes and exams with EDSL questions. Build assessments, check them before deployment, and ingest responses for grading.",
     "methods": [
       "exam grading",
-      "quiz design"
+      "quiz design",
+      "assessment design",
+      "quiz grading"
     ],
     "repository": "https://github.com/expectedparrot/pruefung",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/pruefung/HEAD/README.md"
   },
   {
     "name": "Raiffa",
-    "description": "Raiffa turns sourced beliefs into auditable decision policies using finite influence diagrams.",
+    "description": "Compare decision policies using influence diagrams, sourced probabilities and utilities. Find the thresholds where a choice changes and calculate the value of obtaining more information.",
     "methods": [
       "influence diagrams",
-      "decision analysis"
+      "decision analysis",
+      "value of information",
+      "decision thresholds"
     ],
     "repository": "https://github.com/expectedparrot/raiffa",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/raiffa/HEAD/README.md"
   },
   {
     "name": "Roth",
-    "description": "Roth collects preferences on both sides of a market and computes one-to-one stable matches using deferred acceptance.",
+    "description": "Match participants who ranked one another, such as mentors and fellows. Run deferred acceptance with either side proposing, inspect proposal histories, and check for blocking pairs and unmatched participants.",
     "methods": [
       "stable matching",
-      "deferred acceptance"
+      "deferred acceptance",
+      "two-sided matching",
+      "Gale-Shapley",
+      "blocking pairs"
     ],
     "repository": "https://github.com/expectedparrot/roth",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/roth/HEAD/README.md"
   },
   {
     "name": "Spence",
-    "description": "Spence is an applicant tracking CLI built on EDSL humanize.",
+    "description": "Run a hiring pipeline with EDSL application forms. Connect job posts to candidate records, track hiring stages, and collect structured reviews for candidate reports.",
     "methods": [
-      "applicant tracking"
+      "applicant tracking",
+      "hiring pipeline",
+      "application review"
     ],
     "repository": "https://github.com/expectedparrot/spence",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/spence/HEAD/README.md"
   },
   {
     "name": "Stanton",
-    "description": "Stanton is a local numerical estimation workbench for people and agents.",
+    "description": "Break a numerical estimate into measurable inputs. Combine sourced estimates with units, propagate uncertainty, and compare alternative calculations and their assumptions.",
     "methods": [
       "numerical estimation",
-      "Fermi estimate"
+      "Fermi estimate",
+      "uncertainty propagation",
+      "back of the envelope"
     ],
     "repository": "https://github.com/expectedparrot/stanton",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/stanton/HEAD/README.md"
   },
   {
     "name": "Tommy",
-    "description": "Tommy is an agent-facing CLI for preparing realistic sales roleplays with Expected Parrot.",
+    "description": "Prepare simulated sales conversations, save practice attempts, and turn transcript-based feedback into coaching reports.",
     "methods": [
-      "sales roleplay"
+      "sales roleplay",
+      "sales practice",
+      "transcript feedback"
     ],
     "repository": "https://github.com/expectedparrot/tommy",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/tommy/HEAD/README.md"
   },
   {
     "name": "Treffen",
-    "description": "Treffen is an agent-first CLI for preparing better meetings.",
+    "description": "Prepare a meeting by surveying and interviewing the participants. Synthesize their input into an agenda and pre-read, then preserve the decisions in a meeting record.",
     "methods": [
-      "meeting preparation"
+      "meeting preparation",
+      "meeting agenda",
+      "meeting pre-read"
     ],
     "repository": "https://github.com/expectedparrot/treffen",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/treffen/HEAD/README.md"
   },
   {
     "name": "Umriss",
-    "description": "Umriss is an agent-facing CLI for constructing auditable digital twins from published survey marginals.",
+    "description": "Build a reusable synthetic panel that matches published population totals or percentages. Fit weights to candidate profiles against survey marginals, inspect the gaps from target distributions, and evaluate predictions on held-out items.",
     "methods": [
       "population calibration",
       "survey marginals",
-      "synthetic population"
+      "synthetic population",
+      "calibration weighting",
+      "weighted synthetic panel",
+      "matching survey marginals",
+      "population targets"
     ],
     "repository": "https://github.com/expectedparrot/umriss",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/umriss/HEAD/README.md"
   },
   {
     "name": "Urteil",
-    "description": "Urteil is an agent-first CLI for rubric evaluation, LLM ratings, and auditable scoring.",
+    "description": "Score material against a rubric using manual or model ratings. Maintain codebooks and gold standards, combine multiple raters, and rescore saved evaluations when the scorecard changes.",
     "methods": [
       "rubric evaluation",
-      "rubric scoring"
+      "rubric scoring",
+      "multi-rater scoring",
+      "gold standard evaluation"
     ],
     "repository": "https://github.com/expectedparrot/urteil",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/urteil/HEAD/README.md"
   },
   {
     "name": "UXTest",
-    "description": "UXTest is an agent-first CLI for running synthetic-user UX studies against live web pages.",
+    "description": "Test a website with simulated users. Capture browser journeys, screenshots and traces with Playwright and EDSL, then compare findings across pages or revisions.",
     "methods": [
       "usability testing",
-      "synthetic user testing"
+      "synthetic user testing",
+      "website usability study",
+      "browser journey"
     ],
     "repository": "https://github.com/expectedparrot/uxtest",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/uxtest/HEAD/README.md"
   },
   {
     "name": "Vorhersage",
-    "description": "Vorhersage is a forecasting workbench for agents.",
+    "description": "Forecast whether an event will occur. Record evidence and probability estimates, revise them as new information arrives, then evaluate forecasts against observed outcomes.",
     "methods": [
       "probability forecasting",
-      "binary event forecasting"
+      "binary event forecasting",
+      "event probabilities",
+      "forecast evaluation"
     ],
     "repository": "https://github.com/expectedparrot/vorhersage",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/vorhersage/HEAD/README.md"
   },
   {
     "name": "Voting",
-    "description": "Voting is a JSON-first toolkit for preference research and group-decision analysis.",
+    "description": "Compare social choice rules and voting methods on the same ranked ballots. Aggregate preferences, count first choices, simulate instant-runoff elimination, and identify Condorcet winners from pairwise contests. Check how the choice of rule changes the result.",
     "methods": [
       "social choice",
       "ranked ballots",
-      "voting rules"
+      "voting rules",
+      "ranked choice voting",
+      "instant runoff",
+      "Condorcet",
+      "plurality",
+      "preference aggregation",
+      "pairwise elections"
     ],
     "repository": "https://github.com/expectedparrot/voting",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/voting/HEAD/README.md"
   },
   {
     "name": "Zugunruhe",
-    "description": "Zugunruhe is an agent-focused migration CLI for moving Qualtrics and SurveyMonkey instruments to EDSL and Expected Parrot.",
+    "description": "Migrate an existing Qualtrics or SurveyMonkey questionnaire to EDSL. Capture the instrument, convert it, review validation findings, and export it for use in Expected Parrot.",
     "methods": [
       "survey migration",
       "Qualtrics import",
-      "SurveyMonkey import"
+      "SurveyMonkey import",
+      "questionnaire conversion",
+      "survey import"
     ],
     "repository": "https://github.com/expectedparrot/zugunruhe",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/zugunruhe/HEAD/README.md"
   },
   {
     "name": "Zwicky",
-    "description": "Zwicky is a general morphological-analysis CLI for exploring product and feature design spaces.",
+    "description": "Explore a design space by combining values across dimensions. Mark incompatible combinations with cross-consistency judgments, generate feasible configurations, and compare the remaining concepts.",
     "methods": [
       "morphological analysis",
-      "design space"
+      "design space",
+      "morphological box",
+      "cross-consistency assessment",
+      "incompatible combinations",
+      "configuration space"
     ],
     "repository": "https://github.com/expectedparrot/zwicky",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/zwicky/HEAD/README.md"
   },
   {
     "name": "Zwill",
-    "description": "Zwill is an open validation harness for survey digital twins.",
+    "description": "Test survey digital twins against real responses and conventional baselines. Generate EDSL jobs and compare predictive performance for individuals and for the population as a whole.",
     "methods": [
       "digital twin validation",
-      "survey digital twins"
+      "survey digital twins",
+      "persona validation",
+      "predictive validity"
     ],
     "repository": "https://github.com/expectedparrot/zwill",
     "readme_url": "https://raw.githubusercontent.com/expectedparrot/zwill/HEAD/README.md"
