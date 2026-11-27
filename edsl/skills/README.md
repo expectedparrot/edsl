@@ -30,5 +30,8 @@ Search by method with `ep skills search "best worst scaling"`. The JSON response
 lists bundled skills under `data.results` and public companion packages under
 `data.packages`. Each package includes method keywords, its repository and a
 README link. `--limit` applies to each list. Search works offline using a
-release snapshot. Maintainers refresh `edsl/skills/packages.json` from
+release snapshot. Search recognizes related English word forms, so `forecast`
+finds `forecasting` and `coded interviews` finds `interview coding`. Multiword
+queries can match in any order within a method, description, or skill passage.
+Maintainers refresh `edsl/skills/packages.json` from
 `packages.json` in [expectedparrot/directory](https://github.com/expectedparrot/directory).
