@@ -972,6 +972,7 @@ EXTRA_CSS = """
   letter-spacing: .04em;
   margin-bottom: 6px;
 }
+.drawer-guide { white-space: pre-wrap; overflow-wrap: anywhere; }
 .drawer-question-text { color: #17201b; line-height: 1.45; }
 .drawer-kv {
   display: grid;
@@ -1687,11 +1688,18 @@ function drawerOverviewHtml(question) {
         <div class="drawer-section-title">Question</div>
         <div class="drawer-question-text">${escapeHtml(question.text || "")}</div>
       </div>
+      ${question.type === "interview" && question.raw?.interview_guide ? `
+        <div class="drawer-section">
+          <div class="drawer-section-title">Interview guide</div>
+          <div class="drawer-guide">${escapeHtml(question.raw.interview_guide)}</div>
+        </div>` : ""}
       <div class="drawer-section">
         <div class="drawer-section-title">Properties</div>
         <div class="drawer-kv">
           <span>Name</span><strong>${escapeHtml(question.name || "")}</strong>
           <span>Type</span><span>${escapeHtml(question.type || "")}</span>
+          ${question.type === "interview" && question.raw?.max_turns != null
+            ? `<span>Max turns</span><strong>${escapeHtml(question.raw.max_turns)}</strong>` : ""}
           <span>File</span><code>${escapeHtml(question.id ? `${question.id}.json` : "")}</code>
           <span>Comments</span><span>${escapeHtml(commentCountLabel(question.comments || []))}</span>
         </div>

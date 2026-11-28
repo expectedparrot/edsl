@@ -742,3 +742,37 @@ def test_survey_git_push_and_pull_with_remote(tmp_path):
 
     assert pull_info["status"] == "ok"
     assert second == updated
+
+
+def test_survey_html_interview_guide_is_visible_in_overview(tmp_path):
+    from edsl.questions.question_interview import QuestionInterview
+
+    playwright = pytest.importorskip("playwright.sync_api")
+    guide = "Ask about the trip.\nThen ask about <cost>."
+    survey = Survey([
+        QuestionInterview(
+            question_name="trip", question_text="Describe your last trip.",
+            interview_guide=guide, max_turns=4,
+        ),
+        QuestionFreeText(question_name="end", question_text="Anything else?"),
+    ])
+    path = tmp_path / "trip.ep"
+    survey.git.save(path)
+    html_path = tmp_path / "survey.html"
+    Survey.git.open(path).html(filename=str(html_path))
+    with playwright.sync_playwright() as client:
+        executable = client.chromium.executable_path
+        if not Path(executable).is_file():
+            pytest.skip("Install Playwright Chromium to exercise the question drawer")
+        with client.chromium.launch(executable_path=executable) as browser:
+            page = browser.new_page()
+            page.goto(html_path.as_uri())
+            page.locator("tr[data-index='0']").click()
+            drawer = page.locator("#drawer-content")
+            assert drawer.get_by_text("Interview guide", exact=True).is_visible()
+            assert drawer.locator(".drawer-guide").inner_text() == guide
+            assert drawer.get_by_text("Max turns", exact=True).locator("+ strong").inner_text() == "4"
+            page.locator("#drawer-close").click()
+            page.locator("tr[data-index='1']").click()
+            assert drawer.get_by_text("Interview guide", exact=True).count() == 0
+            assert drawer.get_by_text("Max turns", exact=True).count() == 0
