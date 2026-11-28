@@ -9,7 +9,7 @@ from ..exceptions import (
 )
 
 from .rule import Rule
-from ..base import EndOfSurvey
+from ..base import EndOfSurvey, EndOfSurveyParent
 from ..dag import DAG
 
 NextQuestion = namedtuple(
@@ -222,22 +222,21 @@ class RuleCollection(UserList):
         >>> rule_collection.skip_question_before_running(1, {})
         False
         """
+        return self.before_rule_destination(q_now, answers) is not None
+
+    def before_rule_destination(
+        self, q_now: int, answers: dict[str, Any]
+    ) -> int | EndOfSurveyParent | None:
+        """Return the first matching skip destination, or None to show this question."""
         for rule in self.applicable_rules(q_now, before_rule=True):
             try:
                 if rule.evaluate(answers):
-                    return True
-            except SurveyRuleCannotEvaluateError as e:
-                # Handle undefined variable errors gracefully, consistent with
-                # next_question() and should_stop_survey(). A before-rule (skip
-                # rule) can reference a variable from a question that was itself
-                # skipped, leaving its answer undefined. Rather than crashing the
-                # whole interview, treat this rule as not applicable (i.e. it does
-                # not force a skip).
-                if "is undefined" in str(e):
-                    continue
-                # Re-raise genuine evaluation errors (syntax/type errors, etc.)
-                raise
-        return False
+                    return rule.next_q
+            except SurveyRuleCannotEvaluateError as exc:
+                # A previous skipped question can leave its answer undefined.
+                if "is undefined" not in str(exc):
+                    raise
+        return None
 
     def applicable_rules(self, q_now: int, before_rule: bool = False) -> list:
         """Show the rules that apply at the current node.
@@ -345,7 +344,7 @@ class RuleCollection(UserList):
         :return: True if survey should stop, False otherwise
 
         >>> rule_collection = RuleCollection()
-        >>> from ..base import EndOfSurvey
+        >>> from ..base import EndOfSurvey, EndOfSurveyParent
         >>> stop_rule = Rule(current_q=1, expression="{{ q1.answer }} != 'None'",
         ...                  next_q=EndOfSurvey, priority=0,
         ...                  question_name_to_index={'q1': 1}, before_rule=False)

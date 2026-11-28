@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from ..instructions import Instruction
 
 from .base import EndOfSurvey, EndOfSurveyParent
-from .exceptions import SurveyHasNoRulesError, SurveyError
+from .exceptions import SurveyError
 
 
 class SurveyNavigator:
@@ -75,64 +75,20 @@ class SurveyNavigator:
         'q1'
 
         """
+        answer_dict = answers if answers is not None else {}
         if not self.survey.questions:
             return EndOfSurvey
+        candidate = 0
+        if current_question is not None:
+            if isinstance(current_question, str):
+                current_question = self.survey._get_question_by_name(current_question)
+            index = self.survey.question_name_to_index[current_question.question_name]
+            candidate = self.survey.rule_collection.next_question(
+                index, answer_dict
+            ).next_q
 
-        if current_question is None:
-            return self.survey.questions[0]
-
-        if isinstance(current_question, str):
-            current_question = self.survey._get_question_by_name(current_question)
-
-        question_index = self.survey.question_name_to_index[
-            current_question.question_name
-        ]
-        # Ensure we have a non-None answers dict
-        answer_dict = answers if answers is not None else {}
-        next_question_object = self.survey.rule_collection.next_question(
-            question_index, answer_dict
-        )
-
-        if next_question_object.num_rules_found == 0:
-            raise SurveyHasNoRulesError("No rules found for this question")
-
-        if next_question_object.next_q == EndOfSurvey:
-            return EndOfSurvey
-        else:
-            if next_question_object.next_q >= len(self.survey.questions):
-                return EndOfSurvey
-            else:
-                # Check if the next question has any "before rules" (skip rules)
-                candidate_next_q = next_question_object.next_q
-
-                # Keep checking for skip rules until we find a question that shouldn't be skipped
-                while candidate_next_q < len(self.survey.questions):
-                    # Check if this question should be skipped (has before rules that evaluate to True)
-                    if self.survey.rule_collection.skip_question_before_running(
-                        candidate_next_q, answer_dict
-                    ):
-                        # This question should be skipped, find where it should go
-                        try:
-                            skip_result = self.survey.rule_collection.next_question(
-                                candidate_next_q, answer_dict
-                            )
-                            if skip_result.next_q == EndOfSurvey:
-                                return EndOfSurvey
-                            elif skip_result.next_q >= len(self.survey.questions):
-                                return EndOfSurvey
-                            else:
-                                candidate_next_q = skip_result.next_q
-                        except Exception:
-                            # If there's an error finding where to skip to, just go to next question
-                            candidate_next_q += 1
-                    else:
-                        # This question should not be skipped, use it
-                        break
-
-                if candidate_next_q >= len(self.survey.questions):
-                    return EndOfSurvey
-                else:
-                    return self.survey.questions[candidate_next_q]
+        index = self._next_renderable_question_index(candidate, answer_dict)
+        return EndOfSurvey if index is EndOfSurvey else self.survey.questions[index]
 
     def next_question_group(
         self,
@@ -170,94 +126,52 @@ class SurveyNavigator:
         if not self.survey.question_groups:
             return None
 
-        # Get current question index
-        if current_question is None:
-            current_index = -1  # Before the first question
-        else:
+        index = 0
+        if current_question is not None:
             if isinstance(current_question, str):
                 current_question = self.survey._get_question_by_name(current_question)
             current_index = self.survey.question_name_to_index[
                 current_question.question_name
             ]
-
-        # Find which group contains the current question (if any)
-        current_group_end = -1
-        for group_name, (start_idx, end_idx) in self.survey.question_groups.items():
-            if start_idx <= current_index <= end_idx:
-                current_group_end = end_idx
-                break
-
-        # Find the next group after the current one
-        next_group = None
-        min_start_idx = float("inf")
-
-        for group_name, (start_idx, end_idx) in self.survey.question_groups.items():
-            if start_idx > current_group_end and start_idx < min_start_idx:
-                min_start_idx = start_idx
-                next_group = (group_name, start_idx, end_idx)
-
-        if next_group is None:
-            return None  # No more groups
-
-        group_name, start_idx, end_idx = next_group
-
-        # Collect all non-skipped questions in this group
-        answers = answers or {}
-        renderable_questions = []
-
-        for question_idx in range(start_idx, end_idx + 1):
-            if question_idx >= len(self.survey.questions):
-                continue
-
-            # Check if this question would be skipped
-            if not self.survey.rule_collection.skip_question_before_running(
-                question_idx, answers
-            ):
-                # This question would not be skipped, add it to renderable list
-                renderable_questions.append(self.survey.questions[question_idx])
-
-        # If we found renderable questions, return them
-        if renderable_questions:
-            return (group_name, renderable_questions)
-
-        # If we get here, all questions in the group would be skipped
-        # Find where the skip rules would take us and continue recursively
-        for question_idx in range(start_idx, end_idx + 1):
-            if question_idx >= len(self.survey.questions):
-                continue
-
-            try:
-                # Use the same logic as next_question to find where skipped questions go
-                skip_result = self.survey.rule_collection.next_question(
-                    question_idx, answers
+            group = self._group_containing_question_index(current_index)
+            if group is not None:
+                # A jump in the remainder of the current page may land partway
+                # through a later page.
+                _, index = self._questions_in_range(
+                    current_index + 1, group[2], answers or {}
                 )
-                if skip_result.next_q == EndOfSurvey:
-                    return (group_name, [EndOfSurvey])
-                elif skip_result.next_q >= len(self.survey.questions):
-                    return (group_name, [EndOfSurvey])
-                else:
-                    # The skip takes us to another question
-                    # Check if that question is in a different group or past our current group
-                    if skip_result.next_q > end_idx:
-                        # Skip takes us past this group, recursively find the next group
-                        if skip_result.next_q < len(self.survey.questions):
-                            return self.next_question_group(
-                                self.survey.questions[skip_result.next_q - 1], answers
-                            )
-                        else:
-                            return (group_name, [EndOfSurvey])
-            except Exception:
-                continue
+                if index is EndOfSurvey:
+                    return group[0], [EndOfSurvey]
+        return self._questions_from_index(index, answers or {})
 
-        # If no rules found, the group leads to the next sequential question
-        next_sequential = end_idx + 1
-        if next_sequential >= len(self.survey.questions):
-            return (group_name, [EndOfSurvey])
-        else:
-            # Recursively check the next group
-            return self.next_question_group(
-                self.survey.questions[next_sequential - 1], answers
+    def _questions_from_index(self, index: int, answers: Dict[str, Any]):
+        """Return the first reachable group's questions, including mid-group landings."""
+        for name, start, end in self._ordered_question_groups():
+            if index > end:
+                continue
+            visible, index = self._questions_in_range(max(index, start), end, answers)
+            if visible:
+                return name, visible
+            if index is EndOfSurvey or index >= len(self.survey.questions):
+                return name, [EndOfSurvey]
+        return None
+
+    def _questions_in_range(self, start: int, end: int, answers: Dict[str, Any]):
+        """Collect visible questions on a page and retain its outbound skip destination."""
+        visible = []
+        index = start
+        while index <= end and index < len(self.survey.questions):
+            destination = self.survey.rule_collection.before_rule_destination(
+                index, answers
             )
+            if destination is EndOfSurvey:
+                return visible, EndOfSurvey
+            if destination is None:
+                visible.append(self.survey.questions[index])
+                index += 1
+            else:
+                index = destination
+        return visible, index
 
     def _ordered_question_groups(self) -> List[Tuple[str, int, int]]:
         """Return question groups ordered by their start index."""
@@ -297,29 +211,18 @@ class SurveyNavigator:
         return previous_end
 
     def _next_renderable_question_index(
-        self, question_index: int, answers: Dict[str, Any]
+        self, question_index: Union[int, EndOfSurveyParent], answers: Dict[str, Any]
     ) -> Union[int, EndOfSurveyParent]:
-        """Advance through before-rules until a renderable question is found."""
-        candidate_next_q = question_index
-
-        while candidate_next_q < len(self.survey.questions):
-            if self.survey.rule_collection.skip_question_before_running(
-                candidate_next_q, answers
-            ):
-                try:
-                    skip_result = self.survey.rule_collection.next_question(
-                        candidate_next_q, answers
-                    )
-                    if skip_result.next_q == EndOfSurvey or skip_result.next_q >= len(
-                        self.survey.questions
-                    ):
-                        return EndOfSurvey
-                    candidate_next_q = skip_result.next_q
-                except Exception:
-                    candidate_next_q += 1
-            else:
-                return candidate_next_q
-
+        """Follow matching before-rules until a question can be asked."""
+        while question_index is not EndOfSurvey and question_index < len(
+            self.survey.questions
+        ):
+            destination = self.survey.rule_collection.before_rule_destination(
+                question_index, answers
+            )
+            if destination is None:
+                return question_index
+            question_index = destination
         return EndOfSurvey
 
     def _renderable_group_items(
@@ -333,17 +236,8 @@ class SurveyNavigator:
     ) -> List[Union["QuestionBase", "Instruction"]]:
         """Collect renderable questions and related instructions for a group."""
         question_start = start_idx if target_idx is None else max(start_idx, target_idx)
-        renderable_question_names = set()
-
-        for question_idx in range(question_start, end_idx + 1):
-            if question_idx >= len(self.survey.questions):
-                continue
-            if not self.survey.rule_collection.skip_question_before_running(
-                question_idx, answers
-            ):
-                renderable_question_names.add(
-                    self.survey.questions[question_idx].question_name
-                )
+        questions, _ = self._questions_in_range(question_start, end_idx, answers)
+        renderable_question_names = {q.question_name for q in questions}
 
         combined_items = self.survey._recombined_questions_and_instructions()
         previous_group_end = self._previous_group_end(start_idx)
@@ -422,16 +316,9 @@ class SurveyNavigator:
                 raise SurveyError(f"Group name {current_group!r} not found in survey.")
 
             _, start_idx, end_idx = current_group_tuple
-            current_items = self._renderable_group_items(
-                current_group,
-                start_idx,
-                end_idx,
-                answer_dict,
-                include_instructions=False,
+            current_questions, outbound = self._questions_in_range(
+                start_idx, end_idx, answer_dict
             )
-            current_questions = [
-                item for item in current_items if hasattr(item, "question_name")
-            ]
             if current_questions:
                 last_question = current_questions[-1]
                 next_question = self.next_question(last_question, answer_dict)
@@ -442,9 +329,7 @@ class SurveyNavigator:
                         next_question.question_name
                     ]
             else:
-                target_idx = self._next_renderable_question_index(
-                    end_idx + 1, answer_dict
-                )
+                target_idx = self._next_renderable_question_index(outbound, answer_dict)
 
         while target_idx != EndOfSurvey:
             assert isinstance(target_idx, int)
@@ -567,133 +452,30 @@ class SurveyNavigator:
         # Get the combined list to work with instructions
         combined_items = self.survey._recombined_questions_and_instructions()
 
-        # Track if we started from an instruction
-        was_instruction = False
-
-        # Determine the current question index
         if current_item is None:
-            current_index = -1  # Before the first question
-        else:
-            # Handle string input
-            if isinstance(current_item, str):
-                if current_item in self.survey.question_name_to_index:
-                    current_item = self.survey._get_question_by_name(current_item)
-                elif current_item in self.survey._instruction_names_to_instructions:
-                    current_item = self.survey._instruction_names_to_instructions[
-                        current_item
-                    ]
-                else:
-                    raise SurveyError(f"Item name {current_item} not found in survey.")
+            return self.next_question_group(None, answers)
+        if isinstance(current_item, str):
+            if current_item in self.survey.question_name_to_index:
+                return self.next_question_group(current_item, answers)
+            if current_item not in self.survey._instruction_names_to_instructions:
+                raise SurveyError(f"Item name {current_item} not found in survey.")
+            current_item = self.survey._instruction_names_to_instructions[current_item]
 
-            # Find the position in the combined list
-            try:
-                current_position = combined_items.index(current_item)
-            except ValueError:
-                raise SurveyError("Current item not found in survey sequence.")
+        try:
+            position = combined_items.index(current_item)
+        except ValueError:
+            raise SurveyError("Current item not found in survey sequence.")
 
-            # If it's an instruction, find the next question after it
-            if self._is_instruction(current_item):
-                was_instruction = True
-                # This is an instruction, find the next question
-                for i in range(current_position + 1, len(combined_items)):
-                    item = combined_items[i]
-                    if hasattr(item, "question_name"):
-                        current_item = item
-                        break
-                else:
-                    # No question found after instruction
-                    return None
-
-            # Now we have a question, get its index
-            current_index = self.survey.question_name_to_index[
-                current_item.question_name
-            ]
-
-        # Find which group contains the current question (if any)
-        current_group_end = -1
-        current_group = None
-        for group_name, (start_idx, end_idx) in self.survey.question_groups.items():
-            if start_idx <= current_index <= end_idx:
-                current_group_end = end_idx
-                current_group = (group_name, start_idx, end_idx)
-                break
-
-        # If we started from an instruction and found a group containing the next question,
-        # return that group directly (it's the "next" group from the instruction's perspective)
-        if was_instruction and current_group is not None:
-            next_group = current_group
-        else:
-            # Find the next group after the current one
-            next_group = None
-            min_start_idx = float("inf")
-
-            for group_name, (start_idx, end_idx) in self.survey.question_groups.items():
-                if start_idx > current_group_end and start_idx < min_start_idx:
-                    min_start_idx = start_idx
-                    next_group = (group_name, start_idx, end_idx)
-
-            if next_group is None:
-                return None  # No more groups
-
-        group_name, start_idx, end_idx = next_group
-
-        # Collect all non-skipped questions in this group
-        answers = answers or {}
-        renderable_questions = []
-
-        for question_idx in range(start_idx, end_idx + 1):
-            if question_idx >= len(self.survey.questions):
-                continue
-
-            # Check if this question would be skipped
-            if not self.survey.rule_collection.skip_question_before_running(
-                question_idx, answers
-            ):
-                # This question would not be skipped, add it to renderable list
-                renderable_questions.append(self.survey.questions[question_idx])
-
-        # If we found renderable questions, return them
-        if renderable_questions:
-            return (group_name, renderable_questions)
-
-        # If we get here, all questions in the group would be skipped
-        # Find where the skip rules would take us and continue recursively
-        for question_idx in range(start_idx, end_idx + 1):
-            if question_idx >= len(self.survey.questions):
-                continue
-
-            try:
-                # Use the same logic as next_question to find where skipped questions go
-                skip_result = self.survey.rule_collection.next_question(
-                    question_idx, answers
-                )
-                if skip_result.next_q == EndOfSurvey:
-                    return (group_name, [EndOfSurvey])
-                elif skip_result.next_q >= len(self.survey.questions):
-                    return (group_name, [EndOfSurvey])
-                else:
-                    # The skip takes us to another question
-                    # Check if that question is in a different group or past our current group
-                    if skip_result.next_q > end_idx:
-                        # Skip takes us past this group, recursively find the next group
-                        if skip_result.next_q < len(self.survey.questions):
-                            return self.next_question_group_with_instructions(
-                                self.survey.questions[skip_result.next_q - 1], answers
-                            )
-                        else:
-                            return (group_name, [EndOfSurvey])
-            except Exception:
-                continue
-
-        # If no rules found, the group leads to the next sequential question
-        next_sequential = end_idx + 1
-        if next_sequential >= len(self.survey.questions):
-            return (group_name, [EndOfSurvey])
-        else:
-            # Recursively check the next group
-            return self.next_question_group_with_instructions(
-                self.survey.questions[next_sequential - 1], answers
-            )
+        if not self._is_instruction(current_item):
+            return self.next_question_group(current_item, answers)
+        for item in combined_items[position + 1 :]:
+            if hasattr(item, "question_name"):
+                index = self.survey.question_name_to_index[item.question_name]
+                group = self._group_containing_question_index(index)
+                if group is not None:
+                    return self._questions_from_index(group[1], answers or {})
+                return self.next_question_group(item, answers)
+        return None
 
     def next_question_with_instructions(
         self,
@@ -740,9 +522,10 @@ class SurveyNavigator:
         if not combined_items:
             return EndOfSurvey
 
-        # If no current item specified, return the first item
         if current_item is None:
-            return combined_items[0]
+            if self._is_instruction(combined_items[0]):
+                return combined_items[0]
+            current_position = -1
 
         # Handle string input by finding the corresponding item
         if isinstance(current_item, str):
@@ -757,180 +540,44 @@ class SurveyNavigator:
             else:
                 raise SurveyError(f"Item name {current_item} not found in survey.")
 
-        # Find the current item's position in the combined list
-        try:
-            current_position = combined_items.index(current_item)
-        except ValueError:
-            raise SurveyError("Current item not found in survey sequence.")
+        if current_item is not None:
+            try:
+                current_position = combined_items.index(current_item)
+            except ValueError:
+                raise SurveyError("Current item not found in survey sequence.")
 
-        # If this is an instruction, determine what comes next
         if self._is_instruction(current_item):
-            # This is an instruction
-            if current_position + 1 >= len(combined_items):
-                return EndOfSurvey
-
-            # Check if this instruction is between questions that have rule-based navigation
-            # We need to figure out what question would have led to this instruction
-            prev_question = None
-            for i in range(current_position - 1, -1, -1):
-                item = combined_items[i]
-                if hasattr(item, "question_name"):
-                    prev_question = item
+            # An instruction can sit inside a jump. Its immediate predecessor
+            # may have been skipped. Resume from the most recent answered question.
+            previous = None
+            for item in reversed(combined_items[:current_position]):
+                if hasattr(
+                    item, "question_name"
+                ) and f"{item.question_name}.answer" in (answers or {}):
+                    previous = item
                     break
-
-            if prev_question is not None:
-                # Check if there are rules from this previous question that would jump over the next sequential question
-                prev_q_index = self.survey.question_name_to_index[
-                    prev_question.question_name
-                ]
-                answer_dict = answers if answers is not None else {}
-
-                try:
-                    next_question_object = self.survey.rule_collection.next_question(
-                        prev_q_index, answer_dict
-                    )
-                    if (
-                        next_question_object.num_rules_found > 0
-                        and next_question_object.next_q != EndOfSurvey
-                    ):
-                        # There's a rule that determined the next question
-                        target_question = self.survey.questions[
-                            next_question_object.next_q
-                        ]
-                        target_position = combined_items.index(target_question)
-
-                        # If the target is after this instruction, continue toward it
-                        if target_position > current_position:
-                            # Look for the next question that should be shown
-                            next_position = current_position + 1
-                            while next_position < target_position:
-                                next_item = combined_items[next_position]
-                                if self._is_instruction(next_item):
-                                    # Another instruction before target
-                                    return next_item
-                                next_position += 1
-                            # No more instructions, return the target
-                            return target_question
-                except (SurveyHasNoRulesError, IndexError):
-                    # No rules or error, fall back to sequential
-                    pass
-
-            # Default: return next item in sequence
-            return combined_items[current_position + 1]
-
-        # This is a question - use rule logic to determine the target next question
-        if not hasattr(current_item, "question_name"):
-            raise SurveyError("Current item is neither a question nor an instruction.")
-
-        question_index = self.survey.question_name_to_index[current_item.question_name]
-        answer_dict = answers if answers is not None else {}
-
-        next_question_object = self.survey.rule_collection.next_question(
-            question_index, answer_dict
-        )
-
-        if next_question_object.num_rules_found == 0:
-            raise SurveyHasNoRulesError("No rules found for this question")
-
-        # Handle end of survey case
-        if next_question_object.next_q == EndOfSurvey:
-            # Check if there are any instructions after the current question before ending
-            next_position = current_position + 1
-            if next_position < len(combined_items):
-                next_item = combined_items[next_position]
-                if self._is_instruction(next_item):
-                    return next_item
-            return EndOfSurvey
-
-        if next_question_object.next_q >= len(self.survey.questions):
-            # Check if there are any instructions after the current question before ending
-            next_position = current_position + 1
-            if next_position < len(combined_items):
-                next_item = combined_items[next_position]
-                if self._is_instruction(next_item):
-                    return next_item
-            return EndOfSurvey
-
-        # Check if the next question has any "before rules" (skip rules)
-        candidate_next_q = next_question_object.next_q
-
-        # Keep checking for skip rules until we find a question that shouldn't be skipped
-        while candidate_next_q < len(self.survey.questions):
-            # Check if this question should be skipped (has before rules that evaluate to True)
-            if self.survey.rule_collection.skip_question_before_running(
-                candidate_next_q, answer_dict
+            target = self.next_question(previous, answers)
+            position = self.survey._pseudo_indices[current_item.name]
+            while (
+                target is not EndOfSurvey
+                and self.survey._pseudo_indices[target.name] < position
             ):
-                # This question should be skipped, find where it should go
-                try:
-                    skip_result = self.survey.rule_collection.next_question(
-                        candidate_next_q, answer_dict
-                    )
-                    if skip_result.next_q == EndOfSurvey:
-                        # Check if there are any instructions after the current question before ending
-                        next_position = current_position + 1
-                        if next_position < len(combined_items):
-                            next_item = combined_items[next_position]
-                            if self._is_instruction(next_item):
-                                return next_item
-                        return EndOfSurvey
-                    elif skip_result.next_q >= len(self.survey.questions):
-                        # Check if there are any instructions after the current question before ending
-                        next_position = current_position + 1
-                        if next_position < len(combined_items):
-                            next_item = combined_items[next_position]
-                            if self._is_instruction(next_item):
-                                return next_item
-                        return EndOfSurvey
-                    else:
-                        candidate_next_q = skip_result.next_q
-                except Exception:
-                    # If there's an error finding where to skip to, just go to next question
-                    candidate_next_q += 1
-            else:
-                # This question should not be skipped, use it
-                break
+                target = self.next_question(target, answers)
+        else:
+            target = self.next_question(current_item, answers)
 
-        if candidate_next_q >= len(self.survey.questions):
-            # Check if there are any instructions after the current question before ending
-            next_position = current_position + 1
-            if next_position < len(combined_items):
-                next_item = combined_items[next_position]
-                if self._is_instruction(next_item):
-                    return next_item
-            return EndOfSurvey
-
-        # Find the target question in the combined list
-        target_question = self.survey.questions[candidate_next_q]
-        try:
-            target_position = combined_items.index(target_question)
-        except ValueError:
-            # This shouldn't happen, but handle gracefully
-            return target_question
-
-        # Look for any instructions between current position and target position
-        # Start checking from the position after current
-        next_position = current_position + 1
-
-        # If we're already at or past the end, return EndOfSurvey
-        if next_position >= len(combined_items):
-            return EndOfSurvey
-
-        # If the target question is the very next item, return it
-        if next_position == target_position:
-            return target_question
-
-        # If there are items between current and target, check if any are instructions
-        # that should be shown before reaching the target question
-        while next_position < target_position:
-            next_item = combined_items[next_position]
-            # If it's an instruction, return it (caller should pass target when calling again)
-            if self._is_instruction(next_item):
-                return next_item
-            next_position += 1
-
-        # If we've gone through all items between current and target without finding
-        # an instruction, return the target question
-        return target_question
+        # Show intervening instructions on the way to a question. At the end
+        # only directly following instructions belong to the current sequence.
+        if target is EndOfSurvey:
+            following = combined_items[current_position + 1 : current_position + 2]
+        else:
+            following = combined_items[
+                current_position + 1 : combined_items.index(target)
+            ]
+        for item in following:
+            if self._is_instruction(item):
+                return item
+        return target
 
     def next_questions_with_instructions(
         self,
@@ -1091,14 +738,7 @@ class SurveyNavigator:
         # Initialize empty answers dictionary
         self.survey.answers: Dict[str, Any] = {}
 
-        # Start with the first question
-        question = self.survey.questions[0]
-
-        # Check if the first question should be skipped based on skip rules
-        if self.survey.rule_collection.skip_question_before_running(
-            0, self.survey.answers
-        ):
-            question = self.next_question(question, self.survey.answers)
+        question = self.next_question(answers=self.survey.answers)
 
         # Continue through the survey until we reach the end
         while not question == EndOfSurvey:
