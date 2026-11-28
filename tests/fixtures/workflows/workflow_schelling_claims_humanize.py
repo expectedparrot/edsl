@@ -1,11 +1,11 @@
 """Run Schelling's tacit-claims game through real Humanize email delivery.
 
 Initial delivery (supply two real participant addresses explicitly):
-    uv run python -m edsl.examples.workflows.workflow_schelling_claims_humanize \
+    uv run python -m tests.fixtures.workflows.workflow_schelling_claims_humanize \
         --send-once --email player1@example.com --email player2@example.com
 
 Import responses and send newly released payoff notices:
-    uv run python -m edsl.examples.workflows.workflow_schelling_claims_humanize \
+    uv run python -m tests.fixtures.workflows.workflow_schelling_claims_humanize \
         --poll-once
 """
 

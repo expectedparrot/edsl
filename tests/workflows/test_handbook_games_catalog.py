@@ -1,4 +1,4 @@
-from edsl.examples.workflows.handbook_games_catalog import GAMES, render
+from tests.fixtures.workflows.handbook_games_catalog import GAMES, render
 
 
 def test_handbook_catalog_is_structured_unique_and_sourced():
@@ -10,7 +10,7 @@ def test_handbook_catalog_is_structured_unique_and_sourced():
 
 
 def test_implemented_handbook_games_link_to_gallery_cases():
-    from edsl.examples.workflows.workflow_stress_gallery import cases
+    from tests.fixtures.workflows.workflow_stress_gallery import cases
 
     gallery_slugs = {case.slug for case in cases()}
     assert {

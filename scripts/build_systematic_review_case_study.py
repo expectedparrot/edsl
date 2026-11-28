@@ -12,7 +12,7 @@ from pygments import highlight
 from pygments.formatters import HtmlFormatter
 from pygments.lexers import PythonLexer
 
-from edsl.examples.shared_state.dsl.shared_review_screening import SPEC
+from tests.fixtures.shared_state.dsl.shared_review_screening import SPEC
 
 
 ROOT = Path(__file__).resolve().parents[1]

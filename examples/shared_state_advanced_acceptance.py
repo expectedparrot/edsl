@@ -33,7 +33,7 @@ CASES = (
 
 def build_case(name, model):
     if name in ("message_board", "repeated_matrix", "work_pool"):
-        from edsl.examples.shared_state.shared_state_gemini_game_smoke import GAMES
+        from tests.fixtures.shared_state.shared_state_gemini_game_smoke import GAMES
 
         survey, agents, schedule = GAMES[name]()
         if name == "message_board":

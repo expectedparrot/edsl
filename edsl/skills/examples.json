@@ -1,4 +1,0 @@
-{
-  "edsl-orchestration": ["workflows"],
-  "edsl-shared-state": ["shared_state"]
-}

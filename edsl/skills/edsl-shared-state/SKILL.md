@@ -26,10 +26,9 @@ look like Python expressions. Pick a stable scope key for the participants who
 share state, and reuse the same serialized state map when resuming a run. See
 [survey execution and state provenance](references/survey-execution.md).
 
-Fetch complete, version-matched source examples through the CLI with
-`ep skills show edsl-shared-state --example <path>`. Use
-`ep skills list --routing` to find example paths, or see the
-[example guide](references/examples.md).
+Use the [worked examples](references/examples.md) for a small Machine and a
+survey integration pattern. Fetch it with
+`ep skills show edsl-shared-state --reference references/examples.md`.
 
 The `ep` CLI can validate, inspect, and locally simulate serialized Machine JSON,
 then inspect shared-state bindings in saved Results. It does not author a full

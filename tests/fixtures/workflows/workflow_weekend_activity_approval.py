@@ -2,7 +2,7 @@
 
 Run locally with simulated respondents:
 
-    python edsl/examples/workflows/workflow_weekend_activity_approval.py
+    python tests/fixtures/workflows/workflow_weekend_activity_approval.py
 
 Replace the simulation answerer with a Humanize-backed DeliveryAdapter to send
 the same ready work items to participant email addresses you provide.

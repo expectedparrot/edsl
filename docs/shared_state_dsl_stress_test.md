@@ -9,12 +9,12 @@ write methods, enforce answer constraints, and calculate a view or settlement.
 This stress test asks whether those classes can instead be serialized recipes
 over a small state-machine language. It is intentionally separate from the core
 EDSL implementation. The executable catalog is
-`edsl/examples/shared_state/dsl_experiment.py`.
+`edsl/examples/shared_state/shared_state_dsl_experiment.py`.
 
-The second-pass workbench lives in `edsl/examples/shared_state/dsl/`. It has one
+The second-pass workbench lives in `tests/fixtures/shared_state/dsl/`. It has one
 module per target and a shared `kernel.py`. Each target module exports one
 `SPEC`, can be read without navigating a monolithic catalog, and is discovered
-by `python -m edsl.examples.shared_state.dsl.validate`. The validator checks each
+by `python -m tests.fixtures.shared_state.dsl.validate`. The validator checks each
 target independently before serializing the collection.
 
 The first migrated cross-section is:

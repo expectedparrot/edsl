@@ -276,6 +276,6 @@ versioned capability names.
 - `edsl/examples/shared_state/shared_state_activity_poll_repeated.py` demonstrates repeated paths.
 - `edsl/examples/shared_state/economic_game_ultimatum.py` demonstrates typed completion and
   finalization.
-- `edsl/examples/shared_state/dsl/` contains one machine definition per state pattern.
+- `tests/fixtures/shared_state/dsl/` contains one machine definition per state pattern.
 - `docs/shared_state_execution_matrix.md` records executable coverage of every
   retained machine.

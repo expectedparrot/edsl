@@ -9,8 +9,8 @@ tags: [edsl, orchestration, respondent-workflows]
 Use `edsl.workflows` when a study is a durable graph of respondent work: who
 gets each step, when it becomes ready, which earlier answers it can observe,
 and how completion or retries release later work. This is the respondent
-orchestration API; `ep workflow` is a separate CLI for research-task evidence
-gates.
+orchestration API. For research-task evidence gates managed with `ep workflow`,
+see `edsl:edsl-workflow-gates`.
 
 Start with `Workflow` to author steps and dependencies. Use conditions, quorum
 completion, derived values, and bounded repeats only when the protocol requires
@@ -32,8 +32,6 @@ same replay answer file on every replay-driven resume. Read
 [workflow authoring and execution](references/authoring-and-execution.md) for
 the object model and durable-run invariants.
 
-Fetch complete, version-matched workflow examples through the CLI with
-`ep skills show edsl-orchestration --example <path>`. Use
-`ep skills list --routing` to find available examples, or see the
-[example guide](references/examples.md). The Humanize delivery example requires
-two explicit email addresses before it can create a run or send invitations.
+See the [worked workflow examples](references/examples.md) for a sequential
+respondent flow with a shared-state read/write. Fetch this reference with
+`ep skills show edsl-orchestration --reference references/examples.md`.

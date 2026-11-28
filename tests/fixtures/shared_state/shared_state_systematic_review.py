@@ -18,7 +18,7 @@ from edsl import (
 )
 from edsl.sharedstate import SharedState, SharedStateMap, current
 
-from edsl.examples.shared_state.dsl.shared_review_screening import DECISIONS, SPEC
+from tests.fixtures.shared_state.dsl.shared_review_screening import DECISIONS, SPEC
 
 
 DEFAULT_OUTPUT_DIR = Path("artifacts/shared_state/systematic_review")

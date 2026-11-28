@@ -418,7 +418,9 @@ def test_command_timeout_uses_structured_error(tmp_path: Path, monkeypatch) -> N
     def time_out(*args, **kwargs):
         raise subprocess.TimeoutExpired("slow-check", 120)
 
-    monkeypatch.setattr("ep_workflow.state.subprocess.run", time_out)
+    monkeypatch.setattr(
+        "edsl.cli_commands.workflow_gates.state.subprocess.run", time_out
+    )
     code, failed = invoke(
         runner, ["workflow", "gate", "verify", "checked", "--root", str(tmp_path)]
     )

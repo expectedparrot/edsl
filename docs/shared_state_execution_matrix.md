@@ -34,7 +34,7 @@ algorithms used by the examples.
 | Information and contracts | cheap talk, signaling, principal-agent, bilateral trade, negotiation, review screening |
 | Social choice | voting game |
 
-There are 38 machine modules in `edsl/examples/shared_state/dsl/`, and all 38 have a
+There are 38 machine modules in `tests/fixtures/shared_state/dsl/`, and all 38 have a
 meaningful transition vector and semantic outcome oracle.
 
 ## End-to-end Runner coverage
