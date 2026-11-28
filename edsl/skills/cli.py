@@ -443,6 +443,9 @@ def search_skills(query: str, limit: int, human: bool, snippets: bool):
         for package in packages:
             click.echo(f"{package['name']} [external package] — {package['description']}")
             click.echo(f"  Workflow: {package['guide_command']} ({package['guide_url']})")
+            click.echo(f"  After installation: {package['installed_guide_command']}")
+            if "installed_next_command" in package:
+                click.echo(f"  In a project: {package['installed_next_command']}")
             click.echo(f"  README: {package['readme_url']}")
     else:
         output({"query": query, "results": results, "packages": packages})
@@ -470,7 +473,11 @@ def package_guide(name: str, human: bool):
     if human:
         click.echo(content, nl=not content.endswith("\n"))
     else:
-        output({"name": package["name"], "guide_url": url, "content": content})
+        data = {"name": package["name"], "guide_url": url, "content": content,
+                "installed_guide_command": package["installed_guide_command"]}
+        if "installed_next_command" in package:
+            data["installed_next_command"] = package["installed_next_command"]
+        output(data)
 
 
 @skills.command("show")

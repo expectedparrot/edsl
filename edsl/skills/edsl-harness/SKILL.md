@@ -69,7 +69,7 @@ and CLI conventions.
 
 ## Find an Expected Parrot package
 
-The directory includes tools such as Green for conjoint studies and Roth for stable matching. Search by the method even if the researcher does not know a project name. Use the package guide to identify required inputs and decisions. Use its README when you need installation instructions. If your CLI version predates package search, check the [Expected Parrot package directory](https://github.com/expectedparrot/directory).
+The directory includes tools such as Green for conjoint studies and Roth for stable matching. Search by the method even if the researcher does not know a project name. Use the package guide to identify required inputs and decisions. After installation, run its `installed_guide_command`. In a study workspace, use `installed_next_command` when present and follow the package’s recommendation. If your CLI version predates package search, check the [Expected Parrot package directory](https://github.com/expectedparrot/directory).
 
 Follow package-specific guidance alongside the relevant `edsl:` skills. Keep
 EDSL object construction and execution aligned with the installed EDSL version.

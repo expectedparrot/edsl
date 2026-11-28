@@ -99,7 +99,10 @@ def test_directory_catalog_entries_are_unique_and_searchable():
         prefix = entry["repository"].replace("github.com", "raw.githubusercontent.com") + "/HEAD/"
         assert entry["guide_url"].startswith(prefix)
         assert entry["guide_url"].endswith(".md")
-        assert entry["guide_url"] != entry["readme_url"]
+        cli = entry["repository"].rsplit("/", 1)[-1]
+        assert entry["installed_guide_command"] == f"{cli} guide"
+        if "installed_next_command" in entry:
+            assert entry["installed_next_command"] == f"{cli} next"
         assert entry["description"]
         assert entry["methods"] and all(entry["methods"])
 
@@ -175,7 +178,8 @@ def test_package_guide_reads_named_package_before_install(monkeypatch):
     assert result.exit_code == 0, result.output
     data = json.loads(result.output)["data"]
     url = "https://raw.githubusercontent.com/expectedparrot/zwill/HEAD/zwill/guides/agent-workflow.md"
-    assert data == {"name": "Zwill", "guide_url": url, "content": guide}
+    assert data == {"name": "Zwill", "guide_url": url, "content": guide,
+                    "installed_guide_command": "zwill guide", "installed_next_command": "zwill next"}
     fetch.assert_called_once_with(url, timeout=20)
     assert runner.invoke(skills_command, ["guide", "Zwill", "--human"]).output == guide
 
@@ -203,3 +207,12 @@ def test_package_guide_fetch_failures_include_source(monkeypatch, response):
     failure = json.loads(result.output)["error"]
     assert failure["code"] == "REMOTE_ERROR"
     assert "raw.githubusercontent.com/expectedparrot/zwill/" in failure["suggestion"]
+
+def test_stateless_package_uses_readme_and_omits_project_command(monkeypatch):
+    monkeypatch.setattr(requests, "get", Mock(return_value=Mock(content=b"# Quick start")))
+    result = CliRunner().invoke(skills_command, ["guide", "conversation"])
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)["data"]
+    assert data["guide_url"].endswith("/README.md")
+    assert data["installed_guide_command"] == "conversation guide"
+    assert "installed_next_command" not in data
