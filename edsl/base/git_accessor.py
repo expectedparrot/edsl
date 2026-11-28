@@ -176,7 +176,8 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
         self.commit: Optional[str] = None
         self.current_branch: Optional[str] = None
 
-    def save(self, path=None, message: str = "", **kwargs) -> dict:
+    def save(self, path=None, message: str = "", *, sync_coop: bool = True, **kwargs) -> dict:
+        """Commit locally, checking for newer Coop content first when sync_coop is enabled."""
         if path is None:
             path = self.path or self._spec.default_path()
         path = self._spec.normalize_path(path)
@@ -194,9 +195,10 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
         if (worktree_path / ".git").exists():
             gitpkg.ensure_clean(worktree_path, "save", error_cls=self._spec.error_cls)
             self.path = path
-            self._coop_pull_if_remote_updated(
-                message=f"Coop sync {self._spec.object_type}"
-            )
+            if sync_coop:
+                self._coop_pull_if_remote_updated(
+                    message=f"Coop sync {self._spec.object_type}"
+                )
         gitpkg.init_package(worktree_path, error_cls=self._spec.error_cls)
 
         extra_info = self._spec.write(worktree_path, self._instance, **kwargs)

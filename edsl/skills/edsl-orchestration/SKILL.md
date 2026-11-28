@@ -19,6 +19,19 @@ them. Route participants with an `ExecutionPlan` to `human`, `llm`, or
 state across interviews; see `edsl-shared-state` for its Machine and scope
 contracts.
 
+To show a previous participant’s actual answer in another step, put the earlier
+step handle’s `review.answer("note").template` in the later question text and
+declare `after=review`. For an optional step, its answer reference supports
+`.template_or("No revision requested")`. The join can use `after_settled=`
+to proceed when a branch is skipped. A rehearsal that supplies different
+answers on each run can bind participants to `human()` and run with
+`--responses` locally. The `scripted` executor always uses its embedded answers.
+
+Verify the saved render for each handoff after replay. For example, run
+`ep orchestration check-item rehearsal/ --step decision --participant Eden --expect-text "the earlier reader’s exact note"`.
+Check a skipped assignment with `--expect-status skipped` and a committed
+submission with `--expect-answers '{"decision":"Accept"}'`.
+
 For portable bundles, use `WorkflowExperiment` to combine the compiled workflow,
 state maps, participants, and executor plan. Validate and inspect the serialized
 bundle before execution. Choose `ep orchestration run` for scripted/LLM runs or

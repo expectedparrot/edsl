@@ -221,6 +221,28 @@ edsl push prompt.json --alias research-brief --visibility private
 edsl inspect prompt.json
 ```
 
+## Rehearse a saved job
+
+A researcher assigns 16 employees to two versions of a survey. One version shows four activities, the other five. Each employee should report only a count. Check the saved schedule and look up an interview index for each arm.
+
+```bash
+ep jobs variants study.ep --group-by scenario.arm --unique-by agent.name --expect-interviews 16
+```
+
+Without `--group-by`, the command lists the assignment fields available throughout the schedule. Each group reports its assignment values, size and first interview index. Check the arm sizes against the design. Use `scenario.employee_id` when the respondent ID lives on the scenario. Repeat `--unique-by` for a composite key such as panelist and case. These checks cover the observed IDs. Confirm membership against the intended roster separately when required. Group on all fields that define the versions of interest.
+
+For example, if the short arm starts at interview 3 and the long arm at interview 0, check both prompts and both boundaries.
+
+```bash
+ep jobs preview-prompt study.ep count --interview-index 3 --expect-comments false --forbid-text "explain"
+ep jobs preview-prompt study.ep count --interview-index 0 --expect-comments false --forbid-text "explain"
+ep jobs test-case study.ep --interview-index 3 --responses '{"count":4}' --expect '{"count":4}'
+ep jobs test-case study.ep --interview-index 3 --responses '{"count":5}' --expect-rejection count
+ep jobs test-case study.ep --interview-index 0 --responses '{"count":5}' --expect '{"count":5}'
+```
+
+Use the expected answer type for your question. String labels on a multiple-choice count return a string. When only whole totals are valid, also try `--responses '{"count":2.5}' --expect-rejection count`. Answer repair can accept a reply by converting it to an allowed value. The rejection check requires an answer-validation failure on the named question. An accepted answer, skipped question, or unrelated interview error fails the check. The comment flag checks the question setting. Read the rendered prompts for custom wording and inspect retained raw responses when disclosure matters. These commands exercise local EDSL model interviews.
+
 ## Remote Jobs
 
 ```bash

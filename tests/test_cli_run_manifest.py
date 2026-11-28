@@ -20,6 +20,7 @@ def test_run_manifest_verifies_complete_result(tmp_path, monkeypatch):
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
     assert payload["data"]["executed_count"] == 0
+    assert payload["data"]["verification"] == "result_row_count"
     assert payload["data"]["runs"][0]["status"] == "complete"
 
 
@@ -43,3 +44,13 @@ def test_run_manifest_executes_incomplete_runs(tmp_path, monkeypatch):
     result = CliRunner().invoke(cli_module.app, ["run-manifest", str(manifest), "--result-base", str(tmp_path), "--execute"])
     assert result.exit_code == 0, result.output
     assert json.loads(result.output)["data"]["executed_count"] == 1
+
+
+def test_run_manifest_requires_a_results_package_even_when_length_matches(tmp_path):
+    from edsl import Scenario, ScenarioList
+
+    manifest = _manifest(tmp_path, prediction_count=1)
+    ScenarioList([Scenario({"id": "s1"})]).git.save(tmp_path / "results.ep", sync_coop=False)
+    result = CliRunner().invoke(cli_module.app, ["run-manifest", str(manifest), "--result-base", str(tmp_path)])
+    assert result.exit_code == 2
+    assert json.loads(result.output)["error"]["code"] == "UNSUPPORTED_OBJECT"

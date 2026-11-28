@@ -171,7 +171,7 @@ class ScenarioList(MarkdownPreviewMixin, MutableSequence, Base, ScenarioListOper
                 self.data.append(item)
         else:
             for item in data or []:
-                self.data.append(item)
+                self.data.append(self._scenario_row(item))
         self.codebook = codebook or {}
         self._transformer = ScenarioListTransformer(self)
         self._joiner = ScenarioListJoiner(self)
@@ -346,9 +346,17 @@ class ScenarioList(MarkdownPreviewMixin, MutableSequence, Base, ScenarioListOper
             return self.__class__(list(self.data[index]), self.codebook.copy())
         return self.data[index]
 
+    @staticmethod
+    def _scenario_row(value):
+        """Accept ordinary record dictionaries alongside existing Scenario instances."""
+        return Scenario(value) if isinstance(value, dict) else value
+
     def __setitem__(self, index, value):
         """Set item at index."""
-        self.data[index] = value
+        if isinstance(index, slice):
+            self.data[index] = [self._scenario_row(row) for row in value]
+        else:
+            self.data[index] = self._scenario_row(value)
 
     def __delitem__(self, index):
         """Delete item at index."""
@@ -360,7 +368,7 @@ class ScenarioList(MarkdownPreviewMixin, MutableSequence, Base, ScenarioListOper
 
     def insert(self, index, value):
         """Insert value at index."""
-        self.data.insert(index, value)
+        self.data.insert(index, self._scenario_row(value))
 
     def at(self, index: int) -> Scenario:
         """Get the scenario at the specified index position.

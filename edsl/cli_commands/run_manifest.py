@@ -24,7 +24,11 @@ def _expected_count(run: dict) -> int:
 def _result_count(path: Path) -> int:
     if not path.exists():
         return 0
-    result = load_any_object(str(path), expected_object_type="Results")
+    result = load_any_object(str(path), expected_object_type="Results", preview=True)
+    from edsl import Results
+
+    if not isinstance(result, Results):
+        error("UNSUPPORTED_OBJECT", f"Expected Results at {path}, found {type(result).__name__}.", exit_code=EXIT_USAGE)
     return len(result)
 
 
@@ -66,7 +70,9 @@ def register(app: click.Group) -> None:
     @click.option("--timeout", type=click.FloatRange(min=1), default=3600.0, show_default=True)
     @click.option("--execute", is_flag=True, help="Run incomplete jobs remotely; otherwise only verify them.")
     def run_manifest(manifest, result_base, parallel, timeout, execute):
-        """Verify or execute every job in a zwill/EDSL run manifest.
+        """Check saved Results row counts, or execute incomplete jobs in a run manifest.
+
+        Compare each stored instrument with ep results check-survey RESULTS --against JOB.
 
         \b
         Examples:
@@ -114,5 +120,6 @@ def register(app: click.Group) -> None:
                       exit_code=EXIT_REMOTE, details=failures)
             by_result = {row["result_path"]: row for row in completed_records}
             records = [by_result.get(row["result_path"], row) for row in records]
-        output({"manifest": str(Path(manifest).resolve()), "run_count": len(records),
+        output({"manifest": str(Path(manifest).resolve()), "verification": "result_row_count",
+                "run_count": len(records),
                 "executed_count": sum(bool(row["executed"]) for row in records), "runs": records})

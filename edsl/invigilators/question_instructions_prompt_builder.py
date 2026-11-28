@@ -1,10 +1,12 @@
 from typing import Dict, Set, Any, Union, TYPE_CHECKING
 from warnings import warn
 import logging
+from copy import copy
 import time as _time
 import threading
 
 from .prompt_constructor import PromptConstructor
+from .prompt_file_references import FileAnswerPlaceholder, PromptFileReferences
 
 # Thread-safe timing accumulators for build() sub-steps
 _build_timing_lock = threading.Lock()
@@ -89,6 +91,7 @@ class QuestionInstructionPromptBuilder:
         self.scenario = scenario
         self.prior_answers_dict = prior_answers_dict
         self.captured_variables = {}
+        self.rendered_files = {}
 
     def build(self) -> "Prompt":
         """Builds the complete question instructions prompt with all necessary components.
@@ -301,11 +304,24 @@ class QuestionInstructionPromptBuilder:
         """
         # Build replacement dict
         _t0 = _time.time()
-        replacement_dict = self.qtrb.build_replacement_dict(prompt_data["data"])
+        files = PromptFileReferences()
+        scenario_refs = {
+            key: files.scenario_reference(key, self.scenario[key])
+            for key in self.qtrb.question_file_keys()
+        }
+        replacement_dict = self.qtrb.build_replacement_dict(
+            prompt_data["data"], file_references=scenario_refs
+        )
+        for name, question in self.prior_answers_dict.items():
+            answer = getattr(question, "answer", None)
+            if isinstance(answer, FileAnswerPlaceholder):
+                local = copy(question)
+                local.answer = FileAnswerPlaceholder(name, answer._files, files)
+                replacement_dict[name] = local
         _t1 = _time.time()
 
-        # Render with dict
         rendered_prompt = prompt_data["prompt"].render(replacement_dict)
+        rendered_prompt, self.rendered_files = files.resolve(rendered_prompt)
         _t2 = _time.time()
 
         with _build_timing_lock:

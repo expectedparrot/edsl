@@ -113,6 +113,7 @@ def _groups(obj):
         Agent,
         AgentList,
         Collection,
+        Evaluation,
         Jobs,
         ModelList,
         Prompt,
@@ -124,28 +125,40 @@ def _groups(obj):
     from ..language_models.language_model import LanguageModel
     from ..questions.question_base import QuestionBase
 
-    if isinstance(obj, Jobs):
+    if isinstance(obj, (Jobs, Evaluation)):
         groups = [
             ("Questions", obj.survey.questions),
             ("Agents", obj.agents),
             ("Scenarios", obj.scenarios),
-            ("Models", obj.models),
+            ("Judgment models" if isinstance(obj, Evaluation) else "Models", obj.models),
         ]
         summary = " · ".join(f"{label} {len(items)}" for label, items in groups)
-        if obj._include_expression:
-            summary += "\n\n" + _fields({"Interview filter": obj._include_expression})
-        elif obj._assignment_plan is not None:
-            summary += "\n\n" + _fields(
-                {
-                    "Assignment mode": obj._assignment_plan.mode,
-                    "Assigned interviews": len(obj._assignment_plan),
-                }
+        if isinstance(obj, Evaluation):
+            return "Evaluation", summary, groups
+        plan = obj.assignment_summary()
+        layout = {"Assignment mode": plan["assignment_mode"]}
+        if plan["interviews_per_iteration"] is not None:
+            layout["Assigned interviews per iteration"] = plan["interviews_per_iteration"]
+        for field, comparison in plan.get("paired_identifier_counts", {}).items():
+            layout[f"Paired {field}"] = (
+                f"{comparison['mismatched']} of {comparison['compared']} interviews "
+                "pair an agent and scenario with different IDs."
             )
+        if "interview_filter" in plan:
+            layout["Interview filter"] = plan["interview_filter"]
+        summary += "\n\n" + _fields(layout)
         if obj.treatment_assignment is not None:
             summary += "\n\n" + _fields(
                 {"Treatment design": obj.treatment_assignment.design_id}
             )
         return "Jobs", summary, groups
+    if isinstance(obj, Results) and obj.survey is not None:
+        questions = obj.survey.questions
+        sample = "\n".join(
+            f"- **{_text(q.question_name)}** {_text(q.question_text)}" for q in questions[:3]
+        )
+        summary = f"**Saved survey** ({len(questions)} questions)\n\n{sample}"
+        return "Results", summary, [("Results", obj)]
     if isinstance(obj, Survey):
         return obj.name or "Survey", "", [("Questions", obj.questions)]
     if isinstance(obj, Collection):
@@ -184,6 +197,8 @@ def _section(obj, kind, items, indices, question_options):
             return questionnaire_items(survey, indices, **question_options)
         return obj.to_markdown(**question_options)
     entries = ((i + 1, items[i]) for i in indices)
+    if kind == "Judgment models":
+        return _rows("Model", ((n, {"service": m.service_name, "model": m.model}) for n, m in entries))
     if kind == "Files":
         return _fields(items[0])
     if kind == "Scenarios":

@@ -150,6 +150,8 @@ ep validate --file jobs.json
 ep validate --json '{"type":"free_text","question_text":"Say hi"}'
 ```
 
+For a saved judgment Evaluation, `ep validate --file review.ep --type evaluation` compiles the workload locally and reports the number of result rows, provider requests, and judgments. Restrict the compiled scenario field names with repeated `--allow-scenario-field` options when testing a blinded evaluation.
+
 If validation fails, use the JSON error envelope. Do not continue by trying to run the same invalid input.
 
 ## Object Formats
@@ -240,6 +242,7 @@ ep agents create --from-csv people.csv --codebook '{"age":"Age in years"}' --out
 Transform existing agent lists:
 
 ```bash
+ep agents edit-item agents.ep --index 0 --patch '{"traits":{"city":"Boston"}}'
 ep agents transform agents.ep --help
 ```
 
@@ -258,6 +261,7 @@ ep scenarios create --from-image image1.png --from-image image2.png --output ima
 Transform existing scenario lists:
 
 ```bash
+ep scenarios edit-item scenarios.ep --insert '{"city":"Boston"}'
 ep scenarios transform scenarios.ep --help
 ```
 
@@ -270,12 +274,16 @@ Survey commands let agents construct surveys without writing Python.
 ```bash
 ep surveys create --question-type free_text --question-name q0 --question-text "What do you think?" --output survey.ep
 ep surveys add-question survey.ep --question-type multiple_choice --question-name q1 --question-text "Pick one." --option A --option B
+ep surveys update-question survey.ep q1 --option A --option B --option C
+ep surveys rename-question survey.ep q0 introduction --output renamed.ep
 ep surveys questions survey.ep
 ep surveys show survey.ep
 ep surveys show survey.ep --markdown
 ep surveys add-skip-rule survey.ep --question q1 --expression "{{ q0.answer }} == 'skip'"
+ep surveys replace-rule survey.ep --question q1 --expression "{{ q0.answer }} in ['skip', 'pass']" --output revised.ep
+ep surveys check-paths revised.ep --cases paths.json
 ep surveys add-stop-rule survey.ep --question q1 --expression "{{ q1.answer }} == 'done'"
-ep surveys add-instruction survey.ep --text "Answer as briefly as possible."
+ep surveys add-instruction survey.ep --name response_style --text "Answer as briefly as possible." --before q1
 ep surveys set-memory survey.ep --help
 ep surveys add-question-group survey.ep --help
 ep surveys move-question survey.ep --help
@@ -283,6 +291,8 @@ ep surveys drop-question survey.ep --help
 ```
 
 Use `ep surveys show survey.ep --markdown` to present the questionnaire in a terminal. Add `--with-question-names` or `--with-question-types` to label the headings. Add `--expand-options` to list every dropdown choice. On success, stdout contains Markdown. On failure, inspect the JSON error envelope.
+
+For an independent judge or other per-question model, use `ep surveys set-question-model survey.ep NAME --service openai --model gpt-4o-mini --system-prompt "Apply the rubric."` and keep the original answer type. Pipe or configure memory for any prior answer the judge needs. Inspect the saved override and rendered prompts with `ep surveys preview-prompt survey.ep NAME --answers '{"q0":"sample answer"}'`. For grouped page directions, check `data.item_order` in `ep surveys show survey.ep`.
 
 Use `ep surveys review survey.ep` only when a local review UI is appropriate for the task.
 
@@ -351,7 +361,7 @@ Rules:
 - `ep run jobs.ep` without `--output` should return `USAGE_ERROR`.
 - Use `--output results.ep` for a package.
 - Use `--output results.json` for serialized JSON.
-- Use `--local` to disable remote inference.
+- Use `--local` to run EDSL on this machine. Hosted models still call their providers.
 - Use `--fresh` to ignore cache.
 - Use `--n N` for iterations.
 - Use `--progress` only when human-facing progress on stderr is acceptable.
@@ -409,6 +419,22 @@ Rules:
 
 ## Jobs Commands
 
+For local study design, `ep jobs build` reports the assignment mode and planned interviews per iteration. Pass `--expect-interviews` to catch unintended combinations before writing the job. For one scenario per agent, align the two files in the same respondent order and pair them explicitly.
+
+```bash
+ep jobs build --survey survey.ep --agents agents.ep --scenarios scenarios.ep --pair-agents-scenarios --expect-interviews 24 --output jobs.ep
+ep jobs preview-prompt jobs.ep clarity --interview-index 0 --expect-text "assigned lesson" --forbid-text "other lesson"
+```
+
+Use literal phrases from the study when checking prompts. Each expectation is tested against the selected interview’s system and user text. A count or text mismatch returns a JSON error and exit code 5.
+
+To rehearse with scripted replies before fieldwork, use the saved job's assignment plan. The replies JSON maps question names to raw test-model replies. Use `--expect` for decoded answers. Results include each row's displayed options and answers.
+
+```bash
+ep jobs test-case jobs.ep --interview-index 1 --responses replies.json --expect expected.json
+ep jobs test-case jobs.ep --all --iterations 4 --responses replies.json -o rehearsal.ep
+```
+
 Remote job management:
 
 ```bash
@@ -420,6 +446,7 @@ ep jobs errors <job_uuid> --output error.md
 ep jobs manifest <job_uuid>
 ep jobs page <job_uuid> --page 0 --page_size 100
 ep jobs cancel <job_uuid> --yes
+ep jobs edit jobs.ep --survey revised.ep --output revised.jobs.ep
 ep jobs cost jobs.ep --iterations 3
 ```
 

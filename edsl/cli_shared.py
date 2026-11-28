@@ -102,6 +102,38 @@ def private_output(path) -> Iterator[Path]:
         raise
 
 
+def json_values_match(expected, actual):
+    if type(expected) in (float, int) and type(actual) in (float, int):
+        return expected == actual
+    if type(expected) is not type(actual):
+        return False
+    if isinstance(expected, list):
+        return len(expected) == len(actual) and all(
+            json_values_match(x, y) for x, y in zip(expected, actual)
+        )
+    if isinstance(expected, dict):
+        return expected.keys() == actual.keys() and all(
+            json_values_match(v, actual[k]) for k, v in expected.items()
+        )
+    return expected == actual
+
+
+def load_json_object(value: str) -> dict:
+    path = Path(value)
+    try:
+        is_file = path.is_file()
+    except OSError:
+        is_file = False
+    raw = path.read_text(encoding="utf-8") if is_file else value
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as e:
+        error("INVALID_JSON", f"Failed to parse JSON: {e}", exit_code=EXIT_USAGE)
+    if not isinstance(data, dict):
+        error("USAGE_ERROR", "JSON input must be an object.", exit_code=EXIT_USAGE)
+    return data
+
+
 def read_json_file(path: str) -> dict:
     """Read and parse a JSON file, or emit an error."""
     if path == "-":
@@ -162,6 +194,7 @@ GIT_OBJECT_MODULES = {
     "Survey": "edsl.surveys",
     "AgentList": "edsl.agents",
     "Jobs": "edsl.jobs",
+    "Evaluation": "edsl.evaluations",
     "Results": "edsl.results",
     "Collection": "edsl.collections",
     "ScenarioList": "edsl.scenarios",
@@ -169,7 +202,7 @@ GIT_OBJECT_MODULES = {
 }
 
 
-def load_git_object(path: Path, *, sync_coop: bool = True):
+def load_git_object(path: Path, *, sync_coop: bool = True, ref: str = "HEAD"):
     import importlib
 
     manifest = read_package_manifest(path)
@@ -177,18 +210,29 @@ def load_git_object(path: Path, *, sync_coop: bool = True):
     module_name = GIT_OBJECT_MODULES.get(class_name)
     if module_name:
         object_class = getattr(importlib.import_module(module_name), class_name)
-        return object_class.git.load(path, sync_coop=sync_coop)
+        return object_class.git.load(path, ref=ref, sync_coop=sync_coop)
     error(
         "UNSUPPORTED_OBJECT",
         f"Object package type does not support push: {class_name or 'unknown'}",
-        suggestion="Currently supported package types: Survey, AgentList, Jobs, Results, ScenarioList, ModelList, Collection. Prompts use JSON files instead.",
+        suggestion="Currently supported package types: Survey, AgentList, Jobs, Evaluation, Results, ScenarioList, ModelList, Collection. Prompts use JSON files instead.",
         exit_code=EXIT_USAGE,
     )
 
 
 def load_any_object(
-    target: str, expected_object_type: str | None = None, *, preview: bool = False
+    target: str, expected_object_type: str | None = None, *,
+    preview: bool = False, ref: str | None = None,
 ):
+    if ref is not None:
+        path = Path(target)
+        if not (path.is_dir() or (path.is_file() and path.suffix == ".ep")):
+            error(
+                "USAGE_ERROR", "--ref requires a local git-backed package.",
+                suggestion="Pass the local .ep path and a commit from ep log.", exit_code=EXIT_USAGE,
+            )
+        if not ref or ref.startswith("-"):
+            error("USAGE_ERROR", "Invalid revision.", suggestion="Use a commit from ep log.", exit_code=EXIT_USAGE)
+        return load_git_object(path, sync_coop=False, ref=ref)
     if target == "-":
         return load_openable_json(Path("-"), preview=preview)
     path = Path(target)
@@ -213,6 +257,10 @@ def load_openable_json(path: Path, *, preview: bool = False):
         from edsl.agents import AgentList
 
         return AgentList.from_dict(data)
+    if class_name == "Evaluation":
+        from edsl.evaluations import Evaluation
+
+        return Evaluation.from_dict(data)
     if class_name == "Jobs":
         from edsl.jobs import Jobs
 
@@ -338,7 +386,7 @@ def save_results(results_obj, output_path: str) -> dict:
     return {"path": str(path), "format": "json", "object_type": "Results"}
 
 
-def save_edsl_object(obj, output_path: str, object_type: str | None = None) -> dict:
+def save_edsl_object(obj, output_path: str, object_type: str | None = None, *, sync_coop: bool = True) -> dict:
     class_name = object_type or type(obj).__name__
     if output_path == "-":
         _write_raw_object_json(obj)
@@ -360,7 +408,7 @@ def save_edsl_object(obj, output_path: str, object_type: str | None = None) -> d
         )
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.suffix == ".ep":
-        info = obj.git.save(path)
+        info = obj.git.save(path) if sync_coop else obj.git.save(path, sync_coop=False)
         return {
             "path": info.get("path", str(path)),
             "format": "ep",
@@ -392,7 +440,7 @@ def _write_raw_object_json(obj) -> None:
     sys.stdout.write("\n")
 
 
-def load_results_object(file_path: str):
+def load_results_object(file_path: str, *, sync_coop: bool = True):
     from edsl.results import Results
 
     if file_path == "-":
@@ -400,7 +448,7 @@ def load_results_object(file_path: str):
         return Results.from_dict(data)
     path = Path(file_path)
     if path.is_dir() or path.suffix == ".ep":
-        return Results.git.load(path)
+        return Results.git.load(path, sync_coop=sync_coop)
     if path.name.endswith(".json.gz"):
         data = read_serialized_object(path)
     else:

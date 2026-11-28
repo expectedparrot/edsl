@@ -233,7 +233,7 @@ def jobs(ctx):
     """
     if ctx.invoked_subcommand is None:
         _output({
-            "commands": ["build", "set-treatment-assignment", "list", "status", "wait", "results", "errors", "manifest", "page", "cancel", "cost"],
+            "commands": ["build", "edit", "set-treatment-assignment", "list", "status", "wait", "results", "errors", "manifest", "page", "cancel", "cost"],
             "help": "Use 'ep jobs <command> --help' for details.",
         })
 
@@ -257,7 +257,7 @@ def agents(ctx):
     """
     if ctx.invoked_subcommand is None:
         _output({
-            "commands": ["create"],
+            "commands": ["create", "transform", "edit-item"],
             "help": "Use 'ep agents <command> --help' for details.",
         })
 
@@ -277,7 +277,7 @@ def scenarios(ctx):
     """
     if ctx.invoked_subcommand is None:
         _output({
-            "commands": ["create"],
+            "commands": ["create", "transform", "edit-item"],
             "help": "Use 'ep scenarios <command> --help' for details.",
         })
 
@@ -298,7 +298,8 @@ def surveys(ctx):
     if ctx.invoked_subcommand is None:
         _output({
             "commands": [
-                "create", "add-question", "drop-question", "move-question",
+                "create", "add-question", "update-question", "rename-question", "drop-question", "move-question",
+                "set-groups", "check-paths", "replace-rule",
                 "show", "questions", "add-skip-rule", "add-stop-rule",
                 "set-scale-direction-randomization",
             ],

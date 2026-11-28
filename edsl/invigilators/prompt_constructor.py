@@ -1,6 +1,8 @@
 from __future__ import annotations
 from typing import Dict, Any, Optional, TYPE_CHECKING, Literal
 from functools import cached_property
+from copy import copy
+from .prompt_file_references import FileAnswerPlaceholder as _FileRefPlaceholder
 import logging
 import re
 import time as _time
@@ -165,25 +167,6 @@ class PlaceholderComment(BasePlaceholder):
 class PlaceholderGeneratedTokens(BasePlaceholder):
     def __init__(self):
         super().__init__("generated_tokens")
-
-
-class _FileRefPlaceholder(str):
-    """Stands in for a prior file-upload answer in rendered text.
-
-    ``{{ up.answer }}``    -> ``"<see file up>"``      (the whole list)
-    ``{{ up.answer[0] }}`` -> ``"<see file up[0]>"``   (a single file)
-
-    Keeps raw gcs metadata / FileStore reprs out of the prompt while the actual
-    files ride along in ``files_list``.
-    """
-
-    def __new__(cls, name: str):
-        obj = super().__new__(cls, f"<see file {name}>")
-        obj._name = name
-        return obj
-
-    def __getitem__(self, index: Any) -> str:
-        return f"<see file {self._name}[{index}]>"
 
 
 def _referenced_file_indices(question_text: str, name: str) -> tuple[bool, set]:
@@ -445,7 +428,12 @@ class PromptConstructor:
         # Add caching to avoid repeated computation for same survey and current_answers
         if not hasattr(self, "_cached_prior_answers_dict"):
             _t_pa = _time.time()
-            question_names_dict = self.survey.question_names_to_questions()
+            # Each interview has its own answer and file placeholders. The survey's
+            # name lookup is cached and can be shared by many prompt constructors.
+            question_names_dict = {
+                name: copy(question)
+                for name, question in self.survey.question_names_to_questions().items()
+            }
             _t_pa2 = _time.time()
             result = self._add_answers(question_names_dict, self.current_answers)
             _t_pa3 = _time.time()
@@ -622,63 +610,33 @@ class PromptConstructor:
 
         return []
 
-    @cached_property
-    def prior_answer_files(self) -> list:
-        """Files piped in from prior questions' answers, ready to attach to the model.
-
-        When the current question text references a prior question whose answer is a
-        file — e.g. ``{{ upload_q.answer }}`` where ``upload_q`` is a QuestionFileUpload —
-        the uploaded file(s) are attached to the model the same way scenario files are.
-        The prior answer's text rendering is swapped for a ``<see file ...>`` placeholder
-        so the raw file metadata (or a useless ``FileStore`` repr) doesn't leak into the
-        prompt. Files are only attached when explicitly referenced, mirroring how scenario
-        files behave.
-
-        Note: this reads ``prior_answers_dict()`` and rewrites the referenced answers'
-        ``.answer`` placeholder, so it must run before the question and memory prompts are
-        rendered. ``get_prompts`` calls it up front for exactly this reason.
-        """
-        question_text = getattr(self.question, "question_text", "") or ""
-        # Root variables referenced in the text (e.g. "upload" for {{ upload.answer[0] }}).
-        template_vars = QuestionTemplateReplacementsBuilder.get_jinja2_variables(
+    def _prepare_prior_file_placeholders(self):
+        """Keep raw file metadata out of question and memory text before rendering."""
+        question_text = self.question.question_text
+        prior = self.prior_answers_dict()
+        for name in QuestionTemplateReplacementsBuilder.get_jinja2_variables(
             question_text
-        )
-        if not template_vars:  # no piping at all -> nothing to attach
-            return []
+        ):
+            question = prior.get(name)
+            stores = self._prior_answer_file_stores(getattr(question, "answer", None))
+            if not stores:
+                continue
+            whole, indices = _referenced_file_indices(question_text, name)
+            if whole or indices:
+                question.answer = _FileRefPlaceholder(name, stores)
 
-        prior_answers = self.prior_answers_dict()
-        files: list = []
-        for name in template_vars:
-            # A referenced variable may not be a prior question (scenario key, agent
-            # trait, etc.); if it isn't, it can't carry a file answer.
-            question = prior_answers.get(name)
-            if question is None:
-                continue
-            # Only prior answers that are actually file(s) get attached; a normal text
-            # answer (or an unanswered placeholder) returns [] here and is skipped.
-            file_stores = self._prior_answer_file_stores(
-                getattr(question, "answer", None)
-            )
-            if not file_stores:
-                continue
-            # This variable pipes real files -> decide which ones the text asked for:
-            # a bare {{ name.answer }} attaches all, {{ name.answer[i] }} just file i.
-            attach_all, indices = _referenced_file_indices(question_text, name)
-            if not attach_all and not indices:
-                # Referenced without .answer (e.g. a bare {{ up }}) -> not a file
-                # reference; attach nothing and leave the answer untouched.
-                continue
-            if attach_all:
-                files.extend(file_stores)
-            else:
-                # Attach only the referenced files; out-of-range indices are skipped.
-                files.extend(
-                    file_stores[i] for i in sorted(indices) if 0 <= i < len(file_stores)
-                )
-            # Render a placeholder in the text; the file itself rides along in files_list.
-            # The placeholder handles both {{ name.answer }} and {{ name.answer[i] }}.
-            question.answer = _FileRefPlaceholder(name)
-        return files
+    @property
+    def prior_answer_files(self) -> list:
+        """Prior upload files selected by this question's rendered text, in display order."""
+        return [
+            file
+            for (
+                source,
+                _,
+                _,
+            ), file in self.question_instructions_prompt.file_references.items()
+            if source == "answer"
+        ]
 
     @cached_property
     def question_instructions_prompt(self) -> "Prompt":
@@ -729,9 +687,11 @@ class PromptConstructor:
         )
 
         _t_qipb_init = _time.time()
+        self._prepare_prior_file_placeholders()
         qipb = QuestionInstructionPromptBuilder.from_prompt_constructor(self)
         _t_qipb_build = _time.time()
         prompt = qipb.build()
+        prompt.file_references = qipb.rendered_files
         _t_qipb_done = _time.time()
 
         with _timing_lock:
@@ -876,11 +836,6 @@ class PromptConstructor:
             - Handles file attachments if specified in the question
             - Returns a complete dictionary ready for use with the language model
         """
-        # Resolve any files piped in from prior questions' answers first. This swaps
-        # the referenced answers' text for a placeholder, so it must happen before the
-        # question and memory prompts below are rendered.
-        prior_answer_files = self.prior_answer_files
-
         # Build all the components with timing
         _t0 = _time.time()
         agent_instructions = self.agent_instructions_prompt
@@ -904,19 +859,8 @@ class PromptConstructor:
         prompts = self.prompt_plan.get_prompts(**components)
         _t5 = _time.time()
 
-        # Handle file keys if present
-        file_keys = self.file_keys_from_question
-        if file_keys:
-            files_list = []
-            for key in file_keys:
-                files_list.append(self.scenario[key])
-            prompts["files_list"] = files_list
-
-        # Append any files piped in from prior questions' answers.
-        if prior_answer_files:
-            files_list = prompts.get("files_list", [])
-            files_list.extend(prior_answer_files)
-            prompts["files_list"] = files_list
+        if question_instructions.file_references:
+            prompts["files_list"] = list(question_instructions.file_references.values())
         _t6 = _time.time()
 
         # Accumulate timings (thread-safe)

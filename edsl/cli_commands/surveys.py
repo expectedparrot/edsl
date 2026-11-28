@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import webbrowser
+from pathlib import Path
 
 import click
 
@@ -13,6 +14,7 @@ from edsl.cli_shared import (
     EXIT_VALIDATION,
     error,
     load_any_object,
+    load_json_object,
     markdown_page,
     output,
     raw_output_written,
@@ -20,7 +22,34 @@ from edsl.cli_shared import (
 )
 
 
+class SurveyEditCommand(click.Command):
+    """Serialize in-place edits from load through save, across CLI processes."""
+
+    def invoke(self, ctx: click.Context):
+        from filelock import FileLock, Timeout
+
+        source = Path(ctx.params["survey_path"]).resolve()
+        output_path = ctx.params.get("output_path", ctx.params.get("output"))
+        if output_path == "-" or (output_path and Path(output_path).resolve() != source):
+            return super().invoke(ctx)
+
+        # The archive can be replaced during save. Lock a stable sibling path.
+        lock = FileLock(str(source.with_name(f".{source.name}.lock")))
+        try:
+            with lock.acquire(timeout=30):
+                return super().invoke(ctx)
+        except Timeout:
+            error("EDIT_CONFLICT", f"Another edit is still using {source}.",
+                  suggestion="Retry the edit after the other writer finishes.", exit_code=EXIT_ERROR)
+        except OSError as exc:
+            error("SURVEY_EDIT_ERROR", str(exc), exit_code=EXIT_ERROR)
+
+
 def register(surveys_group: click.Group) -> None:
+    from . import survey_edits
+
+    survey_edits.register(surveys_group)
+
     @surveys_group.command("export-docx")
     @click.argument("survey_path", type=click.Path(exists=True))
     @click.option("--output", "output_path", required=True, type=click.Path(), help="Output .docx file.")
@@ -183,7 +212,7 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("add-question")
+    @surveys_group.command("add-question", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option("--question-type", required=True, help="Question type, e.g. free_text or multiple_choice.")
     @click.option("--question-name", required=True, help="Question name.")
@@ -221,10 +250,11 @@ def register(surveys_group: click.Group) -> None:
         \b
         Examples:
           ep surveys add-question survey.ep --question-type multiple_choice --question-name q1 --question-text "Pick one." --option A --option B
+          ep surveys add-question survey.ep --question-type interview --question-name followup --question-text "Tell us about your experience." --question-json '{"interview_guide":"Ask why they chose {{ rating.answer }}."}'
           ep surveys add-question survey.ep --question-type top_k --question-name top --question-text "Top two?" --option A --option B --option C --min-selections 2 --max-selections 2
         """
         try:
-            survey = _load_survey(survey_path)
+            survey = _load_survey(survey_path, preview=True)
             question = _build_question_from_fields(
                 question_type=question_type,
                 question_name=question_name,
@@ -254,19 +284,21 @@ def register(surveys_group: click.Group) -> None:
                 params=params,
                 question_json=question_json,
             )
-            if replace and question_name in survey.question_names:
+            if replace:
+                if question_name not in survey.question_names:
+                    error(
+                        "QUESTION_NOT_FOUND",
+                        f"Cannot replace missing question: {question_name}",
+                        suggestion="Use add-question without --replace to add a new question.",
+                        exit_code=EXIT_USAGE,
+                    )
                 existing_index = survey.question_name_to_index[question_name]
-                survey = survey.delete_question(question_name)
-                index = existing_index if index is None else index
-            elif replace:
-                error(
-                    "QUESTION_NOT_FOUND",
-                    f"Cannot replace missing question: {question_name}",
-                    suggestion="Use add-question without --replace to add a new question.",
-                    exit_code=EXIT_USAGE,
-                )
-            survey = survey.add_question(question, index=index)
-            saved = save_edsl_object(survey, output_path or survey_path, object_type="Survey")
+                survey = survey_edits.replace_question(survey, question_name, question)
+                if index is not None and index != existing_index:
+                    survey = survey.move_question(question_name, index)
+            else:
+                survey = survey.add_question(question, index=index)
+            saved = _save_survey_edit(survey, output_path or survey_path)
             if raw_output_written(saved):
                 return
             output(_survey_output(survey, saved))
@@ -280,13 +312,14 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("add-instruction")
+    @surveys_group.command("add-instruction", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option("--name", required=True, help="Instruction name.")
     @click.option("--text", required=True, help="Instruction text or path to a text file.")
     @click.option("--preamble", default="You were given the following instructions:", show_default=True, help="Instruction preamble.")
     @click.option("--output", "-o", "output_path", default=None, help="Output .ep package, serialized file, or '-' for raw JSON stdout. Defaults to SURVEY_PATH.")
-    def add_instruction(survey_path: str, name: str, text: str, preamble: str, output_path: str | None):
+    @click.option("--before", metavar="QUESTION", help="Insert immediately before this question. Defaults to appending the instruction.")
+    def add_instruction(survey_path: str, name: str, text: str, preamble: str, output_path: str | None, before: str | None):
         """Add an Instruction object to a Survey.
 
         Example:
@@ -295,9 +328,21 @@ def register(surveys_group: click.Group) -> None:
         try:
             from edsl.instructions import Instruction
 
-            survey = _load_survey(survey_path)
-            survey = survey.add_instruction(Instruction(name=name, text=_read_text_or_value(text), preamble=preamble))
-            saved = save_edsl_object(survey, output_path or survey_path, object_type="Survey")
+            survey = _load_survey(survey_path, preview=True)
+            instruction = Instruction(name=name, text=_read_text_or_value(text), preamble=preamble)
+            if name in survey.question_names or name in survey._instruction_names_to_instructions:
+                error("VALIDATION_ERROR", f"A survey item named {name!r} already exists.", exit_code=EXIT_VALIDATION)
+            if before is None:
+                survey.add_instruction(instruction)
+            else:
+                if before not in survey.question_names:
+                    error("VALIDATION_ERROR", f"Unknown question {before!r}.", exit_code=EXIT_VALIDATION)
+                data = survey.to_dict()
+                items = data["questions"]
+                index = next(i for i, item in enumerate(items) if item.get("question_name") == before)
+                items.insert(index, instruction.to_dict())
+                survey = type(survey).from_dict(data)
+            saved = _save_survey_edit(survey, output_path or survey_path)
             if raw_output_written(saved):
                 return
             output(_survey_summary(survey, saved=saved))
@@ -311,7 +356,7 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("set-memory")
+    @surveys_group.command("set-memory", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option("--full", "full_memory", is_flag=True, default=False, help="Remember all prior questions for each later question.")
     @click.option("--target", "targeted_memory", multiple=True, help="Targeted memory as FOCAL=PRIOR. Repeat for multiple prior questions.")
@@ -327,13 +372,13 @@ def register(surveys_group: click.Group) -> None:
         if not full_memory and not targeted_memory:
             error("USAGE_ERROR", "Provide --full or at least one --target FOCAL=PRIOR.", exit_code=EXIT_USAGE)
         try:
-            survey = _load_survey(survey_path)
+            survey = _load_survey(survey_path, preview=True)
             if full_memory:
                 survey = survey.set_full_memory_mode()
             for focal_question, prior_question in _parse_pairs(targeted_memory).items():
                 for prior in prior_question:
                     survey = survey.add_targeted_memory(focal_question, prior)
-            saved = save_edsl_object(survey, output_path or survey_path, object_type="Survey")
+            saved = _save_survey_edit(survey, output_path or survey_path)
             if raw_output_written(saved):
                 return
             output(_survey_summary(survey, saved=saved))
@@ -347,7 +392,7 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("set-option-randomization")
+    @surveys_group.command("set-option-randomization", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option(
         "--question",
@@ -361,6 +406,7 @@ def register(surveys_group: click.Group) -> None:
         default=None,
         help="JSON object (or path to one) mapping question names to option values kept in their original positions.",
     )
+    @click.option("--add", is_flag=True, help="Add shuffle targets and pins while retaining the existing policy. The default replaces the policy.")
     @click.option("--clear", is_flag=True, help="Clear option randomization and pinned options.")
     @click.option("--output", "-o", "output_path", default=None, help="Output .ep package, serialized file, or '-' for raw JSON stdout. Defaults to SURVEY_PATH.")
     def set_option_randomization(
@@ -368,6 +414,7 @@ def register(surveys_group: click.Group) -> None:
         question_names: tuple[str, ...],
         pin_options_json: str | None,
         clear: bool,
+        add: bool,
         output_path: str | None,
     ):
         """Configure per-interview answer-option randomization.
@@ -376,17 +423,21 @@ def register(surveys_group: click.Group) -> None:
         Examples:
           ep surveys set-option-randomization survey.ep --question q0
           ep surveys set-option-randomization survey.ep --question q0 --pin-options '{"q0":["Other"]}'
+          ep surveys set-option-randomization survey.ep --add --question stall --pin-options '{"stall":["No preference"]}'
           ep surveys set-option-randomization survey.ep --clear
         """
-        if clear and (question_names or pin_options_json):
-            error("USAGE_ERROR", "--clear cannot be combined with --question or --pin-options.", exit_code=EXIT_USAGE)
+        if clear and (add or question_names or pin_options_json):
+            error("USAGE_ERROR", "--clear cannot be combined with --add, --question or --pin-options.", exit_code=EXIT_USAGE)
         if not clear and not question_names:
             error("USAGE_ERROR", "Provide at least one --question or use --clear.", exit_code=EXIT_USAGE)
         if len(set(question_names)) != len(question_names):
             error("USAGE_ERROR", "Each --question may be provided only once.", exit_code=EXIT_USAGE)
 
         try:
-            survey = _load_survey(survey_path)
+            survey = _load_survey(survey_path, preview=True)
+            previous_questions = list(survey.questions_to_randomize or [])
+            previous_pins = dict(survey.options_to_pin or {})
+            warnings = []
             if clear:
                 survey.questions_to_randomize = []
                 survey.options_to_pin = {}
@@ -399,20 +450,39 @@ def register(surveys_group: click.Group) -> None:
                     if not hasattr(question, "question_options"):
                         error("INVALID_RANDOMIZATION_TARGET", f"Question {question_name!r} has no answer options to randomize.", exit_code=EXIT_VALIDATION)
 
-                pin_options = _load_json_object(pin_options_json) if pin_options_json else {}
+                pin_options = load_json_object(pin_options_json) if pin_options_json else {}
                 for question_name, values in pin_options.items():
                     if question_name not in question_names:
                         error("INVALID_PINNED_OPTIONS", f"Pinned options were supplied for {question_name!r}, but it is not listed with --question.", exit_code=EXIT_VALIDATION)
                     if not isinstance(values, list):
                         error("INVALID_PINNED_OPTIONS", f"Pinned options for {question_name!r} must be a JSON list.", exit_code=EXIT_VALIDATION)
 
-                survey.questions_to_randomize = list(question_names)
-                survey.options_to_pin = pin_options
+                if add:
+                    survey.questions_to_randomize = list(dict.fromkeys([*previous_questions, *question_names]))
+                    combined = {name: list(values) for name, values in previous_pins.items()}
+                    for name, values in pin_options.items():
+                        pins = combined.setdefault(name, [])
+                        for value in values:
+                            if value not in pins:
+                                pins.append(value)
+                    survey.options_to_pin = combined
+                else:
+                    removed = [q for q in previous_questions if q not in question_names]
+                    unpinned = [q for q, values in previous_pins.items()
+                                if any(v not in pin_options.get(q, []) for v in values)]
+                    if removed or unpinned:
+                        warnings.append(
+                            f"Replaced the option-order policy. Removed shuffle targets: {removed}. "
+                            f"Removed pinned options from: {unpinned}. "
+                            "Use --add on the original survey to retain existing targets and pins."
+                        )
+                    survey.questions_to_randomize = list(question_names)
+                    survey.options_to_pin = pin_options
 
-            saved = save_edsl_object(survey, output_path or survey_path, object_type="Survey")
+            saved = _save_survey_edit(survey, output_path or survey_path)
             if raw_output_written(saved):
                 return
-            output(_survey_summary(survey, saved=saved))
+            output(_survey_summary(survey, saved=saved), warnings=warnings)
         except SystemExit:
             raise
         except Exception as e:
@@ -423,7 +493,7 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("set-question-sampling")
+    @surveys_group.command("set-question-sampling", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option(
         "--eligible-question",
@@ -451,15 +521,13 @@ def register(surveys_group: click.Group) -> None:
     ):
         """Configure exact-count sampling without replacement for survey questions."""
         try:
-            survey = _load_survey(survey_path)
+            survey = _load_survey(survey_path, preview=True)
             survey.sample_questions(
                 list(eligible_questions),
                 sample_size,
                 required_questions=list(required_questions),
             )
-            saved = save_edsl_object(
-                survey, output_path or survey_path, object_type="Survey"
-            )
+            saved = _save_survey_edit(survey, output_path or survey_path)
             if raw_output_written(saved):
                 return
             output(_survey_summary(survey, saved=saved))
@@ -476,7 +544,7 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("add-question-group")
+    @surveys_group.command("add-question-group", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option("--name", "group_name", required=True, help="Question group name.")
     @click.option("--start", "start_question", required=True, help="First question in the group.")
@@ -489,9 +557,9 @@ def register(surveys_group: click.Group) -> None:
           ep surveys add-question-group survey.ep --name demographics --start age --end income
         """
         try:
-            survey = _load_survey(survey_path)
+            survey = _load_survey(survey_path, preview=True)
             survey = survey.add_question_group(start_question, end_question, group_name)
-            saved = save_edsl_object(survey, output_path or survey_path, object_type="Survey")
+            saved = _save_survey_edit(survey, output_path or survey_path)
             if raw_output_written(saved):
                 return
             output(_survey_summary(survey, saved=saved))
@@ -505,7 +573,7 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("add-question-order-block")
+    @surveys_group.command("add-question-order-block", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option(
         "--name", "block_name", required=True, help="Stable name for this randomization block."
@@ -531,11 +599,9 @@ def register(surveys_group: click.Group) -> None:
     ):
         """Declare a contiguous block of independent questions to permute per interview."""
         try:
-            survey = _load_survey(survey_path)
+            survey = _load_survey(survey_path, preview=True)
             survey.randomize_question_order(block_name, list(questions))
-            saved = save_edsl_object(
-                survey, output_path or survey_path, object_type="Survey"
-            )
+            saved = _save_survey_edit(survey, output_path or survey_path)
             if raw_output_written(saved):
                 return
             output(_survey_summary(survey, saved=saved))
@@ -634,7 +700,7 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("set-scale-direction-randomization")
+    @surveys_group.command("set-scale-direction-randomization", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option(
         "--question",
@@ -665,14 +731,12 @@ def register(surveys_group: click.Group) -> None:
                     "Provide one or more --question options, or use --clear.",
                     exit_code=EXIT_USAGE,
                 )
-            survey = _load_survey(survey_path)
+            survey = _load_survey(survey_path, preview=True)
             if clear_policy:
                 survey.clear_scale_direction_randomization()
             else:
                 survey.randomize_scale_direction(*question_names)
-            saved = save_edsl_object(
-                survey, output_path or survey_path, object_type="Survey"
-            )
+            saved = _save_survey_edit(survey, output_path or survey_path)
             if raw_output_written(saved):
                 return
             output(_survey_summary(survey, saved=saved))
@@ -688,17 +752,25 @@ def register(surveys_group: click.Group) -> None:
 
     @surveys_group.command("questions")
     @click.argument("survey_path")
-    def survey_questions(survey_path: str):
-        """List Survey questions.
+    @click.option("--ref", "--commit", help="Read the questions at a local package revision from ep log.")
+    def survey_questions(survey_path: str, ref: str | None):
+        """List questions from a Survey or the instrument saved inside Jobs or Results.
 
         Example:
           ep surveys questions survey.ep
         """
         try:
-            survey = _load_survey(survey_path)
+            from edsl import Jobs, Results, Survey
+
+            source = load_any_object(survey_path, preview=True, ref=ref)
+            survey = source.survey if isinstance(source, (Jobs, Results)) else source
+            if not isinstance(survey, Survey):
+                error("UNSUPPORTED_OBJECT", f"No saved survey found in {type(source).__name__}.", exit_code=EXIT_USAGE)
             output(
                 {
                     "object_type": "Survey",
+                    "source_object_type": type(source).__name__,
+                    **({"commit": source.git.commit} if ref is not None else {}),
                     "question_count": len(survey.questions),
                     "questions": [_question_summary(q) for q in survey.questions],
                 }
@@ -713,7 +785,7 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("add-skip-rule")
+    @surveys_group.command("add-skip-rule", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option("--question", "question_name", required=True, help="Question name where the rule is evaluated.")
     @click.option("--expression", required=True, help="Expression that triggers the rule.")
@@ -726,7 +798,7 @@ def register(surveys_group: click.Group) -> None:
           ep surveys add-skip-rule survey.ep --question q1 --expression "{{ q0.answer }} == 'no'"
         """
         try:
-            survey = _load_survey(survey_path)
+            survey = _load_survey(survey_path, preview=True)
             if next_question is None:
                 survey = survey.add_skip_rule(question_name, expression)
             else:
@@ -736,7 +808,7 @@ def register(surveys_group: click.Group) -> None:
                     _parse_next_question(next_question),
                     before_rule=True,
                 )
-            saved = save_edsl_object(survey, output_path or survey_path, object_type="Survey")
+            saved = _save_survey_edit(survey, output_path or survey_path)
             if raw_output_written(saved):
                 return
             output(_survey_summary(survey, saved=saved))
@@ -750,7 +822,7 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("add-stop-rule")
+    @surveys_group.command("add-stop-rule", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option("--question", "question_name", required=True, help="Question name where the rule is evaluated.")
     @click.option("--expression", required=True, help="Expression that ends the survey when true.")
@@ -762,9 +834,9 @@ def register(surveys_group: click.Group) -> None:
           ep surveys add-stop-rule survey.ep --question q0 --expression "{{ q0.answer }} == 'no'"
         """
         try:
-            survey = _load_survey(survey_path)
+            survey = _load_survey(survey_path, preview=True)
             survey = survey.add_stop_rule(question_name, expression)
-            saved = save_edsl_object(survey, output_path or survey_path, object_type="Survey")
+            saved = _save_survey_edit(survey, output_path or survey_path)
             if raw_output_written(saved):
                 return
             output(_survey_summary(survey, saved=saved))
@@ -778,7 +850,7 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("drop-question")
+    @surveys_group.command("drop-question", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option("--question", "question_name", required=True, help="Question name to remove.")
     @click.option("--output", "-o", "output_path", default=None, help="Output .ep package, serialized file, or '-' for raw JSON stdout. Defaults to SURVEY_PATH.")
@@ -789,9 +861,9 @@ def register(surveys_group: click.Group) -> None:
           ep surveys drop-question survey.ep --question q1
         """
         try:
-            survey = _load_survey(survey_path)
+            survey = _load_survey(survey_path, preview=True)
             survey = survey.delete_question(question_name)
-            saved = save_edsl_object(survey, output_path or survey_path, object_type="Survey")
+            saved = _save_survey_edit(survey, output_path or survey_path)
             if raw_output_written(saved):
                 return
             output(_survey_summary(survey, saved=saved))
@@ -805,7 +877,7 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("move-question")
+    @surveys_group.command("move-question", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option("--question", "question_name", required=True, help="Question name to move.")
     @click.option("--index", required=True, type=int, help="New zero-based question index.")
@@ -817,9 +889,9 @@ def register(surveys_group: click.Group) -> None:
           ep surveys move-question survey.ep --question q2 --index 1
         """
         try:
-            survey = _load_survey(survey_path)
+            survey = _load_survey(survey_path, preview=True)
             survey = survey.move_question(question_name, index)
-            saved = save_edsl_object(survey, output_path or survey_path, object_type="Survey")
+            saved = _save_survey_edit(survey, output_path or survey_path)
             if raw_output_written(saved):
                 return
             output(_survey_summary(survey, saved=saved))
@@ -896,8 +968,12 @@ def _build_question_from_fields(
     )
     spec.update(_parse_json_params(params))
     if question_json:
-        spec.update(_load_json_object(question_json))
+        spec.update(load_json_object(question_json))
     return _build_question(spec)
+
+
+def _save_survey_edit(survey, path: str) -> dict:
+    return save_edsl_object(survey, path, object_type="Survey", sync_coop=False)
 
 
 def _survey_output(survey, saved: dict) -> dict:
@@ -920,9 +996,21 @@ def _load_survey(path: str, *, preview=False):
 
     survey = load_any_object(path, preview=preview)
     if not isinstance(survey, Survey):
+        from edsl.jobs import Jobs
+        from shlex import quote
+
+        suggestion = f"Use ep inspect {quote(str(path))} to review this object's contents."
+        if isinstance(survey, Jobs):
+            error(
+                "UNSUPPORTED_OBJECT",
+                "This file contains a Jobs object with an embedded survey.",
+                suggestion=suggestion + " Use ep jobs preview-prompt to inspect an assigned interview.",
+                details=[survey.assignment_summary()], exit_code=EXIT_USAGE,
+            )
         error(
             "UNSUPPORTED_OBJECT",
             f"Expected a Survey object, got {type(survey).__name__}.",
+            suggestion=suggestion,
             exit_code=EXIT_USAGE,
         )
     return survey
@@ -936,7 +1024,7 @@ def _survey_summary(survey, saved: dict | None = None) -> dict:
         "question_names": survey.question_names,
         "questions": [_question_summary(q) for q in survey.questions],
         "rule_count": len(rules),
-        "rules": [_rule_summary(rule) for rule in rules],
+        "rules": [_rule_summary(rule, survey.question_names) for rule in rules],
         "question_groups": getattr(survey, "question_groups", {}),
         "questions_to_randomize": getattr(survey, "questions_to_randomize", []),
         "options_to_pin": getattr(survey, "options_to_pin", {}),
@@ -947,6 +1035,7 @@ def _survey_summary(survey, saved: dict | None = None) -> dict:
         "question_order": survey.question_order,
         "memory_plan": _memory_plan_summary(survey),
         "instructions": _instruction_summary(survey),
+        "item_order": [item.name for item in survey.recombined_questions_and_instructions()],
     }
     if saved is not None:
         data["saved"] = saved
@@ -959,16 +1048,21 @@ def _question_summary(question) -> dict:
         "question_type": question.question_type,
         "question_text": question.question_text,
     }
+    if getattr(question, "_is_thinking_question", False):
+        from .survey_question_model import model_override
+
+        data["model_override"] = model_override(question)
     if hasattr(question, "question_options"):
         data["question_options"] = getattr(question, "question_options")
-    for attr in ("min_value", "max_value", "question_items", "num_selections", "min_selections", "max_selections"):
+    for attr in ("option_labels", "min_value", "max_value", "question_items", "num_selections", "min_selections", "max_selections"):
         if hasattr(question, attr):
             data[attr] = getattr(question, attr)
     return data
 
 
-def _rule_summary(rule) -> dict:
+def _rule_summary(rule, question_names) -> dict:
     return {
+        "question": question_names[rule.current_q] if rule.current_q in range(len(question_names)) else None,
         "current_q": rule.current_q,
         "expression": rule.expression,
         "next_q": rule.next_q,
@@ -1038,7 +1132,7 @@ def _apply_direct_question_flags(
     if value_descriptions:
         spec["value_descriptions"] = list(value_descriptions)
     if answer_template:
-        spec["answer_template"] = _load_json_object(answer_template)
+        spec["answer_template"] = load_json_object(answer_template)
     if option_labels:
         spec["option_labels"] = _parse_option_labels(option_labels, spec.get("question_options", []))
     scalar_flags = {
@@ -1088,24 +1182,6 @@ def _parse_json_value(value: str):
         error("INVALID_JSON", f"Failed to parse option JSON {value!r}: {e}", exit_code=EXIT_USAGE)
 
 
-def _load_json_object(value: str) -> dict:
-    from pathlib import Path
-
-    path = Path(value)
-    try:
-        is_file = path.is_file()
-    except OSError:
-        is_file = False
-    raw = path.read_text(encoding="utf-8") if is_file else value
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError as e:
-        error("INVALID_JSON", f"Failed to parse JSON: {e}", exit_code=EXIT_USAGE)
-    if not isinstance(data, dict):
-        error("USAGE_ERROR", "JSON input must be an object.", exit_code=EXIT_USAGE)
-    return data
-
-
 def _parse_pairs(items: tuple[str, ...]) -> dict[str, list[str]]:
     pairs: dict[str, list[str]] = {}
     for item in items:
@@ -1132,7 +1208,11 @@ def _memory_plan_summary(survey) -> dict:
 def _instruction_summary(survey) -> list[dict]:
     instructions = getattr(survey, "_instruction_names_to_instructions", {}) or {}
     return [
-        {"name": name, "text": getattr(instruction, "text", str(instruction))}
+        (
+            {"name": name, "text": instruction.text}
+            if hasattr(instruction, "text")
+            else {"name": name, "keep": instruction.keep, "drop": instruction.drop}
+        )
         for name, instruction in instructions.items()
     ]
 

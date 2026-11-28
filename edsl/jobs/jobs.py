@@ -777,6 +777,30 @@ class Jobs(MarkdownPreviewMixin, Base):
             scenario._index = index
             scenario._position_index = index
 
+    def assignment_summary(self) -> dict:
+        """Describe interview counts without drawing surveys or evaluating filters."""
+        if self.treatment_assignment is not None:
+            mode = "treatment_schedule"
+            count = max(1, len(self.agents)) * max(1, len(self.models))
+        elif getattr(self, "_interviews", None):
+            mode, count = "stored_interviews", len(self._interviews)
+        elif self._include_expression is not None:
+            return {
+                "assignment_mode": "filtered",
+                "interviews_per_iteration": None,
+                "interview_filter": self._include_expression,
+            }
+        elif self._assignment_plan is not None:
+            mode, count = self._assignment_plan.mode, len(self._assignment_plan)
+        else:
+            mode, count = "cross", len(self)
+        summary = {"assignment_mode": mode, "interviews_per_iteration": count}
+        if mode == "zip":
+            comparisons = self._assignment_plan.paired_identifier_counts(self.agents, self.scenarios)
+            if comparisons:
+                summary["paired_identifier_counts"] = comparisons
+        return summary
+
     @property
     def assignment_plan(self):
         """Return the normalized plan of interviews to construct."""

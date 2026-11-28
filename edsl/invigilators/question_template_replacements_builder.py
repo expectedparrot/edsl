@@ -1,7 +1,6 @@
-import re
 from typing import Any, Set, TYPE_CHECKING
 
-from jinja2 import Environment, meta, TemplateSyntaxError
+from jinja2 import Environment, meta, nodes, TemplateSyntaxError
 
 # Module-level cache for compiled templates and scenario file keys
 _template_variables_cache = {}
@@ -16,6 +15,17 @@ if TYPE_CHECKING:
     from ..questions import QuestionBase
     from ..agents import Agent
     from ..scenarios import Scenario
+
+
+class _ScenarioWithFileReferences(dict):
+    """Resolve explicit file lookups without including files in scenario dumps."""
+
+    def __init__(self, fields, file_references):
+        super().__init__(fields)
+        self._file_references = file_references
+
+    def __missing__(self, key):
+        return self._file_references[key]
 
 
 class QuestionTemplateReplacementsBuilder:
@@ -210,48 +220,33 @@ class QuestionTemplateReplacementsBuilder:
         if cache_key in _file_keys_extraction_cache:
             return _file_keys_extraction_cache[cache_key]
 
-        # Extract file keys for the first time
-
         variables = QuestionTemplateReplacementsBuilder.get_jinja2_variables(
             question_text
         )
-        question_file_keys = []
+        referenced = set(variables)
+        if scenario_file_keys and "scenario" in variables:
+            for node in _JINJA_ENV.parse(question_text).find_all(
+                (nodes.Getattr, nodes.Getitem)
+            ):
+                if (
+                    not isinstance(node.node, nodes.Name)
+                    or node.node.name != "scenario"
+                ):
+                    continue
+                if isinstance(node, nodes.Getattr):
+                    referenced.add(node.attr)
+                elif isinstance(node.arg, nodes.Const) and isinstance(
+                    node.arg.value, str
+                ):
+                    referenced.add(node.arg.value)
+                elif not isinstance(node.arg, nodes.Const):
+                    # A computed subscript can select any public file. Each file
+                    # is eligible here; only tags in the final render attach it.
+                    referenced.update(key for key in scenario_file_keys if not key.startswith("_"))
 
-        # Direct references: {{ file_key }}
-        for var in variables:
-            if var in scenario_file_keys:
-                question_file_keys.append(var)
-
-        # Scenario-prefixed references: {{ scenario.file_key }}
-        for var in variables:
-            if var == "scenario":
-                # If we find a scenario variable, we need to check for nested references
-                # Create a modified template with just {{ scenario.* }} expressions to isolate them
-                # Using a template format for reference, not actually used
-                _ = "".join(
-                    ["{% for key, value in scenario.items() %}{{ key }}{% endfor %}"]
-                )
-                try:
-                    # This is a check to make sure there's scenario.something syntax in the template
-                    if "scenario." in question_text:
-                        # Extract dot-notation scenario references by parsing the template
-                        scenario_refs = re.findall(
-                            r"{{\s*scenario\.(\w+)\s*}}", question_text
-                        )
-                        for key in scenario_refs:
-                            if key in scenario_file_keys:
-                                question_file_keys.append(key)
-                except Exception:
-                    # If there's any issue parsing, just continue with what we have
-                    pass
-
-        # Remove duplicates while preserving order
-        seen = set()
-        result = []
-        for key in question_file_keys:
-            if key not in seen:
-                seen.add(key)
-                result.append(key)
+        # These are candidates. The render decides attachment order and which
+        # candidates survive expressions such as {{ scenario.full if open else scenario.crop }}.
+        result = [key for key in scenario_file_keys if key in referenced]
 
         # Cache the result
         _file_keys_extraction_cache[cache_key] = result
@@ -259,7 +254,7 @@ class QuestionTemplateReplacementsBuilder:
         return result
 
     def _scenario_replacements(
-        self, replacement_string: str = "<see file {key}>"
+        self, replacement_string: str = "<see file {key}>", file_references=None
     ) -> dict[str, Any]:
         """
         >>> from edsl import Scenario
@@ -277,9 +272,11 @@ class QuestionTemplateReplacementsBuilder:
         referenced_file_keys = self.question_file_keys()  # Only files used in question
 
         # File references dictionary - ONLY for referenced files
-        file_refs = {
-            key: replacement_string.format(key=key) for key in referenced_file_keys
-        }
+        file_refs = (
+            {key: replacement_string.format(key=key) for key in referenced_file_keys}
+            if file_references is None
+            else file_references
+        )
 
         # Get all scenario file keys for exclusion (cached call)
         all_file_keys = set(self.scenario_file_keys())  # Convert to set for O(1) lookup
@@ -324,6 +321,11 @@ class QuestionTemplateReplacementsBuilder:
             "all": all_items_string,
         }
 
+        if file_refs:
+            scenario_items_with_all = _ScenarioWithFileReferences(
+                scenario_items_with_all,
+                {key: ref for key, ref in file_refs.items() if not key.startswith("_")},
+            )
         scenario_items_with_prefix = {"scenario": scenario_items_with_all}
 
         result = {**file_refs, **scenario_items_all, **scenario_items_with_prefix}
@@ -351,7 +353,9 @@ class QuestionTemplateReplacementsBuilder:
         }
         return {**question_settings, **question_data}
 
-    def build_replacement_dict(self, question_data: dict) -> dict[str, Any]:
+    def build_replacement_dict(
+        self, question_data: dict, *, file_references=None
+    ) -> dict[str, Any]:
         """Builds a dictionary of replacement values for rendering a prompt by combining multiple data sources.
 
 
@@ -373,7 +377,7 @@ class QuestionTemplateReplacementsBuilder:
         """
         rpl = {}
 
-        rpl["scenario"] = self._scenario_replacements()
+        rpl["scenario"] = self._scenario_replacements(file_references=file_references)
         rpl["question"] = self._question_data_replacements(self.question, question_data)
         rpl["prior_answers"] = self.prior_answers_dict
         rpl["agent"] = {"agent": self.agent}

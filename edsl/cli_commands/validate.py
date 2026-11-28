@@ -9,6 +9,7 @@ from typing import Optional
 import click
 
 from edsl.cli_shared import (
+    EXIT_NOT_FOUND,
     EXIT_USAGE,
     EXIT_VALIDATION,
     error,
@@ -28,8 +29,10 @@ def register(app: click.Group) -> None:
     @click.option("--file", "file_path", default=None, help="Path to JSON file to validate.")
     @click.option("--json", "--json_data", "json_data", default=None, help="Inline JSON string.")
     @click.option("--type", "force_type", default=None, help="Force validation as type.")
-    def validate(file_path, json_data, force_type):
-        """Validate a question, survey, or job spec without executing."""
+    @click.option("--allow-scenario-field", multiple=True,
+                  help="For Evaluation, restrict compiled scenario context to these field names. Repeat for each permitted field.")
+    def validate(file_path, json_data, force_type, allow_scenario_field):
+        """Validate a question, survey, job, or judgment evaluation without executing."""
         raw = None
         loaded_type = None
         if file_path:
@@ -37,9 +40,22 @@ def register(app: click.Group) -> None:
 
             path = Path(file_path)
             if path.is_dir() or path.suffix == ".ep":
-                loaded = load_any_object(file_path)
-                loaded_type = loaded.__class__.__name__
-                raw = loaded.to_dict()
+                if not path.exists():
+                    error("FILE_NOT_FOUND", f"Package does not exist: {path}", exit_code=EXIT_NOT_FOUND)
+                try:
+                    loaded = load_any_object(file_path, preview=True)
+                    loaded_type = loaded.__class__.__name__
+                    raw = loaded.to_dict()
+                except Exception as exc:
+                    error(
+                        "INVALID_PACKAGE", f"Could not reopen {path}: {exc}",
+                        suggestion=(
+                            "Create the package with EDSL. For a ScenarioList, save the records as a JSON "
+                            "array and run 'ep scenarios create --from-json rows.json -o repaired.ep'."
+                            if force_type == "scenario_list" else
+                            "Use the matching ep create command or the object's .git.save(path) method, then validate the saved package."
+                        ), exit_code=EXIT_VALIDATION,
+                    )
             else:
                 raw = read_serialized_object(path)
         elif json_data:
@@ -70,6 +86,7 @@ def register(app: click.Group) -> None:
             class_name = loaded_type or raw.get("edsl_class_name")
             serialized_types = {
                 "Survey": "survey",
+                "Evaluation": "evaluation",
                 "Jobs": "job",
                 "AgentList": "agent_list",
                 "ScenarioList": "scenario_list",
@@ -87,8 +104,30 @@ def register(app: click.Group) -> None:
             else:
                 obj_type = "unknown"
 
+        if allow_scenario_field and obj_type != "evaluation":
+            error("USAGE_ERROR", "--allow-scenario-field applies to an Evaluation.",
+                  suggestion="Validate a saved Evaluation with --type evaluation.", exit_code=EXIT_USAGE)
         try:
-            if obj_type == "question":
+            if obj_type == "evaluation":
+                from edsl.evaluations import Evaluation
+
+                actual = loaded_type or raw.get("edsl_class_name")
+                if actual is not None and actual != "Evaluation":
+                    error("VALIDATION_ERROR", f"Expected Evaluation, found {actual}.",
+                          suggestion="Bind the survey and scenarios to a JudgmentModel with survey.to_evaluation(), then save the Evaluation.",
+                          exit_code=EXIT_VALIDATION)
+                plan = Evaluation.from_dict(raw).compile()
+                fields = sorted({key for batch in plan.batches for key in batch.state["scenario"]})
+                outside = sorted(set(fields) - set(allow_scenario_field))
+                if allow_scenario_field and outside:
+                    error("EVALUATION_CONTEXT_MISMATCH", "Compiled requests include unexpected scenario fields.",
+                          suggestion="Project the scenarios onto the permitted columns before binding them to the Evaluation.",
+                          details=[{"unexpected_fields": outside}], exit_code=EXIT_VALIDATION)
+                output({"valid": True, "object_type": "evaluation",
+                        "result_count": len(plan.rows), "request_count": len(plan.batches),
+                        "judgment_count": sum(len(batch.questions) for batch in plan.batches),
+                        "question_names": plan.survey.question_names, "scenario_fields": fields})
+            elif obj_type == "question":
                 normalized = _validate_question(raw, warnings_list)
                 output({"valid": True, "object_type": "question", "normalized": normalized}, warnings=warnings_list)
             elif obj_type == "job":
@@ -114,7 +153,7 @@ def register(app: click.Group) -> None:
                 output(_validate_prompt(raw, warnings_list), warnings=warnings_list)
             else:
                 error("VALIDATION_ERROR", "Could not determine object type from input.",
-                       suggestion="Use --type to specify: question, survey, job, agent_list, scenario_list, prompt.",
+                       suggestion="Use --type to specify: question, survey, job, evaluation, agent_list, scenario_list, prompt.",
                        exit_code=EXIT_VALIDATION)
         except SystemExit:
             raise

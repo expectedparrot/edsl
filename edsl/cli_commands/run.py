@@ -55,7 +55,7 @@ def register(app: click.Group) -> None:
     @click.option("--results_description", default=None, help="Description for the remote results object.")
     @click.option("--fresh", is_flag=True, default=False, help="Ignore cache.")
     @click.option("--n", "-n", "iterations", default=1, type=int, show_default=True, help="Number of iterations per question/scenario/agent/model combination.")
-    @click.option("--local", is_flag=True, default=False, help="Disable remote inference and run locally.")
+    @click.option("--local", is_flag=True, default=False, help="Run EDSL on this machine. Hosted models still call their providers.")
     @click.option("--allow-partial", is_flag=True, default=False, help="Save and return usable partial remote results.")
     @click.option("--max-concurrency", default=None, type=click.IntRange(min=1), help="Maximum concurrent local interviews.")
     @click.option("--api-timeout", default=None, type=click.FloatRange(min=0.001), help="Local model API timeout in seconds.")
@@ -68,6 +68,9 @@ def register(app: click.Group) -> None:
             remote_inference_results_visibility, results_description, fresh,
             iterations, local, allow_partial, max_concurrency, api_timeout, save, output_path, input_path):
         """Run question(s) and get results.
+
+        For a scripted rehearsal with local test models, use ep jobs test-case
+        JOB.ep --all --responses replies.json --output rehearsal.ep.
 
         \b
         Examples:
@@ -210,7 +213,9 @@ def register(app: click.Group) -> None:
                    suggestion="Use 'ep jobs results <job_uuid> --output results.ep' after the job completes.",
                    exit_code=EXIT_USAGE)
 
-        envelope_warnings = []
+        from .jobs import scenario_field_warnings
+
+        envelope_warnings = scenario_field_warnings(job)
         from edsl.config import CONFIG
         original_api_timeout = CONFIG.EDSL_API_TIMEOUT
         try:
@@ -368,10 +373,16 @@ def register(app: click.Group) -> None:
             meta["failed_interview_count"] = failed_count
             meta["completed_interview_count"] = max(result_count - failed_count, 0)
             if failed_count:
-                envelope_warnings.append({
+                warning = {
                     "code": "PARTIAL_RESULTS",
                     "message": f"{failed_count} of {result_count} interviews had unfixed exceptions.",
-                })
+                }
+                if local and job.models and all(getattr(m, "model", None) == "test" for m in job.models):
+                    warning["suggestion"] = (
+                        "For a local regression check, use ep jobs test-case JOB.ep "
+                        "--responses replies.json --expect answers.json. Supply a separate reply for each question."
+                    )
+                envelope_warnings.append(warning)
 
         output({"results": [], "meta": meta}, warnings=envelope_warnings)
 

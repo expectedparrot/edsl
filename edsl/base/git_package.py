@@ -500,14 +500,18 @@ def unpack_package_archive(
         raise FileNotFoundError(f"No EDSL package archive at {archive_path}")
     worktree = new_package_worktree(archive_path)
     try:
-        with zipfile.ZipFile(archive_path) as archive:
-            for member in archive.infolist():
-                _validate_archive_member(member.filename)
-            archive.extractall(worktree)
-    except zipfile.BadZipFile as exc:
-        raise ValueError(f"{archive_path} is not a valid EDSL package archive") from exc
-    ensure_package_repo(worktree)
-    return worktree
+        try:
+            with zipfile.ZipFile(archive_path) as archive:
+                for member in archive.infolist():
+                    _validate_archive_member(member.filename)
+                archive.extractall(worktree)
+        except zipfile.BadZipFile as exc:
+            raise ValueError(f"{archive_path} is not a valid EDSL package archive") from exc
+        ensure_package_repo(worktree, display_path=archive_path)
+        return worktree
+    except BaseException:
+        shutil.rmtree(worktree, ignore_errors=True)
+        raise
 
 
 def pack_package_archive(
@@ -563,11 +567,11 @@ def _validate_archive_member(name: str) -> None:
         raise ValueError(f"Unsafe path in EDSL package archive: {name!r}")
 
 
-def ensure_package_repo(path: Path) -> None:
+def ensure_package_repo(path: Path, *, display_path: Optional[Path] = None) -> None:
     if not path.is_dir():
         raise FileNotFoundError(f"No EDSL git package at {path}")
     if not (path / ".git").is_dir():
-        raise ValueError(f"{path} is not a Git-backed EDSL package")
+        raise ValueError(f"{display_path or path} is not a Git-backed EDSL package")
 
 
 def init_package(path: Path, *, error_cls: Type[Exception] = GitPackageError) -> None:

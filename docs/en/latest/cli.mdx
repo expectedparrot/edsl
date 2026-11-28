@@ -180,6 +180,86 @@ ep inspect survey.ep
 
 `add-question` updates the survey package in place. A job built earlier retains its saved survey, so rebuild the job to include the new question. Use `ep agents create --help` and `ep scenarios create --help` for creating respondent profiles and scenario data from files.
 
+### Edit a saved survey locally
+
+Use `ep surveys` to revise a local file from the terminal. Each successful in-place edit to a `.ep` package records a revision when its contents change. Pass `--output` to write a separate file. These edits work offline.
+
+```bash
+ep surveys update-question travel.ep mode --option Walk --option Bus --option Train --option Other --output revised.ep
+ep surveys update-question revised.ep mode --question-text "How do you usually get to work?"
+ep surveys rename-question revised.ep mode commute_mode
+ep surveys show revised.ep --markdown --with-question-names
+```
+
+Repeated `--option` flags supply the complete ordered choice list. For typed values or other question fields, pass a JSON object or filename with `--patch`. Renaming updates references inside the survey, including answer piping, memory, and skip rules. Review any separate settings files or scripts that refer to the old name.
+
+For a survey with questions named `channel`, `receipt`, and `notes`, this example shows the receipt page only to in-store respondents. It carries existing browser settings into a new local file.
+
+```bash
+ep surveys add-skip-rule checkout.ep --question receipt --expression "{{ channel.answer }} == 'Online'"
+ep surveys set-groups checkout.ep --groups '{"start":["channel","channel"],"details":["receipt","receipt"],"finish":["notes","notes"]}'
+ep humanize schema create --survey checkout.ep --base-schema settings.json --presentation group --optional receipt --output revised-settings.json
+ep surveys check-paths checkout.ep --schema revised-settings.json --paths paths.json
+```
+
+Each path in `paths.json` lists the expected pages in order. Include the answers that affect routing. The command checks the end of the survey and exits with a validation error at the first mismatch.
+
+```json
+{
+  "store": [
+    {"page": ["channel"], "answers": {"channel": "Store"}},
+    {"page": ["receipt"]},
+    {"page": ["notes"]}
+  ],
+  "online": [
+    {"page": ["channel"], "answers": {"channel": "Online"}},
+    {"page": ["notes"]}
+  ]
+}
+```
+
+To change a question's type while keeping its name, position, routing and group membership, supply a full replacement definition. For example, convert a rating stored as text choices to a scale with numeric options.
+
+```bash
+ep surveys replace-question intake.ep trip_score --question-json '{"type":"linear_scale","options":[1,2,3,4,5]}' -o revised.ep
+```
+
+The existing wording carries over if you omit it. Supply the new type's question-specific settings. Check any downstream expressions that compare answers against the old options.
+
+### Place page directions and preview an independent judge
+
+For a grouped human survey, put directions immediately before the first question on the relevant page. Inspect the saved item's position in `data.item_order`.
+
+```bash
+ep surveys add-instruction care.ep --name visit_directions --text "Count visits during the past month." --before clinic_visits
+ep surveys show care.ep
+```
+
+For a simulated study, a single question can use a different model and system prompt while keeping its type and answer options. Here a respondent chooses an application type and an independent reviewer evaluates it. Render a sample prompt locally to verify that the auditor receives that choice.
+
+```bash
+ep surveys create --question-type multiple_choice --question-name application --question-text "Which application type?" --option New --option Renewal -o eligibility.ep
+ep surveys add-question eligibility.ep --question-type multiple_choice --question-name audit --question-text 'Review this application type: {{ application.answer }}' --option Pass --option Review
+ep surveys set-question-model eligibility.ep audit --service openai --model gpt-4o-mini --system-prompt "Apply the eligibility criteria."
+ep surveys preview-prompt eligibility.ep audit --answers '{"application":"Renewal"}'
+```
+
+The preview returns the model override and rendered user and system prompts without calling a provider. Use `--traits` and `--scenario` to supply additional sample inputs as JSON. For a question that inherits the job's model, the preview uses the test model. Use `ep surveys set-question-model eligibility.ep audit --clear` to restore the job's model and agent persona.
+
+### Edit the inputs to a simulation
+
+Use `edit-item` with a local agent, scenario, or model list. Positions start at zero. A patch merges nested fields, so changing one trait or model parameter preserves its siblings. Insert without an index to append, or use `--remove --index N` to delete an item. Pass `--output` to write a separate list.
+
+```bash
+ep agents edit-item people.ep --index 0 --patch '{"traits":{"city":"Boston"}}'
+ep scenarios edit-item topics.ep --insert '{"topic":"commuting"}'
+ep models edit-item panel.ep --index 0 --patch '{"parameters":{"temperature":0.2}}' --output panel-v2.ep
+```
+
+Apply revised inputs to a saved job with `ep jobs edit study.ep --survey revised.ep --models panel-v2.ep --output study-v2.ep`. Each supplied file replaces that component. You can add `--agents` and `--scenarios` in the same command. Running the revised job is a separate step.
+
+With a ScenarioList, `ep jobs build` returns a JSON warning when a field has no direct reference in the survey's question or instruction templates. For example, a question that uses `{{ product }}` with scenario columns `product` and `record_id` returns a warning with `"code": "UNREFERENCED_SCENARIO_FIELDS"` and `"fields": ["record_id"]`. The job is still saved. An ID used to join results can stay as metadata. A characteristic meant to influence an answer should reach the relevant question. The same advisory appears in the JSON from `ep jobs edit` and `ep run`. Analysis skips dynamic access to the whole scenario and functional questions, where the fields used can depend on runtime data.
+
 To read a survey in the terminal, print its Markdown questionnaire or save it for review:
 
 ```bash
@@ -206,6 +286,38 @@ For example, a Yes/No question can display `○ No → Go to question 3`. The sk
 condition above the answer choices, even on a page by itself. More complex
 conditions appear at the question where they are evaluated. The flag writes Markdown
 directly to stdout on success. Omit it for the normal JSON summary.
+
+### Check routing against example interviews
+
+Write examples from the research brief before implementing its skip or stop rules. Each `expected_path` lists every question this respondent should see, in order, through the end. For a survey with consent and two follow-up routes, save a file named `paths.json`:
+
+```json
+{
+  "cases": [
+    {"name": "declines", "answers": {"consent": "No"}, "expected_path": ["consent"]},
+    {"name": "needs help", "answers": {"consent": "Yes", "rating": 0}, "expected_path": ["consent", "rating", "urgent", "closing"]},
+    {"name": "just above cutoff", "answers": {"consent": "Yes", "rating": 3.5}, "expected_path": ["consent", "rating", "routine", "closing"]}
+  ]
+}
+```
+
+```bash
+ep surveys check-paths survey.ep --cases paths.json
+```
+
+Supply answers for visited questions used in routing rules. Other answers are optional. Optional `scenario` and `agent` objects provide values for context-dependent rules. The checker uses only answers from questions reached so far and verifies the end of the interview. A mismatch returns exit code 5 and the first divergence for each failing case in `error.details`. For example, a broad fallback might send the “needs help” respondent from `rating` to `routine` when the brief requires `urgent`. Correct the rule and rerun the cases.
+
+To repair a checkbox follow-up, change the existing skip condition on the write-in question. This example shows the write-in whenever the respondent selected Other, including alongside another choice.
+
+```bash
+ep surveys show draft.ep
+ep surveys replace-rule draft.ep --question write_in --expression "'Other' not in {{ amenities.answer }}" --output final.ep
+ep surveys check-paths final.ep --cases paths.json
+```
+
+The edit preserves the rule’s priority, evaluation phase, and destination. If the question has several custom rules, select one using `--when before|after`, `--priority`, or `--match-expression` with the exact old condition. For an after-answer rule, `--next` can change the destination to another question or `EndOfSurvey`. Omit `--output` to update the source package.
+
+The check walks local, question-level skip and stop rules without inference. It compares question names in the survey’s fixed order. Use `--schema` and `--paths` for grouped browser pages. Job-level order and sampling policies require assignment-level tests. A rule expression that draws a random value can take a different path on a later run.
 
 Set answer-option randomization on a survey with `set-option-randomization`. Repeat `--question` for each question; use `--pin-options` with a JSON object or a path to one when some options should stay in their original positions. This works for static choices and whole option lists resolved from scenarios or prior answers:
 
@@ -312,6 +424,24 @@ For example, `agents.to_markdown(page=2, page_size=5)` returns the second page i
 Use `ep inspect survey.ep --markdown` for the same quick, paged look you would give
 any study object. Use `ep surveys show survey.ep --markdown` to read or export the
 whole questionnaire, or to include question names, types, or all dropdown choices.
+
+## Rehearse a saved job with scripted responses
+
+A rehearsal exercises routing, option order, answer decoding and validation using a local test model. Give each question that will be asked a scripted reply. For example, if `station` is a coded multiple-choice question and `reason` is free text, save this as `replies.json`.
+
+```json
+{"station": 1, "reason": "Step-free route"}
+```
+
+Check the second interview's decoded station against the study brief, or run the same replies over every assignment and save the actual prompts and answers.
+
+```bash
+ep jobs test-case jobs.ep --interview-index 1 --responses replies.json --expect '{"station":"Creek"}'
+ep jobs test-case jobs.ep --all --iterations 2 --responses replies.json --output rehearsal.ep
+ep results select --file rehearsal.ep --column scenario.line --column answer.station
+```
+
+The rehearsal substitutes test models for both job and per-question models. A skipped question can omit its reply. A failed check identifies the interview, question and mismatch, exits with code 5 and preserves any existing output. Omit `--iterations` to use the job's saved treatment schedule.
 
 ## Run with language models
 

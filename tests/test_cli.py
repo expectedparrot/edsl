@@ -785,6 +785,35 @@ class TestObjectTransformCli:
         assert inspected["data"]["object_type"] == "ScenarioList"
         assert inspected["data"]["scenario_count"] == 2
 
+    def test_scenarios_extract_distinguishes_existing_package_history(self, tmp_path):
+        from edsl import Scenario, ScenarioList
+
+        source = tmp_path / "source.ep"
+        dest = tmp_path / "partner.ep"
+        rows = ScenarioList([Scenario({"code": "P01", "private": "old value"})], codebook={"private": "roster"})
+        rows.git.save(source, sync_coop=False)
+        args = ["scenarios", "transform", str(source), "--select", "code", "-o", str(dest)]
+        assert run_cli(*args)["warnings"] == []
+        rows.git.save(dest, sync_coop=False)
+        response = run_cli(*args)
+        assert response["data"]["keys"] == ["code"]
+        assert response["warnings"][0]["code"] == "PACKAGE_HISTORY_RETAINED"
+        assert ScenarioList.git.load(dest, ref="HEAD~1", sync_coop=False)[0]["private"] == "old value"
+        original = source.read_bytes()
+        fresh = run_cli(*args, "--fresh-package")
+        assert fresh["data"]["saved"]["history"] == "fresh"
+        reopened = ScenarioList.git.load(dest, sync_coop=False)
+        assert list(map(dict, reopened)) == [{"code": "P01"}]
+        assert len(reopened.git.log()) == 1
+        assert reopened.codebook == {}
+        assert source.read_bytes() == original
+        alias = tmp_path / "same.ep"
+        alias.symlink_to(source)
+        for target in (alias, source, tmp_path / "output.csv"):
+            err = run_cli("scenarios", "transform", str(source), "-o", str(target), "--fresh-package", expect_exit=2)
+            assert err["error"]["code"] == "USAGE_ERROR"
+        assert source.read_bytes() == original
+
     def test_scenarios_create_from_json_list_and_transform(self, tmp_path):
         from edsl import ScenarioList
 
@@ -2750,6 +2779,7 @@ class TestJobsCli:
         out = json.loads(result.output)
         assert out["data"]["commands"] == [
             "build",
+            "edit",
             "set-treatment-assignment",
             "list",
             "status",
@@ -3574,6 +3604,43 @@ class TestHumanizeCli:
         assert result.exit_code == 0, result.output
         out = json.loads(result.output)
         assert out["data"]["valid"] is True
+
+    def test_schema_validate_interview_context_and_languages(self, tmp_path):
+        from edsl import QuestionFreeText, QuestionInterview, Survey
+
+        survey = Survey([
+            QuestionFreeText(question_name="rating", question_text="Rating?"),
+            QuestionFreeText(question_name="other", question_text="Any other comments about {{ rating.answer }}?"),
+            QuestionInterview(question_name="followup", question_text="Your experience",
+                              interview_guide="{% if rating.answer == 'low' %}What went wrong?{% else %}Why {{ rating.answer }}?{% endif %}"),
+        ])
+        survey.add_targeted_memory("followup", "other")
+        survey.add_targeted_memory("followup", "rating")
+        path, schema = tmp_path / "study.ep", tmp_path / "web.json"
+        survey.git.save(path, sync_coop=False)
+        run_cli("humanize", "schema", "create", "--survey", str(path), "--output", str(schema),
+                "--interview-mode", "followup=both", "--text-language", "followup=spanish",
+                "--voice-language", "followup=french")
+        check = ["humanize", "schema", "validate", "--survey", str(path), "--schema", str(schema)]
+        report = run_cli(*check, "--answers", '{"rating":"low","other":"private detail"}')["data"]
+        assert report["rendered_question_texts"]["other"] == "Any other comments about low?"
+        diagnostic = run_cli(*check)["warnings"]
+        assert len(diagnostic) == 1 and diagnostic[0]["code"] == "INTERVIEW_MEMORY_NOT_PIPED"
+        assert diagnostic[0]["prior_questions"] == ["other"]
+        assert "{{ other.answer }}" in diagnostic[0]["message"]
+        info = report["interviews"]["followup"]
+        assert info["prior_question_references"] == ["rating"]
+        assert info["unreferenced_sample_answers"] == ["other"]
+        assert info["rendered_interview_guide"] == "What went wrong?"
+        assert info["languages"] == {"text": "spanish", "voice": "french"}
+        assert info["missing_sample_answers"] == []
+        assert "private detail" not in json.dumps(info)
+        assert run_cli(*check, "--answers", "{}")["data"]["interviews"]["followup"]["missing_sample_answers"] == ["rating"]
+        assert run_cli(*check, "--answers", '{"typo":3}', expect_exit=5)["error"]["code"] == "VALIDATION_ERROR"
+        rejected = run_cli("humanize", "schema", "create", "--survey", str(path), "--interview-mode", "other=both", expect_exit=5)
+        assert "'free_text'" in rejected["error"]["message"]
+        assert "--replace" in rejected["error"]["suggestion"]
+        assert "--question-type interview" in rejected["error"]["suggestion"]
 
     def test_humanize_schema_create_from_direct_controls(self, tmp_path):
         from edsl.questions import (
@@ -7424,6 +7491,72 @@ class TestSurveys:
         assert result.exit_code == 0, result.output
         assert "review" in result.output
         assert "set-option-randomization" in result.output
+
+    def test_extend_option_randomization_keeps_existing_targets_and_pins(
+        self, tmp_path
+    ):
+        from edsl import QuestionMultipleChoice, Survey
+
+        path = tmp_path / "original.ep"
+        revised = tmp_path / "updated.ep"
+        questions = [
+            QuestionMultipleChoice(
+                question_name=name,
+                question_text="Pick one.",
+                question_options=["A", "B", "Other"],
+            )
+            for name in ["original", "new"]
+        ]
+        Survey(
+            questions,
+            questions_to_randomize=["original"],
+            options_to_pin={"original": ["B"]},
+        ).git.save(path)
+        original = path.read_bytes()
+        base = ["surveys", "set-option-randomization"]
+        flags = ["--add", "--question", "new", "--pin-options", '{"new":["Other"]}']
+        runner = CliRunner()
+        result = runner.invoke(
+            cli_module.app, base + [str(path), *flags, "-o", str(revised)]
+        )
+        assert result.exit_code == 0, result.output
+        again = runner.invoke(cli_module.app, base + [str(revised), *flags])
+        data = json.loads(again.output)["data"]
+        assert data["questions_to_randomize"] == ["original", "new"]
+        assert data["options_to_pin"] == {"original": ["B"], "new": ["Other"]}
+        more = runner.invoke(
+            cli_module.app,
+            base
+            + [
+                str(revised),
+                "--add",
+                "--question",
+                "original",
+                "--pin-options",
+                '{"original":["B","Other"]}',
+            ],
+        )
+        assert json.loads(more.output)["data"]["options_to_pin"]["original"] == [
+            "B",
+            "Other",
+        ]
+        assert (
+            runner.invoke(
+                cli_module.app, base + [str(revised), "--add", "--clear"]
+            ).exit_code
+            == 2
+        )
+        replace = runner.invoke(
+            cli_module.app, base + [str(revised), "--question", "new"]
+        )
+        response = json.loads(replace.output)
+        assert replace.exit_code == 0 and response["data"][
+            "questions_to_randomize"
+        ] == ["new"]
+        assert (
+            "original" in response["warnings"][0] and "--add" in response["warnings"][0]
+        )
+        assert path.read_bytes() == original
 
     def test_surveys_set_option_randomization_for_dynamic_options(self, tmp_path):
         from edsl.questions import QuestionMultipleChoice

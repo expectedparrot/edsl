@@ -99,24 +99,19 @@ class EditSurvey:
 
         self.survey._pseudo_indices[question.question_name] = index
 
-        ## Re-do question_name to index - this is done automatically
-        # for question_name, old_index in self.survey.question_name_to_index.items():
-        #     if old_index >= index:
-        #         self.survey.question_name_to_index[question_name] = old_index + 1
-
-        ## Need to re-do the rule collection and the indices of the questions
-
-        ## If a rule is before the insertion index and next_q is also before the insertion index, no change needed.
-        ## If the rule is before the insertion index but next_q is after the insertion index, increment the next_q by 1
-        ## If the rule is after the insertion index, increment the current_q by 1 and the next_q by 1
-
-        # using index + 1 presumes there is a next question
         if interior_insertion:
             for rule in self.survey.rule_collection:
                 if rule.current_q >= index:
                     rule.current_q += 1
-                if isinstance(rule.next_q, int) and rule.next_q >= index:
+                if rule.priority == RulePriority.DEFAULT.value:
+                    # Default navigation always visits the next question in order.
+                    rule.next_q = rule.current_q + 1
+                elif isinstance(rule.next_q, int) and rule.next_q >= index:
                     rule.next_q += 1
+            for group, (start, end) in self.survey.question_groups.items():
+                self.survey.question_groups[group] = (
+                    start + int(index <= start), end + int(index <= end)
+                )
 
         # add a new rule
         self.survey.rule_collection.add_rule(

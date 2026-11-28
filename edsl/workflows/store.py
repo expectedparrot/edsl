@@ -30,6 +30,29 @@ class SQLiteWorkflowStore:
         Path(self.path).parent.mkdir(parents=True, exist_ok=True)
         self._initialize()
 
+    @staticmethod
+    def read_recorded_item(path, instance_id, step_name, participant_id):
+        """Read the stored render and committed answers together without initializing a run."""
+        from contextlib import closing
+
+        uri = Path(path).resolve().as_uri() + "?mode=ro"
+        with closing(sqlite3.connect(uri, uri=True)) as db:
+            row = db.execute(
+                """SELECT i.status, r.survey, s.answers FROM workflow_items AS i
+                   LEFT JOIN workflow_item_renders AS r ON r.work_item_id = i.id
+                   LEFT JOIN workflow_submissions AS s ON s.work_item_id = i.id
+                   WHERE i.instance_id = ? AND i.step_name = ? AND i.participant_id = ?""",
+                (instance_id, step_name, participant_id),
+            ).fetchone()
+        if row is None:
+            return None
+        status, survey, answers = row
+        return {
+            "status": status,
+            "survey": json.loads(survey) if survey is not None else None,
+            "answers": json.loads(answers) if answers is not None else None,
+        }
+
     def connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.path, timeout=30, isolation_level=None)
         connection.row_factory = sqlite3.Row

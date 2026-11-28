@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shlex
 from pathlib import Path
 
 import click
@@ -129,6 +130,10 @@ def register(app: click.Group) -> None:
     @app.group("orchestration")
     def orchestration_group():
         """Validate and execute portable respondent workflow experiments."""
+
+    from .workflow_item import check_item
+
+    orchestration_group.add_command(check_item)
 
     @orchestration_group.command("start")
     @click.option(
@@ -437,13 +442,31 @@ def register(app: click.Group) -> None:
             )
             completion_path = Path(output_dir) / "completion.json"
             completion_path.write_text(json.dumps(result, indent=2) + "\n")
-            output(
-                {
-                    "run": result,
-                    "output_dir": str(output_dir),
-                    "completion_file": str(completion_path),
+            check_command = ["ep", "orchestration", "check-item", str(output_dir)]
+            if instance_id != "experiment":
+                check_command.extend(["--instance-id", instance_id])
+            check_command.extend(["--step", "STEP", "--participant", "ID"])
+            data = {
+                "run": result,
+                "output_dir": str(output_dir),
+                "completion_file": str(completion_path),
+                "check_item_command": shlex.join(check_command),
+            }
+            warnings = []
+            if responses:
+                scripted = {
+                    agent.name for agent in experiment.agents
+                    if experiment.execution_plan.resolve(agent.traits).kind == "scripted"
                 }
-            )
+                ignored = sorted({row["participant"] for row in responses} & scripted)
+                if ignored:
+                    data["scripted_replay_participants"] = ignored
+                    warnings.append(
+                        "These participants use the scripted answers in the definition, even when "
+                        "--responses supplies their answers. To rehearse different answers, bind "
+                        "these participants to human() and supply --responses."
+                    )
+            output(data, warnings=warnings)
         except Exception as exc:
             error(
                 "RUN_ERROR",

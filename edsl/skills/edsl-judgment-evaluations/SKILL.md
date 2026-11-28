@@ -46,6 +46,8 @@ plan = evaluation.compile()  # No model calls
 results = plan.run()         # Requires TYPESAFE_API_KEY
 ```
 
+Reopen the delivered package with `ep validate --file review.ep --type evaluation`. This compiles the saved workload offline and reports its request count, judgment count, and scenario field names. For a blind review, pass allowed fields explicitly, e.g. `--allow-scenario-field case_id --allow-scenario-field message`. Keep human labels in a separate local key. This check verifies scenario column names; inspect allowed text and any agent traits separately for unintended disclosures.
+
 Use `await evaluation.run_async()` inside an existing event loop. Bind agents
 only when their traits or instructions are part of the judgment context.
 

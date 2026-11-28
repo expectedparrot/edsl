@@ -176,8 +176,6 @@ class TestPriorAnswerFiles(unittest.TestCase):
         return FileStore(f.name)
 
     def _make_constructor(self, question_text, current_answers):
-        # Fresh objects each call: prior_answer_files mutates the survey's
-        # canonical question objects, so tests must not share a survey.
         up = QuestionFileUpload(question_name="up", question_text="Upload a file.")
         q = QuestionFreeText(question_name="q1", question_text=question_text)
         survey = Survey([up, q])
@@ -229,6 +227,50 @@ class TestPriorAnswerFiles(unittest.TestCase):
         c = self._make_constructor("Describe {{ up.answer }}", {"up": fsl})
         _ = c.prior_answer_files  # triggers the placeholder swap
         self.assertEqual(str(c.prior_answers_dict()["up"].answer), "<see file up>")
+
+    def test_conditional_upload_selects_only_the_displayed_index(self):
+        c = self._make_constructor(
+            "Literal <see file up[0]>: "
+            "{% if show_original %}{{ up.answer[0] }}{% else %}{{ up.answer[1] }}{% endif %}",
+            {"up": [self.fs1, self.fs2]},
+        )
+        c.scenario["show_original"] = False
+        prompt = c.get_prompts()
+        self.assertIn("<see file up[1]>", prompt["user_prompt"].text)
+        self.assertEqual(prompt["files_list"], [self.fs2])
+        self.assertEqual(c.prior_answer_files, [self.fs2])
+        self.assertEqual(c.get_prompts(), prompt)
+
+    def test_runtime_index_and_scenario_files_share_display_order(self):
+        c = self._make_constructor(
+            "{{ up.answer[pick] }} then {{ scenario.background }} then {{ up.answer }}",
+            {"up": [self.fs1, self.fs2]},
+        )
+        background = self._make_filestore(b"background")
+        c.scenario.update({"pick": -1, "background": background})
+        prompt = c.get_prompts()
+        self.assertIn("<see file up[-1]> then <see file background> then <see file up>", prompt["user_prompt"].text)
+        self.assertEqual(prompt["files_list"], [self.fs2, background, self.fs1])
+
+    def test_conditional_upload_with_no_visible_file(self):
+        c = self._make_constructor(
+            "{% if show %}{{ up.answer }}{% else %}No upload required.{% endif %}",
+            {"up": [self.fs1]},
+        )
+        c.scenario["show"] = False
+        self.assertNotIn("files_list", c.get_prompts())
+
+    def test_concurrent_interviews_keep_their_own_prior_uploads(self):
+        first = self._make_constructor("Read {{ up.answer }}", {"up": self.fs1})
+        second = PromptConstructor(
+            agent=first.agent, question=first.question, scenario=first.scenario,
+            survey=first.survey, model=first.model, current_answers={"up": self.fs2},
+            memory_plan=first.memory_plan,
+        )
+        first.prior_answers_dict()
+        second.prior_answers_dict()
+        self.assertEqual(first.get_prompts()["files_list"], [self.fs1])
+        self.assertEqual(second.get_prompts()["files_list"], [self.fs2])
 
     def test_get_prompts_attaches_files_and_hides_metadata(self):
         fsl = FileStoreList(data=[self.fs1, self.fs2])
