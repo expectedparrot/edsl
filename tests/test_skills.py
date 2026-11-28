@@ -11,6 +11,16 @@ from edsl.skills.cli import _anchor_slug
 from edsl.skills.cli import skills as skills_command
 
 
+def test_skills_index_advertises_package_guide():
+    result = CliRunner().invoke(skills_command, [])
+
+    assert result.exit_code == 0, result.output
+    envelope = json.loads(result.output)
+    assert envelope["status"] == "ok"
+    assert "guide" in envelope["data"]["commands"]
+    assert set(envelope["data"]["commands"]) == set(skills_command.commands)
+
+
 def test_html_heading_and_link_fragments_share_a_slug():
     heading = "Per-question model + system prompt (`thinking_question`)"
     fragment = "per-question-model--system-prompt-thinking_question"

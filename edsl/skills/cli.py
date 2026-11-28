@@ -258,7 +258,7 @@ def _render_html(name: str, description: str, files: list[dict]) -> Path:
 def skills(ctx: click.Context):
     """Discover and install version-matched EDSL skills."""
     if ctx.invoked_subcommand is None:
-        output({"commands": ["list", "search", "show", "install"], "help": "Use 'ep skills <command> --help' for details."})
+        output({"commands": list(skills.commands), "help": "Use 'ep skills <command> --help' for details."})
 
 
 @skills.command("list")
