@@ -4,6 +4,7 @@ import re
 
 from pydantic import BaseModel, Field, model_validator, ValidationError
 
+from . import markdown_layout as md
 from .question_base import QuestionBase
 from .descriptors import QuestionOptionsDescriptor
 from .response_validator_abc import ResponseValidatorABC
@@ -440,6 +441,9 @@ class QuestionDemand(QuestionBase):
             "answer": quantities,
             "comment": random_string() if self.include_comment else None,
         }
+
+    def _markdown_answer(self, view):
+        return "Enter a quantity for each price.\n\n" + md.fill_in_table(("Price", "Quantity"), self.prices)
 
     @property
     def question_html_content(self) -> str:

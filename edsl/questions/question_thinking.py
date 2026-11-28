@@ -31,6 +31,7 @@ class QuestionThinking(QuestionBase):
     """
 
     question_type = "thinking"
+    _markdown_hint = "Model-generated text response"
     _response_model = FreeTextResponse
     response_validator_class = FreeTextResponseValidator
 

@@ -1,5 +1,5 @@
 """
-EDSL CLI — agent-friendly interface. All output is JSON on stdout.
+EDSL CLI — agent-friendly interface. Default output is JSON on stdout.
 
 Entry point: ep = "edsl.__main__:main" (pyproject.toml)
 """
@@ -58,7 +58,7 @@ from edsl.cli_shared import (
 @click.group(invoke_without_command=True)
 @click.pass_context
 def app(ctx):
-    """EDSL CLI — run LLM surveys. All output is JSON."""
+    """EDSL CLI — run LLM surveys. Default output is JSON."""
     if ctx.invoked_subcommand is None:
         _output({
             "commands": [

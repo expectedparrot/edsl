@@ -1,0 +1,884 @@
+{
+  "manifest": {
+    "started_utc": "2026-09-18T13:02:50.746537+00:00",
+    "dataset": {
+      "dataset": "UCI SMS Spam Collection",
+      "dataset_url": "https://archive.ics.uci.edu/dataset/228/sms%2Bspam%2Bcollection",
+      "download_url": "https://archive.ics.uci.edu/static/public/228/sms%2Bspam%2Bcollection.zip",
+      "citation": "Almeida, T. & Hidalgo, J. (2011). SMS Spam Collection. https://doi.org/10.24432/C5CC84",
+      "license": "CC BY 4.0",
+      "source_sha256": "1587ea43e58e82b14ff1f5425c88e17f8496bfcdb67a583dbff9eefaf9963ce3",
+      "downloaded_rows": 5574,
+      "unique_nonconflicting_messages": 5171,
+      "conflicting_messages_excluded": 0,
+      "sampling": "uniform without replacement after exact-text deduplication",
+      "seed": 20260918,
+      "sample_count": 1000,
+      "class_counts": {
+        "ham": 882,
+        "spam": 118
+      },
+      "text_characters": {
+        "n": 1000,
+        "mean": 78.105,
+        "p50": 60.0,
+        "p95": 160.0,
+        "p99": 240.03999999999996,
+        "max": 446
+      },
+      "labels_sent_to_model": false
+    },
+    "model": "jev-1.13.0",
+    "concurrency": 8,
+    "request_rate_cap": 18,
+    "comparison_inputs": 100,
+    "python": "3.12.7",
+    "platform": "macOS-15.5-arm64-arm-64bit",
+    "git_branch": "feature/judgment-evaluation",
+    "git_head": "5e5ec10180f4914265e859c69488b8bfe27a8789",
+    "implementation_sha256": {
+      "__init__.py": "3d517a0fe3b72d8e049edf83acbefeb9413b72d59c17acc8740028c620608a61",
+      "evaluation.py": "d68c6dfc46d8c7c93529c4c5a8d7868faf45da7ef04ac2936c0e6f2c1efb549e",
+      "executor.py": "968fa67d2573de1f1b11025cc231226e2962b99053955befa6e4498ae8418156",
+      "model.py": "f2f16c42177f7f0b6e7df4e5d7e763446b3e4cce2e68b0d3c25a8f4fd6d018ef",
+      "persistence.py": "ebde729d863f4bbbfb3c18d392ff8f550048d0c8e8a05a0414f94ab3a0ff95f9"
+    },
+    "price_per_million_input_tokens_usd": 0.042,
+    "pricing_source": "https://docs.typesafe.ai/models",
+    "price_checked": "2026-09-18"
+  },
+  "phases": [
+    {
+      "phase": "warmup",
+      "inputs": 5,
+      "questions_per_input": 5,
+      "concurrency": 8,
+      "request_rate_cap": 18.0,
+      "planned_requests": 5,
+      "logical_calls": 5,
+      "http_attempts": 5,
+      "retries": 0,
+      "http_statuses": {
+        "200": 5
+      },
+      "completed_rows": 5,
+      "completed_judgments": 25,
+      "failed_batches": [],
+      "build_seconds": 0.005447041941806674,
+      "compile_seconds": 0.01691620796918869,
+      "execute_seconds": 0.859980084002018,
+      "end_to_end_seconds": 0.8823433339130133,
+      "inputs_per_second": 5.814088131822675,
+      "judgments_per_second": 29.070440659113377,
+      "http_latency_seconds": {
+        "n": 5,
+        "mean": 0.4242412250023335,
+        "p50": 0.4315601249691099,
+        "p95": 0.46831850002054126,
+        "p99": 0.4738590000057593,
+        "max": 0.4752441250020638
+      },
+      "logical_latency_including_pacing_and_retries_seconds": {
+        "n": 5,
+        "mean": 0.5378741584019735,
+        "p50": 0.5541978749679402,
+        "p95": 0.6109555831877514,
+        "p99": 0.6153872830374166,
+        "max": 0.6164952079998329
+      },
+      "pacing_wait_seconds": {
+        "n": 5,
+        "mean": 0.11326991701498627,
+        "p50": 0.11334016697946936,
+        "p95": 0.21491140839643774,
+        "p99": 0.2239099816698581,
+        "max": 0.22615962498821318
+      },
+      "usage": {
+        "input_tokens": 3737,
+        "output_tokens": 630
+      },
+      "estimated_usd": 0.000156954,
+      "actual_models": [
+        "jev-1.13.0"
+      ],
+      "accuracy": {
+        "n": 5,
+        "accuracy": 1.0,
+        "majority_baseline": 0.8,
+        "spam_precision": 1.0,
+        "spam_recall": 1.0,
+        "brier_score": 0.0010600000000000002,
+        "confusion": {
+          "true_spam": 1,
+          "true_ham": 4,
+          "false_spam": 0,
+          "missed_spam": 0
+        },
+        "errors": []
+      },
+      "cache_entries": 5,
+      "save_packages_seconds": 0.14575404208153486
+    },
+    {
+      "phase": "batched_1000",
+      "inputs": 1000,
+      "questions_per_input": 5,
+      "concurrency": 8,
+      "request_rate_cap": 18.0,
+      "planned_requests": 1000,
+      "logical_calls": 1000,
+      "http_attempts": 1000,
+      "retries": 0,
+      "http_statuses": {
+        "200": 1000
+      },
+      "completed_rows": 1000,
+      "completed_judgments": 5000,
+      "failed_batches": [],
+      "build_seconds": 0.0008446250576525927,
+      "compile_seconds": 2.7521091249072924,
+      "execute_seconds": 57.52447529206984,
+      "end_to_end_seconds": 60.27742904203478,
+      "inputs_per_second": 17.38390476267164,
+      "judgments_per_second": 86.91952381335821,
+      "http_latency_seconds": {
+        "n": 1000,
+        "mean": 0.23716166049521417,
+        "p50": 0.20646443805890158,
+        "p95": 0.41752988824155174,
+        "p99": 0.8164233934599904,
+        "max": 1.3930634579155594
+      },
+      "logical_latency_including_pacing_and_retries_seconds": {
+        "n": 1000,
+        "mean": 0.45783118446473964,
+        "p50": 0.44240606302628294,
+        "p95": 0.6437374836357775,
+        "p99": 1.0228654960775747,
+        "max": 1.4222300419351086
+      },
+      "pacing_wait_seconds": {
+        "n": 1000,
+        "mean": 0.22034302286151797,
+        "p50": 0.22977364546386525,
+        "p95": 0.2842977149295621,
+        "p99": 0.2992957375117112,
+        "max": 0.3966656669508666
+      },
+      "usage": {
+        "input_tokens": 745363,
+        "output_tokens": 126000
+      },
+      "estimated_usd": 0.031305246,
+      "actual_models": [
+        "jev-1.13.0"
+      ],
+      "accuracy": {
+        "n": 1000,
+        "accuracy": 0.976,
+        "majority_baseline": 0.882,
+        "spam_precision": 0.8852459016393442,
+        "spam_recall": 0.9152542372881356,
+        "brier_score": 0.018066,
+        "confusion": {
+          "true_spam": 108,
+          "true_ham": 868,
+          "false_spam": 14,
+          "missed_spam": 10
+        },
+        "errors": [
+          {
+            "source_id": 4394,
+            "gold": "spam",
+            "predicted": "ham",
+            "p_spam": 0.08
+          },
+          {
+            "source_id": 3805,
+            "gold": "ham",
+            "predicted": "spam",
+            "p_spam": 0.97
+          },
+          {
+            "source_id": 375,
+            "gold": "spam",
+            "predicted": "ham",
+            "p_spam": 0.26
+          },
+          {
+            "source_id": 5361,
+            "gold": "ham",
+            "predicted": "spam",
+            "p_spam": 0.94
+          },
+          {
+            "source_id": 3849,
+            "gold": "ham",
+            "predicted": "spam",
+            "p_spam": 0.59
+          },
+          {
+            "source_id": 941,
+            "gold": "ham",
+            "predicted": "spam",
+            "p_spam": 0.66
+          },
+          {
+            "source_id": 4048,
+            "gold": "spam",
+            "predicted": "ham",
+            "p_spam": 0.13
+          },
+          {
+            "source_id": 2250,
+            "gold": "spam",
+            "predicted": "ham",
+            "p_spam": 0.07
+          },
+          {
+            "source_id": 4748,
+            "gold": "ham",
+            "predicted": "spam",
+            "p_spam": 0.51
+          },
+          {
+            "source_id": 1638,
+            "gold": "spam",
+            "predicted": "ham",
+            "p_spam": 0.08
+          },
+          {
+            "source_id": 529,
+            "gold": "spam",
+            "predicted": "ham",
+            "p_spam": 0.38
+          },
+          {
+            "source_id": 852,
+            "gold": "ham",
+            "predicted": "spam",
+            "p_spam": 0.72
+          },
+          {
+            "source_id": 3742,
+            "gold": "spam",
+            "predicted": "ham",
+            "p_spam": 0.41
+          },
+          {
+            "source_id": 1260,
+            "gold": "ham",
+            "predicted": "spam",
+            "p_spam": 0.8
+          },
+          {
+            "source_id": 4764,
+            "gold": "ham",
+            "predicted": "spam",
+            "p_spam": 0.56
+          },
+          {
+            "source_id": 66,
+            "gold": "ham",
+            "predicted": "spam",
+            "p_spam": 0.57
+          },
+          {
+            "source_id": 2539,
+            "gold": "ham",
+            "predicted": "spam",
+            "p_spam": 0.53
+          },
+          {
+            "source_id": 1077,
+            "gold": "ham",
+            "predicted": "spam",
+            "p_spam": 0.59
+          },
+          {
+            "source_id": 2227,
+            "gold": "ham",
+            "predicted": "spam",
+            "p_spam": 0.55
+          },
+          {
+            "source_id": 5451,
+            "gold": "spam",
+            "predicted": "ham",
+            "p_spam": 0.19
+          },
+          {
+            "source_id": 2068,
+            "gold": "ham",
+            "predicted": "spam",
+            "p_spam": 0.53
+          },
+          {
+            "source_id": 4914,
+            "gold": "spam",
+            "predicted": "ham",
+            "p_spam": 0.02
+          },
+          {
+            "source_id": 751,
+            "gold": "spam",
+            "predicted": "ham",
+            "p_spam": 0.0
+          },
+          {
+            "source_id": 4659,
+            "gold": "ham",
+            "predicted": "spam",
+            "p_spam": 0.63
+          }
+        ]
+      },
+      "cache_entries": 1000,
+      "save_packages_seconds": 0.30310920800548047
+    },
+    {
+      "phase": "matched_batched",
+      "inputs": 100,
+      "questions_per_input": 5,
+      "concurrency": 8,
+      "request_rate_cap": 18.0,
+      "planned_requests": 100,
+      "logical_calls": 100,
+      "http_attempts": 112,
+      "retries": 12,
+      "http_statuses": {
+        "200": 96,
+        "transport_error": 16
+      },
+      "completed_rows": 96,
+      "completed_judgments": 480,
+      "failed_batches": [
+        "batch 62: TypeSafe transport failed after retries",
+        "batch 63: TypeSafe transport failed after retries",
+        "batch 57: TypeSafe transport failed after retries",
+        "batch 41: TypeSafe transport failed after retries"
+      ],
+      "build_seconds": 0.00019262498244643211,
+      "compile_seconds": 0.27717383310664445,
+      "execute_seconds": 71.91345712495968,
+      "end_to_end_seconds": 72.19082358304877,
+      "inputs_per_second": 1.334937907840901,
+      "judgments_per_second": 6.674689539204505,
+      "http_latency_seconds": {
+        "n": 112,
+        "mean": 1.7693214862187492,
+        "p50": 0.19347745849518105,
+        "p95": 0.49871531461831176,
+        "p99": 44.52387971523568,
+        "max": 62.50526187499054
+      },
+      "logical_latency_including_pacing_and_retries_seconds": {
+        "n": 100,
+        "mean": 2.4060870566335506,
+        "p50": 0.3758750624838285,
+        "p95": 0.8349850047146901,
+        "p99": 52.94786208164072,
+        "max": 69.80344929196872
+      },
+      "pacing_wait_seconds": {
+        "n": 112,
+        "mean": 0.12854942333381456,
+        "p50": 0.08396218746202067,
+        "p95": 0.28900688519934187,
+        "p99": 0.33603602373274044,
+        "max": 0.3955794580979273
+      },
+      "usage": {
+        "input_tokens": 71610,
+        "output_tokens": 12096
+      },
+      "estimated_usd": 0.0030076200000000003,
+      "actual_models": [
+        "jev-1.13.0"
+      ],
+      "accuracy": {
+        "n": 96,
+        "accuracy": 0.9895833333333334,
+        "majority_baseline": 0.8854166666666666,
+        "spam_precision": 1.0,
+        "spam_recall": 0.9090909090909091,
+        "brier_score": 0.011923958333333333,
+        "confusion": {
+          "true_spam": 10,
+          "true_ham": 85,
+          "false_spam": 0,
+          "missed_spam": 1
+        },
+        "errors": [
+          {
+            "source_id": 4394,
+            "gold": "spam",
+            "predicted": "ham",
+            "p_spam": 0.11
+          }
+        ]
+      },
+      "cache_entries": 96,
+      "save_packages_seconds": 0.2109613330103457
+    },
+    {
+      "phase": "matched_single",
+      "inputs": 100,
+      "questions_per_input": 5,
+      "concurrency": 8,
+      "request_rate_cap": 18.0,
+      "planned_requests": 500,
+      "logical_calls": 500,
+      "http_attempts": 980,
+      "retries": 480,
+      "http_statuses": {
+        "transport_error": 632,
+        "200": 348
+      },
+      "completed_rows": 69,
+      "completed_judgments": 345,
+      "failed_batches": [
+        "batch 0: TypeSafe transport failed after retries",
+        "batch 1: TypeSafe transport failed after retries",
+        "batch 2: TypeSafe transport failed after retries",
+        "batch 3: TypeSafe transport failed after retries",
+        "batch 4: TypeSafe transport failed after retries",
+        "batch 5: TypeSafe transport failed after retries",
+        "batch 6: TypeSafe transport failed after retries",
+        "batch 7: TypeSafe transport failed after retries",
+        "batch 8: TypeSafe transport failed after retries",
+        "batch 9: TypeSafe transport failed after retries",
+        "batch 10: TypeSafe transport failed after retries",
+        "batch 11: TypeSafe transport failed after retries",
+        "batch 12: TypeSafe transport failed after retries",
+        "batch 13: TypeSafe transport failed after retries",
+        "batch 14: TypeSafe transport failed after retries",
+        "batch 15: TypeSafe transport failed after retries",
+        "batch 16: TypeSafe transport failed after retries",
+        "batch 17: TypeSafe transport failed after retries",
+        "batch 18: TypeSafe transport failed after retries",
+        "batch 19: TypeSafe transport failed after retries",
+        "batch 20: TypeSafe transport failed after retries",
+        "batch 21: TypeSafe transport failed after retries",
+        "batch 22: TypeSafe transport failed after retries",
+        "batch 23: TypeSafe transport failed after retries",
+        "batch 24: TypeSafe transport failed after retries",
+        "batch 25: TypeSafe transport failed after retries",
+        "batch 26: TypeSafe transport failed after retries",
+        "batch 27: TypeSafe transport failed after retries",
+        "batch 28: TypeSafe transport failed after retries",
+        "batch 29: TypeSafe transport failed after retries",
+        "batch 30: TypeSafe transport failed after retries",
+        "batch 31: TypeSafe transport failed after retries",
+        "batch 32: TypeSafe transport failed after retries",
+        "batch 33: TypeSafe transport failed after retries",
+        "batch 34: TypeSafe transport failed after retries",
+        "batch 35: TypeSafe transport failed after retries",
+        "batch 36: TypeSafe transport failed after retries",
+        "batch 37: TypeSafe transport failed after retries",
+        "batch 38: TypeSafe transport failed after retries",
+        "batch 39: TypeSafe transport failed after retries",
+        "batch 40: TypeSafe transport failed after retries",
+        "batch 41: TypeSafe transport failed after retries",
+        "batch 42: TypeSafe transport failed after retries",
+        "batch 43: TypeSafe transport failed after retries",
+        "batch 44: TypeSafe transport failed after retries",
+        "batch 45: TypeSafe transport failed after retries",
+        "batch 46: TypeSafe transport failed after retries",
+        "batch 47: TypeSafe transport failed after retries",
+        "batch 48: TypeSafe transport failed after retries",
+        "batch 49: TypeSafe transport failed after retries",
+        "batch 50: TypeSafe transport failed after retries",
+        "batch 51: TypeSafe transport failed after retries",
+        "batch 52: TypeSafe transport failed after retries",
+        "batch 53: TypeSafe transport failed after retries",
+        "batch 54: TypeSafe transport failed after retries",
+        "batch 55: TypeSafe transport failed after retries",
+        "batch 56: TypeSafe transport failed after retries",
+        "batch 57: TypeSafe transport failed after retries",
+        "batch 58: TypeSafe transport failed after retries",
+        "batch 59: TypeSafe transport failed after retries",
+        "batch 60: TypeSafe transport failed after retries",
+        "batch 61: TypeSafe transport failed after retries",
+        "batch 62: TypeSafe transport failed after retries",
+        "batch 63: TypeSafe transport failed after retries",
+        "batch 64: TypeSafe transport failed after retries",
+        "batch 65: TypeSafe transport failed after retries",
+        "batch 66: TypeSafe transport failed after retries",
+        "batch 67: TypeSafe transport failed after retries",
+        "batch 68: TypeSafe transport failed after retries",
+        "batch 69: TypeSafe transport failed after retries",
+        "batch 70: TypeSafe transport failed after retries",
+        "batch 71: TypeSafe transport failed after retries",
+        "batch 72: TypeSafe transport failed after retries",
+        "batch 73: TypeSafe transport failed after retries",
+        "batch 74: TypeSafe transport failed after retries",
+        "batch 75: TypeSafe transport failed after retries",
+        "batch 76: TypeSafe transport failed after retries",
+        "batch 77: TypeSafe transport failed after retries",
+        "batch 78: TypeSafe transport failed after retries",
+        "batch 79: TypeSafe transport failed after retries",
+        "batch 80: TypeSafe transport failed after retries",
+        "batch 81: TypeSafe transport failed after retries",
+        "batch 82: TypeSafe transport failed after retries",
+        "batch 83: TypeSafe transport failed after retries",
+        "batch 84: TypeSafe transport failed after retries",
+        "batch 85: TypeSafe transport failed after retries",
+        "batch 86: TypeSafe transport failed after retries",
+        "batch 87: TypeSafe transport failed after retries",
+        "batch 88: TypeSafe transport failed after retries",
+        "batch 89: TypeSafe transport failed after retries",
+        "batch 90: TypeSafe transport failed after retries",
+        "batch 91: TypeSafe transport failed after retries",
+        "batch 92: TypeSafe transport failed after retries",
+        "batch 93: TypeSafe transport failed after retries",
+        "batch 94: TypeSafe transport failed after retries",
+        "batch 95: TypeSafe transport failed after retries",
+        "batch 96: TypeSafe transport failed after retries",
+        "batch 97: TypeSafe transport failed after retries",
+        "batch 98: TypeSafe transport failed after retries",
+        "batch 99: TypeSafe transport failed after retries",
+        "batch 100: TypeSafe transport failed after retries",
+        "batch 101: TypeSafe transport failed after retries",
+        "batch 102: TypeSafe transport failed after retries",
+        "batch 103: TypeSafe transport failed after retries",
+        "batch 104: TypeSafe transport failed after retries",
+        "batch 105: TypeSafe transport failed after retries",
+        "batch 106: TypeSafe transport failed after retries",
+        "batch 107: TypeSafe transport failed after retries",
+        "batch 108: TypeSafe transport failed after retries",
+        "batch 109: TypeSafe transport failed after retries",
+        "batch 110: TypeSafe transport failed after retries",
+        "batch 111: TypeSafe transport failed after retries",
+        "batch 112: TypeSafe transport failed after retries",
+        "batch 113: TypeSafe transport failed after retries",
+        "batch 114: TypeSafe transport failed after retries",
+        "batch 115: TypeSafe transport failed after retries",
+        "batch 116: TypeSafe transport failed after retries",
+        "batch 117: TypeSafe transport failed after retries",
+        "batch 118: TypeSafe transport failed after retries",
+        "batch 119: TypeSafe transport failed after retries",
+        "batch 120: TypeSafe transport failed after retries",
+        "batch 121: TypeSafe transport failed after retries",
+        "batch 122: TypeSafe transport failed after retries",
+        "batch 123: TypeSafe transport failed after retries",
+        "batch 124: TypeSafe transport failed after retries",
+        "batch 125: TypeSafe transport failed after retries",
+        "batch 126: TypeSafe transport failed after retries",
+        "batch 127: TypeSafe transport failed after retries",
+        "batch 128: TypeSafe transport failed after retries",
+        "batch 129: TypeSafe transport failed after retries",
+        "batch 130: TypeSafe transport failed after retries",
+        "batch 131: TypeSafe transport failed after retries",
+        "batch 132: TypeSafe transport failed after retries",
+        "batch 133: TypeSafe transport failed after retries",
+        "batch 134: TypeSafe transport failed after retries",
+        "batch 135: TypeSafe transport failed after retries",
+        "batch 136: TypeSafe transport failed after retries",
+        "batch 137: TypeSafe transport failed after retries",
+        "batch 138: TypeSafe transport failed after retries",
+        "batch 139: TypeSafe transport failed after retries",
+        "batch 140: TypeSafe transport failed after retries",
+        "batch 141: TypeSafe transport failed after retries",
+        "batch 142: TypeSafe transport failed after retries",
+        "batch 143: TypeSafe transport failed after retries",
+        "batch 144: TypeSafe transport failed after retries",
+        "batch 145: TypeSafe transport failed after retries",
+        "batch 146: TypeSafe transport failed after retries",
+        "batch 147: TypeSafe transport failed after retries",
+        "batch 148: TypeSafe transport failed after retries",
+        "batch 149: TypeSafe transport failed after retries",
+        "batch 150: TypeSafe transport failed after retries",
+        "batch 151: TypeSafe transport failed after retries"
+      ],
+      "build_seconds": 0.0001587079605087638,
+      "compile_seconds": 0.30662612500600517,
+      "execute_seconds": 164.45398245903198,
+      "end_to_end_seconds": 164.7607672919985,
+      "inputs_per_second": 0.4195702589153714,
+      "judgments_per_second": 2.097851294576857,
+      "http_latency_seconds": {
+        "n": 980,
+        "mean": 0.12879799011339224,
+        "p50": 0.0037832289817743003,
+        "p95": 0.5895233473100232,
+        "p99": 0.9320262848772124,
+        "max": 1.5666116250213236
+      },
+      "logical_latency_including_pacing_and_retries_seconds": {
+        "n": 500,
+        "mean": 2.6280623996404464,
+        "p50": 0.5389653330203146,
+        "p95": 7.082413149654166,
+        "p99": 7.52385711295763,
+        "max": 7.702706416952424
+      },
+      "pacing_wait_seconds": {
+        "n": 980,
+        "mean": 0.06848959479545129,
+        "p50": 0.00810897903284058,
+        "p95": 0.2504616310179699,
+        "p99": 0.2804279130778741,
+        "max": 0.3962567920098081
+      },
+      "usage": {
+        "input_tokens": 142923,
+        "output_tokens": 9749
+      },
+      "estimated_usd": 0.0060027660000000005,
+      "actual_models": [
+        "jev-1.13.0"
+      ],
+      "accuracy": {
+        "n": 69,
+        "accuracy": 0.9855072463768116,
+        "majority_baseline": 0.855072463768116,
+        "spam_precision": 1.0,
+        "spam_recall": 0.9,
+        "brier_score": 0.016927536231884057,
+        "confusion": {
+          "true_spam": 9,
+          "true_ham": 59,
+          "false_spam": 0,
+          "missed_spam": 1
+        },
+        "errors": [
+          {
+            "source_id": 4394,
+            "gold": "spam",
+            "predicted": "ham",
+            "p_spam": 0.06
+          }
+        ]
+      },
+      "cache_entries": 348,
+      "save_packages_seconds": 0.18820358393713832
+    },
+    {
+      "phase": "cache_replay",
+      "inputs": 1000,
+      "questions_per_input": 5,
+      "concurrency": 8,
+      "request_rate_cap": 18.0,
+      "planned_requests": 1000,
+      "logical_calls": 0,
+      "http_attempts": 0,
+      "retries": 0,
+      "http_statuses": {},
+      "completed_rows": 1000,
+      "completed_judgments": 5000,
+      "failed_batches": [],
+      "build_seconds": 0.0010194580536335707,
+      "compile_seconds": 2.828861166955903,
+      "execute_seconds": 0.13187516701873392,
+      "end_to_end_seconds": 2.9617557920282707,
+      "inputs_per_second": 7582.928784901118,
+      "judgments_per_second": 37914.64392450559,
+      "http_latency_seconds": {
+        "n": 0,
+        "mean": null,
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "max": null
+      },
+      "logical_latency_including_pacing_and_retries_seconds": {
+        "n": 0,
+        "mean": null,
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "max": null
+      },
+      "pacing_wait_seconds": {
+        "n": 0,
+        "mean": null,
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "max": null
+      },
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0
+      },
+      "estimated_usd": 0.0,
+      "actual_models": [],
+      "accuracy": {
+        "n": 1000,
+        "accuracy": 0.976,
+        "majority_baseline": 0.882,
+        "spam_precision": 0.8852459016393442,
+        "spam_recall": 0.9152542372881356,
+        "brier_score": 0.018066,
+        "confusion": {
+          "true_spam": 108,
+          "true_ham": 868,
+          "false_spam": 14,
+          "missed_spam": 10
+        },
+        "errors": [
+          {
+            "source_id": 4394,
+            "gold": "spam",
+            "predicted": "ham",
+            "p_spam": 0.08
+          },
+          {
+            "source_id": 3805,
+            "gold": "ham",
+            "predicted": "spam",
+            "p_spam": 0.97
+          },
+          {
+            "source_id": 375,
+            "gold": "spam",
+            "predicted": "ham",
+            "p_spam": 0.26
+          },
+          {
+            "source_id": 5361,
+            "gold": "ham",
+            "predicted": "spam",
+            "p_spam": 0.94
+          },
+          {
+            "source_id": 3849,
+            "gold": "ham",
+            "predicted": "spam",
+            "p_spam": 0.59
+          },
+          {
+            "source_id": 941,
+            "gold": "ham",
+            "predicted": "spam",
+            "p_spam": 0.66
+          },
+          {
+            "source_id": 4048,
+            "gold": "spam",
+            "predicted": "ham",
+            "p_spam": 0.13
+          },
+          {
+            "source_id": 2250,
+            "gold": "spam",
+            "predicted": "ham",
+            "p_spam": 0.07
+          },
+          {
+            "source_id": 4748,
+            "gold": "ham",
+            "predicted": "spam",
+            "p_spam": 0.51
+          },
+          {
+            "source_id": 1638,
+            "gold": "spam",
+            "predicted": "ham",
+            "p_spam": 0.08
+          },
+          {
+            "source_id": 529,
+            "gold": "spam",
+            "predicted": "ham",
+            "p_spam": 0.38
+          },
+          {
+            "source_id": 852,
+            "gold": "ham",
+            "predicted": "spam",
+            "p_spam": 0.72
+          },
+          {
+            "source_id": 3742,
+            "gold": "spam",
+            "predicted": "ham",
+            "p_spam": 0.41
+          },
+          {
+            "source_id": 1260,
+            "gold": "ham",
+            "predicted": "spam",
+            "p_spam": 0.8
+          },
+          {
+            "source_id": 4764,
+            "gold": "ham",
+            "predicted": "spam",
+            "p_spam": 0.56
+          },
+          {
+            "source_id": 66,
+            "gold": "ham",
+            "predicted": "spam",
+            "p_spam": 0.57
+          },
+          {
+            "source_id": 2539,
+            "gold": "ham",
+            "predicted": "spam",
+            "p_spam": 0.53
+          },
+          {
+            "source_id": 1077,
+            "gold": "ham",
+            "predicted": "spam",
+            "p_spam": 0.59
+          },
+          {
+            "source_id": 2227,
+            "gold": "ham",
+            "predicted": "spam",
+            "p_spam": 0.55
+          },
+          {
+            "source_id": 5451,
+            "gold": "spam",
+            "predicted": "ham",
+            "p_spam": 0.19
+          },
+          {
+            "source_id": 2068,
+            "gold": "ham",
+            "predicted": "spam",
+            "p_spam": 0.53
+          },
+          {
+            "source_id": 4914,
+            "gold": "spam",
+            "predicted": "ham",
+            "p_spam": 0.02
+          },
+          {
+            "source_id": 751,
+            "gold": "spam",
+            "predicted": "ham",
+            "p_spam": 0.0
+          },
+          {
+            "source_id": 4659,
+            "gold": "ham",
+            "predicted": "spam",
+            "p_spam": 0.63
+          }
+        ]
+      },
+      "cache_entries": 1000,
+      "save_packages_seconds": 0.29918804101180285
+    }
+  ],
+  "comparison": {
+    "paired_inputs": 65,
+    "answer_agreement_by_question": {
+      "spam": 1.0,
+      "urgent": 1.0,
+      "commercial": 1.0,
+      "intent": 1.0,
+      "pressure": 1.0
+    },
+    "maximum_probability_difference": 0.09999999999999998
+  },
+  "total_estimated_usd": 0.040472586000000005
+}

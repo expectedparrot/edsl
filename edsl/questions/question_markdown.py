@@ -97,6 +97,7 @@ class QuestionMarkdown(QuestionFreeText):
     """
 
     question_type = "markdown"
+    _markdown_hint = "Markdown response"
     _response_model = MarkdownResponse
     response_validator_class = MarkdownResponseValidator
 

@@ -25,6 +25,7 @@ from typing import (
 
 # simpleeval imports moved to agent_list_filter.py
 
+from edsl.utilities.object_markdown import MarkdownPreviewMixin
 from ..base import Base
 from ..utilities import remove_edsl_version, dict_hash
 from ..dataset.dataset_operations_mixin import AgentListOperationsMixin
@@ -55,7 +56,7 @@ if TYPE_CHECKING:
     from ..dataset import Dataset
 
 
-class AgentList(UserList, Base, AgentListOperationsMixin):
+class AgentList(MarkdownPreviewMixin, UserList, Base, AgentListOperationsMixin):
     """A list of Agents with additional functionality for manipulation and analysis.
 
     The AgentList class extends Python's UserList to provide a container for Agent objects

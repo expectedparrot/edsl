@@ -54,6 +54,7 @@ from typing import (
     List,
 )
 
+from edsl.utilities.object_markdown import MarkdownPreviewMixin
 from ..base import Base
 
 # from ..scenarios import Scenario
@@ -118,7 +119,7 @@ class DirectAnswerMethod(Protocol):
     ) -> Any: ...
 
 
-class Agent(Base):
+class Agent(MarkdownPreviewMixin, Base):
     """A class representing an AI agent with customizable traits that can answer questions.
 
     An Agent in EDSL represents an entity with specific characteristics (traits) that can

@@ -47,16 +47,16 @@ the chat. It stops the assistant knowing it and bringing it up.
 
 With `can_fill_answers` on: `multiple_choice`, `likert_five`, `yes_no`,
 `linear_scale`, `multiple_choice_with_other`, `checkbox`, `checkbox_with_other`,
-`top_k`, `rank`, `numerical`, `free_text`, `edit`, `email`, `list`, `budget`,
-`matrix`, `distribution`, `url`.
+`top_k`, `rank`, `numerical`, `numerical_range`, `free_text`, `edit`, `email`,
+`list`, `budget`, `matrix`, `checkbox_matrix`, `distribution`, `url`.
 
 For `edit`, it always fills in the whole revised text, starting from `text_to_edit`,
 never just the changes.
 
 It explains, but never fills:
 
-- demand, dict and dropdown questions, file uploads and interviews (the chat isn't
-  shown on interview pages);
+- date, date and time, demand, dict and dropdown questions, file uploads and
+  interviews (the chat isn't shown on interview pages);
 - questions the server answers itself, such as compute and image generation;
 - questions with two options (or matrix rows, or distribution outcomes) that read the
   same, since a filled answer couldn't say which it meant;

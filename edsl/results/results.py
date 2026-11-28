@@ -42,6 +42,7 @@ from functools import wraps
 from typing import Optional, Any, Union, List, TYPE_CHECKING
 from collections.abc import Iterable, Mapping, MutableSequence
 
+from edsl.utilities.object_markdown import MarkdownPreviewMixin
 from ..base import Base
 
 if TYPE_CHECKING:
@@ -83,7 +84,7 @@ from .exceptions import (
 )
 
 
-class Results(MutableSequence, ResultsOperationsMixin, Base):
+class Results(MarkdownPreviewMixin, MutableSequence, ResultsOperationsMixin, Base):
     """A collection of Result objects with powerful data analysis capabilities.
 
     The Results class is the primary container for working with data from EDSL surveys.

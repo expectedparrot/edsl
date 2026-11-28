@@ -13,6 +13,7 @@ from edsl.cli_shared import (
     EXIT_VALIDATION,
     error,
     load_any_object,
+    markdown_page,
     output,
     raw_output_written,
     save_edsl_object,
@@ -553,14 +554,75 @@ def register(surveys_group: click.Group) -> None:
 
     @surveys_group.command("show")
     @click.argument("survey_path")
-    def show_survey(survey_path: str):
+    @click.option(
+        "--markdown",
+        is_flag=True,
+        help="Print a readable Markdown questionnaire directly to stdout.",
+    )
+    @click.option(
+        "--with-question-names",
+        is_flag=True,
+        help="Include the question name in each Markdown heading.",
+    )
+    @click.option(
+        "--with-question-types",
+        is_flag=True,
+        help="Include the registered type in each Markdown heading.",
+    )
+    @click.option(
+        "--expand-options",
+        is_flag=True,
+        help="Show every dropdown choice in Markdown. Defaults to the first five.",
+    )
+    @click.option(
+        "--page", type=int, help="One-based Markdown page (default 1 when paging)."
+    )
+    @click.option(
+        "--page-size",
+        "--page_size",
+        type=int,
+        help="Questions per Markdown page (default 10 when paging).",
+    )
+    def show_survey(
+        survey_path: str,
+        markdown: bool,
+        with_question_names: bool,
+        with_question_types: bool,
+        expand_options: bool,
+        page: int | None,
+        page_size: int | None,
+    ):
         """Summarize a Survey.
 
-        Example:
+        \b
+        Examples:
           ep surveys show survey.ep
+          ep surveys show survey.ep --markdown
+          ep surveys show survey.ep --markdown --with-question-names --with-question-types
         """
         try:
-            survey = _load_survey(survey_path)
+            paging = page is not None or page_size is not None
+            if (
+                with_question_names or with_question_types or expand_options or paging
+            ) and not markdown:
+                error(
+                    "USAGE_ERROR",
+                    "Questionnaire display options require --markdown.",
+                    exit_code=EXIT_USAGE,
+                )
+            survey = _load_survey(survey_path, preview=markdown)
+            if markdown:
+                flags = dict(
+                    with_question_names=with_question_names,
+                    with_question_types=with_question_types,
+                    expand_options=expand_options,
+                )
+                if paging:
+                    rendered = markdown_page(survey, page, page_size, **flags)
+                else:
+                    rendered = survey.to_markdown(style="questionnaire", **flags)
+                click.echo(rendered)
+                return
             output(_survey_summary(survey))
         except SystemExit:
             raise
@@ -853,10 +915,10 @@ def _survey_output(survey, saved: dict) -> dict:
     }
 
 
-def _load_survey(path: str):
+def _load_survey(path: str, *, preview=False):
     from edsl.surveys import Survey
 
-    survey = load_any_object(path)
+    survey = load_any_object(path, preview=preview)
     if not isinstance(survey, Survey):
         error(
             "UNSUPPORTED_OBJECT",
