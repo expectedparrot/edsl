@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field, model_validator
 from .decorators import inject_exception
 from .distribution_intervals import MAX_BINS, generate_bins, parse_bins, portable
 from .exceptions import QuestionCreationValidationError
+from . import markdown_layout as md
 from .question_base import QuestionBase
 from .response_validator_abc import ResponseValidatorABC
 
@@ -427,6 +428,9 @@ class QuestionDistribution(QuestionBase):
             "answer": {key: float(i == 0) for i, key in enumerate(self.answer_keys)},
             "comment": "Simulated answer",
         }
+
+    def _markdown_answer(self, view):
+        return "Allocate probabilities totaling 1.\n\n" + md.options(self, "·")
 
     @property
     def question_html_content(self):

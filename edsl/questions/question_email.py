@@ -113,6 +113,7 @@ class QuestionEmail(QuestionBase):
     """A question whose answer must be a valid email address."""
 
     question_type = "email"
+    _markdown_hint = "Email address"
     _response_model = EmailResponse
     response_validator_class = EmailResponseValidator
 

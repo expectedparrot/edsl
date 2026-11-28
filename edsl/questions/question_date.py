@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, StrictStr, field_validator, model_va
 from .decorators import inject_exception
 from .descriptors import QuestionTextDescriptor
 from .exceptions import QuestionCreationValidationError
+from . import markdown_layout as md
 from .question_base import QuestionBase
 from .response_validator_abc import ResponseValidatorABC
 
@@ -199,6 +200,9 @@ class QuestionDate(QuestionBase):
             "answer": date.fromordinal(lower.toordinal() + randint(0, span)).isoformat()
         }
 
+    def _markdown_answer(self, view):
+        return "Enter a date" + md.bounds(self.min_date, self.max_date) + "."
+
     @property
     def question_html_content(self) -> str:
         from jinja2 import Template
@@ -287,6 +291,13 @@ class QuestionDateTime(QuestionBase):
         seconds = max(0, int((upper_utc - lower_utc).total_seconds()))
         answer = lower_utc + timedelta(seconds=randint(0, seconds))
         return {"answer": answer.isoformat()}
+
+    def _markdown_answer(self, view):
+        return (
+            "Enter a date and time"
+            + md.bounds(self.min_datetime, self.max_datetime)
+            + "."
+        )
 
     @property
     def question_html_content(self) -> str:

@@ -77,6 +77,7 @@ class QuestionFileUpload(QuestionBase):
     """
 
     question_type = "file_upload"
+    _markdown_hint = "Upload a file"
     _response_model = FileUploadResponse
     response_validator_class = FileUploadResponseValidator
 

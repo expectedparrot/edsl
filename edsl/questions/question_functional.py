@@ -123,6 +123,7 @@ class QuestionFunctional(QuestionBase):
     """
 
     question_type = "functional"
+    _markdown_hint = "Calculated by a function"
     default_instructions = ""
     activated = True
     function_source_code = ""

@@ -60,6 +60,7 @@ from typing import (
     Callable,
 )
 
+from . import markdown_layout as md
 from .descriptors import QuestionNameDescriptor, QuestionTextDescriptor
 from .answer_validator_mixin import AnswerValidatorMixin
 from .register_questions_meta import RegisterQuestionsMeta
@@ -208,6 +209,44 @@ class QuestionBase(
     @answer.setter
     def answer(self, value):
         self.__dict__["_answer"] = value
+
+    _markdown_hint: str | None = None
+
+    def _markdown_answer(self, view):
+        """Override for response formats that depend on the question's configuration."""
+        hint = (
+            self._markdown_hint
+            or self.question_type.replace("_", " ").capitalize() + " response"
+        )
+        return f"*{md.text(hint)}*"
+
+    def to_markdown(
+        self,
+        *,
+        number: int | None = None,
+        option_notes: dict[int, str] | None = None,
+        before_answer_notes: tuple[str, ...] = (),
+        with_question_names: bool = False,
+        with_question_types: bool = False,
+        expand_options: bool = False,
+    ) -> str:
+        """Render a standalone question or a numbered survey question.
+
+        Subclasses can set a static `_markdown_hint` or implement `_markdown_answer`
+        for a structured response. Its view supplies option-indexed routing notes
+        and the dropdown expansion setting.
+        """
+        prefix = f"{number}. " if number is not None else ""
+        if with_question_names:
+            prefix += f"[{md.text(self.question_name)}] "
+        paragraphs = md.question_text(self.question_text).strip().split("\n\n")
+        paragraphs[-1] += "”"
+        paragraphs[0] = f"**{prefix}“{paragraphs[0]}**"
+        heading = "\n\n".join(paragraphs)
+        if with_question_types:
+            heading += f" ({md.text(self.question_type)})"
+        view = md.AnswerView(option_notes=option_notes, expand_options=expand_options)
+        return "\n\n".join((heading, *before_answer_notes, self._markdown_answer(view)))
 
     question_name: str = QuestionNameDescriptor()  # type: ignore[assignment]
     question_text: str = QuestionTextDescriptor()  # type: ignore[assignment]
