@@ -1115,6 +1115,29 @@ results = survey.by(scenario_list).by(agent_list).by(model_list).run(
 
 Descriptive labels can include the study name and run type to make jobs and results easier to identify.
 
+For several independent remote jobs, `RemoteJobQueue` bounds in-process
+concurrency and yields each `(job_id, results, error)` as it finishes:
+
+```python
+from edsl.jobs import RemoteJobQueue
+
+job = survey.by(model)
+with RemoteJobQueue(max_workers=2, polling_interval=5.0) as queue:
+    queue.submit(job, job_id="job-1")
+    for job_id, results, error in queue.results():
+        if error is None:
+            results.select("answer.*").print()
+```
+
+The queue explicitly requests remote execution and reports failed, partially
+failed, or cancelled jobs in `error`; partial results are included when the
+remote service saved them. It does not fall back to local provider calls.
+
+Submit Jobs-like objects with `queue.submit(job, job_id="optional-id")` first.
+Queue shutdown waits for submitted jobs by default but does not cancel work
+already running remotely. The queue is process-local and is not a durable
+scheduler.
+
 ---
 
 ## Retrieving error reports for failed jobs

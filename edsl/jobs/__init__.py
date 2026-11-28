@@ -17,6 +17,7 @@ from .data_structures import (  # noqa: F401
 from .remote_inference import JobsRemoteInferenceHandler  # noqa: F401
 from .jobs_runner_status import JobsRunnerStatusBase  # noqa: F401
 from .interview_schedule import InterviewSchedule
+from .remote_job_queue import RemoteJobCompletion, RemoteJobQueue
 from .exceptions import (
     JobsErrors,
     JobsRunError,
@@ -57,4 +58,6 @@ __all__ = [
     "AlertFilters",
     "AlertOnCompletionConfig",
     "InterviewSchedule",
+    "RemoteJobQueue",
+    "RemoteJobCompletion",
 ]
