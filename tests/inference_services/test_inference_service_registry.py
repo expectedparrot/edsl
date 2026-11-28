@@ -542,6 +542,7 @@ class TestInferenceServiceRegistry:
             "azure",
             "ollama",
             "openai_compatible",
+            "persimmon",
         ]
 
         registry = InferenceServiceRegistry()

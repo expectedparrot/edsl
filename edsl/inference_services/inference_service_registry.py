@@ -126,6 +126,7 @@ class InferenceServiceRegistry:
         "azure",
         "ollama",
         "openai_compatible",
+        "persimmon",
     )
     # Use lazy loading - discover service modules without importing them
     _default_service_module_map = discover_service_modules()

@@ -74,6 +74,7 @@ class InferenceServiceType(EnumWithChecks):
     XAI = "xai"
     OPEN_ROUTER = "open_router"
     META = "meta"
+    PERSIMMON = "persimmon"
 
 
 # unavoidable violation of the DRY principle but it is necessary
@@ -99,6 +100,7 @@ InferenceServiceLiteral = Literal[
     "xai",
     "open_router",
     "meta",
+    "persimmon",
 ]
 
 available_models_urls = {
@@ -131,6 +133,7 @@ service_to_api_keyname = {
     InferenceServiceType.XAI.value: "XAI_API_KEY",
     InferenceServiceType.OPEN_ROUTER.value: "OPEN_ROUTER_API_KEY",
     InferenceServiceType.META.value: "META_API_KEY",
+    InferenceServiceType.PERSIMMON.value: "PERSIMMON_API_KEY",
     InferenceServiceType.OLLAMA.value: "OLLAMA_API_KEY",
 }
 
