@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 import csv
+import math
 import warnings
 from io import StringIO
 from urllib.parse import urlparse
@@ -16,6 +17,17 @@ if TYPE_CHECKING:
     pass
 
 
+COLUMN_TYPES = {"str": str, "int": int, "float": float}
+
+
+class CSVRowWidthWarning(UserWarning):
+    """A delimited record was skipped because it does not match the header width."""
+
+
+class ColumnTypeError(ScenarioError):
+    """A requested column or its CSV value does not match the import schema."""
+
+
 class DelimitedFileSource(Source):
     """Create ScenarioList from delimited text files (CSV, TSV, etc.)."""
 
@@ -27,6 +39,7 @@ class DelimitedFileSource(Source):
         delimiter: str = ",",
         has_header: bool = True,
         encoding: str = "utf-8",
+        column_types: dict[str, str] | None = None,
         **kwargs,
     ):
         """
@@ -37,12 +50,14 @@ class DelimitedFileSource(Source):
             delimiter: The delimiter character used in the file (default is ',').
             has_header: Whether the file has a header row (default is True).
             encoding: The file encoding to use (default is 'utf-8').
+            column_types: Optional types keyed by CSV header before snakification.
             **kwargs: Additional parameters for csv reader.
         """
         self.file_or_url = file_or_url
         self.delimiter = delimiter
         self.has_header = has_header
         self.encoding = encoding
+        self.column_types = column_types or {}
         self.kwargs = kwargs
 
     @classmethod
@@ -114,6 +129,8 @@ class DelimitedFileSource(Source):
         rows = list(csv_reader)
 
         if not rows:
+            if self.column_types:
+                raise ColumnTypeError("Cannot type columns in a CSV without a header.")
             return ScenarioList()
 
         # Handle header row
@@ -139,16 +156,36 @@ class DelimitedFileSource(Source):
 
         assert len(new_header) == len(set(new_header))
 
+        converters = {}
+        for column, kind in self.column_types.items():
+            if column not in new_header:
+                raise ColumnTypeError(f"Unknown CSV column {column!r}. Available columns: {new_header}.")
+            if kind not in COLUMN_TYPES:
+                raise ColumnTypeError(f"Unsupported type {kind!r} for column {column!r}. Choose str, int or float.")
+            converters[column] = COLUMN_TYPES[kind]
+
         # Create scenarios
         scenarios = []
-        for row in data_rows:
+        for record_number, row in enumerate(data_rows, start=2 if self.has_header else 1):
             if len(row) != len(new_header):
                 warnings.warn(
-                    f"Skipping row with {len(row)} values (expected {len(header)})"
+                    f"Skipping record {record_number}: found {len(row)} fields, expected {len(header)}.",
+                    CSVRowWidthWarning,
                 )
                 continue
 
             scenario_dict = dict(zip(new_header, row))
+            for column, convert in converters.items():
+                value = scenario_dict[column]
+                try:
+                    converted = convert(value)
+                    if convert is float and not math.isfinite(converted):
+                        raise ValueError("Non-finite float")
+                except ValueError as exc:
+                    raise ColumnTypeError(
+                        f"CSV row {record_number}, column {column!r}: cannot convert {value!r} to {convert.__name__}."
+                    ) from exc
+                scenario_dict[column] = converted
             scenarios.append(Scenario(scenario_dict))
 
         return ScenarioList(scenarios)

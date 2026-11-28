@@ -171,6 +171,9 @@ def register(results_group: click.Group) -> None:
           ep results select --file results.ep --column answer.q0 --column agent.age --limit 10
           ep results select --file results.ep --filter "agent.age > 30" --order_by answer.q0
           ep results select --file results.ep --column answer.q0 --csv
+
+        For item completion by wave, compute from exposure metadata and answers on the same rows.
+        See ep skills show edsl-results-validation --reference references/item-completion.md.
         """
         try:
             results_obj = load_results_object(file_path)

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import webbrowser
+from pathlib import Path
 
 import click
 
@@ -18,6 +19,29 @@ from edsl.cli_shared import (
     raw_output_written,
     save_edsl_object,
 )
+
+
+class SurveyEditCommand(click.Command):
+    """Serialize in-place edits from load through save, across CLI processes."""
+
+    def invoke(self, ctx: click.Context):
+        from filelock import FileLock, Timeout
+
+        source = Path(ctx.params["survey_path"]).resolve()
+        output_path = ctx.params.get("output_path")
+        if output_path == "-" or (output_path and Path(output_path).resolve() != source):
+            return super().invoke(ctx)
+
+        # The archive can be replaced during save. Lock a stable sibling path.
+        lock = FileLock(str(source.with_name(f".{source.name}.lock")))
+        try:
+            with lock.acquire(timeout=30):
+                return super().invoke(ctx)
+        except Timeout:
+            error("EDIT_CONFLICT", f"Another edit is still using {source}.",
+                  suggestion="Retry the edit after the other writer finishes.", exit_code=EXIT_ERROR)
+        except OSError as exc:
+            error("SURVEY_EDIT_ERROR", str(exc), exit_code=EXIT_ERROR)
 
 
 def register(surveys_group: click.Group) -> None:
@@ -183,7 +207,7 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("add-question")
+    @surveys_group.command("add-question", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option("--question-type", required=True, help="Question type, e.g. free_text or multiple_choice.")
     @click.option("--question-name", required=True, help="Question name.")
@@ -222,6 +246,12 @@ def register(surveys_group: click.Group) -> None:
         Examples:
           ep surveys add-question survey.ep --question-type multiple_choice --question-name q1 --question-text "Pick one." --option A --option B
           ep surveys add-question survey.ep --question-type top_k --question-name top --question-text "Top two?" --option A --option B --option C --min-selections 2 --max-selections 2
+
+        \b
+        Offer only the choices selected earlier and verify the reopened survey:
+          ep surveys create --question-type checkbox --question-name priorities --question-text "Which two matter most?" --option Lighting --option Signage --option Cleanliness --min-selections 2 --max-selections 2 --output priorities.ep
+          ep surveys add-question priorities.ep --question-type multiple_choice --question-name favorite --question-text "Which is your favorite?" --question-json '{"question_options":"{{ priorities.answer }}"}'
+          python -c "from edsl import Survey; q = Survey.git.load('priorities.ep', sync_coop=False).get('favorite'); selected = ['Lighting', 'Signage']; assert q.render({'priorities': {'answer': selected}}).question_options == selected"
         """
         try:
             survey = _load_survey(survey_path)
@@ -280,7 +310,7 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("add-instruction")
+    @surveys_group.command("add-instruction", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option("--name", required=True, help="Instruction name.")
     @click.option("--text", required=True, help="Instruction text or path to a text file.")
@@ -311,7 +341,7 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("set-memory")
+    @surveys_group.command("set-memory", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option("--full", "full_memory", is_flag=True, default=False, help="Remember all prior questions for each later question.")
     @click.option("--target", "targeted_memory", multiple=True, help="Targeted memory as FOCAL=PRIOR. Repeat for multiple prior questions.")
@@ -347,7 +377,7 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("set-option-randomization")
+    @surveys_group.command("set-option-randomization", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option(
         "--question",
@@ -423,7 +453,7 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("set-question-sampling")
+    @surveys_group.command("set-question-sampling", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option(
         "--eligible-question",
@@ -476,7 +506,7 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("add-question-group")
+    @surveys_group.command("add-question-group", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option("--name", "group_name", required=True, help="Question group name.")
     @click.option("--start", "start_question", required=True, help="First question in the group.")
@@ -505,7 +535,7 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("add-question-order-block")
+    @surveys_group.command("add-question-order-block", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option(
         "--name", "block_name", required=True, help="Stable name for this randomization block."
@@ -634,7 +664,7 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("set-scale-direction-randomization")
+    @surveys_group.command("set-scale-direction-randomization", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option(
         "--question",
@@ -713,7 +743,7 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("add-skip-rule")
+    @surveys_group.command("add-skip-rule", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option("--question", "question_name", required=True, help="Question name where the rule is evaluated.")
     @click.option("--expression", required=True, help="Expression that triggers the rule.")
@@ -724,6 +754,9 @@ def register(surveys_group: click.Group) -> None:
 
         Example:
           ep surveys add-skip-rule survey.ep --question q1 --expression "{{ q0.answer }} == 'no'"
+
+        When several destination rules match the same question, the last added wins.
+        Make fallback conditions disjoint and check cutoffs on the reopened survey.
         """
         try:
             survey = _load_survey(survey_path)
@@ -750,7 +783,7 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("add-stop-rule")
+    @surveys_group.command("add-stop-rule", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option("--question", "question_name", required=True, help="Question name where the rule is evaluated.")
     @click.option("--expression", required=True, help="Expression that ends the survey when true.")
@@ -778,7 +811,7 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("drop-question")
+    @surveys_group.command("drop-question", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option("--question", "question_name", required=True, help="Question name to remove.")
     @click.option("--output", "-o", "output_path", default=None, help="Output .ep package, serialized file, or '-' for raw JSON stdout. Defaults to SURVEY_PATH.")
@@ -805,7 +838,7 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
-    @surveys_group.command("move-question")
+    @surveys_group.command("move-question", cls=SurveyEditCommand)
     @click.argument("survey_path")
     @click.option("--question", "question_name", required=True, help="Question name to move.")
     @click.option("--index", required=True, type=int, help="New zero-based question index.")
