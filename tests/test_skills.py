@@ -1,5 +1,9 @@
 import json
 from pathlib import Path
+from unittest.mock import Mock
+
+import pytest
+import requests
 
 from click.testing import CliRunner
 
@@ -64,6 +68,8 @@ def test_skills_search_discovers_public_packages_by_method():
         package, = data["packages"]
         assert package["name"] == "Green"
         assert package["kind"] == "external_package"
+        assert package["guide_command"] == "ep skills guide Green"
+        assert package["guide_url"].endswith("/green/docs_content/workflow.md")
         assert "MaxDiff" in package["methods"]
         assert package["repository"] == "https://github.com/expectedparrot/green"
         assert package["readme_url"] == "https://raw.githubusercontent.com/expectedparrot/green/HEAD/README.md"
@@ -73,6 +79,7 @@ def test_skills_search_discovers_public_packages_by_method():
     assert human.exit_code == 0
     assert "Green [external package]" in human.output
     assert package["readme_url"] in human.output
+    assert package["guide_command"] in human.output
 
 
 def test_skills_search_keeps_unrelated_packages_out():
@@ -89,6 +96,10 @@ def test_directory_catalog_entries_are_unique_and_searchable():
     assert len({p["repository"] for p in catalog}) == len(catalog)
     for entry in catalog:
         assert entry["repository"].startswith("https://github.com/expectedparrot/")
+        prefix = entry["repository"].replace("github.com", "raw.githubusercontent.com") + "/HEAD/"
+        assert entry["guide_url"].startswith(prefix)
+        assert entry["guide_url"].endswith(".md")
+        assert entry["guide_url"] != entry["readme_url"]
         assert entry["description"]
         assert entry["methods"] and all(entry["methods"])
 
@@ -154,3 +165,41 @@ def test_inflected_skill_search_reports_the_source_passage(tmp_path, monkeypatch
     assert hit["match"] == "content"
     assert hit["snippet"]["path"] == "SKILL.md"
     assert "coded the interviews" in hit["snippet"]["text"]
+
+def test_package_guide_reads_named_package_before_install(monkeypatch):
+    guide = "# Étude\n"
+    fetch = Mock(return_value=Mock(content=guide.encode("utf-8")))
+    monkeypatch.setattr(requests, "get", fetch)
+    runner = CliRunner()
+    result = runner.invoke(skills_command, ["guide", "zWiLl"])
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)["data"]
+    url = "https://raw.githubusercontent.com/expectedparrot/zwill/HEAD/zwill/guides/agent-workflow.md"
+    assert data == {"name": "Zwill", "guide_url": url, "content": guide}
+    fetch.assert_called_once_with(url, timeout=20)
+    assert runner.invoke(skills_command, ["guide", "Zwill", "--human"]).output == guide
+
+
+def test_package_guide_unknown_name_does_not_fetch(monkeypatch):
+    fetch = Mock()
+    monkeypatch.setattr(requests, "get", fetch)
+    result = CliRunner().invoke(skills_command, ["guide", "unknown"])
+    assert result.exit_code == 3
+    assert json.loads(result.output)["error"]["code"] == "PACKAGE_NOT_FOUND"
+    fetch.assert_not_called()
+
+
+@pytest.mark.parametrize("response", [
+    Mock(raise_for_status=Mock(side_effect=requests.HTTPError("404"))),
+    Mock(content=b""),
+    Mock(content=b"\xff"),
+    requests.Timeout("timed out"),
+])
+def test_package_guide_fetch_failures_include_source(monkeypatch, response):
+    fetch = Mock(side_effect=response) if isinstance(response, Exception) else Mock(return_value=response)
+    monkeypatch.setattr(requests, "get", fetch)
+    result = CliRunner().invoke(skills_command, ["guide", "Zwill"])
+    assert result.exit_code == 6
+    failure = json.loads(result.output)["error"]
+    assert failure["code"] == "REMOTE_ERROR"
+    assert "raw.githubusercontent.com/expectedparrot/zwill/" in failure["suggestion"]

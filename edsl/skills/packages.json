@@ -9,7 +9,8 @@
       "evidence tracking"
     ],
     "repository": "https://github.com/expectedparrot/epiq",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/epiq/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/epiq/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/epiq/HEAD/src/epiq/docs_content/workflow.md"
   },
   {
     "name": "Conversation",
@@ -22,7 +23,8 @@
       "simulated focus group"
     ],
     "repository": "https://github.com/expectedparrot/conversation",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/conversation/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/conversation/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/conversation/HEAD/GUIDE.md"
   },
   {
     "name": "Aivis",
@@ -34,7 +36,8 @@
       "brand mentions"
     ],
     "repository": "https://github.com/expectedparrot/aivis",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/aivis/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/aivis/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/aivis/HEAD/GUIDE.md"
   },
   {
     "name": "Ariel",
@@ -47,7 +50,8 @@
       "fair allocation"
     ],
     "repository": "https://github.com/expectedparrot/ariel",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/ariel/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/ariel/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/ariel/HEAD/GUIDE.md"
   },
   {
     "name": "Bewley",
@@ -61,7 +65,8 @@
       "codebook"
     ],
     "repository": "https://github.com/expectedparrot/bewley",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/bewley/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/bewley/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/bewley/HEAD/src/bewley/docs_content/workflow.md"
   },
   {
     "name": "Bower",
@@ -73,7 +78,8 @@
       "hypothesis-driven interviews"
     ],
     "repository": "https://github.com/expectedparrot/bower",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/bower/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/bower/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/bower/HEAD/GUIDE.md"
   },
   {
     "name": "Dewey",
@@ -87,7 +93,8 @@
       "research synthesis"
     ],
     "repository": "https://github.com/expectedparrot/dewey",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/dewey/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/dewey/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/dewey/HEAD/GUIDE.md"
   },
   {
     "name": "Flyvbjerg",
@@ -100,7 +107,8 @@
       "reference class distribution"
     ],
     "repository": "https://github.com/expectedparrot/flyvbjerg",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/flyvbjerg/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/flyvbjerg/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/flyvbjerg/HEAD/PRACTICE.md"
   },
   {
     "name": "Green",
@@ -121,7 +129,8 @@
       "feature prioritization"
     ],
     "repository": "https://github.com/expectedparrot/green",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/green/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/green/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/green/HEAD/green/docs_content/workflow.md"
   },
   {
     "name": "Golden",
@@ -133,7 +142,8 @@
       "utility versus price"
     ],
     "repository": "https://github.com/expectedparrot/golden",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/golden/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/golden/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/golden/HEAD/GUIDE.md"
   },
   {
     "name": "Helmer",
@@ -146,7 +156,8 @@
       "Delphi rounds"
     ],
     "repository": "https://github.com/expectedparrot/helmer",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/helmer/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/helmer/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/helmer/HEAD/helmer/docs_content/workflow.md"
   },
   {
     "name": "Ishikawa",
@@ -158,7 +169,8 @@
       "cause investigation"
     ],
     "repository": "https://github.com/expectedparrot/ishikawa",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/ishikawa/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/ishikawa/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/ishikawa/HEAD/GUIDE.md"
   },
   {
     "name": "Kahn",
@@ -171,7 +183,8 @@
       "two by two scenario matrix"
     ],
     "repository": "https://github.com/expectedparrot/kahn",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/kahn/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/kahn/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/kahn/HEAD/kahn/docs_content/agent-workflow.md"
   },
   {
     "name": "Katz",
@@ -182,7 +195,8 @@
       "peer review findings"
     ],
     "repository": "https://github.com/expectedparrot/katz",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/katz/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/katz/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/katz/HEAD/src/katz/docs_content/workflow.md"
   },
   {
     "name": "Langley",
@@ -195,7 +209,8 @@
       "diagnostic evidence"
     ],
     "repository": "https://github.com/expectedparrot/langley",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/langley/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/langley/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/langley/HEAD/GUIDE.md"
   },
   {
     "name": "McCall",
@@ -207,7 +222,8 @@
       "job post variants"
     ],
     "repository": "https://github.com/expectedparrot/mccall",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/mccall/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/mccall/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/mccall/HEAD/GUIDE.md"
   },
   {
     "name": "MCDA",
@@ -220,7 +236,8 @@
       "multi-criteria ranking"
     ],
     "repository": "https://github.com/expectedparrot/mcda",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/mcda/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/mcda/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/mcda/HEAD/docs/manual.md"
   },
   {
     "name": "Messick",
@@ -232,7 +249,8 @@
       "questionnaire pretesting"
     ],
     "repository": "https://github.com/expectedparrot/messick",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/messick/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/messick/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/messick/HEAD/GUIDE.md"
   },
   {
     "name": "Niles",
@@ -244,7 +262,8 @@
       "contact follow-up"
     ],
     "repository": "https://github.com/expectedparrot/niles",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/niles/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/niles/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/niles/HEAD/AGENTS.md"
   },
   {
     "name": "Oneheart",
@@ -256,7 +275,8 @@
       "multi-agent experiment"
     ],
     "repository": "https://github.com/expectedparrot/oneheart",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/oneheart/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/oneheart/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/oneheart/HEAD/oneheart/docs_content/agent-guide.md"
   },
   {
     "name": "Premortem",
@@ -268,7 +288,8 @@
       "project risk workshop"
     ],
     "repository": "https://github.com/expectedparrot/premortem",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/premortem/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/premortem/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/premortem/HEAD/AGENT.md"
   },
   {
     "name": "Pruefung",
@@ -280,7 +301,8 @@
       "quiz grading"
     ],
     "repository": "https://github.com/expectedparrot/pruefung",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/pruefung/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/pruefung/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/pruefung/HEAD/AGENTS.md"
   },
   {
     "name": "Raiffa",
@@ -292,7 +314,8 @@
       "decision thresholds"
     ],
     "repository": "https://github.com/expectedparrot/raiffa",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/raiffa/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/raiffa/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/raiffa/HEAD/raiffa/docs_content/workflow.md"
   },
   {
     "name": "Roth",
@@ -305,7 +328,8 @@
       "blocking pairs"
     ],
     "repository": "https://github.com/expectedparrot/roth",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/roth/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/roth/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/roth/HEAD/docs/agent.md"
   },
   {
     "name": "Spence",
@@ -316,7 +340,8 @@
       "application review"
     ],
     "repository": "https://github.com/expectedparrot/spence",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/spence/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/spence/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/spence/HEAD/GUIDE.md"
   },
   {
     "name": "Stanton",
@@ -328,7 +353,8 @@
       "back of the envelope"
     ],
     "repository": "https://github.com/expectedparrot/stanton",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/stanton/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/stanton/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/stanton/HEAD/docs/agent-research.md"
   },
   {
     "name": "Tommy",
@@ -339,7 +365,8 @@
       "transcript feedback"
     ],
     "repository": "https://github.com/expectedparrot/tommy",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/tommy/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/tommy/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/tommy/HEAD/GUIDE.md"
   },
   {
     "name": "Treffen",
@@ -350,7 +377,8 @@
       "meeting pre-read"
     ],
     "repository": "https://github.com/expectedparrot/treffen",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/treffen/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/treffen/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/treffen/HEAD/GUIDE.md"
   },
   {
     "name": "Umriss",
@@ -365,7 +393,8 @@
       "population targets"
     ],
     "repository": "https://github.com/expectedparrot/umriss",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/umriss/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/umriss/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/umriss/HEAD/GUIDE.md"
   },
   {
     "name": "Urteil",
@@ -377,7 +406,8 @@
       "gold standard evaluation"
     ],
     "repository": "https://github.com/expectedparrot/urteil",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/urteil/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/urteil/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/urteil/HEAD/urteil/docs_content/workflow.md"
   },
   {
     "name": "UXTest",
@@ -389,7 +419,8 @@
       "browser journey"
     ],
     "repository": "https://github.com/expectedparrot/uxtest",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/uxtest/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/uxtest/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/uxtest/HEAD/GUIDE.md"
   },
   {
     "name": "Vorhersage",
@@ -401,7 +432,8 @@
       "forecast evaluation"
     ],
     "repository": "https://github.com/expectedparrot/vorhersage",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/vorhersage/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/vorhersage/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/vorhersage/HEAD/docs/AGENT_GUIDE.md"
   },
   {
     "name": "Voting",
@@ -418,7 +450,8 @@
       "pairwise elections"
     ],
     "repository": "https://github.com/expectedparrot/voting",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/voting/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/voting/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/voting/HEAD/voting/docs_content/workflow.md"
   },
   {
     "name": "Zugunruhe",
@@ -431,7 +464,8 @@
       "survey import"
     ],
     "repository": "https://github.com/expectedparrot/zugunruhe",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/zugunruhe/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/zugunruhe/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/zugunruhe/HEAD/GUIDE.md"
   },
   {
     "name": "Zwicky",
@@ -445,7 +479,8 @@
       "configuration space"
     ],
     "repository": "https://github.com/expectedparrot/zwicky",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/zwicky/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/zwicky/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/zwicky/HEAD/AGENTS.md"
   },
   {
     "name": "Zwill",
@@ -457,6 +492,7 @@
       "predictive validity"
     ],
     "repository": "https://github.com/expectedparrot/zwill",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/zwill/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/zwill/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/zwill/HEAD/zwill/guides/agent-workflow.md"
   }
 ]

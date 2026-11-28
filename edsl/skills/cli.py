@@ -6,6 +6,7 @@ import json
 import math
 import posixpath
 import re
+import shlex
 import shutil
 import subprocess
 import tempfile
@@ -16,8 +17,9 @@ from pathlib import Path
 from urllib.parse import unquote
 
 import click
+import requests
 
-from edsl.cli_shared import EXIT_NOT_FOUND, EXIT_USAGE, error, output
+from edsl.cli_shared import EXIT_NOT_FOUND, EXIT_REMOTE, EXIT_USAGE, error, output
 
 
 SKILLS_ROOT = Path(__file__).resolve().parent
@@ -355,11 +357,15 @@ def _partial_package_matches(query: _SearchQuery, catalog: list[dict]) -> list[d
     return [package for _, package in sorted(ranked, key=lambda item: (-item[0], item[1]["name"]))]
 
 
+def _package_catalog() -> list[dict]:
+    return json.loads((SKILLS_ROOT / "packages.json").read_text(encoding="utf-8"))
+
+
 def _package_matches(query: _SearchQuery, limit: int) -> list[dict]:
     """Search the public directory snapshot shipped with this EDSL version."""
     if not query.keywords:
         return []
-    catalog = json.loads((SKILLS_ROOT / "packages.json").read_text(encoding="utf-8"))
+    catalog = _package_catalog()
     ranked = []
     for package in catalog:
         methods = [_words(method) for method in package["methods"]]
@@ -382,7 +388,10 @@ def _package_matches(query: _SearchQuery, limit: int) -> list[dict]:
     matches = [package for _, _, package in sorted(ranked, key=lambda item: item[:2])]
     if not matches:
         matches = _partial_package_matches(query, catalog)
-    return [{**package, "kind": "external_package"} for package in matches[:limit]]
+    return [
+        {**package, "kind": "external_package", "guide_command": f"ep skills guide {shlex.quote(package['name'])}"}
+        for package in matches[:limit]
+    ]
 
 
 @skills.command("search")
@@ -433,9 +442,35 @@ def search_skills(query: str, limit: int, human: bool, snippets: bool):
                 click.echo(f"  {snippet['path']}:{snippet['line']}: {snippet['text']}")
         for package in packages:
             click.echo(f"{package['name']} [external package] — {package['description']}")
+            click.echo(f"  Workflow: {package['guide_command']} ({package['guide_url']})")
             click.echo(f"  README: {package['readme_url']}")
     else:
         output({"query": query, "results": results, "packages": packages})
+
+
+@skills.command("guide")
+@click.argument("name")
+@click.option("--human", is_flag=True, help="Print the workflow guide as Markdown.")
+def package_guide(name: str, human: bool):
+    """Read a public research package's workflow guide before installing it."""
+    package = next((p for p in _package_catalog() if p["name"].casefold() == name.casefold()), None)
+    if package is None:
+        error("PACKAGE_NOT_FOUND", f"No public research package named '{name}'.",
+              "Use 'ep skills search <method>' to find its catalog name.", EXIT_NOT_FOUND)
+    url = package["guide_url"]
+    try:
+        response = requests.get(url, timeout=20)
+        response.raise_for_status()
+        content = response.content.decode("utf-8")
+        if not content.strip():
+            raise ValueError("Empty document")
+    except (requests.RequestException, ValueError) as exc:
+        error("REMOTE_ERROR", f"Could not read the workflow guide for {package['name']}: {exc}",
+              f"Check the guide at {url} and retry.", EXIT_REMOTE)
+    if human:
+        click.echo(content, nl=not content.endswith("\n"))
+    else:
+        output({"name": package["name"], "guide_url": url, "content": content})
 
 
 @skills.command("show")

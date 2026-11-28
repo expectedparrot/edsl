@@ -1,6 +1,6 @@
 ---
 name: edsl-harness
-description: Start here for EDSL study planning, surveys, simulation jobs, and saved objects. Expected Parrot publishes companion packages for specialized research methods. When asked what to use or how to start a study, even for a plan alone, run ep skills search "<method>" and check data.packages before recommending an approach. Treat .ep files as opaque EDSL objects. Use ep for every .ep read, edit and verification. Inspect surveys with ep surveys questions FILE or ep surveys show FILE, then use ep surveys --help to choose an edit command. Read separate JSON settings normally.
+description: Start here for EDSL study planning, surveys, simulation jobs, and saved objects. Expected Parrot publishes companion packages for specialized research methods. When asked what to use or how to start a study, even for a plan alone, run ep skills search "<method>" and read the matching package’s workflow using its guide_command before recommending an approach. Treat .ep files as opaque EDSL objects. Use ep for every .ep read, edit and verification. Inspect surveys with ep surveys questions FILE or ep surveys show FILE, then use ep surveys --help to choose an edit command. Read separate JSON settings normally.
 tags: [edsl, harness, routing]
 ---
 
@@ -11,7 +11,7 @@ Expected Parrot research package.
 
 When a user asks you to run or pilot a study with simulated respondents, execute the interviews through EDSL. Base your findings on answers you verified in the resulting `Results` object. If the run fails or produces no answers, say so. Label illustrative responses as examples.
 
-For a study design, search by research method first with `ep skills search "<method>"` (for example, `qualitative coding` or `expert elicitation`). Read a promising `data.packages` README and choose between the package and core EDSL based on the requested design and outputs. Briefly explain your choice. For implementation details, search the specific EDSL operation and load its matching skill and reference. Before finishing, reopen the requested outputs from a clean directory using the public EDSL loader for their object type and check the behavior the user asked for.
+For a study design, search by research method first with `ep skills search "<method>"` (for example, `qualitative coding` or `expert elicitation`). For a promising match in `data.packages`, run its `guide_command` before drafting a plan. Choose between the package and core EDSL based on the requested design and outputs. Briefly explain your choice. For implementation details, search the specific EDSL operation and load its matching skill and reference. Before finishing, reopen the requested outputs from a clean directory using the public EDSL loader for their object type and check the behavior the user asked for.
 
 Use a distinctive method or short phrase. Search recognizes related English word forms and can match words in a different order. If a search returns no matches, try another term for the method or inspect `ep skills list` for bundled guidance. Open the matching SKILL.md and its relevant reference.
 
@@ -69,7 +69,7 @@ and CLI conventions.
 
 ## Find an Expected Parrot package
 
-The directory includes tools such as Green for conjoint studies and Roth for stable matching. Search by the method even if the researcher does not know a project name. Follow the selected package’s README for installation and commands. If your CLI version predates package search, check the [Expected Parrot package directory](https://github.com/expectedparrot/directory).
+The directory includes tools such as Green for conjoint studies and Roth for stable matching. Search by the method even if the researcher does not know a project name. Use the package guide to identify required inputs and decisions. Use its README when you need installation instructions. If your CLI version predates package search, check the [Expected Parrot package directory](https://github.com/expectedparrot/directory).
 
 Follow package-specific guidance alongside the relevant `edsl:` skills. Keep
 EDSL object construction and execution aligned with the installed EDSL version.
