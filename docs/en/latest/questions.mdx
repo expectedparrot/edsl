@@ -132,10 +132,14 @@ Most types share `question_name` and `question_text`. The table lists additional
 | `multiple_choice` | `question_options`: allowed choices. | One choice. |
 | `yes_no` | Built-in Yes/No options. | One of the built-in choices. |
 | `checkbox` | `question_options`; optional `min_selections` and `max_selections`. | A list of choices within the bounds. |
+| `checkbox_matrix` | `question_items`, `question_options`; optional per-row `min_selections` and `max_selections`. | A mapping from each row to its list of selected choices. |
 | `top_k` | `question_options`; set `min_selections` and `max_selections` to the same positive count. | A list with exactly that many choices. |
 | `linear_scale` | `question_options`: consecutive integers; optional `option_labels`. | One scale value. |
 | `likert_five` | Built-in five-point agreement scale. | One agreement label. |
 | `numerical` | Optional `min_value` and `max_value`. | A number within any specified bounds. |
+| `date` | Optional inclusive `min_date` and `max_date` in `YYYY-MM-DD` format. | An ISO calendar date string. |
+| `date_time` | Optional inclusive timezone-aware `min_datetime` and `max_datetime`. | An ISO 8601 datetime string with an offset. |
+| `numerical_range` | Optional `min_value` and `max_value` bounds for both endpoints. | An object with numeric `min` and `max` endpoints. |
 | `rank` | `question_options`; optional `num_selections`. | An ordered list of choices. |
 | `list` | Optional `max_list_items`. | A list of open-ended items. |
 | `extract` | `answer_template`: keys and example values. | A dictionary with the requested fields. |
@@ -144,6 +148,56 @@ Most types share `question_name` and `question_text`. The table lists additional
 | `distribution` | `question_options` and optional `tolerance`. | A probability for each option, summing to one within the tolerance. |
 
 For option-based types that support `use_code`, setting it to `True` asks for option indices; setting it to `False` asks for option values. The examples below use values explicitly where needed.
+
+Use `checkbox_matrix` when respondents may select multiple options independently in each row:
+
+```python
+from edsl import QuestionCheckboxMatrix
+
+q = QuestionCheckboxMatrix(
+    question_name="weekly_activities",
+    question_text="Which activities do you do on each day?",
+    question_items=["Monday", "Tuesday", "Wednesday"],
+    question_options=["Exercise", "Cooking", "Reading"],
+    min_selections=0,
+    max_selections=2,
+    option_labels={"Exercise": "Workout or sport"},
+)
+```
+
+The answer maps each row label to a list, for example `{"Monday": ["Exercise", "Reading"], "Tuesday": [], "Wednesday": ["Cooking"]}`. The bounds apply independently to every row. By default, every declared row must be present and all selections must be declared options.
+
+Date and datetime answers use explicit machine-readable formats. A `date_time`
+answer must include its timezone offset; a naive datetime is rejected. A
+`numerical_range` answer is an inclusive interval, and its lower endpoint cannot
+exceed its upper endpoint.
+
+```python
+from edsl import QuestionDate, QuestionDateTime, QuestionNumericalRange
+
+start_date = QuestionDate(
+    question_name="start_date",
+    question_text="What date should the project begin?",
+    min_date="2026-01-01",
+    max_date="2026-12-31",
+)
+appointment = QuestionDateTime(
+    question_name="appointment_time",
+    question_text="When should the appointment begin? Include the timezone.",
+    min_datetime="2026-05-20T09:00:00-04:00",
+    max_datetime="2026-05-20T17:00:00-04:00",
+)
+acceptable_price = QuestionNumericalRange(
+    question_name="acceptable_price",
+    question_text="What price range would you consider acceptable?",
+    min_value=0,
+    max_value=1000,
+)
+```
+
+The date answer is a string such as `"2026-05-20"`; the datetime answer is a
+timezone-aware string such as `"2026-05-20T14:30:00-04:00"`; and the numerical
+range answer is shaped like `{"min": 25, "max": 60}`.
 
 <AccordionGroup>
 <Accordion title="Select several options or rank them">

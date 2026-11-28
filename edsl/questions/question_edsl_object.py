@@ -5,6 +5,7 @@ import json
 
 from pydantic import BaseModel, field_validator
 
+from . import markdown_layout as md
 from .question_base import QuestionBase
 from .response_validator_abc import ResponseValidatorABC
 from .decorators import inject_exception
@@ -336,6 +337,9 @@ class QuestionEDSLObject(QuestionBase):
             )
 
         return validated_answer
+
+    def _markdown_answer(self, view):
+        return f"EDSL object of type {md.text(self.expected_object_type)}."
 
     @property
     def question_html_content(self) -> str:

@@ -4,6 +4,7 @@ from typing import Any, Optional, Union
 import re
 from pydantic import BaseModel, model_validator, ValidationError
 
+from . import markdown_layout as md
 from .question_base import QuestionBase
 from .descriptors import NumericalOrNoneDescriptor
 from .decorators import inject_exception
@@ -501,6 +502,9 @@ class QuestionNumerical(QuestionBase):
     ################
     # Answer methods
     ################
+
+    def _markdown_answer(self, view):
+        return "Enter a number" + md.bounds(self.min_value, self.max_value) + "."
 
     @property
     def question_html_content(self) -> str:

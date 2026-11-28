@@ -6777,6 +6777,11 @@ class Coop(CoopFunctionsMixin):
         """
         Return a Results object with the human responses for a human survey.
 
+        Each result's agent traits include Prolific's submission fields, such as
+        ``prolific_submission_id`` and ``prolific_submission_status``. Participants'
+        demographics are a separate download: see
+        ``get_prolific_study_demographics``.
+
         If generating the Results object fails, a ScenarioList will be returned instead.
         """
         response = self._send_server_request(
@@ -6789,6 +6794,50 @@ class Coop(CoopFunctionsMixin):
         survey_uuid = response_json.get("survey_uuid")
 
         return self._turn_human_responses_into_results(human_responses, survey_uuid)
+
+    def get_prolific_study_demographics(
+        self,
+        human_survey_uuid: str,
+        study_id: str,
+        save_path: Optional[str] = None,
+    ) -> str:
+        """
+        Return the demographics of a Prolific study's participants, as Prolific's CSV.
+
+        There is one row per submission. Join it to the study's responses on the
+        "Submission id" column, which matches the ``prolific_submission_id`` trait
+        on each result from ``get_prolific_study_responses``. The columns are
+        Prolific's own, such as "Age", "Sex", "Ethnicity simplified",
+        "Nationality" and "Employment status".
+
+        Only the survey's owner can download a study's demographics.
+
+        Parameters:
+            human_survey_uuid (str): The UUID of the human survey.
+            study_id (str): The ID of the Prolific study.
+            save_path (str, optional): If provided, also saves the CSV to this file
+                path.
+
+        Returns:
+            str: The CSV text.
+
+        Example:
+            >>> csv_text = coop.get_prolific_study_demographics(survey_uuid, study_id)
+            >>> coop.get_prolific_study_demographics(
+            ...     survey_uuid, study_id, save_path="demographics.csv"
+            ... )
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies/{study_id}/demographics",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        csv_text = response.text
+        if save_path is not None:
+            # newline="" keeps the CSV's own line endings as they are
+            with open(save_path, "w", encoding="utf-8", newline="") as f:
+                f.write(csv_text)
+        return csv_text
 
     def delete_prolific_study(
         self,

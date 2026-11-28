@@ -6,6 +6,7 @@ from ..utilities.jinja import safe_template as Template
 from jinja2.exceptions import SecurityError
 from pydantic import BaseModel, Field, StrictFloat, StrictInt
 
+from . import markdown_layout as md
 from .question_base import QuestionBase
 from .descriptors import QuestionOptionsDescriptor
 from .decorators import inject_exception
@@ -508,6 +509,7 @@ class QuestionMultipleChoice(QuestionBase):
     """
 
     question_type = "multiple_choice"
+    _markdown_answer = md.single_choice
     purpose = "When options are known and limited"
     question_options = QuestionOptionsDescriptor()
     _response_model = None

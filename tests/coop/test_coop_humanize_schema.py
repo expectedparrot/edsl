@@ -11,7 +11,10 @@ from edsl.coop.exceptions import HumanizeSchemaValidationError
 from edsl.instructions import Instruction
 from edsl.questions import (
     QuestionCheckBox,
+    QuestionCheckboxMatrix,
     QuestionCheckBoxWithOther,
+    QuestionDate,
+    QuestionDateTime,
     QuestionDemand,
     QuestionDict,
     QuestionDistribution,
@@ -22,6 +25,7 @@ from edsl.questions import (
     QuestionInterview,
     QuestionMultipleChoice,
     QuestionNumerical,
+    QuestionNumericalRange,
     QuestionURL,
     SurveyMessage,
 )
@@ -171,6 +175,7 @@ class TestValidateHumanizeSchemaGeneral:
             "survey": {"presentation": "group"},
         }
         validate_humanize_schema(survey, humanize_schema)
+
     def test_navigation_schema_validation(self):
         survey = Survey([QuestionFreeText(question_name="q1", question_text="Q")])
         validate_humanize_schema(
@@ -403,6 +408,107 @@ class TestValidateHumanizeSchemaGeneral:
             }
         }
         validate_humanize_schema(survey, humanize_schema)
+
+    @pytest.mark.parametrize(
+        "question",
+        [
+            QuestionDate(
+                question_name="start_date",
+                question_text="When should the project begin?",
+                min_date="2026-01-01",
+            ),
+            QuestionDateTime(
+                question_name="appointment_time",
+                question_text="When should the appointment begin?",
+                max_datetime="2026-12-31T17:00:00-05:00",
+            ),
+            QuestionNumericalRange(
+                question_name="price_range",
+                question_text="What price range would you consider?",
+                min_value=0,
+            ),
+        ],
+        ids=lambda q: q.question_type,
+    )
+    def test_date_datetime_and_range_accept_their_settings(self, question):
+        """Each takes optional, a comment, time limit, submitting indicator and
+        script."""
+        humanize_schema = {
+            "questions": {
+                question.question_name: {
+                    "optional": True,
+                    "comment": {"label": "Anything to add?"},
+                    "time_limit": {"duration": {"type": "fixed", "seconds": 300}},
+                    "submitting_indicator": {"type": "callout"},
+                    "javascript": {"hooks": {}},
+                }
+            }
+        }
+        validate_humanize_schema(Survey([question]), humanize_schema)
+
+    def test_numerical_range_format_is_input_only(self):
+        """Input is the default and the only format; a slider is refused."""
+        model = QUESTION_TYPE_TO_HUMANIZE_CLASS["numerical_range"]
+        assert model.model_validate({}).format.type == "input"
+        assert model.model_validate({"format": {"type": "input"}}).format.type == (
+            "input"
+        )
+        with pytest.raises(ValidationError):
+            model.model_validate({"format": {"type": "slider"}})
+
+    @pytest.mark.parametrize("question_type", ["date", "date_time"])
+    def test_date_types_have_no_format(self, question_type):
+        model = QUESTION_TYPE_TO_HUMANIZE_CLASS[question_type]
+        with pytest.raises(ValidationError):
+            model.model_validate({"format": {"type": "input"}})
+
+    def test_checkbox_matrix_accepts_its_settings(self):
+        """It takes optional, a comment, time limit, submitting indicator and
+        script."""
+        question = QuestionCheckboxMatrix(
+            question_name="weekly_activities",
+            question_text="Which activities do you do on each day?",
+            question_items=["Monday", "Tuesday"],
+            question_options=["Exercise", "Cooking", "Reading"],
+            min_selections=1,
+        )
+        humanize_schema = {
+            "questions": {
+                "weekly_activities": {
+                    "optional": True,
+                    "comment": {"label": "Anything to add?"},
+                    "time_limit": {"duration": {"type": "fixed", "seconds": 300}},
+                    "submitting_indicator": {"type": "callout"},
+                    "javascript": {"hooks": {}},
+                }
+            }
+        }
+        validate_humanize_schema(Survey([question]), humanize_schema)
+
+    @pytest.mark.parametrize(
+        "setting",
+        [
+            {"format": {"type": "table"}},
+            {"format": {"type": "carousel"}},
+            # A preselection matrix accepts, so this fails only if checkbox
+            # matrix gains the field.
+            {
+                "preselection": {
+                    "rules": [
+                        {
+                            "match": {"type": "all"},
+                            "option": {"type": "text", "value": "Exercise"},
+                        }
+                    ]
+                }
+            },
+        ],
+        ids=["table", "carousel", "preselection"],
+    )
+    def test_checkbox_matrix_has_none_of_matrixs_display_settings(self, setting):
+        """A table only for now, with nothing checked to start."""
+        with pytest.raises(ValidationError):
+            QUESTION_TYPE_TO_HUMANIZE_CLASS["checkbox_matrix"].model_validate(setting)
 
     def test_survey_message_accepts_only_empty_display_configuration(self):
         survey = Survey(
@@ -951,7 +1057,10 @@ class TestValidateHumanizeSchemaTimeLimit:
         "free_text",
         "budget",
         "checkbox",
+        "checkbox_matrix",
         "checkbox_with_other",
+        "date",
+        "date_time",
         "demand",
         "dict",
         "dropdown",
@@ -965,6 +1074,7 @@ class TestValidateHumanizeSchemaTimeLimit:
         "multiple_choice",
         "multiple_choice_with_other",
         "numerical",
+        "numerical_range",
         "rank",
         "top_k",
         "url",

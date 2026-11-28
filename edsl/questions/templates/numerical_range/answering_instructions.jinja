@@ -1,0 +1,4 @@
+Return a compact JSON object on a single line with numeric `min` and `max` endpoints, for example: {"min": 2, "max": 8}. Do not include line breaks within the object. The endpoints are inclusive, and `min` must be less than or equal to `max`.
+{% if min_value is not none %}Both endpoints must be at least {{ min_value }}.
+{% endif %}{% if max_value is not none %}Both endpoints must be at most {{ max_value }}.
+{% endif %}{% if include_comment %}After the JSON object, you may put a brief comment on the next line.{% endif %}

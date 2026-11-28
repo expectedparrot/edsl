@@ -38,6 +38,7 @@ class QuestionImageGeneration(QuestionBase):
     """A question whose answer is a generated image FileStore."""
 
     question_type = "image_generation"
+    _markdown_hint = "Generated image"
     _response_model = ImageGenerationResponse
     response_validator_class = ImageGenerationResponseValidator
 
