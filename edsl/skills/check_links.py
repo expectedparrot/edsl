@@ -78,6 +78,20 @@ def check() -> list[str]:
                     )
 
     registry = json.loads((ROOT / "cross-references.json").read_text(encoding="utf-8"))
+    examples_manifest_path = ROOT / "examples.json"
+    if examples_manifest_path.is_file():
+        examples_manifest = json.loads(examples_manifest_path.read_text(encoding="utf-8"))
+        examples_root = ROOT.parent / "examples"
+        for name, directories in examples_manifest.items():
+            if name not in names:
+                errors.append(f"example manifest names unknown skill: {name}")
+                continue
+            for directory in directories:
+                resolved = (examples_root / directory).resolve()
+                if not resolved.is_relative_to(examples_root.resolve()):
+                    errors.append(f"example path escapes examples root: {name} -> {directory}")
+                elif not resolved.is_dir():
+                    errors.append(f"unresolved example directory: {name} -> {directory}")
     external_names = registry.get("ep-agent", [])
     duplicates = sorted({name for name in external_names if external_names.count(name) > 1})
     if duplicates:

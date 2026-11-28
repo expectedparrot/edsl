@@ -116,6 +116,8 @@ from .question_registry import Question
 
 # Core Questions
 from .question_check_box import QuestionCheckBox
+from .question_checkbox_matrix import QuestionCheckboxMatrix
+from .question_date import QuestionDate, QuestionDateTime
 from .question_extract import QuestionExtract
 from .question_email import QuestionEmail
 from .question_free_text import QuestionFreeText
@@ -127,10 +129,12 @@ from .question_compute import QuestionCompute
 from .question_detect_ai import QuestionDetectAI, DetectAI
 from .question_list import QuestionList
 from .question_matrix import QuestionMatrix
+from .question_matrix_with_text import QuestionMatrixWithText
 from .question_dict import QuestionDict
 from .question_multiple_choice import QuestionMultipleChoice
 from .probabilistic_response import ProbabilisticResponse
 from .question_numerical import QuestionNumerical
+from .question_numerical_range import QuestionNumericalRange
 from .question_budget import QuestionBudget
 from .question_distribution import QuestionDistribution
 from .question_demand import QuestionDemand
@@ -186,6 +190,9 @@ __all__ = [
     "QuestionMarkdown",
     "QuestionMultipleChoice",
     "QuestionCheckBox",
+    "QuestionCheckboxMatrix",
+    "QuestionDate",
+    "QuestionDateTime",
     "QuestionDict",
     "QuestionExtract",
     "QuestionEmail",
@@ -195,7 +202,9 @@ __all__ = [
     "DetectAI",
     "QuestionList",
     "QuestionMatrix",
+    "QuestionMatrixWithText",
     "QuestionNumerical",
+    "QuestionNumericalRange",
     "QuestionBudget",
     "QuestionDemand",
     "QuestionRank",

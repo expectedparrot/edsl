@@ -127,6 +127,58 @@ class ResultFromInterview:
             answer_key_names, question_results, "resolution_method"
         )
 
+        randomization = {}
+        treatment_assignment = getattr(
+            self.interview, "treatment_assignment", None
+        )
+        if treatment_assignment is not None:
+            treatment_assignment = dict(treatment_assignment)
+            exposure_questions = list(
+                treatment_assignment.get("exposure_questions", [])
+            )
+            logs_by_question = getattr(self.interview, "task_status_logs", {}) or {}
+            from edsl.tasks.task_status_enum import TaskStatus
+
+            exposed_questions = []
+            not_exposed_questions = []
+            unknown_exposure_questions = []
+            for name in exposure_questions:
+                logs = logs_by_question.get(name, [])
+                statuses = [entry.get("value") for entry in logs]
+                # The first API_CALL_IN_PROGRESS transition means the request was
+                # sent, even if the answer later failed. A skipped task never gets
+                # this transition and therefore was not exposed.
+                if TaskStatus.API_CALL_IN_PROGRESS in statuses or any(
+                    getattr(status, "name", None) == TaskStatus.API_CALL_IN_PROGRESS.name
+                    for status in statuses
+                ):
+                    exposed_questions.append(name)
+                elif statuses and statuses[-1] in {
+                    TaskStatus.NOT_STARTED,
+                    TaskStatus.WAITING_FOR_DEPENDENCIES,
+                    TaskStatus.CANCELLED,
+                    TaskStatus.PARENT_FAILED,
+                }:
+                    not_exposed_questions.append(name)
+                else:
+                    unknown_exposure_questions.append(name)
+            if not exposure_questions:
+                treatment_exposed = None
+            elif exposed_questions:
+                treatment_exposed = True
+            elif not_exposed_questions and not unknown_exposure_questions:
+                treatment_exposed = False
+            else:
+                treatment_exposed = None
+            randomization = {
+                "treatment_assignment": treatment_assignment,
+                "treatment_exposure": {
+                    "questions": exposure_questions,
+                    "exposed_questions": exposed_questions,
+                    "exposed": treatment_exposed,
+                },
+            }
+
         # Build question_to_attributes from the actual question instances
         # These have been updated by the invigilator (e.g., resolved dict-based options)
         question_to_attributes = self._build_question_to_attributes(survey_copy)
@@ -156,6 +208,7 @@ class ResultFromInterview:
             resolution_draw=resolution_draw_dict,
             resolution_seed=resolution_seed_dict,
             resolution_method=resolution_method_dict,
+            randomization=randomization,
         )
 
         # Store only the hash, not the interview
@@ -298,6 +351,11 @@ class ResultFromInterview:
         cache_used_dictionary = {}
         for result in model_response_objects:
             question_name = result.question_name
+            from ..language_models.response_metadata import response_metadata
+
+            raw_model_results_dictionary[question_name + "_response_metadata"] = (
+                response_metadata(result.raw_model_response)
+            )
             raw_model_results_dictionary[question_name + "_raw_model_response"] = (
                 result.raw_model_response
             )
@@ -334,6 +392,9 @@ class ResultFromInterview:
         validated_dict = {}
         for result in model_response_objects:
             validated_dict[f"{result.question_name}_validated"] = result.validated
+            answer_source = getattr(result, "answer_source", None)
+            if answer_source is not None:
+                validated_dict[f"{result.question_name}_answer_source"] = answer_source
         return validated_dict
 
     def _build_question_to_attributes(self, survey):

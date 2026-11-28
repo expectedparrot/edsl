@@ -42,6 +42,7 @@ from functools import wraps
 from typing import Optional, Any, Union, List, TYPE_CHECKING
 from collections.abc import Iterable, Mapping, MutableSequence
 
+from edsl.utilities.object_markdown import MarkdownPreviewMixin
 from ..base import Base
 
 if TYPE_CHECKING:
@@ -83,7 +84,7 @@ from .exceptions import (
 )
 
 
-class Results(MutableSequence, ResultsOperationsMixin, Base):
+class Results(MarkdownPreviewMixin, MutableSequence, ResultsOperationsMixin, Base):
     """A collection of Result objects with powerful data analysis capabilities.
 
     The Results class is the primary container for working with data from EDSL surveys.
@@ -160,6 +161,8 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         "resolution_draw",
         "resolution_seed",
         "resolution_method",
+        "metadata",
+        "randomization",
     ]
 
     def __init__(
@@ -172,6 +175,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         job_uuid: Optional[str] = None,
         total_results: Optional[int] = None,
         task_history: Optional["TaskHistory"] = None,
+        shared_state: Optional[dict[str, Any]] = None,
         sort_by_iteration: bool = False,
     ):
         """Instantiate a Results object with a survey and a list of Result objects.
@@ -224,6 +228,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         self.cache = cache or Cache()
 
         self.task_history = task_history or TaskHistory(interviews=[])
+        self.shared_state = shared_state
 
         # Initialize cache manager for expensive operations
         self._cache_manager = DataTypeCacheManager(self)
@@ -260,6 +265,12 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
     @wraps(TranscriptsGenerator.transcripts)
     def transcripts(self, show_comments: bool = True) -> "Transcripts":
         return self._transcripts_generator.transcripts(show_comments=show_comments)
+
+    def completion_summary(self) -> dict:
+        """Count answered, validated, truncated, failed, and empty rows separately."""
+        from .completion_summary import completion_summary
+
+        return completion_summary(self)
 
     @classmethod
     def from_job_info(cls, job_info: dict) -> "Results":
@@ -348,6 +359,16 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         otherwise falls back to 'iteration' attribute.
         """
         return self._container.extend_sorted(other)
+
+    def reconcile_job_cost(self, remote_status: dict, *, notify: bool = True) -> dict:
+        """Compare these Results with supplied finalized remote job accounting.
+
+        Returns matched, mismatch, or not_comparable without fetching data or
+        retrying inference. Partial/filtered Results require matching scope.
+        """
+        from .cost_reconciliation import reconcile_cost
+
+        return reconcile_cost(self, remote_status, notify=notify)
 
     def compute_job_cost(self, include_cached_responses_in_cost: bool = False) -> float:
         """Compute the cost of a completed job in USD.
@@ -625,12 +646,16 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         return self._properties.has_unfixed_exceptions
 
     def __hash__(self) -> int:
+        from .hash_normalizer import normalize_for_hash
+
         return dict_hash(
-            self.to_dict(
-                sort=True,
-                add_edsl_version=False,
-                include_cache=False,
-                include_cache_info=False,
+            normalize_for_hash(
+                self.to_dict(
+                    sort=True,
+                    add_edsl_version=False,
+                    include_cache=False,
+                    include_cache_info=False,
+                )
             )
         )
 

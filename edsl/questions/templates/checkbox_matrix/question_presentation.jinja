@@ -1,0 +1,11 @@
+{{ question_text }}
+
+Rows:
+{% for item in question_items %}
+- {{ item }}
+{% endfor %}
+
+Options (select all that apply):
+{% for option in question_options %}
+- {{ option }}{% if option in option_labels %}: {{ option_labels[option] }}{% endif %}
+{% endfor %}

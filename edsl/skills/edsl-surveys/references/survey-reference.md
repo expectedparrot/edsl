@@ -226,6 +226,65 @@ row order is recorded with the result under
 what each respondent saw. Randomization changes presentation order, not answer
 keys. Decide it before fielding and preview pinned positions.
 
+### QuestionCheckboxMatrix
+
+Use a checkbox matrix when each row can have zero or more selected options. The
+answer maps each row label to a list of selected option values; selection bounds
+apply separately to every row.
+
+```python
+from edsl import QuestionCheckboxMatrix
+
+q = QuestionCheckboxMatrix(
+    question_name="weekly_activities",
+    question_text="Which activities do you do on each day?",
+    question_items=["Monday", "Tuesday", "Wednesday"],
+    question_options=["Exercise", "Cooking", "Reading"],
+    min_selections=0,
+    max_selections=2,
+    option_labels={"Exercise": "Workout or sport"},
+)
+```
+
+A response has the form `{"answer": {"Monday": ["Exercise", "Reading"],
+"Tuesday": [], "Wednesday": ["Cooking"]}}`. Rows are required and selections
+must be declared options unless `permissive=True`.
+
+### Date, datetime, and numerical range questions
+
+`QuestionDate` validates ISO calendar dates and optional inclusive date bounds.
+`QuestionDateTime` requires an ISO 8601 timezone offset and can enforce inclusive
+datetime bounds. `QuestionNumericalRange` returns both endpoints of an inclusive
+interval as a `{ "min": number, "max": number }` object.
+
+```python
+from edsl import QuestionDate, QuestionDateTime, QuestionNumericalRange
+
+q_date = QuestionDate(
+    question_name="start_date",
+    question_text="What date should work begin?",
+    min_date="2026-01-01",
+    max_date="2026-12-31",
+)
+q_datetime = QuestionDateTime(
+    question_name="appointment",
+    question_text="When should the appointment start? Include the timezone.",
+    min_datetime="2026-05-20T09:00:00-04:00",
+    max_datetime="2026-05-20T17:00:00-04:00",
+)
+q_range = QuestionNumericalRange(
+    question_name="price_range",
+    question_text="What price range is acceptable?",
+    min_value=0,
+    max_value=1000,
+)
+```
+
+The respective answer values look like `"2026-05-20"`,
+`"2026-05-20T14:30:00-04:00"`, and `{"min": 25, "max": 60}`. For date-time
+questions, an answer without an offset (for example, `2026-05-20T14:30:00`) is
+invalid.
+
 ### QuestionBudget
 
 Allocating a fixed budget across multiple options.
@@ -591,6 +650,15 @@ pass `options_to_pin={"brand_preference": ["Other"]}` alongside
 The locked EDSL revision preserves pins through Runner execution and JSONL
 round trips. Inspect each result's recorded `question_options` when interpreting
 coded answers. This randomizes answer options, not question order within blocks.
+
+Whole option lists may also come from a scenario or a prior answer. EDSL resolves
+the list before shuffling and reuses that interview's order for rendering,
+validation, and result metadata. Configure this policy from the CLI with
+`ep surveys set-option-randomization survey.ep --question brand_preference`
+(add `--pin-options '{"brand_preference":["Other"]}'` to keep a value in its
+source position); inspect settings with `ep surveys show survey.ep` and realized
+orders with `ep results select --file results.ep --column
+question_options.brand_preference`.
 
 Do **not** randomize options that have an inherent order (Likert scales, numeric
 ranges, yes/no).

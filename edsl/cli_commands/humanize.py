@@ -168,6 +168,7 @@ def register(humanize: click.Group) -> None:
                 "commands": [
                     "filters", "cost", "settings", "create", "list", "get", "update",
                     "preflight", "publish", "pause", "resume", "stop", "delete", "responses",
+                    "demographics",
                 ],
                 "help": "Use 'ep humanize prolific <command> --help' for details.",
             })
@@ -537,6 +538,46 @@ def register(humanize: click.Group) -> None:
             error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
 
 
+    @humanize_prolific.command("demographics")
+    @click.argument("human_survey_uuid")
+    @click.argument("study_id")
+    @click.option("--output", "-o", "output_path", default=None, help="Save the demographics CSV to this path.")
+    def humanize_prolific_demographics(human_survey_uuid, study_id, output_path):
+        """Fetch Prolific participants' demographics as a CSV (survey owner only).
+
+        One row per submission; join to the responses on "Submission id", which
+        matches each result's prolific_submission_id trait.
+        """
+        try:
+            import csv
+            import io
+
+            from edsl.coop import Coop
+
+            csv_text = Coop().get_prolific_study_demographics(
+                human_survey_uuid, study_id, save_path=output_path
+            )
+            rows = list(csv.reader(io.StringIO(csv_text)))
+            data = {
+                "human_survey_uuid": human_survey_uuid,
+                "study_id": study_id,
+                "participant_count": max(len(rows) - 1, 0),
+                "columns": rows[0] if rows else [],
+            }
+            if output_path:
+                data["saved"] = {"path": str(Path(output_path)), "format": "csv"}
+            else:
+                data["next_step"] = (
+                    f"Use 'ep humanize prolific demographics {human_survey_uuid} {study_id} "
+                    "--output demographics.csv' to save the demographics."
+                )
+            output(data)
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
+
+
     @humanize.command("status")
     @click.argument("human_survey_uuid")
     def humanize_status(human_survey_uuid):
@@ -679,6 +720,8 @@ def register(humanize: click.Group) -> None:
     @click.option("--logo-alt", "logo_alt", default=None, help="Alt text naming the organization the logo identifies, e.g. \"Acme Research logo\".")
     @click.option("--logo-decorative", "logo_decorative", is_flag=True, default=False, help="Mark the logo decorative, rendering it with an empty alt.")
     @click.option("--logo-position", "logo_position", default=None, type=click.Choice(["left", "center", "right"]), help="Where the logo sits in the banner. Omit to use the default.")
+    @click.option("--back-button", is_flag=True, default=False, help="Enable Back navigation for respondents.")
+    @click.option("--no-back-past", "no_back_past_questions", multiple=True, help="Question that acts as a Back navigation boundary.")
     def humanize_schema_create(
         survey_path,
         output_path,
@@ -704,6 +747,8 @@ def register(humanize: click.Group) -> None:
         logo_alt,
         logo_decorative,
         logo_position,
+        back_button,
+        no_back_past_questions,
     ):
         """Create a humanize schema from CLI controls.
 
@@ -752,6 +797,8 @@ def register(humanize: click.Group) -> None:
                 logo_decorative=logo_decorative,
                 logo_position=logo_position,
                 clear_logo=False,
+                back_button=back_button,
+                no_back_past_questions=no_back_past_questions,
             )
             _validate_humanize_schema(survey, schema)
             data = {"schema": schema, "valid": True}
@@ -1692,6 +1739,8 @@ def register(humanize: click.Group) -> None:
     @click.option("--logo-decorative", "logo_decorative", is_flag=True, default=False, help="Mark the logo decorative, rendering it with an empty alt.")
     @click.option("--logo-position", "logo_position", default=None, type=click.Choice(["left", "center", "right"]), help="Where the logo sits in the banner. Omit to leave it unchanged.")
     @click.option("--clear-logo", "clear_logo", is_flag=True, default=False, help="Remove the survey's logo.")
+    @click.option("--back-button", is_flag=True, default=False, help="Enable Back navigation for respondents.")
+    @click.option("--no-back-past", "no_back_past_questions", multiple=True, help="Question that acts as a Back navigation boundary.")
     def humanize_schema_set(
         human_survey_uuid,
         schema_path,
@@ -1721,6 +1770,8 @@ def register(humanize: click.Group) -> None:
         logo_decorative,
         logo_position,
         clear_logo,
+        back_button,
+        no_back_past_questions,
     ):
         """Patch a human survey schema from a file or direct CLI controls.
 
@@ -1757,6 +1808,8 @@ def register(humanize: click.Group) -> None:
             logo_decorative,
             logo_position,
             clear_logo,
+            back_button,
+            no_back_past_questions,
         ):
             error(
                 "USAGE_ERROR",
@@ -1807,6 +1860,8 @@ def register(humanize: click.Group) -> None:
                 logo_decorative=logo_decorative,
                 logo_position=logo_position,
                 clear_logo=clear_logo,
+                back_button=back_button,
+                no_back_past_questions=no_back_past_questions,
             )
             if survey is not None and validate_schema:
                 _validate_humanize_schema(survey, _schema_for_local_validation(schema))
@@ -2984,6 +3039,8 @@ def register(humanize: click.Group) -> None:
         logo_decorative=False,
         logo_position=None,
         clear_logo=False,
+        back_button=False,
+        no_back_past_questions=(),
     ) -> dict:
         schema = json.loads(json.dumps(base_schema or {}))
         questions = schema.setdefault("questions", {})
@@ -3011,6 +3068,8 @@ def register(humanize: click.Group) -> None:
             logo_decorative,
             logo_position,
             clear_logo,
+            back_button,
+            no_back_past_questions,
         ):
             for question_name in getattr(survey, "question_names", []):
                 questions[question_name] = {}
@@ -3133,6 +3192,14 @@ def register(humanize: click.Group) -> None:
             logo_position=logo_position,
             clear_logo=clear_logo,
         )
+        if back_button:
+            schema.setdefault("survey", {}).setdefault("navigation", {})[
+                "back_button"
+            ] = True
+        for question_name in _expand_question_names(no_back_past_questions, survey):
+            _question_entry(questions, question_name).setdefault("navigation", {})[
+                "allow_back_past"
+            ] = False
 
         return schema
 

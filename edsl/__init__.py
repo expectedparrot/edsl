@@ -36,6 +36,7 @@ __all__ = [
     "__version__",
     "modify_settings",
     "show_settings",
+    "InterviewSchedule",
 ]
 
 # Define modules for lazy loading
@@ -49,6 +50,7 @@ _LAZY_MODULES = {
     "collections",
     "language_models",
     "embeddings",
+    "evaluations",
     "results",
     "caching",
     "notebooks",
@@ -59,6 +61,8 @@ _LAZY_MODULES = {
     "extensions",
     "macros",
     "study",
+    "causal",
+    "conversations",
 }
 
 # Cache for lazy-loaded modules
@@ -67,6 +71,9 @@ _module_cache = {}
 # Direct mapping of common exports to their module — avoids importing
 # every module in random set order just to find one class.
 _EXPORT_TO_MODULE = {
+    "JudgmentModel": "evaluations",
+    "Evaluation": "evaluations",
+    "EvaluationPlan": "evaluations",
     # questions
     "QuestionFreeText": "questions",
     "QuestionEdit": "questions",
@@ -75,8 +82,12 @@ _EXPORT_TO_MODULE = {
     "QuestionMultipleChoice": "questions",
     "ProbabilisticResponse": "questions",
     "QuestionCheckBox": "questions",
+    "QuestionCheckboxMatrix": "questions",
+    "QuestionDate": "questions",
+    "QuestionDateTime": "questions",
     "QuestionLinearScale": "questions",
     "QuestionNumerical": "questions",
+    "QuestionNumericalRange": "questions",
     "QuestionYesNo": "questions",
     "QuestionList": "questions",
     "QuestionRank": "questions",
@@ -85,12 +96,15 @@ _EXPORT_TO_MODULE = {
     "QuestionExtract": "questions",
     "QuestionEmail": "questions",
     "QuestionMatrix": "questions",
+    "QuestionMatrixWithText": "questions",
     "QuestionTopK": "questions",
     "QuestionFunctional": "questions",
     "QuestionDetectAI": "questions",
     "DetectAI": "questions",
     "QuestionBase": "questions",
     "QuestionDiagram": "questions",
+    "Stem": "stem",
+    "literal": "stem",
     "QuestionImageGeneration": "questions",
     "SurveyMessage": "questions",
     # surveys
@@ -106,6 +120,7 @@ _EXPORT_TO_MODULE = {
     "FileStore": "scenarios",
     # language_models
     "Model": "language_models",
+    "HostedModel": "language_models",
     "ModelList": "language_models",
     "LanguageModel": "language_models",
     # embeddings
@@ -124,6 +139,7 @@ _EXPORT_TO_MODULE = {
     "Coop": "coop",
     # jobs
     "Jobs": "jobs",
+    "InterviewSchedule": "jobs",
     # caching
     "Cache": "caching",
     "CacheEntry": "caching",

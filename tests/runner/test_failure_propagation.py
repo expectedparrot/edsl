@@ -150,6 +150,17 @@ def test_skipped_task_without_stored_answer_is_not_reported_as_failure():
 
     assert results[0].answer["response"] is None
     assert not results.has_unfixed_exceptions
+    randomization = results[0]["randomization"]
+    assert randomization["assignment_id"] == interview_id
+    assert randomization["assignment_unit"] == "interview"
+    assert randomization["exposure_events"]["response"] == {
+        "presented": False,
+        "answered": False,
+        "answered_at": None,
+    }
+
+    restored = Results.from_dict(results.to_dict())
+    assert restored[0]["randomization"] == randomization
 
 
 def test_failure_propagation_blocks_converging_dag_nodes_once():

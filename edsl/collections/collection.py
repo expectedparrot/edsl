@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 from uuid import UUID
 
+from edsl.utilities.object_markdown import MarkdownPreviewMixin
 from edsl.base import Base
 from .collection_git import CollectionGitDescriptor
 
@@ -66,7 +67,7 @@ class CollectionItem:
         return cls(**data)
 
 
-class Collection(Base):
+class Collection(MarkdownPreviewMixin, Base):
     """An ordered set of typed Coop object references plus collection metadata.
 
     Member descriptions, aliases, and content are intentionally not copied.

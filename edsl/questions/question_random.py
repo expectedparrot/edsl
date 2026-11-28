@@ -125,6 +125,7 @@ class QuestionRandom(QuestionBase):
     """
 
     question_type = "random"
+    _markdown_hint = "Automatically generates a random number between 0 and 1"
 
     _response_model = None
     response_validator_class = RandomResponseValidator

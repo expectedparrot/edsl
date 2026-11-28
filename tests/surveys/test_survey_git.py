@@ -7,7 +7,12 @@ from pathlib import Path
 
 import pytest
 
-from edsl import QuestionFreeText, QuestionMultipleChoice, Survey
+from edsl import (
+    QuestionFreeText,
+    QuestionLinearScale,
+    QuestionMultipleChoice,
+    Survey,
+)
 from edsl.surveys import SurveyGitError, SurveyGitNestedRepoWarning
 from edsl.surveys.exceptions import SurveyError
 from edsl.base.base_exception import BaseException as EDSLBaseException
@@ -32,6 +37,22 @@ def test_survey_git_error_uses_survey_exception_hierarchy():
     assert issubclass(SurveyGitError, SurveyError)
     assert issubclass(SurveyGitError, EDSLBaseException)
     assert issubclass(SurveyGitNestedRepoWarning, UserWarning)
+
+
+def test_scale_direction_policy_survives_ep_package_round_trip(tmp_path):
+    question = QuestionLinearScale(
+        question_name="rating",
+        question_text="How would you rate it?",
+        question_options=[1, 2, 3],
+    )
+    survey = Survey([question]).randomize_scale_direction("rating")
+    package_path = tmp_path / "scale.ep"
+
+    survey.git.save(package_path, message="add scale randomization")
+    restored = Survey.git.load(package_path)
+
+    assert restored.scale_direction_randomization == survey.scale_direction_randomization
+    assert "metadata/scale_direction_randomization.json" in _package_names(package_path)
 
 
 def test_survey_git_save_default_path_and_load_round_trip(tmp_path, monkeypatch):

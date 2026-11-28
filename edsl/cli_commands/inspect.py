@@ -8,9 +8,11 @@ import click
 
 from edsl.cli_shared import (
     EXIT_ERROR,
+    EXIT_USAGE,
     error,
     jsonable,
     load_any_object,
+    markdown_page,
     output,
     raw_output_written,
     save_edsl_object,
@@ -20,13 +22,41 @@ from edsl.cli_shared import (
 def register(app: click.Group) -> None:
     @app.command("inspect")
     @click.argument("target")
-    @click.option("--type", "object_type", default=None, help="Expected remote object type when inspecting a UUID or URL.")
-    @click.option("--sample", default=3, type=int, show_default=True, help="Number of sample rows/items to include.")
-    @click.option("--save", "save_path", default=None, help="Save the inspected object to a local .ep package or serialized file.")
+    @click.option(
+        "--type",
+        "object_type",
+        default=None,
+        help="Expected remote object type when inspecting a UUID or URL.",
+    )
+    @click.option(
+        "--sample",
+        default=None,
+        type=int,
+        help="Number of JSON summary samples (default 3).",
+    )
+    @click.option(
+        "--markdown", is_flag=True, help="Print a page of Markdown to stdout."
+    )
+    @click.option("--page", type=int, help="One-based Markdown page (default 1).")
+    @click.option(
+        "--page-size",
+        "--page_size",
+        type=int,
+        help="Entries per Markdown page (default 10).",
+    )
+    @click.option(
+        "--save",
+        "save_path",
+        default=None,
+        help="Save the inspected object to a local .ep package or serialized file.",
+    )
     def inspect_object(
         target: str,
         object_type: str | None,
-        sample: int,
+        sample: int | None,
+        markdown: bool,
+        page: int | None,
+        page_size: int | None,
         save_path: str | None,
     ):
         """Inspect a local EDSL object package/file or remote object.
@@ -38,16 +68,47 @@ def register(app: click.Group) -> None:
           ep inspect results.ep --sample 10
           ep inspect <uuid> --type Survey
           ep inspect <uuid> --type AgentList --save agents.ep
+          ep inspect agents.ep --markdown --page 2 --page-size 5
           ep inspect prompt.json
         """
         try:
+            if markdown:
+                if sample is not None or save_path == "-":
+                    error(
+                        "USAGE_ERROR",
+                        "Use --page-size for Markdown and a file path for --save.",
+                        exit_code=EXIT_USAGE,
+                    )
+                obj = load_any_object(
+                    target, expected_object_type=object_type, preview=True
+                )
+                rendered = markdown_page(obj, page, page_size)
+                if save_path:
+                    save_edsl_object(obj, save_path)
+                click.echo(rendered)
+                return
+            if page is not None or page_size is not None:
+                error(
+                    "USAGE_ERROR",
+                    "Pagination requires --markdown.",
+                    exit_code=EXIT_USAGE,
+                )
             obj = load_any_object(target, expected_object_type=object_type)
-            data = _summary(obj, sample=max(0, sample))
+            data = _summary(obj, sample=3 if sample is None else max(0, sample))
+            from edsl.language_models.output_token_policy import token_limit_warnings
+
+            model_warnings = token_limit_warnings(getattr(obj, "models", []))
             if save_path:
                 data["saved"] = save_edsl_object(obj, save_path)
                 if raw_output_written(data["saved"]):
                     return
-            output(data)
+            output(
+                data,
+                warnings=[
+                    {"code": "LOW_REASONING_OUTPUT_LIMIT", "message": message}
+                    for message in model_warnings
+                ],
+            )
         except SystemExit:
             raise
         except Exception as e:
@@ -107,6 +168,8 @@ def _summary(obj, sample: int) -> dict:
             }
         )
     elif class_name == "Jobs":
+        from edsl.language_models.output_token_policy import model_token_policy
+
         survey = getattr(obj, "survey", None)
         data.update(
             {
@@ -115,6 +178,9 @@ def _summary(obj, sample: int) -> dict:
                 "agent_count": _safe_len(getattr(obj, "agents", None)),
                 "scenario_count": _safe_len(getattr(obj, "scenarios", None)),
                 "model_count": _safe_len(getattr(obj, "models", None)),
+                "output_token_policies": [
+                    model_token_policy(model) for model in obj.models
+                ],
             }
         )
     elif class_name == "Results":
@@ -122,6 +188,7 @@ def _summary(obj, sample: int) -> dict:
         data.update(
             {
                 "result_count": len(obj),
+                "completion": obj.completion_summary(),
                 "columns": columns,
                 "answer_columns": [c for c in columns if c.startswith("answer.")],
                 "scenario_columns": [c for c in columns if c.startswith("scenario.")],

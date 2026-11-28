@@ -1,0 +1,40 @@
+{
+  "status": "ok",
+  "rounds_replayed": 17,
+  "decisions_replayed": 204,
+  "completed_work_items": 221,
+  "all_accounts_match": true,
+  "all_tape_rows_match": true,
+  "all_orders_match": true,
+  "original_sources_unchanged": true,
+  "remaining_live_shares": 48,
+  "redeemed": false,
+  "model_calls": 0,
+  "required_capabilities": [
+    "call_market_submit@1",
+    "call_market_settle@1"
+  ],
+  "artifact_sha256": {
+    "experiment.json": "b81a6360d995ed6afded4c23c6137ec4aeaae3760395d6cb420cd8a4c232c65d",
+    "responses.json": "5bd862c057f82d6c56c33ab735ac9c16cf0c279e1b8ba639da5b1a51bc2b956e",
+    "expected.json": "87e62599ea9b6c55abfa9d77bc780d9f9181862cb08d7c151c7996b08c732f74"
+  },
+  "fresh_process_example_imports_blocked": true,
+  "tests": {
+    "command": "python -m pytest -q tests/sharedstate tests/workflows",
+    "passed": 218,
+    "failed": 0
+  },
+  "native_authoring": {
+    "source": "examples/asset_market/portable.py",
+    "sha256": "06b75373bfd1a0a2eb10f4d917dc2d646f39845ce4d2de33c673da542f8f2dea",
+    "source_matches_serialized_specification": true,
+    "historical_trader_prompts_match": true,
+    "check": "latex-note/data/native-equivalence.json",
+    "fresh_process_replay_test": {
+      "command": "python -m pytest -q tests/workflows/test_portable_experiment.py -k saved_market_replays",
+      "passed": 1,
+      "failed": 0
+    }
+  }
+}

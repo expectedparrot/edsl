@@ -92,6 +92,7 @@ class QuestionCompute(QuestionBase):
     """
 
     question_type = "compute"
+    _markdown_hint = "Calculated from an expression"
     _response_model = ComputeResponse
     response_validator_class = ComputeResponseValidator
 

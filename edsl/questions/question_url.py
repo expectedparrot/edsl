@@ -39,6 +39,7 @@ class QuestionURL(QuestionBase):
     """A question whose answer must be a valid absolute URL."""
 
     question_type = "url"
+    _markdown_hint = "URL"
     _response_model = URLResponse
     response_validator_class = URLResponseValidator
 

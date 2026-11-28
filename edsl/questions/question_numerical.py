@@ -4,6 +4,7 @@ from typing import Any, Optional, Union
 import re
 from pydantic import BaseModel, model_validator, ValidationError
 
+from . import markdown_layout as md
 from .question_base import QuestionBase
 from .descriptors import NumericalOrNoneDescriptor
 from .decorators import inject_exception
@@ -163,22 +164,68 @@ class NumericalResponseValidator(ResponseValidatorABC):
         >>> response = {"answer": "42"}
         >>> fixed = validator.fix(response)
         >>> fixed
-        {'answer': '42'}
+        {'answer': 42, 'answer_source': 'repaired'}
 
         >>> # Extract number from text
         >>> response = {"answer": "The answer is 42"}
         >>> fixed = validator.fix(response)
         >>> fixed
-        {'answer': '42'}
+        {'answer': 42, 'answer_source': 'repaired'}
 
         >>> # Preserve comments when fixing
         >>> response = {"answer": "The answer is 42", "comment": "My explanation"}
         >>> fixed = validator.fix(response)
         >>> fixed
-        {'answer': '42', 'comment': 'My explanation'}
+        {'answer': 42, 'comment': 'My explanation', 'answer_source': 'repaired'}
     """
 
     required_params = ["min_value", "max_value", "permissive"]
+
+    _number_pattern = re.compile(
+        r"(?<![\w.])[-+]?(?:\d{1,3}(?:,\d{3})+|\d+)"
+        r"(?:\.\d+)?(?:[eE][-+]?\d+)?(?![\w]|\.\d)"
+    )
+    _final_answer_pattern = re.compile(
+        r"\bfinal(?:\s+(?:answer|value|probability|estimate))?"
+        r"\s*(?:is|:|=)?\s*(" + _number_pattern.pattern + r")",
+        re.IGNORECASE,
+    )
+    _answer_marker_pattern = re.compile(
+        r"\b(?:the\s+)?(?:answer|probability|estimate)"
+        r"\s*(?:is|:|=)\s*(" + _number_pattern.pattern + r")",
+        re.IGNORECASE,
+    )
+    _standalone_number_pattern = re.compile(
+        r"^\s*(" + _number_pattern.pattern + r")\s*%?\s*[.!]?\s*$"
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._pending_answer_source = "structured"
+
+    def validate(
+        self,
+        raw_edsl_answer_dict,
+        fix=False,
+        verbose=False,
+        replacement_dict=None,
+    ):
+        """Validate a response and reset repair provenance for each new answer."""
+        if not fix:
+            self._pending_answer_source = "structured"
+        return super().validate(
+            raw_edsl_answer_dict,
+            fix=fix,
+            verbose=verbose,
+            replacement_dict=replacement_dict,
+        )
+
+    def _extract_answer(self, response: BaseModel) -> dict:
+        """Include whether the numerical answer was parsed or heuristically repaired."""
+        answer = super()._extract_answer(response)
+        answer["answer_source"] = self._pending_answer_source
+        self._pending_answer_source = "structured"
+        return answer
 
     valid_examples = [
         ({"answer": 1}, {"min_value": 0, "max_value": 10}),
@@ -206,26 +253,106 @@ class NumericalResponseValidator(ResponseValidatorABC):
             A fixed version of the response dictionary.
 
         Notes:
-            - Attempts to extract numbers using regex pattern matching
-            - Removes commas from numbers (e.g., "1,000" → "1000")
-            - Preserves any comment in the original response
+            - Preserves structured numeric answers without examining other fields.
+            - Uses answer text, or generated_tokens only when answer is missing.
+            - Refuses to choose among multiple plausible numeric candidates.
+            - Preserves comments and generated tokens for auditability.
         """
-        response_text = str(response).lower()
+        fixed_response = dict(response)
+        answer = response.get("answer")
+
+        # A structured numeric answer always takes precedence over unrelated
+        # numbers in the generated text, even when the structured value itself
+        # later fails a range constraint.
+        if isinstance(answer, (int, float)) and not isinstance(answer, bool):
+            self._pending_answer_source = "structured"
+            fixed_response["answer_source"] = self._pending_answer_source
+            return fixed_response
+
+        text = answer if isinstance(answer, str) else None
+        if text is None and answer is None:
+            # Some providers return no parsed answer but retain the model's raw
+            # text. This is the only supported fallback to generated_tokens.
+            generated_tokens = response.get("generated_tokens")
+            text = generated_tokens if isinstance(generated_tokens, str) else None
+
+        if text is None:
+            return fixed_response
 
         if verbose:
-            print(f"Invalid generated tokens was: {response_text}")
+            print(f"Attempting numerical repair from answer text: {text}")
 
-        pattern = r"\b\d+(?:\.\d+)?\b"
-        match = re.search(pattern, response_text.replace(",", ""))
-        solution = match.group(0) if match else response.get("answer")
+        candidates = self._extract_repair_candidates(text)
+        if len(candidates) != 1:
+            self._pending_answer_source = "ambiguous"
+            fixed_response["answer_source"] = self._pending_answer_source
+            return fixed_response
+
+        solution = candidates[0]
+        self._pending_answer_source = "repaired"
+        fixed_response["answer"] = solution
+        fixed_response["answer_source"] = self._pending_answer_source
 
         if verbose:
             print("Proposed solution is: ", solution)
+        return fixed_response
 
-        if "comment" in response:
-            return {"answer": solution, "comment": response["comment"]}
-        else:
-            return {"answer": solution}
+    def _extract_repair_candidates(self, text: str) -> list[float | int]:
+        """Extract a single unambiguous number from an answer field."""
+
+        def parse_number(match: re.Match) -> float | int:
+            captured_number = (
+                match.group(1) if match.re.groups else match.group(0)
+            )
+            number_text = captured_number.replace(",", "")
+            if "." not in number_text and "e" not in number_text.lower():
+                return int(number_text)
+            return float(number_text)
+
+        def unique_numbers(matches: list[re.Match]) -> list[float | int]:
+            values = []
+            for match in matches:
+                value = parse_number(match)
+                if value not in values:
+                    values.append(value)
+            return values
+
+        def marker_numbers(pattern: re.Pattern) -> list[float | int]:
+            values = []
+            for match in pattern.finditer(text):
+                line_end = text.find("\n", match.end())
+                if line_end == -1:
+                    line_end = len(text)
+                answer_line = text[match.start(1) : line_end]
+                values.extend(
+                    parse_number(number_match)
+                    for number_match in self._number_pattern.finditer(answer_line)
+                )
+            return list(dict.fromkeys(values))
+
+        final_markers = marker_numbers(self._final_answer_pattern)
+        if final_markers:
+            return final_markers
+
+        answer_markers = marker_numbers(self._answer_marker_pattern)
+        if answer_markers:
+            return answer_markers
+
+        nonempty_lines = [line for line in text.splitlines() if line.strip()]
+        if nonempty_lines:
+            final_line = self._standalone_number_pattern.fullmatch(nonempty_lines[-1])
+            if final_line:
+                final_line_start = text.rfind(nonempty_lines[-1])
+                prior_numbers = list(
+                    self._number_pattern.finditer(text[:final_line_start])
+                )
+                if prior_numbers:
+                    connector = text[prior_numbers[-1].end() : final_line_start]
+                    if re.search(r"\b(?:or|and/or)\b", connector, re.IGNORECASE):
+                        return unique_numbers(list(self._number_pattern.finditer(text)))
+                return unique_numbers([final_line])
+
+        return unique_numbers(list(self._number_pattern.finditer(text)))
 
     def _check_constraints(self, pydantic_edsl_answer: BaseModel):
         """Method preserved for compatibility, constraints handled in Pydantic model."""
@@ -375,6 +502,9 @@ class QuestionNumerical(QuestionBase):
     ################
     # Answer methods
     ################
+
+    def _markdown_answer(self, view):
+        return "Enter a number" + md.bounds(self.min_value, self.max_value) + "."
 
     @property
     def question_html_content(self) -> str:

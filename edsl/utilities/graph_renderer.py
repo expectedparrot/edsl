@@ -397,6 +397,9 @@ def _mermaid_styles(nodes: list[NodeDef], subgraphs: list[SubgraphDef]) -> list[
 class PydotRenderer:
     """Render a graph as PNG via pydot/graphviz."""
 
+    def __init__(self, dpi: int | None = None):
+        self.dpi = dpi
+
     def render(
         self,
         nodes: list[NodeDef],
@@ -409,6 +412,8 @@ class PydotRenderer:
 
         rankdir = "LR" if direction == "LR" else "TB"
         graph = pydot.Dot(graph_type="digraph", rankdir=rankdir, fontsize="10")
+        if self.dpi is not None:
+            graph.set("dpi", str(self.dpi))
 
         # Create clusters
         clusters: dict[str, pydot.Cluster] = {}

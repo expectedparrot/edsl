@@ -143,6 +143,13 @@ class RemoteInferenceCreationInfo(TypedDict):
     version: str
 
 
+def _git_remote(response) -> dict:
+    """``{"git_remote_url": ...}`` when Coop returned one for an ``.ep`` package's
+    push (``git_repo=True``), else {}."""
+    url = response.get("git_remote_url") if isinstance(response, dict) else None
+    return {"git_remote_url": url} if url else {}
+
+
 class Coop(CoopFunctionsMixin):
     """
     Client for the Expected Parrot API that provides cloud-based functionality for EDSL.
@@ -1612,6 +1619,7 @@ class Coop(CoopFunctionsMixin):
         alias: Optional[str] = None,
         value: Optional[EDSLObject] = None,
         visibility: Optional[VisibilityType] = None,
+        git_repo: bool = False,
     ) -> dict:
         """
         Change the attributes of an uploaded object
@@ -1622,6 +1630,8 @@ class Coop(CoopFunctionsMixin):
         :param alias: Optional new alias
         :param value: Optional new object value
         :param visibility: Optional new visibility setting
+        :param git_repo: True for an ``.ep`` package: Coop then returns its git
+            repo's ``git_remote_url``, creating the repo the first time
         """
         # Validate alias before attempting to patch
         self._validate_alias(alias)
@@ -1668,7 +1678,7 @@ class Coop(CoopFunctionsMixin):
             if is_new_format:
                 # Handle new format objects: update metadata first, then upload content
                 return self._patch_new_format_object(
-                    obj_uuid, description, alias, value, visibility
+                    obj_uuid, description, alias, value, visibility, git_repo
                 )
 
         # Handle traditional format objects or metadata-only updates
@@ -1696,6 +1706,7 @@ class Coop(CoopFunctionsMixin):
                     else None
                 ),
                 "visibility": visibility,
+                **({"git_repo": True} if git_repo else {}),
             },
         )
         self._resolve_server_response(response)
@@ -1708,6 +1719,7 @@ class Coop(CoopFunctionsMixin):
         alias: Optional[str],
         value: EDSLObject,
         visibility: Optional[VisibilityType],
+        git_repo: bool = False,
     ) -> dict:
         """
         Handle patching of objects stored in the new format (GCS).
@@ -1763,7 +1775,7 @@ class Coop(CoopFunctionsMixin):
         confirm_response = self._send_server_request(
             uri="api/v0/object/confirm-upload",
             method="POST",
-            payload={"object_uuid": str(obj_uuid)},
+            payload={"object_uuid": str(obj_uuid), **({"git_repo": True} if git_repo else {})},
         )
         self._resolve_server_response(confirm_response)
         confirm_data = confirm_response.json()
@@ -1773,6 +1785,7 @@ class Coop(CoopFunctionsMixin):
             "message": "Object updated successfully (new format - uploaded to GCS and processing triggered)",
             "object_uuid": str(obj_uuid),
             "processing_started": confirm_data.get("processing_started", False),
+            **_git_remote(confirm_data),
         }
 
     def _resolve_to_uuid(self, url_or_uuid: Union[str, UUID]) -> str:
@@ -2931,11 +2944,19 @@ class Coop(CoopFunctionsMixin):
         Create a human survey on Coop, first creating any linked agent list,
         then the survey and scenario list (if scenarios are used).
         """
+        if getattr(survey, "question_sampling", None) is not None:
+            raise CoopValueError("Humanize does not yet support question sampling. Remove the question_sampling policy before publishing this survey.")
+        if getattr(survey, "question_order", {}).get("blocks"):
+            raise CoopValueError("Humanize does not yet support question-order randomization. Remove the question_order blocks before publishing this survey.")
         if scenario_list is None and scenario_list_method is not None:
             raise CoopValueError(
                 "You must specify both a scenario list and a scenario list method to use scenarios with your survey."
             )
-        elif scenario_list is not None and scenario_list_method is None:
+        if getattr(survey, "scale_direction_randomization", None) is not None:
+            raise CoopValueError(
+                "Scale-direction randomization is currently supported for model runs only; clear the policy before creating a human survey."
+            )
+        if scenario_list is not None and scenario_list_method is None:
             raise CoopValueError(
                 "You must specify both a scenario list and a scenario list method to use scenarios with your survey."
             )
@@ -5795,6 +5816,10 @@ class Coop(CoopFunctionsMixin):
 
         if not isinstance(survey, Survey):
             raise CoopObjectTypeError("This is not a survey.")
+        if getattr(survey, "scale_direction_randomization", None) is not None:
+            raise CoopValueError(
+                "Scale-direction randomization is currently supported for model runs only; clear the policy before previewing a human survey."
+            )
         if humanize_schema is not None:
             self.validate_human_survey_humanize_schema(survey, humanize_schema)
         survey_dict = survey.to_dict()
@@ -6752,6 +6777,11 @@ class Coop(CoopFunctionsMixin):
         """
         Return a Results object with the human responses for a human survey.
 
+        Each result's agent traits include Prolific's submission fields, such as
+        ``prolific_submission_id`` and ``prolific_submission_status``. Participants'
+        demographics are a separate download: see
+        ``get_prolific_study_demographics``.
+
         If generating the Results object fails, a ScenarioList will be returned instead.
         """
         response = self._send_server_request(
@@ -6764,6 +6794,50 @@ class Coop(CoopFunctionsMixin):
         survey_uuid = response_json.get("survey_uuid")
 
         return self._turn_human_responses_into_results(human_responses, survey_uuid)
+
+    def get_prolific_study_demographics(
+        self,
+        human_survey_uuid: str,
+        study_id: str,
+        save_path: Optional[str] = None,
+    ) -> str:
+        """
+        Return the demographics of a Prolific study's participants, as Prolific's CSV.
+
+        There is one row per submission. Join it to the study's responses on the
+        "Submission id" column, which matches the ``prolific_submission_id`` trait
+        on each result from ``get_prolific_study_responses``. The columns are
+        Prolific's own, such as "Age", "Sex", "Ethnicity simplified",
+        "Nationality" and "Employment status".
+
+        Only the survey's owner can download a study's demographics.
+
+        Parameters:
+            human_survey_uuid (str): The UUID of the human survey.
+            study_id (str): The ID of the Prolific study.
+            save_path (str, optional): If provided, also saves the CSV to this file
+                path.
+
+        Returns:
+            str: The CSV text.
+
+        Example:
+            >>> csv_text = coop.get_prolific_study_demographics(survey_uuid, study_id)
+            >>> coop.get_prolific_study_demographics(
+            ...     survey_uuid, study_id, save_path="demographics.csv"
+            ... )
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies/{study_id}/demographics",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        csv_text = response.text
+        if save_path is not None:
+            # newline="" keeps the CSV's own line endings as they are
+            with open(save_path, "w", encoding="utf-8", newline="") as f:
+                f.write(csv_text)
+        return csv_text
 
     def delete_prolific_study(
         self,
@@ -7555,6 +7629,7 @@ class Coop(CoopFunctionsMixin):
         alias: Optional[str] = None,
         visibility: Optional[VisibilityType] = "private",
         force: bool = False,
+        git_repo: bool = False,
     ) -> "Scenario":
         """
         Upload an EDSL object to Coop via a signed GCS URL (PUT), then confirm the upload.
@@ -7627,6 +7702,7 @@ class Coop(CoopFunctionsMixin):
                     alias=alias,
                     value=object,
                     visibility=visibility,
+                    git_repo=git_repo,
                 )
 
                 # Get complete metadata after the patch
@@ -7643,6 +7719,7 @@ class Coop(CoopFunctionsMixin):
                         "description": metadata.get("description"),
                         "version": self._edsl_version,
                         "visibility": metadata.get("visibility"),
+                        **_git_remote(patch_result),
                     }
                 )
 
@@ -7717,7 +7794,7 @@ class Coop(CoopFunctionsMixin):
         confirm_response = self._send_server_request(
             uri="api/v0/object/confirm-upload",
             method="POST",
-            payload={"object_uuid": object_uuid},
+            payload={"object_uuid": object_uuid, **({"git_repo": True} if git_repo else {})},
         )
         self._resolve_server_response(confirm_response)
 
@@ -7731,6 +7808,7 @@ class Coop(CoopFunctionsMixin):
                 "description": response_json.get("description"),
                 "version": self._edsl_version,
                 "visibility": response_json.get("visibility"),
+                **_git_remote(confirm_response.json()),
             }
         )
 

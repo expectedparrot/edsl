@@ -13,6 +13,8 @@ _build/*
 *json
 *jsonl
 *log
+*.aux
+*.out
 *svg
 *jpeg
 *png
@@ -26,6 +28,7 @@ _build/*
 .coverage
 .edsl_cache
 .edsl_objects/
+**/_object_store/
 .edsl/
 .claude/
 .tmp/
@@ -70,3 +73,12 @@ edsl/assistants/examples/*
 benchmark_logs/*
 performance.yml
 edsl/assistants/edsl_output/
+# Generated shared-state and workflow run outputs; source examples remain tracked.
+artifacts/shared-state-path-dependence-report-build/
+artifacts/shared_state_path_dependence_report.pdf
+artifacts/shared_state_case_studies/
+artifacts/economic_games_lab.html
+artifacts/handbook_games_catalog.html
+artifacts/workflow_gallery_artifacts/
+artifacts/workflow_stress_gallery.html
+artifacts/workflow_human_runs/

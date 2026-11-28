@@ -59,6 +59,7 @@ class InferenceServiceType(EnumWithChecks):
     REPLICATE = "replicate"
     OPENAI = "openai"
     OPENAI_V2 = "openai_v2"
+    XAI_RESPONSES = "xai_responses"
     GOOGLE = "google"
     TEST = "test"
     ANTHROPIC = "anthropic"
@@ -84,6 +85,7 @@ InferenceServiceLiteral = Literal[
     "replicate",
     "openai",
     "openai_v2",
+    "xai_responses",
     "google",
     "test",
     "anthropic",
@@ -105,6 +107,7 @@ available_models_urls = {
     "anthropic": "https://docs.anthropic.com/en/docs/about-claude/models",
     "openai": "https://platform.openai.com/docs/models/gp",
     "openai_v2": "https://platform.openai.com/docs/models/gp",
+    "xai_responses": "https://docs.x.ai/developers/tools/overview",
     "groq": "https://console.groq.com/docs/models",
     "google": "https://cloud.google.com/vertex-ai/generative-ai/docs/learn/models",
     "meta": "https://dev.meta.ai/docs/getting-started/overview/",
@@ -116,6 +119,7 @@ service_to_api_keyname = {
     InferenceServiceType.REPLICATE.value: "TBD",
     InferenceServiceType.OPENAI.value: "OPENAI_API_KEY",
     InferenceServiceType.OPENAI_V2.value: "OPENAI_API_KEY",
+    InferenceServiceType.XAI_RESPONSES.value: "XAI_API_KEY",
     InferenceServiceType.GOOGLE.value: "GOOGLE_API_KEY",
     InferenceServiceType.TEST.value: "TBD",
     InferenceServiceType.ANTHROPIC.value: "ANTHROPIC_API_KEY",

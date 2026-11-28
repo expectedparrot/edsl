@@ -91,6 +91,78 @@ class TestEnvelope:
         assert out["data"]["config"]["EXPECTED_PARROT_API_KEY"] == "***"
         assert "ep_test_secret" not in result.output
 
+    def test_survey_question_sampling_cli_authoring_and_inspection(self, tmp_path):
+        from edsl import QuestionFreeText, Survey
+
+        survey_path = tmp_path / "survey.ep"
+        survey = Survey(
+            [
+                QuestionFreeText(question_name=name, question_text=f"{name}?")
+                for name in ("required", "q1", "q2", "fixed")
+            ]
+        )
+        survey.git.save(survey_path)
+
+        configured = run_cli(
+            "surveys",
+            "set-question-sampling",
+            str(survey_path),
+            "--eligible-question",
+            "required",
+            "--eligible-question",
+            "q1",
+            "--eligible-question",
+            "q2",
+            "--sample-size",
+            "2",
+            "--required-question",
+            "required",
+        )
+        assert configured["status"] == "ok"
+        shown = run_cli("surveys", "show", str(survey_path))
+        assert shown["data"]["question_sampling"]["sample_size"] == 2
+        assert run_cli("validate", "--file", str(survey_path))["status"] == "ok"
+        assert Survey.git.load(survey_path).question_sampling["required_questions"] == [
+            "required"
+        ]
+
+
+    def test_survey_question_order_block_cli_authoring_and_inspection(self, tmp_path):
+        from edsl import QuestionFreeText, Survey
+
+        survey_path = tmp_path / "survey.ep"
+        survey = Survey(
+            [
+                QuestionFreeText(question_name=name, question_text=f"{name}?")
+                for name in ("trust", "fairness", "satisfaction")
+            ]
+        )
+        survey.git.save(survey_path)
+
+        edited = run_cli(
+            "surveys",
+            "add-question-order-block",
+            str(survey_path),
+            "--name",
+            "attitudes",
+            "--question",
+            "trust",
+            "--question",
+            "fairness",
+            "--question",
+            "satisfaction",
+        )
+        assert edited["status"] == "ok"
+        shown = run_cli("surveys", "show", str(survey_path))
+        assert shown["status"] == "ok"
+        assert shown["data"]["question_order"]["blocks"][0]["name"] == "attitudes"
+        validated = run_cli("validate", "--file", str(survey_path))
+        assert validated["status"] == "ok"
+        assert (
+            Survey.git.load(survey_path).question_order["blocks"][0]["name"]
+            == "attitudes"
+        )
+
 
 class TestCliModuleBoundaries:
     def test_command_modules_import_independently(self):
@@ -2678,6 +2750,7 @@ class TestJobsCli:
         out = json.loads(result.output)
         assert out["data"]["commands"] == [
             "build",
+            "set-treatment-assignment",
             "list",
             "status",
             "wait",
@@ -2688,6 +2761,44 @@ class TestJobsCli:
             "cancel",
             "cost",
         ]
+
+    def test_jobs_set_treatment_assignment_and_clear(self, tmp_path):
+        from edsl import Agent, Jobs, Model, QuestionFreeText, Scenario, ScenarioList, Survey
+
+        job_path = tmp_path / "jobs.ep"
+        Jobs(
+            survey=Survey([QuestionFreeText(question_name="q", question_text="{{ condition }}")]),
+            agents=[Agent(traits={"respondent_id": "r1"})],
+            scenarios=ScenarioList(
+                [Scenario({"condition": "control"}), Scenario({"condition": "treatment"})]
+            ),
+            models=[Model("test", canned_response="ok")],
+        ).git.save(job_path)
+        policy = {
+            "version": 1,
+            "conditions": {"control": 0, "treatment": 1},
+            "schedule": {"agent:r1": "control"},
+            "unit": "agent",
+            "unit_id_field": "respondent_id",
+        }
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["jobs", "set-treatment-assignment", str(job_path), "--policy", json.dumps(policy)],
+        )
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["data"]["treatment_assignment"]["unit"] == "agent"
+        assert json.loads(result.output)["data"]["saved"]["format"] == "ep"
+
+        result = CliRunner().invoke(cli_module.app, ["validate", "--file", str(job_path)])
+        assert result.exit_code == 0, result.output
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["jobs", "set-treatment-assignment", str(job_path), "--clear"],
+        )
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["data"]["treatment_assignment"] is None
 
     def test_jobs_list(self, monkeypatch):
         import edsl.coop
@@ -3517,6 +3628,9 @@ class TestHumanizeCli:
                 "rating=Good",
                 "--custom-css",
                 str(css_path),
+                "--back-button",
+                "--no-back-past",
+                "rating",
                 "--output",
                 str(schema_path),
             ],
@@ -3539,6 +3653,8 @@ class TestHumanizeCli:
             "step": 1.0,
         }
         assert schema["survey"]["custom_css"] == ".edsl-root { color: red; }"
+        assert schema["survey"]["navigation"]["back_button"] is True
+        assert schema["questions"]["rating"]["navigation"]["allow_back_past"] is False
         assert json.loads(schema_path.read_text(encoding="utf-8")) == schema
 
     def _logo_survey_path(self, tmp_path):
@@ -5945,8 +6061,10 @@ class TestHumanizeCli:
                         "rating": {
                             "format": {"type": "dropdown"},
                             "comment": {"label": "Why?"},
+                            "navigation": {"allow_back_past": False},
                         },
-                    }
+                    },
+                    "survey": {"navigation": {"back_button": True}},
                 }
                 return {"humanize_schema": partial_schema}
 
@@ -5965,6 +6083,9 @@ class TestHumanizeCli:
                 "rating=dropdown",
                 "--comment",
                 "rating=Why?",
+                "--back-button",
+                "--no-back-past",
+                "rating",
             ],
         )
 
@@ -6076,6 +6197,8 @@ class TestHumanizeCli:
 
         config_path = tmp_path / "prolific.json"
         output_path = tmp_path / "prolific-responses.ep"
+        demographics_path = tmp_path / "prolific-demographics.csv"
+        demographics_csv = "Submission id,Age,Sex\ns1,30,Female\ns2,41,Male\n"
         config_path.write_text(
             json.dumps(
                 {
@@ -6131,6 +6254,16 @@ class TestHumanizeCli:
                 assert study_id == "study-id"
                 return Results.example()
 
+            def get_prolific_study_demographics(
+                self, human_survey_uuid, study_id, save_path=None
+            ):
+                assert human_survey_uuid == "human-survey-uuid"
+                assert study_id == "study-id"
+                if save_path is not None:
+                    with open(save_path, "w", encoding="utf-8", newline="") as f:
+                        f.write(demographics_csv)
+                return demographics_csv
+
         monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
 
         commands = [
@@ -6158,6 +6291,16 @@ class TestHumanizeCli:
                 str(output_path),
             ],
             ["humanize", "prolific", "settings"],
+            [
+                "humanize",
+                "prolific",
+                "demographics",
+                "human-survey-uuid",
+                "study-id",
+                "--output",
+                str(demographics_path),
+            ],
+            ["humanize", "prolific", "demographics", "human-survey-uuid", "study-id"],
         ]
 
         outputs = []
@@ -6174,6 +6317,11 @@ class TestHumanizeCli:
         assert outputs[3]["status"] == "ACTIVE"
         assert outputs[4]["saved"]["format"] == "ep"
         assert output_path.exists()
+        assert outputs[6]["participant_count"] == 2
+        assert outputs[6]["columns"] == ["Submission id", "Age", "Sex"]
+        assert outputs[6]["saved"] == {"path": str(demographics_path), "format": "csv"}
+        assert demographics_path.read_text(encoding="utf-8") == demographics_csv
+        assert "next_step" in outputs[7]
 
     @pytest.mark.parametrize(
         ("action", "method_name"),
@@ -6737,7 +6885,7 @@ class TestRunValidation:
 
         result = CliRunner().invoke(
             cli_module.app,
-            ["run", str(jobs_path), "-o", str(results_path)],
+            ["run", str(jobs_path), "--local", "-o", str(results_path)],
         )
 
         assert result.exit_code == 0, result.output
@@ -6858,7 +7006,7 @@ class TestRunValidation:
 
         run = CliRunner().invoke(
             cli_module.app,
-            ["run", str(jobs_path), "--output", str(results_path)],
+            ["run", str(jobs_path), "--local", "--output", str(results_path)],
         )
         select = CliRunner().invoke(
             cli_module.app,
@@ -6920,7 +7068,7 @@ class TestRunValidation:
 
         result = CliRunner().invoke(
             cli_module.app,
-            ["run", str(jobs_path), "--n", "3", "--output", str(results_path)],
+            ["run", str(jobs_path), "--local", "--n", "3", "--output", str(results_path)],
         )
 
         assert result.exit_code == 0, result.output
@@ -7275,6 +7423,86 @@ class TestSurveys:
 
         assert result.exit_code == 0, result.output
         assert "review" in result.output
+        assert "set-option-randomization" in result.output
+
+    def test_surveys_set_option_randomization_for_dynamic_options(self, tmp_path):
+        from edsl.questions import QuestionMultipleChoice
+        from edsl.surveys import Survey
+
+        survey_path = tmp_path / "survey.ep"
+        question = QuestionMultipleChoice(
+            question_name="pick",
+            question_text="Pick one.",
+            question_options="{{ scenario.options }}",
+        )
+        Survey([question]).git.save(survey_path)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "surveys",
+                "set-option-randomization",
+                str(survey_path),
+                "--question",
+                "pick",
+                "--pin-options",
+                '{"pick":["Other"]}',
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)["data"]
+        assert data["questions_to_randomize"] == ["pick"]
+        assert data["options_to_pin"] == {"pick": ["Other"]}
+        restored = Survey.git.load(survey_path)
+        assert restored.questions_to_randomize == ["pick"]
+        assert restored.options_to_pin == {"pick": ["Other"]}
+        validation = CliRunner().invoke(
+            cli_module.app, ["validate", "--file", str(survey_path)]
+        )
+        assert validation.exit_code == 0, validation.output
+
+        clear_result = CliRunner().invoke(
+            cli_module.app,
+            ["surveys", "set-option-randomization", str(survey_path), "--clear"],
+        )
+        assert clear_result.exit_code == 0, clear_result.output
+        cleared = Survey.git.load(survey_path)
+        assert cleared.questions_to_randomize == []
+        assert cleared.options_to_pin == {}
+
+    def test_surveys_set_option_randomization_rejects_unknown_pinned_target(
+        self, tmp_path
+    ):
+        from edsl.questions import QuestionMultipleChoice
+        from edsl.surveys import Survey
+
+        survey_path = tmp_path / "survey.ep"
+        Survey(
+            [
+                QuestionMultipleChoice(
+                    question_name="pick",
+                    question_text="Pick one.",
+                    question_options="{{ scenario.options }}",
+                )
+            ]
+        ).git.save(survey_path)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "surveys",
+                "set-option-randomization",
+                str(survey_path),
+                "--question",
+                "pick",
+                "--pin-options",
+                '{"other":["Other"]}',
+            ],
+        )
+
+        assert result.exit_code == cli_module.EXIT_VALIDATION, result.output
+        assert json.loads(result.output)["error"]["code"] == "INVALID_PINNED_OPTIONS"
 
     def test_surveys_create_and_add_question_from_fields(self, tmp_path):
         from edsl.surveys import Survey
@@ -8236,6 +8464,7 @@ class TestDefault:
         assert "clone" in data["commands"]
         assert "push" in data["commands"]
         assert "pull" in data["commands"]
+        assert "log" in data["commands"]
         assert "metadata" in data["commands"]
         assert "update-metadata" in data["commands"]
         assert "share" in data["commands"]
@@ -8358,6 +8587,7 @@ class TestPush:
             visibility=None,
             expected_parrot_url=None,
             force=False,
+            git_repo=False,
         ):
             push_calls.append(
                 {
@@ -8365,6 +8595,7 @@ class TestPush:
                     "alias": alias,
                     "visibility": visibility,
                     "force": force,
+                    "git_repo": git_repo,
                 }
             )
             return {
@@ -8422,6 +8653,7 @@ class TestPush:
                 "alias": "created-alias",
                 "visibility": "public",
                 "force": False,
+                "git_repo": True,
             }
         ]
         html = Survey.git.open(package_path).html()
@@ -8450,7 +8682,10 @@ class TestPush:
             def __init__(self, url=None):
                 pass
 
-            def patch(self, url_or_uuid, description=None, alias=None, value=None, visibility=None):
+            def patch(
+                self, url_or_uuid, description=None, alias=None, value=None, visibility=None,
+                git_repo=False,
+            ):
                 patch_calls.append(
                     {
                         "url_or_uuid": url_or_uuid,
@@ -8458,6 +8693,7 @@ class TestPush:
                         "alias": alias,
                         "object_type": type(value).__name__,
                         "visibility": visibility,
+                        "git_repo": git_repo,
                     }
                 )
                 return {
@@ -8509,6 +8745,7 @@ class TestPush:
                 "alias": "new-alias",
                 "object_type": "Survey",
                 "visibility": "unlisted",
+                "git_repo": True,
             }
         ]
 
@@ -8615,7 +8852,7 @@ class TestPull:
         assert out["status"] == "ok"
         assert out["data"]["operation"] == "unchanged"
 
-    def test_pull_package_without_coop_info_errors(self, tmp_path):
+    def test_pull_package_without_any_remote_errors(self, tmp_path):
         from edsl.surveys import Survey
 
         package_path = tmp_path / "survey.ep"
@@ -8626,4 +8863,4 @@ class TestPull:
         assert result.exit_code == cli_module.EXIT_VALIDATION
         out = json.loads(result.output)
         assert out["status"] == "error"
-        assert out["error"]["code"] == "NO_COOP_INFO"
+        assert out["error"]["code"] == "NO_REMOTE"

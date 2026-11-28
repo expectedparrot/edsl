@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import time
 from pathlib import Path
 
@@ -95,6 +96,73 @@ def register(jobs_group: click.Group) -> None:
                 str(e),
                 suggestion="Check that inputs are the expected Survey, AgentList, ScenarioList, and ModelList objects.",
                 exit_code=EXIT_USAGE,
+            )
+
+    @jobs_group.command("set-treatment-assignment")
+    @click.argument("jobs_path", type=click.Path(exists=True))
+    @click.option(
+        "--policy",
+        "policy_value",
+        default=None,
+        help="Treatment-assignment JSON or a path to a JSON file.",
+    )
+    @click.option("--clear", is_flag=True, help="Remove the treatment assignment.")
+    @click.option(
+        "--output",
+        "output_path",
+        default=None,
+        help="Output Jobs package/file; defaults to JOBS_PATH.",
+    )
+    def set_treatment_assignment(jobs_path, policy_value, clear, output_path):
+        """Set an explicit treatment schedule on a Jobs package."""
+        if clear == (policy_value is not None):
+            error(
+                "USAGE_ERROR",
+                "Provide exactly one of --policy or --clear.",
+                exit_code=EXIT_USAGE,
+            )
+        try:
+            from edsl.jobs import Jobs
+
+            job = _load_typed_object(Path(jobs_path), Jobs, "Jobs")
+            if clear:
+                job.set_treatment_assignment(None)
+            else:
+                job.set_treatment_assignment(_load_json_object_or_file(policy_value))
+            saved = save_edsl_object(
+                job, output_path or jobs_path, object_type="Jobs"
+            )
+            if raw_output_written(saved):
+                return
+            policy = job.treatment_assignment
+            output(
+                {
+                    "object_type": "Jobs",
+                    "treatment_assignment": (
+                        None
+                        if policy is None
+                        else {
+                            "design_id": policy.design_id,
+                            "unit": policy.unit,
+                            "conditions": policy.conditions,
+                            "balance": policy.balance,
+                            "schedule_counts": policy.condition_counts(),
+                        }
+                    ),
+                    "saved": saved,
+                }
+            )
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "TREATMENT_ASSIGNMENT_ERROR",
+                str(e),
+                suggestion=(
+                    "Check condition scenario indices, unit keys, schedule coverage, "
+                    "and balance counts."
+                ),
+                exit_code=EXIT_VALIDATION,
             )
 
     @jobs_group.command("list")
@@ -198,11 +266,14 @@ def register(jobs_group: click.Group) -> None:
                 "status": status.get("status") if status else None,
                 "result_count": len(results_obj) if hasattr(results_obj, "__len__") else None,
             }
+            if status is not None:
+                data["cost_reconciliation"] = results_obj.reconcile_job_cost(status, notify=False)
             if output_path:
                 data["saved"] = save_results(results_obj, output_path)
                 if raw_output_written(data["saved"]):
                     return
-            output(data)
+            reconciliation = data.get("cost_reconciliation", {})
+            output(data, warnings=[reconciliation["message"]] if reconciliation.get("status") == "mismatch" else [])
         except SystemExit:
             raise
         except Exception as e:
@@ -390,9 +461,20 @@ def register(jobs_group: click.Group) -> None:
                         scenarios=obj.scenarios,
                     )
             cost_data = Coop().remote_inference_cost(obj, iterations=iterations)
+            from edsl.language_models.output_token_policy import (
+                model_token_policy,
+                token_limit_warnings,
+            )
+
+            cost_data["output_token_policies"] = [
+                model_token_policy(m) for m in getattr(obj, "models", [])
+            ]
             cost_warnings = [
                 {"code": "COST_ESTIMATE_UNCERTAIN", "message": message}
-                for message in (cost_data.get("warnings") or [])
+                for message in [
+                    *(cost_data.get("warnings") or []),
+                    *token_limit_warnings(getattr(obj, "models", [])),
+                ]
             ]
             output(jsonable(cost_data), warnings=cost_warnings)
         except SystemExit:
@@ -421,6 +503,26 @@ def _load_typed_object(path: Path, expected_type, type_name: str):
             exit_code=EXIT_USAGE,
         )
     return obj
+
+
+def _load_json_object_or_file(value: str) -> dict:
+    path = Path(value)
+    try:
+        is_file = path.is_file()
+    except OSError:
+        is_file = False
+    raw = path.read_text(encoding="utf-8") if is_file else value
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        error(
+            "INVALID_JSON",
+            f"Failed to parse treatment policy JSON: {exc}",
+            exit_code=EXIT_USAGE,
+        )
+    if not isinstance(data, dict):
+        error("INVALID_JSON", "Treatment policy JSON must be an object.", exit_code=EXIT_USAGE)
+    return data
 
 
 def _wait_for_remote_job(

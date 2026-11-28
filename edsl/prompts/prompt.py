@@ -8,6 +8,7 @@ from functools import lru_cache
 
 from jinja2 import meta, Undefined
 from jinja2.sandbox import SandboxedEnvironment
+from edsl.utilities.object_markdown import MarkdownPreviewMixin
 from ..utilities.jinja import make_environment
 
 from .exceptions import TemplateRenderError, PromptValueError, PromptImplementationError
@@ -129,7 +130,7 @@ def _cached_render(text: str, frozen_replacements: frozenset) -> str:
     return result
 
 
-class Prompt(str, PersistenceMixin, RepresentationMixin):
+class Prompt(MarkdownPreviewMixin, str, PersistenceMixin, RepresentationMixin):
     """Class for creating a prompt to be used in a survey."""
 
     default_instructions: Optional[str] = "Do good things, friendly LLM!"
@@ -388,7 +389,9 @@ class Prompt(str, PersistenceMixin, RepresentationMixin):
                 _render_timing_accum["fast_path_skips"] += 1
                 _render_timing_accum["call_count"] += 1
                 _render_timing_accum["total_render"] += time.time() - _t_total
-            return text, template_vars.get_all()
+            from ..stem import restore_stem_literals
+
+            return restore_stem_literals(text), template_vars.get_all()
 
         # Combine replacements.
         _t_repl = time.time()
@@ -416,7 +419,9 @@ class Prompt(str, PersistenceMixin, RepresentationMixin):
                 _render_timing_accum["find_template_vars"] += _t_find_end - _t_find
                 _render_timing_accum["call_count"] += 1
                 _render_timing_accum["total_render"] += time.time() - _t_total
-            return text, template_vars.get_all()
+            from ..stem import restore_stem_literals
+
+            return restore_stem_literals(text), template_vars.get_all()
 
         # Start with the original text
         current_text = text
@@ -444,7 +449,9 @@ class Prompt(str, PersistenceMixin, RepresentationMixin):
                     _render_timing_accum["template_render"] += _template_render_time
                     _render_timing_accum["call_count"] += 1
                     _render_timing_accum["total_render"] += time.time() - _t_total
-                return rendered_text, template_vars.get_all()
+                from ..stem import restore_stem_literals
+
+                return restore_stem_literals(rendered_text), template_vars.get_all()
 
             # Update current_text for next iteration
             current_text = rendered_text

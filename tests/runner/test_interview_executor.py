@@ -9,11 +9,45 @@ from edsl.caching import Cache
 from edsl.inference_services.services.test_service import TestService
 from edsl.key_management import KeyLookup
 from edsl.questions import QuestionFreeText, QuestionInterview
+from edsl.results.result_from_interview import ResultFromInterview
 from edsl.runner.executor import ExecutionWorker
 from edsl.runner.models import Answer
 from edsl.runner.service import JobService
 from edsl.runner.storage import InMemoryStorage
 from edsl.surveys import Survey
+
+
+def test_answer_source_round_trips_in_answer_storage():
+    answer = Answer(
+        job_id="job",
+        interview_id="interview",
+        question_name="probability",
+        answer=0.1667,
+        created_at=datetime.now(),
+        answer_source="repaired",
+    )
+
+    restored = Answer.from_dict(
+        answer.job_id,
+        answer.interview_id,
+        answer.question_name,
+        answer.to_dict(),
+    )
+
+    assert restored.answer_source == "repaired"
+
+
+def test_answer_source_is_exposed_in_validated_result_metadata():
+    result = SimpleNamespace(
+        question_name="probability", validated=True, answer_source="repaired"
+    )
+
+    validated = ResultFromInterview._get_validated_dictionary(None, [result])
+
+    assert validated == {
+        "probability_validated": True,
+        "probability_answer_source": "repaired",
+    }
 
 
 def _build_test_model():

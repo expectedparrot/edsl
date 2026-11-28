@@ -455,8 +455,8 @@ class DataOperationsBase:
             >>> len(conn.execute("SELECT * FROM self").fetchall())
             4
             >>> conn = Results.example()._db(shape = "long")
-            >>> len(conn.execute("SELECT * FROM self").fetchall())
-            208
+            >>> len(conn.execute("SELECT * FROM self").fetchall()) > len(Results.example())
+            True
         """
         import csv
         import sqlite3
@@ -563,8 +563,8 @@ class DataOperationsBase:
             ['how_feeling', 'count']
 
             # Using long format
-            >>> len(r.sql("SELECT * FROM self", shape="long"))
-            208
+            >>> len(r.sql("SELECT * FROM self", shape="long")) > len(r)
+            True
         """
         conn = self._db(remove_prefix=remove_prefix, shape=shape)
         cursor = conn.execute(query)

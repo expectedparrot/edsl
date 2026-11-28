@@ -9,6 +9,10 @@ A `Results` object contains interview records and associated study information. 
 
 One result record holds all answers from one interview, together with its scenario, agent, and model. A survey with five questions therefore normally produces five answer columns per interview, rather than five rows. This is the object returned by `job.run()`; the same selection and export methods also work with retrieved human responses.
 
+## Attach result metadata
+
+Pass a JSON-compatible `metadata` dictionary when constructing a `Result` to attach collection details or navigation history to an interview. Query these values with `results.select("metadata.*")`. See [Result metadata](/en/latest/result_metadata) for examples and serialization behavior.
+
 ## Inspect and compare data
 
 The example below creates four fabricated records so the analysis can run without credentials or model costs. It is a demonstration of data operations, not a research finding.
@@ -30,6 +34,41 @@ Use `results.columns` to inspect available columns. The part before the dot tell
 
 `agent.*` selects profile information, `prompt.*` selects recorded prompts, and `"answer.*"` selects all answer columns. Keep the fields needed for your comparison beside the answers—for example, the condition when comparing messages and the model when comparing models.
 
+Randomized surveys expose versioned `randomization.*` provenance in each result,
+including the assignment and unit, realized option and matrix row orders,
+scale directions and seeds, and exposure information. Scale-direction runs
+record `randomization.scale_directions` (`forward` or `reverse`) and the actual
+values shown in `randomization.option_orders`. The
+`randomization.scale_direction_assignment_id` is shared across model variants
+for the same agent/scenario/iteration assignment; the interview-level
+`randomization.assignment_id` remains unique per model interview. Question
+sampling records the realized sample in `randomization.sampled_questions` and
+planned omissions in `randomization.unselected_questions`, separately from
+selected questions left unanswered.
+Randomized surveys also expose `randomization.*` provenance in each result. The versioned record includes an assignment ID and unit, realized option and matrix row orders (when randomized), and available seeds. Question-sampling runs record the eligible sample in `randomization.sampled_questions` and planned omissions in `randomization.unselected_questions`; these are distinct from questions selected but left unanswered. Human responses include the options shown to each respondent and question presentation times. `randomization.exposure_order` is ordered by observed question start times for human responses; for model runs it is answer completion order, which can differ from prompt order when tasks run concurrently. `randomization.not_presented_questions` lists questions known to have been skipped or intentionally omitted; for model runs, a missing exposure event stays unknown when the task status cannot establish whether it was shown. Older Results files return an empty randomization record. Inspect and export these fields with `ep results columns --file results.ep` and `ep results select --file results.ep --column randomization.assignment_id --column randomization.sampled_questions --column randomization.unselected_questions --column randomization.exposure_order`.
+Randomized surveys also expose `randomization.*` provenance in each result. The versioned record includes an assignment ID and unit, realized option and matrix row orders (when randomized), and available seeds. Surveys with question-order blocks record the complete `randomization.planned_question_order`, its named blocks, and block seeds; the assignment ID is shared across models for the same respondent, scenario, and iteration. Human responses include the options shown to each respondent and question presentation times. `randomization.exposure_order` is ordered by observed question start times for human responses; for model runs it is answer completion order, which can differ from prompt order when tasks run concurrently. `randomization.not_presented_questions` lists questions known to have been skipped; for model runs, a missing exposure event stays unknown when the task status cannot establish whether it was shown. Older Results files return an empty randomization record. Inspect and export these fields with `ep results columns --file results.ep` and `ep results select --file results.ep --column randomization.assignment_id --column randomization.planned_question_order --column randomization.exposure_order`.
+
+Human responses include the options shown to each respondent and question
+presentation times. `randomization.exposure_order` is ordered by observed
+question start times for human responses; for model runs it is answer
+completion order, which can differ from prompt order when tasks run
+concurrently. `randomization.not_presented_questions` lists questions known to
+have been skipped or intentionally omitted; for model runs, a missing exposure
+event stays unknown when the task status cannot establish whether it was shown.
+Older Results files return an empty randomization record. Inspect and export
+these fields with:
+
+```bash
+ep results columns --file results.ep
+ep results select --file results.ep \
+  --column randomization.assignment_id \
+  --column randomization.sampled_questions \
+  --column randomization.unselected_questions \
+  --column randomization.scale_directions \
+  --column randomization.option_orders \
+  --column randomization.scale_direction_assignment_id \
+  --column randomization.exposure_order
+```
 Inspect prompts and raw responses when diagnosing validation failures. Report missing or failed interviews alongside completed observations; a completed process does not guarantee that every planned observation is present.
 
 ## Filter, export, and reshape

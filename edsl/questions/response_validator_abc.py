@@ -66,7 +66,7 @@ class ResponseValidatorABC(ABC):
         >>> rv = ResponseValidatorABC.example()
         >>> rv.override_answer = {"answer": 42}
         >>> rv.validate({"answer": 23})
-        {'answer': 42, 'comment': None, 'generated_tokens': None}
+        {'answer': 42, 'comment': None, 'generated_tokens': None, 'answer_source': 'structured'}
         """
         if self.exception_to_throw:
             raise self.exception_to_throw
@@ -105,7 +105,7 @@ class ResponseValidatorABC(ABC):
 
         >>> rv = ResponseValidatorABC.example("numerical")
         >>> rv.validate({"answer": 42})
-        {'answer': 42, 'comment': None, 'generated_tokens': None}
+        {'answer': 42, 'comment': None, 'generated_tokens': None, 'answer_source': 'structured'}
         >>> rv.max_value
         86.7
         >>> from edsl import QuestionNumerical
@@ -113,7 +113,7 @@ class ResponseValidatorABC(ABC):
         >>> q.permissive = True
         >>> rv = q.response_validator
         >>> rv.validate({"answer": "120"})
-        {'answer': 120, 'comment': None, 'generated_tokens': None}
+        {'answer': 120, 'comment': None, 'generated_tokens': None, 'answer_source': 'structured'}
         """
         proposed_edsl_answer_dict = self._preprocess(raw_edsl_answer_dict)
         try:

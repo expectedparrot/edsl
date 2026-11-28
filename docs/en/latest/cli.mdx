@@ -25,9 +25,33 @@ ep run --help
 ep jobs --help
 ep results --help
 ep schema list
+ep state --help
+ep orchestration --help
+ep skills list
 ```
 
 Use the installed CLI's help to check flags before constructing a command. `ep info` reports configuration diagnostics and redacts credentials. See [Installation](/en/latest/installation) for environment setup.
+
+For shared-state machines, `ep state validate`, `ep state inspect`, and
+`ep state simulate` work with serialized Machine JSON. After a run, use
+`ep results state --file results.ep` to inspect persisted state bindings and
+snapshots. See [Testing and serialization](/en/latest/shared-state/testing-and-serialization#using-the-ep-cli)
+for the input format and examples.
+
+The installed EDSL distribution also includes version-matched skill bundles.
+Use `ep skills list --routing` to see their routing descriptions and available
+references, `ep skills search <query>` to find guidance, and `ep skills show
+<name>` to retrieve a skill with its linked references. Use
+`ep skills install --target <path>` to copy the bundles into a harness's skill
+directory. The bundled `edsl-shared-state` and `edsl-orchestration` skills
+describe the two features below.
+
+`ep workflow` manages research-task gates. Portable respondent workflows have a
+separate namespace: `ep orchestration validate`, `inspect`, and `run` operate on
+`WorkflowExperiment` JSON files. `run` writes its durable database and state
+files to an output directory; configured LLM executors can make model calls.
+Use `--responses` to replay supplied answers without model calls, and `--resume`
+to continue an existing run. See [Workflow CLI commands](/en/latest/workflows#cli-commands).
 
 ## Try a local example
 
@@ -156,7 +180,138 @@ ep inspect survey.ep
 
 `add-question` updates the survey package in place. A job built earlier retains its saved survey, so rebuild the job to include the new question. Use `ep agents create --help` and `ep scenarios create --help` for creating respondent profiles and scenario data from files.
 
+To read a survey in the terminal, print its Markdown questionnaire or save it for review:
+
+```bash
+ep surveys show survey.ep --markdown
+ep surveys show survey.ep --markdown --with-question-names --with-question-types > questionnaire.md
+```
+
+Use either heading flag independently. With both flags, a heading reads
+`3. [age] “What is your age?” (numerical)`. By default it reads `3. “What is your age?”`.
+Dropdowns show the first five choices and a count of the remaining choices. Add
+`--expand-options` to list them all. This flag only changes the preview. The
+dropdown's `top_k` determines how many matches a search returns.
+
+Budget questions show an allocation table with the total above it. Demand questions
+pair each price with an empty quantity cell. Rank questions show the available
+choices followed by the requested number of blank ranking positions.
+Group discussions list their stages in order. Active survey instructions appear before
+each question they apply to, including when you open that question on a later page.
+Matrix questions display items as rows and response options as columns. Questions appear
+in authored order with response options and routing. Jinja expressions and control
+tags in question text appear as inline code, so you can see where answers or scenario
+values will be inserted and which wording is conditional.
+For example, a Yes/No question can display `○ No → Go to question 3`. The skipped question also shows its skip
+condition above the answer choices, even on a page by itself. More complex
+conditions appear at the question where they are evaluated. The flag writes Markdown
+directly to stdout on success. Omit it for the normal JSON summary.
+
+Set answer-option randomization on a survey with `set-option-randomization`. Repeat `--question` for each question; use `--pin-options` with a JSON object or a path to one when some options should stay in their original positions. This works for static choices and whole option lists resolved from scenarios or prior answers:
+
+```bash
+ep surveys set-option-randomization survey.ep \
+  --question recommend \
+  --pin-options '{"recommend":["No"]}'
+ep surveys show survey.ep
+ep validate --file survey.ep
+```
+
+Use `--clear` to remove the survey's option-randomization settings. See [Surveys](/en/latest/surveys#randomize-answer-option-order) for execution behavior and Python examples.
+
+For model-run studies, configure forward/reverse presentation of linear scales
+with `ep surveys set-scale-direction-randomization`. Repeat `--question` for
+each scale; use `--clear` to remove the policy:
+
+```bash
+ep surveys set-scale-direction-randomization survey.ep --question satisfaction
+ep surveys show survey.ep
+ep surveys set-scale-direction-randomization survey.ep --clear
+```
+
+### Assign treatment conditions
+
+
+Use an explicit schedule to assign each respondent/model/iteration unit to one scenario condition. Condition values are scenario indices in the Jobs package. Save a policy JSON file with `conditions`, `schedule`, `unit`, and optionally `unit_id_field`, `exposure_questions`, `balance`, and `planned_iterations`:
+
+```json
+{
+  "version": 1,
+  "conditions": {"control": 0, "treatment": 1},
+  "schedule": {"agent:r1": "control", "agent:r2": "treatment"},
+  "unit": "agent",
+  "unit_id_field": "respondent_id",
+  "exposure_questions": ["outcome"],
+  "balance": "exact",
+  "planned_iterations": 1
+}
+```
+
+Apply and validate the policy, then inspect realized assignment and exposure in results:
+
+```bash
+ep jobs set-treatment-assignment jobs.ep --policy treatment-policy.json
+ep validate --file jobs.ep
+ep run jobs.ep --local --output results.ep
+ep results select --file results.ep \
+  --column randomization.treatment_assignment.condition \
+  --column randomization.treatment_assignment.assignment_id \
+  --column randomization.treatment_exposure.exposed
+```
+
+Unit keys start with `agent:<id>`; `agent_model` appends `|model:<index>`, `agent_iteration` appends `|iteration:<index>`, and `agent_model_iteration` appends both. `balance: "exact"` requires equal counts for all conditions. Iteration-specific units require `planned_iterations` to match the run's `n`. Use `ep jobs set-treatment-assignment jobs.ep --clear` to remove a schedule. This version accepts explicit schedules on the default Cartesian assignment plan; it rejects probability-based assignment, stratification, custom Jobs assignment plans, and Humanize.
+
+Configure exact-count question sampling in a saved Survey package, then inspect and validate the policy:
+```bash
+ep surveys set-question-sampling survey.ep \
+  --eligible-question q1 --eligible-question q2 --eligible-question q3 \
+  --sample-size 2 --required-question q1
+ep surveys show survey.ep
+ep validate --file survey.ep
+```
+Declare and inspect question-order blocks:
+```bash
+ep surveys add-question-order-block survey.ep \
+  --name attitudes \
+  --question trust --question fairness --question satisfaction
+ep surveys show survey.ep
+ep validate --file survey.ep
+```
+Required questions count toward `--sample-size`; questions outside the eligible pool are always asked. Each respondent/scenario/iteration gets one sample shared across model variants. Results expose sampled and omitted questions under `randomization.*`.
+Question-order blocks contain at least two contiguous, independent questions in declared order. Custom branching, internal piping or memory dependencies, and instructions inside a block are not supported. `questions_to_randomize` continues to randomize answer options. Humanize currently reports a capability error for surveys with question-order blocks or question sampling.
+
 If validation fails, correct the reported problem before running the object.
+
+## Preview saved objects in Markdown
+
+```bash
+ep inspect agents.ep --markdown --page 2 --page-size 5
+ep inspect scenarios.ep --markdown
+ep inspect models.ep --markdown
+ep inspect job.ep --markdown --page-size 20
+ep inspect results.ep --markdown --page 3 > results-page-3.md
+```
+
+`ep inspect --markdown` starts at page 1 with 10 entries per page. The header shows the
+displayed range and total. It accepts the same packages, JSON files, or remote references
+as `ep inspect`. Local Markdown previews use the saved package contents. Plain
+`ep inspect` returns its JSON summary.
+
+| Object | What one entry contains |
+| --- | --- |
+| AgentList | One agent with its name, stacked trait labels and values, custom instructions, and trait descriptions. |
+| ScenarioList | One scenario. Short records share a table. Long or wide records use stacked fields. |
+| ModelList | One model with its inference service and parameters. |
+| Survey | One question with its original number and routing. Use `ep surveys show survey.ep --markdown --page 2 --page-size 5` to combine paging with the questionnaire display flags. |
+| Jobs | One saved question, agent, scenario, or model, in that order. The header shows component counts. Inspecting does not run the job. |
+| Results | One result with its answers, model, agent, scenario, and iteration. |
+| Collection | One typed object reference. |
+| Prompt or playbook | One line of saved prompt text. |
+
+For example, `agents.to_markdown(page=2, page_size=5)` returns the second page in Python.
+Use `ep inspect survey.ep --markdown` for the same quick, paged look you would give
+any study object. Use `ep surveys show survey.ep --markdown` to read or export the
+whole questionnaire, or to include question names, types, or all dropdown choices.
 
 ## Run with language models
 
@@ -261,6 +416,21 @@ ep results export results.ep \
 ```
 
 Repeat `--column` for multiple columns; do not pass a comma-separated list. Inspect available columns before selecting them. Use a bounded `select` to review responses and `export` to save larger datasets. Results queries support `.ep`, `.json`, and `.json.gz` files.
+
+For randomized surveys, inspect assignment and exposure provenance as structured columns:
+
+```bash
+ep results columns --file results.ep
+ep results select --file results.ep \
+  --column randomization.assignment_id \
+  --column randomization.option_orders \
+  --column randomization.planned_question_order \
+  --column randomization.exposure_order
+ep results export results.ep \
+  --column randomization.assignment_id \
+  --column randomization.exposure_events \
+  --output randomization.csv
+```
 
 ## Automation conventions
 
