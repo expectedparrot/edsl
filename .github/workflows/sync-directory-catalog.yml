@@ -37,6 +37,12 @@ jobs:
           jq -es '
             length == 1 and (.[0] | type == "array" and all(.[];
               ([.name, .description, .repository, .readme_url] | all(.[]; type == "string"))
+              and (.repository | startswith("https://github.com/expectedparrot/"))
+              and ((.repository | split("/") | last) as $cli
+                   | .installed_guide_command == ($cli + " guide")
+                   and ((has("installed_next_command") | not) or .installed_next_command == ($cli + " next")))
+              and ((.repository | ltrimstr("https://github.com/")) as $repo
+                   | .guide_url | type == "string" and startswith("https://raw.githubusercontent.com/" + $repo + "/HEAD/") and endswith(".md"))
               and (.methods | type == "array" and all(.[]; type == "string"))
             ))
           ' "$RUNNER_TEMP/directory/packages.json" > /dev/null

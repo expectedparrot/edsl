@@ -9,7 +9,10 @@
       "evidence tracking"
     ],
     "repository": "https://github.com/expectedparrot/epiq",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/epiq/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/epiq/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/epiq/HEAD/src/epiq/docs_content/workflow.md",
+    "installed_guide_command": "epiq guide",
+    "installed_next_command": "epiq next"
   },
   {
     "name": "Conversation",
@@ -22,7 +25,9 @@
       "simulated focus group"
     ],
     "repository": "https://github.com/expectedparrot/conversation",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/conversation/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/conversation/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/conversation/HEAD/README.md",
+    "installed_guide_command": "conversation guide"
   },
   {
     "name": "Aivis",
@@ -34,7 +39,10 @@
       "brand mentions"
     ],
     "repository": "https://github.com/expectedparrot/aivis",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/aivis/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/aivis/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/aivis/HEAD/README.md",
+    "installed_guide_command": "aivis guide",
+    "installed_next_command": "aivis next"
   },
   {
     "name": "Ariel",
@@ -47,7 +55,10 @@
       "fair allocation"
     ],
     "repository": "https://github.com/expectedparrot/ariel",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/ariel/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/ariel/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/ariel/HEAD/README.md",
+    "installed_guide_command": "ariel guide",
+    "installed_next_command": "ariel next"
   },
   {
     "name": "Bewley",
@@ -61,7 +72,10 @@
       "codebook"
     ],
     "repository": "https://github.com/expectedparrot/bewley",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/bewley/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/bewley/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/bewley/HEAD/src/bewley/docs_content/workflow.md",
+    "installed_guide_command": "bewley guide",
+    "installed_next_command": "bewley next"
   },
   {
     "name": "Bower",
@@ -73,7 +87,10 @@
       "hypothesis-driven interviews"
     ],
     "repository": "https://github.com/expectedparrot/bower",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/bower/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/bower/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/bower/HEAD/README.md",
+    "installed_guide_command": "bower guide",
+    "installed_next_command": "bower next"
   },
   {
     "name": "Dewey",
@@ -87,7 +104,10 @@
       "research synthesis"
     ],
     "repository": "https://github.com/expectedparrot/dewey",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/dewey/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/dewey/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/dewey/HEAD/README.md",
+    "installed_guide_command": "dewey guide",
+    "installed_next_command": "dewey next"
   },
   {
     "name": "Flyvbjerg",
@@ -100,7 +120,10 @@
       "reference class distribution"
     ],
     "repository": "https://github.com/expectedparrot/flyvbjerg",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/flyvbjerg/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/flyvbjerg/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/flyvbjerg/HEAD/PRACTICE.md",
+    "installed_guide_command": "flyvbjerg guide",
+    "installed_next_command": "flyvbjerg next"
   },
   {
     "name": "Green",
@@ -121,7 +144,10 @@
       "feature prioritization"
     ],
     "repository": "https://github.com/expectedparrot/green",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/green/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/green/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/green/HEAD/green/docs_content/workflow.md",
+    "installed_guide_command": "green guide",
+    "installed_next_command": "green next"
   },
   {
     "name": "Golden",
@@ -133,7 +159,10 @@
       "utility versus price"
     ],
     "repository": "https://github.com/expectedparrot/golden",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/golden/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/golden/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/golden/HEAD/README.md",
+    "installed_guide_command": "golden guide",
+    "installed_next_command": "golden next"
   },
   {
     "name": "Helmer",
@@ -146,7 +175,10 @@
       "Delphi rounds"
     ],
     "repository": "https://github.com/expectedparrot/helmer",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/helmer/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/helmer/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/helmer/HEAD/helmer/docs_content/workflow.md",
+    "installed_guide_command": "helmer guide",
+    "installed_next_command": "helmer next"
   },
   {
     "name": "Ishikawa",
@@ -158,7 +190,10 @@
       "cause investigation"
     ],
     "repository": "https://github.com/expectedparrot/ishikawa",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/ishikawa/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/ishikawa/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/ishikawa/HEAD/README.md",
+    "installed_guide_command": "ishikawa guide",
+    "installed_next_command": "ishikawa next"
   },
   {
     "name": "Kahn",
@@ -171,7 +206,10 @@
       "two by two scenario matrix"
     ],
     "repository": "https://github.com/expectedparrot/kahn",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/kahn/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/kahn/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/kahn/HEAD/kahn/docs_content/agent-workflow.md",
+    "installed_guide_command": "kahn guide",
+    "installed_next_command": "kahn next"
   },
   {
     "name": "Katz",
@@ -182,7 +220,10 @@
       "peer review findings"
     ],
     "repository": "https://github.com/expectedparrot/katz",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/katz/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/katz/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/katz/HEAD/src/katz/docs_content/workflow.md",
+    "installed_guide_command": "katz guide",
+    "installed_next_command": "katz next"
   },
   {
     "name": "Langley",
@@ -195,7 +236,10 @@
       "diagnostic evidence"
     ],
     "repository": "https://github.com/expectedparrot/langley",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/langley/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/langley/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/langley/HEAD/README.md",
+    "installed_guide_command": "langley guide",
+    "installed_next_command": "langley next"
   },
   {
     "name": "McCall",
@@ -207,7 +251,10 @@
       "job post variants"
     ],
     "repository": "https://github.com/expectedparrot/mccall",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/mccall/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/mccall/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/mccall/HEAD/README.md",
+    "installed_guide_command": "mccall guide",
+    "installed_next_command": "mccall next"
   },
   {
     "name": "MCDA",
@@ -220,7 +267,10 @@
       "multi-criteria ranking"
     ],
     "repository": "https://github.com/expectedparrot/mcda",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/mcda/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/mcda/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/mcda/HEAD/docs/manual.md",
+    "installed_guide_command": "mcda guide",
+    "installed_next_command": "mcda next"
   },
   {
     "name": "Messick",
@@ -232,7 +282,10 @@
       "questionnaire pretesting"
     ],
     "repository": "https://github.com/expectedparrot/messick",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/messick/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/messick/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/messick/HEAD/README.md",
+    "installed_guide_command": "messick guide",
+    "installed_next_command": "messick next"
   },
   {
     "name": "Niles",
@@ -244,7 +297,10 @@
       "contact follow-up"
     ],
     "repository": "https://github.com/expectedparrot/niles",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/niles/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/niles/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/niles/HEAD/AGENTS.md",
+    "installed_guide_command": "niles guide",
+    "installed_next_command": "niles next"
   },
   {
     "name": "Oneheart",
@@ -256,7 +312,10 @@
       "multi-agent experiment"
     ],
     "repository": "https://github.com/expectedparrot/oneheart",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/oneheart/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/oneheart/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/oneheart/HEAD/oneheart/docs_content/agent-guide.md",
+    "installed_guide_command": "oneheart guide",
+    "installed_next_command": "oneheart next"
   },
   {
     "name": "Premortem",
@@ -268,7 +327,10 @@
       "project risk workshop"
     ],
     "repository": "https://github.com/expectedparrot/premortem",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/premortem/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/premortem/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/premortem/HEAD/AGENT.md",
+    "installed_guide_command": "premortem guide",
+    "installed_next_command": "premortem next"
   },
   {
     "name": "Pruefung",
@@ -280,7 +342,10 @@
       "quiz grading"
     ],
     "repository": "https://github.com/expectedparrot/pruefung",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/pruefung/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/pruefung/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/pruefung/HEAD/AGENTS.md",
+    "installed_guide_command": "pruefung guide",
+    "installed_next_command": "pruefung next"
   },
   {
     "name": "Raiffa",
@@ -292,7 +357,10 @@
       "decision thresholds"
     ],
     "repository": "https://github.com/expectedparrot/raiffa",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/raiffa/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/raiffa/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/raiffa/HEAD/raiffa/docs_content/workflow.md",
+    "installed_guide_command": "raiffa guide",
+    "installed_next_command": "raiffa next"
   },
   {
     "name": "Roth",
@@ -305,7 +373,10 @@
       "blocking pairs"
     ],
     "repository": "https://github.com/expectedparrot/roth",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/roth/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/roth/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/roth/HEAD/docs/agent.md",
+    "installed_guide_command": "roth guide",
+    "installed_next_command": "roth next"
   },
   {
     "name": "Spence",
@@ -316,7 +387,10 @@
       "application review"
     ],
     "repository": "https://github.com/expectedparrot/spence",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/spence/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/spence/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/spence/HEAD/README.md",
+    "installed_guide_command": "spence guide",
+    "installed_next_command": "spence next"
   },
   {
     "name": "Stanton",
@@ -328,7 +402,10 @@
       "back of the envelope"
     ],
     "repository": "https://github.com/expectedparrot/stanton",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/stanton/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/stanton/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/stanton/HEAD/docs/agent-research.md",
+    "installed_guide_command": "stanton guide",
+    "installed_next_command": "stanton next"
   },
   {
     "name": "Tommy",
@@ -339,7 +416,10 @@
       "transcript feedback"
     ],
     "repository": "https://github.com/expectedparrot/tommy",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/tommy/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/tommy/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/tommy/HEAD/README.md",
+    "installed_guide_command": "tommy guide",
+    "installed_next_command": "tommy next"
   },
   {
     "name": "Treffen",
@@ -350,7 +430,10 @@
       "meeting pre-read"
     ],
     "repository": "https://github.com/expectedparrot/treffen",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/treffen/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/treffen/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/treffen/HEAD/README.md",
+    "installed_guide_command": "treffen guide",
+    "installed_next_command": "treffen next"
   },
   {
     "name": "Umriss",
@@ -365,7 +448,10 @@
       "population targets"
     ],
     "repository": "https://github.com/expectedparrot/umriss",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/umriss/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/umriss/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/umriss/HEAD/README.md",
+    "installed_guide_command": "umriss guide",
+    "installed_next_command": "umriss next"
   },
   {
     "name": "Urteil",
@@ -377,7 +463,10 @@
       "gold standard evaluation"
     ],
     "repository": "https://github.com/expectedparrot/urteil",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/urteil/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/urteil/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/urteil/HEAD/urteil/docs_content/workflow.md",
+    "installed_guide_command": "urteil guide",
+    "installed_next_command": "urteil next"
   },
   {
     "name": "UXTest",
@@ -389,7 +478,10 @@
       "browser journey"
     ],
     "repository": "https://github.com/expectedparrot/uxtest",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/uxtest/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/uxtest/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/uxtest/HEAD/uxtest/resources/docs/README.md",
+    "installed_guide_command": "uxtest guide",
+    "installed_next_command": "uxtest next"
   },
   {
     "name": "Vorhersage",
@@ -401,7 +493,10 @@
       "forecast evaluation"
     ],
     "repository": "https://github.com/expectedparrot/vorhersage",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/vorhersage/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/vorhersage/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/vorhersage/HEAD/docs/AGENT_GUIDE.md",
+    "installed_guide_command": "vorhersage guide",
+    "installed_next_command": "vorhersage next"
   },
   {
     "name": "Voting",
@@ -418,7 +513,10 @@
       "pairwise elections"
     ],
     "repository": "https://github.com/expectedparrot/voting",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/voting/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/voting/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/voting/HEAD/voting/docs_content/workflow.md",
+    "installed_guide_command": "voting guide",
+    "installed_next_command": "voting next"
   },
   {
     "name": "Zugunruhe",
@@ -431,7 +529,10 @@
       "survey import"
     ],
     "repository": "https://github.com/expectedparrot/zugunruhe",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/zugunruhe/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/zugunruhe/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/zugunruhe/HEAD/README.md",
+    "installed_guide_command": "zugunruhe guide",
+    "installed_next_command": "zugunruhe next"
   },
   {
     "name": "Zwicky",
@@ -445,7 +546,10 @@
       "configuration space"
     ],
     "repository": "https://github.com/expectedparrot/zwicky",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/zwicky/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/zwicky/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/zwicky/HEAD/AGENTS.md",
+    "installed_guide_command": "zwicky guide",
+    "installed_next_command": "zwicky next"
   },
   {
     "name": "Zwill",
@@ -457,6 +561,9 @@
       "predictive validity"
     ],
     "repository": "https://github.com/expectedparrot/zwill",
-    "readme_url": "https://raw.githubusercontent.com/expectedparrot/zwill/HEAD/README.md"
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/zwill/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/zwill/HEAD/zwill/guides/agent-workflow.md",
+    "installed_guide_command": "zwill guide",
+    "installed_next_command": "zwill next"
   }
 ]

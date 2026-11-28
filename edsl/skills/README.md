@@ -28,8 +28,12 @@ execute bundled scripts or examples.
 
 Search by method with `ep skills search "best worst scaling"`. The JSON response
 lists bundled skills under `data.results` and public companion packages under
-`data.packages`. Each package includes method keywords, its repository and a
-README link. `--limit` applies to each list. Search works offline using a
+`data.packages`. Each package includes method keywords, its repository, README, raw guide URL
+and a `guide_command`. Run it (for example, `ep skills guide Zwill`) to fetch the
+package’s workflow over HTTPS before installing anything. JSON includes the
+source URL and Markdown content. After installation use the package’s own
+`installed_guide_command`, then its `installed_next_command` inside a project
+when that field is present. Add `--human` to print the Markdown directly. `--limit` applies to each list. Search works offline using a
 release snapshot. Search recognizes related English word forms, so `forecast`
 finds `forecasting` and `coded interviews` finds `interview coding`. Multiword
 queries can match in any order within a method, description, or skill passage.
