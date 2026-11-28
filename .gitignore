@@ -54,6 +54,7 @@ probable_junk/
 *.zip
 # exceptions
 !edsl/utilities/data/*.json
+!edsl/skills/packages.json
 !.vscode/settings.json
 !tests/serialization/data/*.json
 !performance.yml

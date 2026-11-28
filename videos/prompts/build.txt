@@ -1,0 +1,2 @@
+Make a three-question survey about morning drinks. Ask whether I drink coffee (yes or no), which brew I prefer (include espresso and filter coffee), and what I usually drink in the morning (free text).
+Only ask about favorite brew if I drink coffee. Show me the updated survey.

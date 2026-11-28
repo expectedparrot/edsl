@@ -1,239 +1,236 @@
-<p align="right">
-  <img src="https://github.com/expectedparrot/edsl/blob/main/static/logo.png?raw=true" alt="edsl.png" width="100"/>
-</p>
+# <img src="static/edsl-wordmark.svg" alt="EDSL" width="180" height="48">
 
-# Expected Parrot Domain-Specific Language (EDSL)
+[![PyPI version](https://img.shields.io/pypi/v/edsl)](https://pypi.org/project/edsl/) [![MIT license](https://img.shields.io/badge/License-MIT-blue)](LICENSE) [![Y Combinator F25](https://img.shields.io/badge/Y%20Combinator-F25-ff6600)](https://www.ycombinator.com/companies/expected-parrot) [![Expected Parrot cache entry count](https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fwww.expectedparrot.com%2Fapi%2Fremote-cache%2Fpublic-stats&search=%22total_entries%22%5Cs%2A%3A%5Cs%2A%28%5Cd%7B1%2C3%7D%29%28%5Cd%7B3%7D%29%28%5Cd%7B3%7D%29%5Cb&replace=%241%2C%242%2C%243&label=EP+cache+entries&color=brightgreen)](https://www.expectedparrot.com/cache-stats)
 
-EDSL makes it easy to conduct computational social science and market research with AI. Use it to design and run surveys and experiments with many AI agents and large language models at once, or to perform complex data labeling and other research tasks. Results are formatted as specified datasets that can be replicated at no cost, and come with built-in methods for analysis, visualization and collaboration. 
+<!-- The cache badge groups 7–9 digits until expectedparrot/coopr#4586 deploys /api/remote-cache/badge.json with server-side number formatting. -->
 
-## Use EDSL with Codex
+[Expected Parrot](https://www.expectedparrot.com/)’s EDSL is an MIT-licensed Python library for surveys and simulations. You describe a study in natural language, and your coding agent uses EDSL to write and run it. The study design lives in code, so you can inspect it, ask the agent to change it, and run it again.
 
-Copy this prompt into Codex to set up EDSL in the current project and get a
-local example running. It does not assume you have cloned the EDSL repository.
+E[🦜] [Full EDSL documentation](https://docs.expectedparrot.com/en/latest/index) · [Academic papers using or citing EDSL](https://docs.expectedparrot.com/en/latest/papers)
 
-````text
-I want to use EDSL (Expected Parrot Domain-Specific Language) in this project.
-Set up the installed Python package and CLI, then show me the basic workflow:
+## The best way to use EDSL is with your coding agent
 
-1. Inspect this project's Python environment and dependency files first. If
-   EDSL is already installed and its version satisfies the project, keep it.
-   Otherwise install EDSL into the active environment with
-   `python -m pip install edsl`. Do not clone or modify the EDSL source repo.
-2. Discover the CLI with `ep --help` and `ep info`.
-3. Check `ep auth status`. Local survey construction and the `test` model do
-   not need authentication. If a remote operation later needs authentication,
-   check for `EXPECTED_PARROT_API_KEY` in the environment. If it is available,
-   configure it with `ep auth login --api_key "$EXPECTED_PARROT_API_KEY"`
-   only after confirming the current project's `.env` is ignored by Git. Never
-   print, expose, or commit the key. If no key is available, ask me before
-   proceeding with that remote operation.
-4. Discover relevant version-matched guidance with `ep skills list --routing`.
-   Search using `ep skills search <query> --snippets`, then fetch only the
-   relevant skill with `ep skills show <name>`. Use `ep schema show` for
-   object shapes and `ep docs search` if the installed guidance is insufficient.
-5. Run this local smoke test in a temporary directory, checking each JSON
-   response's `status` and `warnings`:
-   `tmpdir=$(mktemp -d)`
-   `ep surveys create --question-type free_text --question-name q0 --question-text "What do you think?" --output "$tmpdir/survey.ep"`
-   `ep validate --file "$tmpdir/survey.ep"`
-   `ep open "$tmpdir/survey.ep" --no-browser --output "$tmpdir/survey.html"`
-   `ep run --question "Return the word ok." --model test --output "$tmpdir/results.ep"`
-   `ep results select --file "$tmpdir/results.ep" --column "answer.*"`
-   Use exactly the `test` model for this local check; do not substitute a
-   remote model. `ep open` creates a self-contained HTML inspection view of
-   the `.ep` object's definition; it is not a fillable respondent survey. Say
-   the page was generated, but do not claim to have visually reviewed it
-   unless you actually opened or inspected it.
-6. For CLI commands, treat stdout as one JSON document, parse it, check
-   `status`, and read `warnings`. Use `ep <command> --help` when flags are
-   unclear. Before any remote model run that may use credits, publishing or
-   deleting a remote object, or launching an external study, get my approval.
+Choose your agent and paste its setup prompt into the chat. Once EDSL is ready, describe the study you want to run. For example, “Make a three-question survey about coffee habits and show it here in the chat.”
 
-Summarize what you installed and the smoke-test result, then ask what I want
-to do with EDSL.
-````
+[![Need help?](https://img.shields.io/badge/Need_help%3F-22863A?style=flat)](https://www.expectedparrot.com/respond/human-surveys/f10115dd-8503-4024-ab4d-9d32b14e30fa)
 
-EDSL's CLI is JSON-first, and its installed skill bundles provide
-version-matched API and workflow guidance.
+<details>
+<summary><img src="docs/assets/harness-icons/codex.svg" width="22" height="22" alt=""> Codex</summary>
 
-## Getting started
+Paste into Codex:
 
-1. Run `pip install edsl` to install the package. See the <a href="https://docs.expectedparrot.com/en/latest/installation" target="_blank" rel="noopener noreferrer">installation guide</a>.
-
-2. <a href="https://www.expectedparrot.com/login" target="_blank" rel="noopener noreferrer">Create an account</a> to run surveys at the Expected Parrot server and access a <a href="https://docs.expectedparrot.com/en/latest/remote_caching" target="_blank" rel="noopener noreferrer">universal remote cache</a> of stored responses for reproducing results.
-
-3. Choose whether to use your own keys for language models or get an Expected Parrot key to access all available models at once. Securely <a href="https://www.expectedparrot.com/getting-started/edsl-api-keys" target="_blank" rel="noopener noreferrer">manage keys</a>,  expenses and usage for your team from your account.
-
-4. Follow <a href="https://docs.expectedparrot.com/en/latest/starter_tutorial" target="_blank" rel="noopener noreferrer">Run your first survey</a>, then explore the <a href="https://docs.expectedparrot.com/en/latest/index#explore-the-docs" target="_blank" rel="noopener noreferrer">how-to guides and research examples</a>, including <a href="https://docs.expectedparrot.com/en/latest/guides/data_labeling" target="_blank" rel="noopener noreferrer">labeling data with survey questions</a>.
-
-5. Share workflows and survey results at <a href="https://www.expectedparrot.com/login" target="_blank" rel="noopener noreferrer">Coop</a>: a free platform for creating and sharing AI research.
-
-## Code & Docs
-- <a href="https://github.com/expectedparrot/edsl" target="_blank" rel="noopener noreferrer">GitHub</a>
-- <a href="https://pypi.org/project/edsl/" target="_blank" rel="noopener noreferrer">PyPI</a>
-- <a href="https://docs.expectedparrot.com" target="_blank" rel="noopener noreferrer">Documentation</a>
-
-## Requirements
-- Python 3.10 - 3.13
-- API keys for language models. You can use your own keys or an Expected Parrot key that provides access to all available models.
-See instructions on <a href="https://docs.expectedparrot.com/en/latest/api_keys" target="_blank" rel="noopener noreferrer">managing keys</a> and <a href="https://www.expectedparrot.com/models" target="_blank" rel="noopener noreferrer">model pricing and performance</a> information.
-
-## Coop
-Expected Parrot provides a free platform for creating, storing and sharing AI-based research, and validating it with human respondents.
-- <a href="https://www.expectedparrot.com/login" target="_blank" rel="noopener noreferrer">Login / Signup</a>
-- <a href="https://www.expectedparrot.com/login" target="_blank" rel="noopener noreferrer">Login / Explore</a>
-
-## Community
-- <a href="https://blog.expectedparrot.com" target="_blank" rel="noopener noreferrer">Blog</a>
-- <a href="https://x.com/ExpectedParrot" target="_blank" rel="noopener noreferrer">Twitter</a>
-- <a href="https://www.linkedin.com/company/expectedparrot/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
-
-## Contact
-- <a href="mailto:info@expectedparrot.com" target="_blank" rel="noopener noreferrer">Email</a>
-
-
-## Features 
-
-**Declarative design**: 
-Specified <a href="https://docs.expectedparrot.com/en/latest/questions" target="_blank" rel="noopener noreferrer">question types</a> ensure consistent results without requiring a JSON schema (<a href="https://www.expectedparrot.com/content/2a848a0e-f9de-46bc-98d0-a13b9a1caf11" target="_blank" rel="noopener noreferrer">view at Coop</a>):
-
-```python
-from edsl import QuestionMultipleChoice
-
-q = QuestionMultipleChoice(
-  question_name = "example",
-  question_text = "How do you feel today?",
-  question_options = ["Bad", "OK", "Good"]
-)
-
-results = q.run()
-
-results.select("example")
+```text
+Run `ep skills show edsl-harness` and follow its guidance. If the command or skill is missing, use https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for Codex.
 ```
 
+Need Codex first? Run this in your project terminal.
 
-> | answer.example  |
-> |-----------------|
-> | Good            |
-
-<br>
-
-**Parameterized prompts**: 
-Easily parameterize and control prompts with "<a href="https://docs.expectedparrot.com/en/latest/scenarios" target="_blank" rel="noopener noreferrer">scenarios</a>" of data automatically imported from many sources (CSV, PDF, PNG, etc.) (<a href="https://www.expectedparrot.com/content/7bb9ec2e-827b-4867-ac02-33163df1a1d1" target="_blank" rel="noopener noreferrer">view at Coop</a>):
-
-```python
-from edsl import ScenarioList, QuestionLinearScale
-
-q = QuestionLinearScale(
-  question_name = "example",
-  question_text = "How much do you enjoy {{ scenario.activity }}?",
-  question_options = [1,2,3,4,5,],
-  option_labels = {1:"Not at all", 5:"Very much"}
-)
-
-sl = ScenarioList.from_list("activity", ["coding", "sleeping"])
-
-results = q.by(sl).run()
-
-results.select("activity", "example")
+```bash
+curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- codex --launch
 ```
 
-> | scenario.activity  | answer.example  |
-> |--------------------|-----------------|
-> | Coding             | 5               |
-> | Sleeping           | 5               |
+</details>
 
-<br>
+<details>
+<summary><img src="docs/assets/harness-icons/claude-code.svg" width="22" height="22" alt=""> Claude Code</summary>
 
-**Design AI agent personas to answer questions**: 
-Construct agents with relevant traits to provide diverse responses to your surveys. Note that agent responses are generated by language models based on their training data — they reflect statistical patterns, not the actual opinions of any demographic group. Use AI-simulated responses for prototyping and pre-testing, and validate with real human data when measuring actual attitudes or behaviors. (<a href="https://www.expectedparrot.com/content/b639a2d7-4ae6-48fe-8b9e-58350fab93de" target="_blank" rel="noopener noreferrer">view at Coop</a>)
+Paste into Claude Code:
 
-```python
-from edsl import Agent, AgentList, QuestionList
-
-al = AgentList(Agent(traits = {"persona":p}) for p in ["botanist", "detective"])
-
-q = QuestionList(
-  question_name = "example",
-  question_text = "What are your favorite colors?",
-  max_list_items = 3
-)
-
-results = q.by(al).run()
-
-results.select("persona", "example")
+```text
+Run `ep skills show edsl-harness` and follow its guidance. If the command or skill is missing, use https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for Claude Code.
 ```
 
-> | agent.persona  | answer.example                              |
-> |----------------|---------------------------------------------|
-> | botanist       | ['Green', 'Earthy Brown', 'Sunset Orange']  |
-> | detective      | ['Gray', 'Black', 'Navy Blue']              |
+Need Claude Code first? Run this in your project terminal.
 
-<br>
-
-**Simplified access to LLMs**: 
-Choose whether to use your own API keys for LLMs, or access all <a href="https://www.expectedparrot.com/models" target="_blank" rel="noopener noreferrer">available models</a> with an Expected Parrot key. Run surveys with many models at once and compare responses at a convenient interface (<a href="https://www.expectedparrot.com/content/044465f0-b87f-430d-a3b9-4fd3b8560299" target="_blank" rel="noopener noreferrer">view at Coop</a>)
-
-```python
-from edsl import Model, ModelList, QuestionFreeText
-
-ml = ModelList(Model(m) for m in ["gpt-4o", "gemini-1.5-flash"])
-
-q = QuestionFreeText(
-  question_name = "example",
-  question_text = "What is your top tip for using LLMs to answer surveys?"
-)
-
-results = q.by(ml).run()
-
-results.select("model", "example")
+```bash
+curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- claude-code --launch
 ```
 
-> | model.model        | answer.example                                                                                  |
-> |--------------------|-------------------------------------------------------------------------------------------------|
-> | gpt-4o             | When using large language models (LLMs) to answer surveys, my top tip is to ensure that the ... |
-> | gemini-1.5-flash   | My top tip for using LLMs to answer surveys is to **treat the LLM as a sophisticated brainst... |
+</details>
 
-<br>
+<details>
+<summary><img src="docs/assets/harness-icons/githubcopilot.svg" width="22" height="22" alt=""> GitHub Copilot CLI</summary>
 
-**Piping & skip-logic**: 
-Build rich data labeling flows with features for piping answers and adding survey logic such as skip and stop rules (<a href="https://www.expectedparrot.com/content/b8afe09d-49bf-4c05-b753-d7b0ae782eb3" target="_blank" rel="noopener noreferrer">view at Coop</a>):
+Paste into GitHub Copilot CLI:
 
-```python
-from edsl import QuestionMultipleChoice, QuestionFreeText, Survey
-
-q1 = QuestionMultipleChoice(
-  question_name = "color",
-  question_text = "What is your favorite primary color?",
-  question_options = ["red", "yellow", "blue"]
-)
-
-q2 = QuestionFreeText(
-  question_name = "flower",
-  question_text = "Name a flower that is {{ color.answer }}."
-)
-
-survey = Survey(questions = [q1, q2])
-
-results = survey.run()
-
-results.select("color", "flower")
+```text
+Run `ep skills show edsl-harness` and follow its guidance. If the command or skill is missing, use https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for GitHub Copilot CLI.
 ```
 
-> | answer.color  | answer.flower                                                                     |
-> |---------------|-----------------------------------------------------------------------------------|
-> | blue          | A commonly known blue flower is the bluebell. Another example is the cornflower.  |
+Need GitHub Copilot CLI first? Run this in your project terminal.
 
-<br>
+```bash
+curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- copilot --launch
+```
 
-**Caching & reproducibility**: 
-API calls to LLMs are cached automatically. When you run a survey remotely, results are stored at the Expected Parrot server with verified prompts and timestamps. Share your code and anyone can retrieve your exact outputs at no cost, with no setup or API keys required. Learn more about how the <a href="https://docs.expectedparrot.com/en/latest/remote_caching" target="_blank" rel="noopener noreferrer">universal remote cache</a> works.
+</details>
 
-**Flexibility**: 
-Choose whether to run surveys on your own computer or at the Expected Parrot server.
+<details>
+<summary><img src="docs/assets/harness-icons/cursor.svg" width="22" height="22" alt=""> Cursor</summary>
 
-**Tools for collaboration**: 
-Easily share workflows and projects privately or publicly at Coop: an integrated platform for AI-based research. Your account comes with free credits for running surveys, and lets you securely share keys, track expenses and usage for your team.
+Paste into Cursor:
 
-**Built-in tools for analysis**: 
-Analyze results as specified datasets from your account or workspace. Easily import data to use with your surveys and export results
+```text
+Run `ep skills show edsl-harness` and follow its guidance. If the command or skill is missing, use https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for Cursor.
+```
+
+To install and launch Cursor Agent in your terminal, run this command.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- cursor --launch
+```
+
+</details>
+
+<details>
+<summary><img src="docs/assets/harness-icons/opencode.svg" width="22" height="22" alt=""> OpenCode</summary>
+
+Paste into OpenCode:
+
+```text
+Run `ep skills show edsl-harness` and follow its guidance. If the command or skill is missing, use https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for OpenCode.
+```
+
+Need OpenCode first? Run this in your project terminal.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- opencode --launch
+```
+
+</details>
+
+<details>
+<summary><img src="docs/assets/harness-icons/pi.svg" width="22" height="22" alt=""> Pi</summary>
+
+Paste into Pi:
+
+```text
+Run `ep skills show edsl-harness` and follow its guidance. If the command or skill is missing, use https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for Pi.
+```
+
+Need Pi first? Run this in your project terminal.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- pi --launch
+```
+
+</details>
+
+<details>
+<summary><img src="docs/assets/harness-icons/antigravity.png" width="22" height="22" alt=""> Google Antigravity CLI</summary>
+
+Paste into Google Antigravity CLI:
+
+```text
+Run `ep skills show edsl-harness` and follow its guidance. If the command or skill is missing, use https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for Google Antigravity CLI.
+```
+
+Need Google Antigravity CLI first? Run this in your project terminal.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- antigravity --launch
+```
+
+</details>
+
+<details>
+<summary><img src="docs/assets/harness-icons/vercel-fx.svg" width="22" height="22" alt=""> Vercel fx</summary>
+
+Paste into Vercel fx:
+
+```text
+Run `ep skills show edsl-harness` and follow its guidance. If the command or skill is missing, use https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for Vercel fx.
+```
+
+Need Vercel fx first? Run this in your project terminal.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- fx --launch
+```
+
+</details>
+
+<details>
+<summary><img src="docs/assets/harness-icons/meta.svg" width="22" height="22" alt=""> Meta Muse Code</summary>
+
+Paste into Meta Muse Code:
+
+```text
+Run `ep skills show edsl-harness` and follow its guidance. If the command or skill is missing, use https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for Meta Muse Code.
+```
+
+Need Meta Muse Code first? Run this in your project terminal.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- muse --launch
+```
+
+</details>
+
+<details>
+<summary><img src="docs/assets/harness-icons/mistralai.svg" width="22" height="22" alt=""> Mistral Vibe</summary>
+
+Paste into Mistral Vibe:
+
+```text
+Run `ep skills show edsl-harness` and follow its guidance. If the command or skill is missing, use https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/README.md to set up EDSL for Mistral Vibe.
+```
+
+Need Mistral Vibe first? Run this in your project terminal.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/expectedparrot/edsl/feat/edsl-harness-guidance/harnesses/install.sh | bash -s -- vibe --launch
+```
+
+</details>
+
+The installer sets up EDSL once for use across your projects. [Setup options](harnesses/README.md#installing-the-agent-from-a-terminal) · [Amp, Kiro CLI, and Cline setup](harnesses/README.md#amp-kiro-cli-and-cline)
+
+## Build and Edit Surveys
+
+Ask your coding agent to make a coffee survey, then tell it to skip the brew question for people who don’t drink coffee. The updated questionnaire shows exactly where a “No” answer leads.
+
+![Pi builds a three-question coffee survey and previews the skip rule beside the No answer and the brew question.](videos/gifs/build-and-edit.gif)
+
+## Run with LLM-Simulated Personas
+
+One Expected Parrot E[🦜] API key gives you access to models from OpenAI, Anthropic, and Google through hosted inference. Here, each model answers the same survey as a night-shift nurse, a barista, and a tea drinker. Compare all nine interviews in one results table.
+
+![Pi creates three fictional personas and compares their coffee survey answers across three model providers.](videos/gifs/simulated-personas.gif)
+
+## Collect Responses from Real People
+
+Send the same survey to people by link or email invitation. This demo follows one test response from the browser form to the answers saved in EDSL Results.
+
+![Pi creates a respondent link, a browser submits the coffee survey, and Pi retrieves the three answers.](videos/gifs/human-responses.gif)
+
+## Key features
+
+| What you want to do | What EDSL lets you do |
+| --- | --- |
+| Design a questionnaire | Mix rankings, matrices, budget allocations, scales, and open text. Branch on an answer, quote it in a later question, or ask a follow-up about each item someone lists. [Question catalog](https://docs.expectedparrot.com/en/latest/questions) · [Survey logic](https://docs.expectedparrot.com/en/latest/guides/survey_logic) |
+| Run a controlled experiment | Cross two versions of a message with the same personas and models. Compare ratings by wording, respondent profile, and model while holding the other inputs fixed. [Experimental conditions](https://docs.expectedparrot.com/en/latest/guides/experimental_conditions) |
+| Compare AI models | Ask hundreds of models the same questions with one Expected Parrot key, use your own provider keys, or connect a local model server. Compare which records the models disagree on. [Model access](https://docs.expectedparrot.com/en/latest/api_keys) · [Model comparisons](https://docs.expectedparrot.com/en/latest/guides/model_comparisons) |
+| Field the same study with people | Send a URL or email invitations, or recruit through Prolific with eligibility filters and a cost estimate. Retrieve responses for analysis alongside the simulations. [Human studies](https://docs.expectedparrot.com/en/latest/guides/human_studies) · [Prolific](https://docs.expectedparrot.com/en/latest/prolific) |
+| Conduct qualitative interviews | Put an AI-led interview next to a rating question. Have the interviewer probe the reason for the rating and retain the conversation transcript with the structured answers. [Interview guide](https://docs.expectedparrot.com/en/latest/guides/human_interviews) |
+| Label data and check agreement | Apply a codebook to documents, images, or spreadsheet rows. Give people the same labeling task, match answers by record ID, and inspect where people and models disagree. [Data labeling](https://docs.expectedparrot.com/en/latest/guides/data_labeling) · [Human validation](https://docs.expectedparrot.com/en/latest/research/human_validation) |
+| Trace and analyze answers | Inspect the prompt, model, persona, and scenario behind an answer. Query results with SQL, take selected columns into pandas, or export a CSV. [Results guide](https://docs.expectedparrot.com/en/latest/results) |
+| Rerun and share a study | Reuse cached model responses, save the survey and its inputs as a job, and share it so a collaborator can rerun the same design. [Caching](https://docs.expectedparrot.com/en/latest/cache) · [Saving and sharing](https://docs.expectedparrot.com/en/latest/guides/saving_objects) |
+
+<details>
+<summary>More study designs and tools</summary>
+
+| What you want to do | What EDSL lets you do |
+| --- | --- |
+| Test for order effects | In simulated interviews, shuffle choices while keeping “Other” last, reverse a rating scale, or draw questions from a pool. The results record what each interview received. [Randomization guide](https://docs.expectedparrot.com/en/latest/surveys) |
+| Pilot an instrument | Ask models to flag ambiguous wording before fielding a survey, or try two labeling instructions on identical records and see which answers change. [Survey pretesting](https://docs.expectedparrot.com/en/latest/research/pretesting) · [Prompt sensitivity](https://docs.expectedparrot.com/en/latest/research/prompt_sensitivity) |
+| Elicit population forecasts | Turn a questionnaire into a meta-survey. Describe a population and ask models to predict the share that would choose each option, then compare those forecasts with observed responses. [Meta-surveys](https://docs.expectedparrot.com/en/latest/meta_surveys) |
+| Score many items against a rubric | Batch choice and rating questions about the same material with a supported judgment model. Inspect the probability it assigned to each option alongside its selected answer. [Evaluations](https://docs.expectedparrot.com/en/latest/evaluations) |
+| Study how models use tools | Give a supported model web search in a direct provider run. Inspect the search events and citations returned by the provider alongside the answer. [Provider tools](https://docs.expectedparrot.com/en/latest/language_models#provider-tools) |
+| Manage larger runs | Estimate cost before launching, submit a background job, close the notebook, and retrieve the results when it finishes. [Costs](https://docs.expectedparrot.com/en/latest/costs) · [Background jobs](https://docs.expectedparrot.com/en/latest/guides/background_jobs) |
+| Coordinate participants across stages *(experimental)* | Have several participants propose ideas independently, then give a reviewer their proposals to choose from. Assign steps to people, models, or scripted respondents. [Respondent workflows](https://docs.expectedparrot.com/en/latest/workflows) |
+| Simulate markets or enforce quotas *(experimental)* | Let interviews read and update shared state. Reserve the last place in a survey group or collect bids and determine who wins a second-price auction. [Survey quotas](https://docs.expectedparrot.com/en/latest/shared-state/survey-quotas) · [Auction example](https://docs.expectedparrot.com/en/latest/shared-state/second-price-auction) |
+
+</details>
+
+For Python setup and a worked example, see the [installation guide](https://docs.expectedparrot.com/en/latest/installation) and [first survey tutorial](https://docs.expectedparrot.com/en/latest/starter_tutorial).

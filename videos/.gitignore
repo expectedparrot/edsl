@@ -1,0 +1,8 @@
+node_modules/
+*.mp4
+*.webm
+*.gif
+!gifs/*.gif
+!package.json
+!package-lock.json
+!prompts/*.txt

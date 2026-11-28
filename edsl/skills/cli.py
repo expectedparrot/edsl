@@ -3,18 +3,23 @@
 from __future__ import annotations
 
 import json
+import math
 import posixpath
 import re
+import shlex
 import shutil
 import subprocess
 import tempfile
 import webbrowser
+from collections import Counter
+from functools import lru_cache
 from pathlib import Path
 from urllib.parse import unquote
 
 import click
+import requests
 
-from edsl.cli_shared import EXIT_NOT_FOUND, EXIT_USAGE, error, output
+from edsl.cli_shared import EXIT_NOT_FOUND, EXIT_REMOTE, EXIT_USAGE, error, output
 
 
 SKILLS_ROOT = Path(__file__).resolve().parent
@@ -110,10 +115,33 @@ def _searchable_files(skill: dict) -> list[Path]:
     return sorted(set(markdown + _script_paths(skill) + examples))
 
 
-def _find_snippet(skill: dict, query: str, context_lines: int = 1, max_chars: int = 360) -> dict | None:
+def _words(text: str) -> tuple[str, ...]:
+    return tuple(re.findall(r"[^\W_]+", text.casefold()))
+
+
+class _SearchQuery:
+    """Match English word forms within a single catalog field or source line."""
+
+    def __init__(self, text: str):
+        from snowballstemmer import stemmer
+
+        self.text = text.casefold().strip()
+        self.words = _words(text)
+        self.keywords = set(self.words) - {"a", "an", "and", "for", "in", "of", "the", "to", "with"}
+        # One stemmer and vocabulary cache per search, shared across all documents.
+        self.stem = lru_cache(maxsize=8192)(stemmer("english").stemWord)
+        self.stems = {self.stem(word) for word in self.keywords}
+
+    def matches_words(self, words: tuple[str, ...]) -> bool:
+        return bool(self.stems) and self.stems.issubset(self.stem(word) for word in words)
+
+    def matches(self, text: str) -> bool:
+        return self.matches_words(_words(text))
+
+
+def _find_snippet(skill: dict, query: _SearchQuery, *, literal: bool, context_lines: int = 1, max_chars: int = 360) -> dict | None:
     """Return the first concise matching passage with its source location."""
-    needle = query.casefold()
-    if not needle:
+    if not query.text:
         return None
     for path in _searchable_files(skill):
         lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
@@ -125,7 +153,7 @@ def _find_snippet(skill: dict, query: str, context_lines: int = 1, max_chars: in
         for index, line in enumerate(lines):
             if index < offset:
                 continue
-            if needle in line.casefold():
+            if query.text in line.casefold() or (not literal and query.matches(line)):
                 start, end = max(0, index - context_lines), min(len(lines), index + context_lines + 1)
                 start = max(start, offset)
                 passage = " ".join(part.strip() for part in lines[start:end] if part.strip())
@@ -230,7 +258,7 @@ def _render_html(name: str, description: str, files: list[dict]) -> Path:
 def skills(ctx: click.Context):
     """Discover and install version-matched EDSL skills."""
     if ctx.invoked_subcommand is None:
-        output({"commands": ["list", "search", "show", "install"], "help": "Use 'ep skills <command> --help' for details."})
+        output({"commands": list(skills.commands), "help": "Use 'ep skills <command> --help' for details."})
 
 
 @skills.command("list")
@@ -292,14 +320,90 @@ def list_skills(human: bool, routing: bool):
         output({"skills": items})
 
 
+def _partial_package_matches(query: _SearchQuery, catalog: list[dict]) -> list[dict]:
+    """Rank multi-term overlap across package fields by TF-IDF cosine similarity."""
+    # "EDSL" identifies the catalog as a whole and adds no evidence of intent.
+    terms = query.stems - {"edsl"}
+    if len(terms) < 2:
+        return []
+    documents = []
+    frequencies = Counter()
+    for package in catalog:
+        fields = [package["name"], *package["methods"], package["description"]]
+        counts = Counter()
+        same_field_match = False
+        for field in fields:
+            stems = [query.stem(word) for word in _words(field)]
+            counts.update(stems)
+            if len(terms.intersection(stems)) >= 2:
+                same_field_match = True
+        if same_field_match:
+            documents.append((package, counts))
+        frequencies.update(counts.keys())
+    idf = {
+        term: 1 + math.log((1 + len(catalog)) / (1 + freq))
+        for term, freq in frequencies.items()
+    }
+    ranked = []
+    for package, counts in documents:
+        overlap = terms.intersection(counts)
+        if len(overlap) * 2 < len(terms):
+            continue
+        weights = {term: (1 + math.log(count)) * idf[term] for term, count in counts.items()}
+        # Query length is constant across candidates, so its norm cancels for ranking.
+        score = sum(weights[term] * idf[term] for term in sorted(overlap))
+        norm = math.sqrt(sum(weight * weight for weight in weights.values()))
+        ranked.append((score / norm, package))
+    return [package for _, package in sorted(ranked, key=lambda item: (-item[0], item[1]["name"]))]
+
+
+def _package_catalog() -> list[dict]:
+    return json.loads((SKILLS_ROOT / "packages.json").read_text(encoding="utf-8"))
+
+
+def _package_matches(query: _SearchQuery, limit: int) -> list[dict]:
+    """Search the public directory snapshot shipped with this EDSL version."""
+    if not query.keywords:
+        return []
+    catalog = _package_catalog()
+    ranked = []
+    for package in catalog:
+        methods = [_words(method) for method in package["methods"]]
+        description = _words(package["description"])
+        if query.words == _words(package["name"]):
+            rank = 0
+        elif query.words in methods:
+            rank = 1
+        elif any(query.keywords.issubset(method) for method in methods):
+            rank = 2
+        elif query.keywords.issubset(description):
+            rank = 3
+        elif any(query.matches_words(method) for method in methods):
+            rank = 4
+        elif query.matches_words(description):
+            rank = 5
+        else:
+            continue
+        ranked.append((rank, package["name"], package))
+    matches = [package for _, _, package in sorted(ranked, key=lambda item: item[:2])]
+    if not matches:
+        matches = _partial_package_matches(query, catalog)
+    return [
+        {**package, "kind": "external_package", "guide_command": f"ep skills guide {shlex.quote(package['name'])}"}
+        for package in matches[:limit]
+    ]
+
+
 @skills.command("search")
 @click.argument("query")
-@click.option("--limit", type=click.IntRange(1, 50), default=10, show_default=True)
+@click.option("--limit", type=click.IntRange(1, 50), default=10, show_default=True,
+              help="Maximum matches in each of the skill and package lists.")
 @click.option("--human", is_flag=True, help="Print readable text instead of JSON.")
 @click.option("--snippets", is_flag=True, help="Include a matching passage with source file and line number.")
 def search_skills(query: str, limit: int, human: bool, snippets: bool):
-    """Search bundled skill names, descriptions, and text."""
-    q = query.casefold().strip()
+    """Search bundled skills and public research packages by name or method."""
+    search = _SearchQuery(query)
+    q = search.text
     ranked = []
     for skill in _skills():
         name, description = skill["name"].casefold(), skill["description"].casefold()
@@ -309,28 +413,71 @@ def search_skills(query: str, limit: int, human: bool, snippets: bool):
             rank, match = 0, "exact_name"
         elif q in name:
             rank, match = 1, "name"
+        elif search.matches(name):
+            rank, match = 2, "name"
         elif q in description:
-            rank, match = 2, "description"
+            rank, match = 3, "description"
+        elif search.matches(description):
+            rank, match = 4, "description"
         elif q in body:
-            rank, match = 3, "content"
+            rank, match = 5, "content"
+        elif any(search.matches(line) for line in body.splitlines()):
+            rank, match = 6, "content"
         else:
             continue
         row = {"name": skill["name"], "description": skill["description"], "match": match}
         if snippets:
-            row["snippet"] = _find_snippet(skill, q)
+            row["snippet"] = _find_snippet(skill, search, literal=q in body)
         ranked.append((rank, skill["name"], row))
     ranked.sort(key=lambda item: (item[0], item[1]))
     results = [row for _, _, row in ranked[:limit]]
+    packages = _package_matches(search, limit)
     if human:
-        if not results:
-            click.echo("No matching EDSL skills found.")
+        if not results and not packages:
+            click.echo("No matching EDSL skills or research packages found.")
         for item in results:
             click.echo(f"{item['name']} [{item['match']}] — {item['description']}")
             if item.get("snippet"):
                 snippet = item["snippet"]
                 click.echo(f"  {snippet['path']}:{snippet['line']}: {snippet['text']}")
+        for package in packages:
+            click.echo(f"{package['name']} [external package] — {package['description']}")
+            click.echo(f"  Workflow: {package['guide_command']} ({package['guide_url']})")
+            click.echo(f"  After installation: {package['installed_guide_command']}")
+            if "installed_next_command" in package:
+                click.echo(f"  In a project: {package['installed_next_command']}")
+            click.echo(f"  README: {package['readme_url']}")
     else:
-        output({"query": query, "results": results})
+        output({"query": query, "results": results, "packages": packages})
+
+
+@skills.command("guide")
+@click.argument("name")
+@click.option("--human", is_flag=True, help="Print the workflow guide as Markdown.")
+def package_guide(name: str, human: bool):
+    """Read a public research package's workflow guide before installing it."""
+    package = next((p for p in _package_catalog() if p["name"].casefold() == name.casefold()), None)
+    if package is None:
+        error("PACKAGE_NOT_FOUND", f"No public research package named '{name}'.",
+              "Use 'ep skills search <method>' to find its catalog name.", EXIT_NOT_FOUND)
+    url = package["guide_url"]
+    try:
+        response = requests.get(url, timeout=20)
+        response.raise_for_status()
+        content = response.content.decode("utf-8")
+        if not content.strip():
+            raise ValueError("Empty document")
+    except (requests.RequestException, ValueError) as exc:
+        error("REMOTE_ERROR", f"Could not read the workflow guide for {package['name']}: {exc}",
+              f"Check the guide at {url} and retry.", EXIT_REMOTE)
+    if human:
+        click.echo(content, nl=not content.endswith("\n"))
+    else:
+        data = {"name": package["name"], "guide_url": url, "content": content,
+                "installed_guide_command": package["installed_guide_command"]}
+        if "installed_next_command" in package:
+            data["installed_next_command"] = package["installed_next_command"]
+        output(data)
 
 
 @skills.command("show")
@@ -440,20 +587,58 @@ def show_skill(name: str, reference_path: str | None, script_path: str | None, e
 
 @skills.command("install")
 @click.option("--target", required=True, type=click.Path(path_type=Path, file_okay=False), help="Directory in which to install each skill bundle.")
+@click.option("--skill", "skill_names", multiple=True, help="Install only this skill; repeat to install more than one. Defaults to all bundled skills.")
+@click.option("--link", is_flag=True, help="Link skill directories to this EDSL installation.")
 @click.option("--human", is_flag=True, help="Print readable text instead of JSON.")
-def install_skills(target: Path, human: bool):
-    """Install or update bundled skill files under TARGET."""
+def install_skills(target: Path, skill_names: tuple[str, ...], link: bool, human: bool):
+    """Install or update selected bundled skill files under TARGET."""
+    available = _skills()
+    by_name = {skill["name"]: skill for skill in available}
+    selected_names = list(dict.fromkeys(skill_names))
+    unknown = [name for name in selected_names if name not in by_name]
+    if unknown:
+        error(
+            "SKILL_NOT_FOUND",
+            f"No bundled skill named '{unknown[0]}'.",
+            "Run 'ep skills list' to see available skills, then repeat --skill for each skill to install.",
+            EXIT_NOT_FOUND,
+            details=[{"unknown_skills": unknown, "available_skills": sorted(by_name)}],
+        )
+    selected = [by_name[name] for name in selected_names] if selected_names else available
+
     target.mkdir(parents=True, exist_ok=True)
+    for skill in selected:
+        dest = target / skill["name"]
+        if dest.is_symlink() and dest.readlink() == skill["path"] and link:
+            continue
+        if dest.is_symlink() or (link and dest.exists()):
+            error("SKILL_CONFLICT", f"Skill already exists at {dest}.",
+                  "Move the existing entry to a backup directory and rerun the command.",
+                  exit_code=EXIT_USAGE)
+
     installed = []
-    for skill in _skills():
+    for skill in selected:
         destination = target / skill["name"]
-        if destination.exists():
+        if link:
+            if not destination.is_symlink():
+                destination.symlink_to(skill["path"], target_is_directory=True)
+        elif destination.exists():
             if not destination.is_dir():
                 error("USAGE_ERROR", f"Cannot install over non-directory: {destination}", "Choose a directory target without conflicting files.", EXIT_USAGE)
             shutil.copytree(skill["path"], destination, dirs_exist_ok=True)
         else:
             shutil.copytree(skill["path"], destination)
         installed.append(str(destination))
+    if link and not selected_names:
+        # Clean up only links into this installation whose bundle was removed.
+        for dest in target.iterdir():
+            if (
+                dest.is_symlink()
+                and dest.name not in by_name
+                and dest.readlink() == SKILLS_ROOT / dest.name
+                and not (dest / "SKILL.md").exists()
+            ):
+                dest.unlink()
     if human:
         click.echo(f"Installed {len(installed)} skills into {target.resolve()}")
         for path in installed:

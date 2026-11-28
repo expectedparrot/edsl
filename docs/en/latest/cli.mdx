@@ -43,8 +43,12 @@ Use `ep skills list --routing` to see their routing descriptions and available
 references, `ep skills search <query>` to find guidance, and `ep skills show
 <name>` to retrieve a skill with its linked references. Use
 `ep skills install --target <path>` to copy the bundles into a harness's skill
-directory. The bundled `edsl-shared-state` and `edsl-orchestration` skills
-describe the two features below.
+directory. Repeat `--skill <name>` to install selected bundles only; without
+it, all bundled skills are installed. For a single routing skill that loads
+other guidance on demand, install `edsl-harness`. The bundled `edsl-shared-state`
+and `edsl-orchestration` skills describe the two features below. See
+[EDSL skills for coding agents](/en/latest/agent_skills) for harness setup and
+package discovery.
 
 `ep workflow` manages research-task gates. Portable respondent workflows have a
 separate namespace: `ep orchestration validate`, `inspect`, and `run` operate on

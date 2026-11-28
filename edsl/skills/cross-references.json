@@ -1,5 +1,6 @@
 {
   "edsl": [
+    "edsl-harness",
     "edsl-agent-lists",
     "edsl-file-store",
     "edsl-human-survey",

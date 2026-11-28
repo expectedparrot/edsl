@@ -1,0 +1,61 @@
+---
+title: "EDSL skills for coding agents"
+description: "Use EDSL's version-matched skills and package guidance with coding-agent harnesses."
+---
+
+EDSL includes skill bundles with implementation guidance that matches the
+installed EDSL package. A coding agent can discover relevant guidance at task
+time through `ep skills`, instead of keeping a separate copy of every EDSL
+skill in its prompt.
+
+## Discover and load EDSL guidance
+
+Use the `ep` executable from the environment where EDSL is installed. The CLI
+returns JSON; inspect `status`, `data`, and `warnings`.
+
+```bash
+ep skills list --routing
+ep skills search "survey skip logic" --snippets
+ep skills show edsl-surveys
+```
+
+Search for the current task and load the matching skill and any linked
+references. `ep skills show` returns the skill text and references for the
+agent to read; EDSL does not execute skill instructions or scripts.
+
+## Install the routing skill
+
+The `edsl-harness` skill tells a harness when and how to search the installed
+EDSL catalog, suggests a starting layout for new EDSL projects, and routes
+method-specific requests to the Expected Parrot package directory. Install
+only this router into a harness's skill directory:
+
+```bash
+ep skills install --target .agents/skills --skill edsl-harness
+```
+
+Use repeatable `--skill` flags to install other selected skills when you want
+them natively available to the harness:
+
+```bash
+ep skills install --target .agents/skills \
+  --skill edsl-harness \
+  --skill edsl-surveys
+```
+
+Without `--skill`, the command preserves its original behavior and installs
+all bundled skills. For supported harness locations and setup notes, see the
+[harness setup guide](https://github.com/expectedparrot/edsl/blob/main/harnesses/README.md).
+
+## Find method-specific packages
+
+`ep skills search "forecasting scoring probabilities"` returns Vorhersage in
+`data.packages`. Search the local catalog with a package name, a method, or a
+few words describing the task. When there is no full match, the CLI can suggest
+packages that share several query terms, giving more weight to distinctive words.
+
+For work beyond EDSL's core capabilities, consult the [Expected Parrot package
+directory](https://github.com/expectedparrot/directory). Choose a package that
+matches the task, then read that repository's own README and agent guidance
+before installing it. The directory is a catalog, not an installer. Follow
+the selected package's installation, CLI, and file-layout instructions.

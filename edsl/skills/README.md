@@ -14,7 +14,9 @@ optional workflow or research links managed by EP Agent use
 `ep-agent:<name>` and must be declared in `cross-references.json`.
 
 `ep skills install --target <directory>` installs each complete bundle as a
-child of the target directory, including its scripts. `ep skills show <name>`
+child of the target directory, including its scripts. Repeat `--skill <name>`
+to install only selected bundles; without it, all bundled skills are installed.
+`ep skills show <name>`
 returns the main file and every transitively linked local Markdown reference.
 Fetch one reference with `ep skills show <name> --reference
 references/<file>.md`; fetch a script's source with
@@ -23,3 +25,21 @@ are fetchable with `ep skills show <name> --example <path>` and listed by
 `ep skills list --routing`. Search indexes skill references, scripts, and
 assigned example source. The CLI returns code for inspection; it does not
 execute bundled scripts or examples.
+
+Search by method with `ep skills search "best worst scaling"`. The JSON response
+lists bundled skills under `data.results` and public companion packages under
+`data.packages`. Each package includes method keywords, its repository, README, raw guide URL
+and a `guide_command`. Run it (for example, `ep skills guide Zwill`) to fetch the
+package’s workflow over HTTPS before installing anything. JSON includes the
+source URL and Markdown content. After installation use the package’s own
+`installed_guide_command`, then its `installed_next_command` inside a project
+when that field is present. Add `--human` to print the Markdown directly. `--limit` applies to each list. Search works offline using a
+release snapshot. Search recognizes related English word forms, so `forecast`
+finds `forecasting` and `coded interviews` finds `interview coding`. Multiword
+queries can match in any order within a method, description, or skill passage.
+To update a listing, edit `packages.json` in [expectedparrot/directory](https://github.com/expectedparrot/directory).
+EDSL's **Sync research package catalog** workflow checks directory main daily at
+07:17 UTC and can also be run manually from EDSL’s Actions tab on main.
+It uses EDSL’s built-in GitHub token to open or update one pull request with
+the new snapshot. The organization and repository Actions settings must allow
+pull request creation. Users receive the catalog in a release after the update merges.

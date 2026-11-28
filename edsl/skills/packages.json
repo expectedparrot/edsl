@@ -1,0 +1,569 @@
+[
+  {
+    "name": "Epiq",
+    "description": "Build a research database from entities, questions and source excerpts. Trace each claim to its evidence, inspect how answers changed, and export the dataset to a table or spreadsheet.",
+    "methods": [
+      "evidence database",
+      "claim tracking",
+      "source provenance",
+      "evidence tracking"
+    ],
+    "repository": "https://github.com/expectedparrot/epiq",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/epiq/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/epiq/HEAD/src/epiq/docs_content/workflow.md",
+    "installed_guide_command": "epiq guide",
+    "installed_next_command": "epiq next"
+  },
+  {
+    "name": "Conversation",
+    "description": "Simulate a group discussion or focus group with EDSL agents. Set the turn order, run conversations in parallel, and analyze what participants say in response to one another.",
+    "methods": [
+      "focus groups",
+      "multi-agent conversation",
+      "group discussion",
+      "turn taking",
+      "simulated focus group"
+    ],
+    "repository": "https://github.com/expectedparrot/conversation",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/conversation/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/conversation/HEAD/README.md",
+    "installed_guide_command": "conversation guide"
+  },
+  {
+    "name": "Aivis",
+    "description": "Track how often AI models mention or recommend a brand alongside its competitors. Repeat a set of prompts over time and measure share of voice, sentiment and citation influence.",
+    "methods": [
+      "AI visibility",
+      "brand visibility",
+      "share of voice",
+      "brand mentions"
+    ],
+    "repository": "https://github.com/expectedparrot/aivis",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/aivis/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/aivis/HEAD/README.md",
+    "installed_guide_command": "aivis guide",
+    "installed_next_command": "aivis next"
+  },
+  {
+    "name": "Ariel",
+    "description": "Split rent and assign rooms from housemates’ valuations. Check that rents add up and nobody prefers someone else’s room at its assigned price. Also allocate indivisible goods, chores, credit or shared fares.",
+    "methods": [
+      "fair division",
+      "rent division",
+      "rent splitting",
+      "envy-free room allocation",
+      "fair allocation"
+    ],
+    "repository": "https://github.com/expectedparrot/ariel",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/ariel/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/ariel/HEAD/README.md",
+    "installed_guide_command": "ariel guide",
+    "installed_next_command": "ariel next"
+  },
+  {
+    "name": "Bewley",
+    "description": "Code interview transcripts and other text. Build a codebook, annotate passages, write analytic memos, and export evidence tables linking themes to the words participants used.",
+    "methods": [
+      "qualitative coding",
+      "thematic analysis",
+      "interview coding",
+      "open coding",
+      "transcript analysis",
+      "codebook"
+    ],
+    "repository": "https://github.com/expectedparrot/bewley",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/bewley/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/bewley/HEAD/src/bewley/docs_content/workflow.md",
+    "installed_guide_command": "bewley guide",
+    "installed_next_command": "bewley next"
+  },
+  {
+    "name": "Bower",
+    "description": "Plan a stakeholder study around a business hypothesis. Tailor interview questions to each stakeholder, collect human or simulated responses, and trace findings to the supporting interviews.",
+    "methods": [
+      "stakeholder interviews",
+      "stakeholder analysis",
+      "stakeholder research",
+      "hypothesis-driven interviews"
+    ],
+    "repository": "https://github.com/expectedparrot/bower",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/bower/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/bower/HEAD/README.md",
+    "installed_guide_command": "bower guide",
+    "installed_next_command": "bower next"
+  },
+  {
+    "name": "Dewey",
+    "description": "Conduct a literature review from a collection of papers. Follow citation trails, screen studies for inclusion, extract evidence into a matrix, and trace synthesis claims back to findings.",
+    "methods": [
+      "literature review",
+      "citation discovery",
+      "citation tracking",
+      "screening papers",
+      "evidence extraction",
+      "research synthesis"
+    ],
+    "repository": "https://github.com/expectedparrot/dewey",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/dewey/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/dewey/HEAD/README.md",
+    "installed_guide_command": "dewey guide",
+    "installed_next_command": "dewey next"
+  },
+  {
+    "name": "Flyvbjerg",
+    "description": "Forecast from historical results for comparable projects. Build a reference class from past cases, record sources and missing observations, and use the resulting distribution as an outside view of a new estimate.",
+    "methods": [
+      "reference class forecasting",
+      "outside view",
+      "historical benchmarking",
+      "comparable project estimates",
+      "reference class distribution"
+    ],
+    "repository": "https://github.com/expectedparrot/flyvbjerg",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/flyvbjerg/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/flyvbjerg/HEAD/PRACTICE.md",
+    "installed_guide_command": "flyvbjerg guide",
+    "installed_next_command": "flyvbjerg next"
+  },
+  {
+    "name": "Green",
+    "description": "Design conjoint choice tasks or best-worst surveys and export EDSL fieldwork. Estimate trade-offs, willingness to pay and preference shares from respondents’ choices. Simulate how changing an attribute affects market share.",
+    "methods": [
+      "conjoint analysis",
+      "discrete choice",
+      "choice experiment",
+      "willingness to pay",
+      "WTP",
+      "MaxDiff",
+      "best worst scaling",
+      "Gabor-Granger",
+      "Van Westendorp",
+      "price sensitivity",
+      "attribute trade-offs",
+      "choice-based conjoint",
+      "feature prioritization"
+    ],
+    "repository": "https://github.com/expectedparrot/green",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/green/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/green/HEAD/green/docs_content/workflow.md",
+    "installed_guide_command": "green guide",
+    "installed_next_command": "green next"
+  },
+  {
+    "name": "Golden",
+    "description": "Help a consumer compare products. Elicit preferences and constraints, collect sourced product information, then compare utility against price and see how sensitive the decision is to the inputs.",
+    "methods": [
+      "consumer decision",
+      "preference interviews",
+      "product comparison",
+      "utility versus price"
+    ],
+    "repository": "https://github.com/expectedparrot/golden",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/golden/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/golden/HEAD/README.md",
+    "installed_guide_command": "golden guide",
+    "installed_next_command": "golden next"
+  },
+  {
+    "name": "Helmer",
+    "description": "Run a Delphi panel in repeated rounds. Collect expert estimates, return anonymous group feedback alongside each expert’s previous answer, and track consensus, revisions and disagreement.",
+    "methods": [
+      "Delphi",
+      "expert elicitation",
+      "anonymous expert panel",
+      "expert consensus",
+      "Delphi rounds"
+    ],
+    "repository": "https://github.com/expectedparrot/helmer",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/helmer/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/helmer/HEAD/helmer/docs_content/workflow.md",
+    "installed_guide_command": "helmer guide",
+    "installed_next_command": "helmer next"
+  },
+  {
+    "name": "Ishikawa",
+    "description": "Investigate why a problem occurs. Build a fishbone diagram of candidate causes, follow chains of why questions, and track evidence and corrective actions for each explanation.",
+    "methods": [
+      "fishbone diagram",
+      "root cause analysis",
+      "cause and effect diagram",
+      "cause investigation"
+    ],
+    "repository": "https://github.com/expectedparrot/ishikawa",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/ishikawa/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/ishikawa/HEAD/README.md",
+    "installed_guide_command": "ishikawa guide",
+    "installed_next_command": "ishikawa next"
+  },
+  {
+    "name": "Kahn",
+    "description": "Use two-axis scenario planning to build a matrix of four plausible futures. Turn critical uncertainties into narratives and compare how a policy or strategy performs across those futures.",
+    "methods": [
+      "scenario planning",
+      "scenario matrix",
+      "four futures",
+      "strategic scenarios",
+      "two by two scenario matrix"
+    ],
+    "repository": "https://github.com/expectedparrot/kahn",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/kahn/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/kahn/HEAD/kahn/docs_content/agent-workflow.md",
+    "installed_guide_command": "kahn guide",
+    "installed_next_command": "kahn next"
+  },
+  {
+    "name": "Katz",
+    "description": "Review successive versions of an academic manuscript. Anchor findings to a section and Git revision, track which concerns were resolved, and produce a review report.",
+    "methods": [
+      "manuscript review",
+      "manuscript revisions",
+      "peer review findings"
+    ],
+    "repository": "https://github.com/expectedparrot/katz",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/katz/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/katz/HEAD/src/katz/docs_content/workflow.md",
+    "installed_guide_command": "katz guide",
+    "installed_next_command": "katz next"
+  },
+  {
+    "name": "Langley",
+    "description": "Compare rival explanations using an evidence matrix. Score observations for consistency with competing hypotheses, identify contradicting evidence, and test how the ranking changes when a key observation is challenged.",
+    "methods": [
+      "analysis of competing hypotheses",
+      "ACH",
+      "hypothesis comparison",
+      "evidence matrix",
+      "diagnostic evidence"
+    ],
+    "repository": "https://github.com/expectedparrot/langley",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/langley/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/langley/HEAD/README.md",
+    "installed_guide_command": "langley guide",
+    "installed_next_command": "langley next"
+  },
+  {
+    "name": "McCall",
+    "description": "Pretest job advertisements with simulated candidates. Compare variants of a posting against the same role requirements and inspect how candidate personas interpret each version.",
+    "methods": [
+      "job posting experiments",
+      "job advertisements",
+      "job ad pretesting",
+      "job post variants"
+    ],
+    "repository": "https://github.com/expectedparrot/mccall",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/mccall/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/mccall/HEAD/README.md",
+    "installed_guide_command": "mccall guide",
+    "installed_next_command": "mccall next"
+  },
+  {
+    "name": "MCDA",
+    "description": "Rank alternatives against multiple criteria with explicit weights, thresholds and performance scores. Compare weighted-sum and ELECTRE III results and retain the judgments behind the ranking.",
+    "methods": [
+      "multi criteria decision analysis",
+      "weighted criteria",
+      "weighted sum",
+      "ELECTRE III",
+      "multi-criteria ranking"
+    ],
+    "repository": "https://github.com/expectedparrot/mcda",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/mcda/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/mcda/HEAD/docs/manual.md",
+    "installed_guide_command": "mcda guide",
+    "installed_next_command": "mcda next"
+  },
+  {
+    "name": "Messick",
+    "description": "Pretest and validate a survey instrument. Track the construct each question should measure, revise items, and record the evidence supporting each version and its intended use.",
+    "methods": [
+      "survey validation",
+      "psychometrics",
+      "instrument validation",
+      "questionnaire pretesting"
+    ],
+    "repository": "https://github.com/expectedparrot/messick",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/messick/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/messick/HEAD/README.md",
+    "installed_guide_command": "messick guide",
+    "installed_next_command": "messick next"
+  },
+  {
+    "name": "Niles",
+    "description": "Maintain contact records, interaction notes and follow-up tasks for a team. Connect intake surveys to relationship histories and review proposed updates before applying them.",
+    "methods": [
+      "contact management",
+      "CRM",
+      "relationship management",
+      "contact follow-up"
+    ],
+    "repository": "https://github.com/expectedparrot/niles",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/niles/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/niles/HEAD/AGENTS.md",
+    "installed_guide_command": "niles guide",
+    "installed_next_command": "niles next"
+  },
+  {
+    "name": "Oneheart",
+    "description": "Design and run Concordia social simulations. Define agent roles, treatments and outcome measurements, generate pilot code, and export results from experiments on interacting agents.",
+    "methods": [
+      "social simulation",
+      "Concordia",
+      "agent interactions",
+      "multi-agent experiment"
+    ],
+    "repository": "https://github.com/expectedparrot/oneheart",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/oneheart/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/oneheart/HEAD/oneheart/docs_content/agent-guide.md",
+    "installed_guide_command": "oneheart guide",
+    "installed_next_command": "oneheart next"
+  },
+  {
+    "name": "Premortem",
+    "description": "Ask stakeholders to imagine a project has failed and explain what went wrong. Map failure modes into a causal graph, prioritize mitigations, and record open research questions.",
+    "methods": [
+      "pre-mortem",
+      "prospective hindsight",
+      "failure modes",
+      "project risk workshop"
+    ],
+    "repository": "https://github.com/expectedparrot/premortem",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/premortem/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/premortem/HEAD/AGENT.md",
+    "installed_guide_command": "premortem guide",
+    "installed_next_command": "premortem next"
+  },
+  {
+    "name": "Pruefung",
+    "description": "Create and grade quizzes and exams with EDSL questions. Build assessments, check them before deployment, and ingest responses for grading.",
+    "methods": [
+      "exam grading",
+      "quiz design",
+      "assessment design",
+      "quiz grading"
+    ],
+    "repository": "https://github.com/expectedparrot/pruefung",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/pruefung/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/pruefung/HEAD/AGENTS.md",
+    "installed_guide_command": "pruefung guide",
+    "installed_next_command": "pruefung next"
+  },
+  {
+    "name": "Raiffa",
+    "description": "Compare decision policies using influence diagrams, sourced probabilities and utilities. Find the thresholds where a choice changes and calculate the value of obtaining more information.",
+    "methods": [
+      "influence diagrams",
+      "decision analysis",
+      "value of information",
+      "decision thresholds"
+    ],
+    "repository": "https://github.com/expectedparrot/raiffa",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/raiffa/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/raiffa/HEAD/raiffa/docs_content/workflow.md",
+    "installed_guide_command": "raiffa guide",
+    "installed_next_command": "raiffa next"
+  },
+  {
+    "name": "Roth",
+    "description": "Match participants who ranked one another, such as mentors and fellows. Run deferred acceptance with either side proposing, inspect proposal histories, and check for blocking pairs and unmatched participants.",
+    "methods": [
+      "stable matching",
+      "deferred acceptance",
+      "two-sided matching",
+      "Gale-Shapley",
+      "blocking pairs"
+    ],
+    "repository": "https://github.com/expectedparrot/roth",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/roth/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/roth/HEAD/docs/agent.md",
+    "installed_guide_command": "roth guide",
+    "installed_next_command": "roth next"
+  },
+  {
+    "name": "Spence",
+    "description": "Run a hiring pipeline with EDSL application forms. Connect job posts to candidate records, track hiring stages, and collect structured reviews for candidate reports.",
+    "methods": [
+      "applicant tracking",
+      "hiring pipeline",
+      "application review"
+    ],
+    "repository": "https://github.com/expectedparrot/spence",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/spence/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/spence/HEAD/README.md",
+    "installed_guide_command": "spence guide",
+    "installed_next_command": "spence next"
+  },
+  {
+    "name": "Stanton",
+    "description": "Break a numerical estimate into measurable inputs. Combine sourced estimates with units, propagate uncertainty, and compare alternative calculations and their assumptions.",
+    "methods": [
+      "numerical estimation",
+      "Fermi estimate",
+      "uncertainty propagation",
+      "back of the envelope"
+    ],
+    "repository": "https://github.com/expectedparrot/stanton",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/stanton/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/stanton/HEAD/docs/agent-research.md",
+    "installed_guide_command": "stanton guide",
+    "installed_next_command": "stanton next"
+  },
+  {
+    "name": "Tommy",
+    "description": "Prepare simulated sales conversations, save practice attempts, and turn transcript-based feedback into coaching reports.",
+    "methods": [
+      "sales roleplay",
+      "sales practice",
+      "transcript feedback"
+    ],
+    "repository": "https://github.com/expectedparrot/tommy",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/tommy/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/tommy/HEAD/README.md",
+    "installed_guide_command": "tommy guide",
+    "installed_next_command": "tommy next"
+  },
+  {
+    "name": "Treffen",
+    "description": "Prepare a meeting by surveying and interviewing the participants. Synthesize their input into an agenda and pre-read, then preserve the decisions in a meeting record.",
+    "methods": [
+      "meeting preparation",
+      "meeting agenda",
+      "meeting pre-read"
+    ],
+    "repository": "https://github.com/expectedparrot/treffen",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/treffen/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/treffen/HEAD/README.md",
+    "installed_guide_command": "treffen guide",
+    "installed_next_command": "treffen next"
+  },
+  {
+    "name": "Umriss",
+    "description": "Build a reusable synthetic panel that matches published population totals or percentages. Fit weights to candidate profiles against survey marginals, inspect the gaps from target distributions, and evaluate predictions on held-out items.",
+    "methods": [
+      "population calibration",
+      "survey marginals",
+      "synthetic population",
+      "calibration weighting",
+      "weighted synthetic panel",
+      "matching survey marginals",
+      "population targets"
+    ],
+    "repository": "https://github.com/expectedparrot/umriss",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/umriss/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/umriss/HEAD/README.md",
+    "installed_guide_command": "umriss guide",
+    "installed_next_command": "umriss next"
+  },
+  {
+    "name": "Urteil",
+    "description": "Score material against a rubric using manual or model ratings. Maintain codebooks and gold standards, combine multiple raters, and rescore saved evaluations when the scorecard changes.",
+    "methods": [
+      "rubric evaluation",
+      "rubric scoring",
+      "multi-rater scoring",
+      "gold standard evaluation"
+    ],
+    "repository": "https://github.com/expectedparrot/urteil",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/urteil/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/urteil/HEAD/urteil/docs_content/workflow.md",
+    "installed_guide_command": "urteil guide",
+    "installed_next_command": "urteil next"
+  },
+  {
+    "name": "UXTest",
+    "description": "Test a website with simulated users. Capture browser journeys, screenshots and traces with Playwright and EDSL, then compare findings across pages or revisions.",
+    "methods": [
+      "usability testing",
+      "synthetic user testing",
+      "website usability study",
+      "browser journey"
+    ],
+    "repository": "https://github.com/expectedparrot/uxtest",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/uxtest/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/uxtest/HEAD/uxtest/resources/docs/README.md",
+    "installed_guide_command": "uxtest guide",
+    "installed_next_command": "uxtest next"
+  },
+  {
+    "name": "Vorhersage",
+    "description": "Forecast whether an event will occur. Record evidence and probability estimates, revise them as new information arrives, then evaluate forecasts against observed outcomes.",
+    "methods": [
+      "probability forecasting",
+      "binary event forecasting",
+      "event probabilities",
+      "forecast evaluation"
+    ],
+    "repository": "https://github.com/expectedparrot/vorhersage",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/vorhersage/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/vorhersage/HEAD/docs/AGENT_GUIDE.md",
+    "installed_guide_command": "vorhersage guide",
+    "installed_next_command": "vorhersage next"
+  },
+  {
+    "name": "Voting",
+    "description": "Compare social choice rules and voting methods on the same ranked ballots. Aggregate preferences, count first choices, simulate instant-runoff elimination, and identify Condorcet winners from pairwise contests. Check how the choice of rule changes the result.",
+    "methods": [
+      "social choice",
+      "ranked ballots",
+      "voting rules",
+      "ranked choice voting",
+      "instant runoff",
+      "Condorcet",
+      "plurality",
+      "preference aggregation",
+      "pairwise elections"
+    ],
+    "repository": "https://github.com/expectedparrot/voting",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/voting/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/voting/HEAD/voting/docs_content/workflow.md",
+    "installed_guide_command": "voting guide",
+    "installed_next_command": "voting next"
+  },
+  {
+    "name": "Zugunruhe",
+    "description": "Migrate an existing Qualtrics or SurveyMonkey questionnaire to EDSL. Capture the instrument, convert it, review validation findings, and export it for use in Expected Parrot.",
+    "methods": [
+      "survey migration",
+      "Qualtrics import",
+      "SurveyMonkey import",
+      "questionnaire conversion",
+      "survey import"
+    ],
+    "repository": "https://github.com/expectedparrot/zugunruhe",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/zugunruhe/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/zugunruhe/HEAD/README.md",
+    "installed_guide_command": "zugunruhe guide",
+    "installed_next_command": "zugunruhe next"
+  },
+  {
+    "name": "Zwicky",
+    "description": "Explore a design space by combining values across dimensions. Mark incompatible combinations with cross-consistency judgments, generate feasible configurations, and compare the remaining concepts.",
+    "methods": [
+      "morphological analysis",
+      "design space",
+      "morphological box",
+      "cross-consistency assessment",
+      "incompatible combinations",
+      "configuration space"
+    ],
+    "repository": "https://github.com/expectedparrot/zwicky",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/zwicky/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/zwicky/HEAD/AGENTS.md",
+    "installed_guide_command": "zwicky guide",
+    "installed_next_command": "zwicky next"
+  },
+  {
+    "name": "Zwill",
+    "description": "Test survey digital twins against real responses and conventional baselines. Generate EDSL jobs and compare predictive performance for individuals and for the population as a whole.",
+    "methods": [
+      "digital twin validation",
+      "survey digital twins",
+      "persona validation",
+      "predictive validity"
+    ],
+    "repository": "https://github.com/expectedparrot/zwill",
+    "readme_url": "https://raw.githubusercontent.com/expectedparrot/zwill/HEAD/README.md",
+    "guide_url": "https://raw.githubusercontent.com/expectedparrot/zwill/HEAD/zwill/guides/agent-workflow.md",
+    "installed_guide_command": "zwill guide",
+    "installed_next_command": "zwill next"
+  }
+]

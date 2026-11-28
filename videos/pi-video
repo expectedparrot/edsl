@@ -1,0 +1,7 @@
+#!/bin/sh
+# Give Pi the caller's environment while uv isolates the recorder's dependencies.
+set -eu
+tool_dir=$(dirname "$(realpath "$0")")
+export PI_SCREENCAST_CALLER_PATH="$PATH"
+export PI_SCREENCAST_CALLER_VENV="${VIRTUAL_ENV-}"
+exec uv run --script "$tool_dir/pi_video.py" "$@"

@@ -78,15 +78,18 @@ ep skills show edsl-human-survey --reference references/humanize-schema.md
 ep skills show <skill-name> --script scripts/<script-file>
 ep skills show edsl-surveys --html
 ep skills install --target ./skills
+ep skills install --target ./.agents/skills --skill edsl-harness
+ep skills install --target ./skills --skill edsl-harness --skill edsl-surveys
 ```
 
 `ep skills show --html` uses Pandoc to render the skill and its linked local
 references into one temporary page, then opens that page in the default browser.
 `ep skills list --routing` returns each skill's name, description, tags, linked
 reference paths, bundled script paths, and exact commands to fetch them. Skill
-search also searches bundled script text. Use
-`ep skills show <name> --script <path>` to retrieve script source through the
-CLI. `ep skills install` copies the complete bundle; it does not run scripts.
+search also searches bundled script text. Repeat `--skill <name>` to install
+selected skills; without it, `ep skills install` copies every bundled skill.
+Use `ep skills show <name> --script <path>` to retrieve script source through
+the CLI. Installation copies complete selected bundles; it does not run scripts.
 
 ## Playbooks
 
