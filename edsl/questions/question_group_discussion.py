@@ -512,7 +512,15 @@ class QuestionGroupDiscussion(QuestionBase):
 
     def _markdown_answer(self, view):
         names = ", ".join(md.text(p["name"]) for p in self.participants)
-        return f"Group discussion with {names} (up to {self.max_rounds} rounds)."
+        stages = []
+        for stage in self.resolved_stages():
+            label = stage["type"]
+            if label == "discussion":
+                rounds = stage["rounds"]
+                unit = "round" if rounds == 1 else "rounds"
+                label += f" ({rounds} {unit})"
+            stages.append(label)
+        return f"Group discussion with {names}. Stages: {' → '.join(stages)}."
 
     @property
     def question_html_content(self) -> str:

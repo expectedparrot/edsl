@@ -200,6 +200,8 @@ dropdown's `top_k` determines how many matches a search returns.
 Budget questions show an allocation table with the total above it. Demand questions
 pair each price with an empty quantity cell. Rank questions show the available
 choices followed by the requested number of blank ranking positions.
+Group discussions list their stages in order. Active survey instructions appear before
+each question they apply to, including when you open that question on a later page.
 Matrix questions display items as rows and response options as columns. Questions appear
 in authored order with response options and routing. Jinja expressions and control
 tags in question text appear as inline code, so you can see where answers or scenario
@@ -311,7 +313,9 @@ as `ep inspect`. Local Markdown previews use the saved package contents. Plain
 | Prompt or playbook | One line of saved prompt text. |
 
 For example, `agents.to_markdown(page=2, page_size=5)` returns the second page in Python.
-Omit the pagination flags on `ep surveys show survey.ep --markdown` for the full questionnaire.
+Use `ep inspect survey.ep --markdown` for the same quick, paged look you would give
+any study object. Use `ep surveys show survey.ep --markdown` to read or export the
+whole questionnaire, or to include question names, types, or all dropdown choices.
 
 ## Run with language models
 

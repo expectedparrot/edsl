@@ -358,3 +358,44 @@ def test_question_jinja_spans(source, expected):
     from edsl.questions.markdown_layout import question_text
 
     assert question_text(source) == expected
+
+
+@pytest.mark.parametrize("command", [["surveys", "show"], ["inspect"]])
+def test_saved_instructions_follow_question_scope_across_pages(tmp_path, coffee, command):
+    from edsl.instructions import ChangeInstruction, Instruction
+
+    instruction = Instruction("style", "Use {{ tone }}.", preamble="Writing guide")
+    first, second, third = coffee.questions
+    survey = Survey([instruction, first, second, ChangeInstruction(drop=["style"]), third])
+    package = tmp_path / "survey.ep"
+    survey.git.save(package)
+    runner = CliRunner()
+
+    def preview(*options):
+        result = runner.invoke(app, [*command, str(package), "--markdown", *options])
+        assert result.exit_code == 0, result.output
+        return result.output
+
+    full = preview()
+    assert full.index("Writing guide") < full.index("**1.")
+    assert full.count("Use `{{ tone }}`.") == 2
+    page = preview("--page", "2", "--page-size", "1")
+    assert "**Instructions for question 2**" in page
+    assert "Writing guide" in page and "Use `{{ tone }}`." in page
+    last = preview("--page", "3", "--page-size", "1")
+    assert "**3." in last and "Writing guide" not in last
+
+
+def test_group_discussion_preview_uses_resolved_stages():
+    from edsl.questions.question_group_discussion import QuestionGroupDiscussion
+
+    params = dict(
+        question_name="panel", question_text="Decide.",
+        participants=[{"name": "A"}, {"name": "B"}],
+    )
+    simple = QuestionGroupDiscussion(**params, max_rounds=1, decision_mode="moderator")
+    assert "discussion (1 round) → moderator" in simple.to_markdown()
+    explicit = QuestionGroupDiscussion(
+        **params, stages=[{"type": "discussion", "rounds": 10}, {"type": "vote"}]
+    )
+    assert "discussion (10 rounds) → vote" in explicit.to_markdown()

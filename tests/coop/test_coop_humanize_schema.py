@@ -11,6 +11,7 @@ from edsl.coop.exceptions import HumanizeSchemaValidationError
 from edsl.instructions import Instruction
 from edsl.questions import (
     QuestionCheckBox,
+    QuestionCheckboxMatrix,
     QuestionCheckBoxWithOther,
     QuestionDate,
     QuestionDateTime,
@@ -460,6 +461,54 @@ class TestValidateHumanizeSchemaGeneral:
         model = QUESTION_TYPE_TO_HUMANIZE_CLASS[question_type]
         with pytest.raises(ValidationError):
             model.model_validate({"format": {"type": "input"}})
+
+    def test_checkbox_matrix_accepts_its_settings(self):
+        """It takes optional, a comment, time limit, submitting indicator and
+        script."""
+        question = QuestionCheckboxMatrix(
+            question_name="weekly_activities",
+            question_text="Which activities do you do on each day?",
+            question_items=["Monday", "Tuesday"],
+            question_options=["Exercise", "Cooking", "Reading"],
+            min_selections=1,
+        )
+        humanize_schema = {
+            "questions": {
+                "weekly_activities": {
+                    "optional": True,
+                    "comment": {"label": "Anything to add?"},
+                    "time_limit": {"duration": {"type": "fixed", "seconds": 300}},
+                    "submitting_indicator": {"type": "callout"},
+                    "javascript": {"hooks": {}},
+                }
+            }
+        }
+        validate_humanize_schema(Survey([question]), humanize_schema)
+
+    @pytest.mark.parametrize(
+        "setting",
+        [
+            {"format": {"type": "table"}},
+            {"format": {"type": "carousel"}},
+            # A preselection matrix accepts, so this fails only if checkbox
+            # matrix gains the field.
+            {
+                "preselection": {
+                    "rules": [
+                        {
+                            "match": {"type": "all"},
+                            "option": {"type": "text", "value": "Exercise"},
+                        }
+                    ]
+                }
+            },
+        ],
+        ids=["table", "carousel", "preselection"],
+    )
+    def test_checkbox_matrix_has_none_of_matrixs_display_settings(self, setting):
+        """A table only for now, with nothing checked to start."""
+        with pytest.raises(ValidationError):
+            QUESTION_TYPE_TO_HUMANIZE_CLASS["checkbox_matrix"].model_validate(setting)
 
     def test_survey_message_accepts_only_empty_display_configuration(self):
         survey = Survey(
@@ -1008,6 +1057,7 @@ class TestValidateHumanizeSchemaTimeLimit:
         "free_text",
         "budget",
         "checkbox",
+        "checkbox_matrix",
         "checkbox_with_other",
         "date",
         "date_time",
