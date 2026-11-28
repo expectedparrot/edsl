@@ -422,6 +422,28 @@ ep open example-survey.ep --ref <first-commit-id> --output original-survey.html
 This is useful in review or replication: a commit ID identifies the exact
 survey being discussed, even after the package has moved forward.
 
+## Edit a survey collaboratively in Coopr
+
+To open a Survey package in Coopr's collaborative editor, run:
+
+```bash
+ep edit example-survey.ep
+```
+
+The command pushes the package to Coopr first, then opens that survey's
+collaborative editor in your browser. For a package already linked to Coopr,
+this updates the remote survey with the package's current contents before
+opening the editor. Coopr uses your browser session to check sign-in and edit
+permissions. After saving changes in the editor, sync them back into the local
+package with:
+
+```bash
+ep pull example-survey.ep
+```
+
+Use `ep edit example-survey.ep --no-browser` to push and print the editor URL
+without launching a browser.
+
 ## Name important versions
 
 Commit IDs are precise but not memorable. Add a Git tag to a milestone:

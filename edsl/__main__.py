@@ -14,6 +14,7 @@ from edsl.cli_commands import auth as auth_commands
 from edsl.cli_commands import costs as costs_commands
 from edsl.cli_commands import collections as collections_commands
 from edsl.cli_commands import docs as docs_commands
+from edsl.cli_commands import edit as edit_commands
 from edsl.cli_commands import humanize as humanize_commands
 from edsl.cli_commands import inspect as inspect_commands
 from edsl.cli_commands import jobs as jobs_commands
@@ -71,6 +72,7 @@ def app(ctx):
                 "validate",
                 "objects",
                 "open",
+                "edit",
                 "unpack",
                 "unzip",
                 "clone",
@@ -420,6 +422,7 @@ for command_name in [
 ]:
     objects.add_command(app.commands[command_name], command_name)
 open_commands.register(app)
+edit_commands.register(app)
 package_commands.register(app)
 profiles_commands.register(app, profiles)
 present_commands.register(app)

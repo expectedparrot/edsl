@@ -78,6 +78,7 @@ Top-level commands available in the CLI:
 | `costs` | Track estimated and actual job costs in a ledger. |
 | `credits` | Open or return the Expected Parrot credits page. |
 | `delete` | Delete a remote object. |
+| `edit` | Push a Survey package to Coopr and open its collaborative editor. |
 | `humanize` | Create and manage human surveys. |
 | `info` | Show version, config, and diagnostics. |
 | `inspect` | Inspect local packages/files or remote objects. |
@@ -487,8 +488,13 @@ ep unshare shared_object.ep --user collaborator@example.com
 ep push shared_object.ep
 ep pull shared_object.ep
 ep log shared_object.ep --oneline
+ep edit survey.ep
 ep delete shared_object.ep --yes
 ```
+
+`ep edit survey.ep` pushes the package to Coopr before opening the collaborative
+editor. After saving in the browser, run `ep pull survey.ep` to sync the remote
+survey back into the package. Coopr browser login and edit permissions apply.
 
 Use `delete --yes` only when explicitly requested by the user.
 
